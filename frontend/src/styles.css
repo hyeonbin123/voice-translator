@@ -1,15 +1,45 @@
-:root {
+﻿:root {
   font-family: system-ui, 'Segoe UI', 'Noto Sans KR', sans-serif;
-  color: #1d2433;
-  background: #f6f7f9;
+  color: #1d2939;
+  background: #f5f7fa;
+  font-synthesis: none;
+  line-height: 1.6;
 }
 
-body {
-  margin: 0;
-}
-
-.app {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 48px 20px;
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 360px; }
+a { color: #2159a1; text-underline-offset: 3px; }
+button, input { font: inherit; }
+button { cursor: pointer; border: 1px solid #c8d2df; border-radius: 8px; padding: 8px 14px; background: white; color: inherit; }
+button:disabled { cursor: wait; opacity: .65; }
+:focus-visible { outline: 3px solid #2973cc; outline-offset: 3px; }
+.app { max-width: 1080px; margin: auto; padding: 0 24px 64px; }
+.brand { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding: 24px 0; border-bottom: 1px solid #dce2eb; }
+.brand a { font-weight: 750; font-size: 20px; text-decoration: none; color: #1d2939; }
+.brand span, .muted, .hint { color: #536175; }
+.brand span { font-size: 14px; }
+main { padding-top: 32px; }
+.auth-card { max-width: 440px; margin: 20px auto; padding: 32px; background: white; border: 1px solid #dce2eb; border-radius: 16px; box-shadow: 0 8px 30px #182c4610; }
+h1 { margin: 4px 0 12px; font-size: 28px; letter-spacing: -.04em; }
+.eyebrow { color: #2159a1; font-size: 13px; font-weight: 700; margin: 0; }
+form { display: flex; flex-direction: column; margin-top: 24px; }
+label { margin: 12px 0 6px; font-weight: 600; }
+input { min-width: 0; width: 100%; border: 1px solid #9aa9bc; border-radius: 8px; padding: 10px 12px; background: white; color: inherit; }
+.hint { margin: 8px 0 0; font-size: 13px; }
+.primary { background: #2159a1; color: white; border-color: #2159a1; padding: 11px; margin-top: 24px; font-weight: 650; }
+.switch-auth { text-align: center; font-size: 14px; margin: 24px 0 0; }
+.error { color: #a12020; background: #fff0f0; padding: 12px; border-radius: 8px; margin-bottom: 0; }
+.notice { background: #edf4ff; color: #204c81; padding: 12px; border-radius: 8px; }
+.workspace-bar, .account, nav { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.workspace-bar { justify-content: space-between; margin-bottom: 24px; }
+nav a { padding: 8px 16px; text-decoration: none; border-radius: 8px; }
+nav a.active { background: #e4edfb; color: #184985; font-weight: 700; }
+.account { font-size: 14px; min-width: 0; }
+.account span { overflow-wrap: anywhere; }
+.placeholder { padding: 32px; border: 1px solid #dce2eb; border-radius: 16px; background: white; }
+@media (max-width: 520px) {
+  .app { padding-left: 16px; padding-right: 16px; }
+  .brand { gap: 4px; flex-direction: column; align-items: flex-start; }
+  .auth-card { padding: 24px; margin-top: 0; }
+  .placeholder { padding: 24px; }
 }
