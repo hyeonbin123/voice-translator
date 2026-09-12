@@ -1,7 +1,7 @@
 # API 계약
 
 모든 경로는 `/api`로 시작한다. JSON의 ID는 UUID 문자열, 날짜는 시간대가 포함된 ISO 8601이다.
-요청·응답 예시의 ID와 토큰은 설명용이다. 이 문서는 T5 인증·기록 계약이며 번역·음성 API는 T10에서 추가한다.
+요청·응답 예시의 ID와 토큰은 설명용이다. 인증·기록 계약은 T5, 번역·음성 계약은 T10에서 정했다.
 
 ## 인증
 
@@ -167,7 +167,7 @@ T5에는 기록 생성 API가 없다. T6 번역 파이프라인에서 성공한 
 `mode`는 `text` 또는 `speech`, 언어는 `en` 또는 `ko`이며 출발·도착 언어는 서로 다르다.
 모델명은 실제 사용한 모델 식별자다. 시간 필드 단위는 밀리초이며, 실행하지 않은 STT/TTS는 `null`이다.
 합성 음성 메타데이터가 없으면 `audio_id`는 `null`이다. 파일 시스템 경로는 응답에 노출하지 않는다.
-서버 음성 조회는 T6의 `/api/audio/{id}`에서 Bearer 인증 후 blob URL로 재생한다.
+서버 음성은 번역 절의 `GET /api/audio/{id}`로 받아 blob URL로 재생한다. `audio_id`가 `null`이면 화면은 브라우저 내장 음성으로 읽는다.
 
 오류: `401` 인증 실패, `404` 본인 기록 없음, `422` UUID 형식 오류.
 
@@ -177,8 +177,94 @@ T5에는 기록 생성 API가 없다. T6 번역 파이프라인에서 성공한 
 응답 `204 No Content`, 응답 본문 없음. 다시 삭제하면 `404`이다.
 
 번역 행과 연결된 `audio_files` 행을 같은 DB 트랜잭션에서 삭제한다.
-T5에서는 디스크 파일을 삭제하지 않는다. 파일 저장소가 생기는 T6에서 디스크 삭제를 연결한다.
+T5에서는 디스크 파일을 삭제하지 않는다. 파일 저장소가 생기는 T6에서 디스크 삭제를 연결한다(번역 절의 "저장과 삭제").
 오류: `401` 인증 실패, `404` 본인 기록 없음, `422` UUID 형식 오류.
+
+## 번역
+
+아래 경로 모두 access 토큰이 필요하다. 번역이 성공하면 기록을 하나 만들고, 그 기록과 `tts_error`를 돌려준다.
+모델 호출은 서버의 모델 전용 스레드에서 실행되므로 번역 중에도 다른 요청(로그인, 기록 조회)은 막히지 않는다.
+
+### POST /api/translate/text
+
+`Content-Type: application/json`
+
+```json
+{"text": "안녕하세요", "source_lang": "ko", "target_lang": "en"}
+```
+
+- `text`: 앞뒤 공백을 자른 뒤 1~500자(유니코드 문자 기준). 자른 값을 번역하고 저장한다
+- `source_lang`, `target_lang`: `en` 또는 `ko`, 서로 달라야 한다
+
+응답 `201 Created`, `Location: /api/history/{id}`. 본문은 기록 항목(`GET /api/history/{id}`와 같은 형태)에 `tts_error`를 더한 것:
+
+```json
+{
+  "id": "080b161c-53d6-4460-992b-f778a5e348cd",
+  "mode": "text",
+  "source_lang": "ko",
+  "target_lang": "en",
+  "source_text": "안녕하세요",
+  "translated_text": "Hello",
+  "stt_model": null,
+  "mt_model": "example-mt",
+  "tts_model": "example-tts",
+  "stt_ms": null,
+  "mt_ms": 120,
+  "tts_ms": 300,
+  "audio_id": "a17a7bf4-ce62-4d8b-9309-a220b1868299",
+  "created_at": "2026-09-13T00:00:00Z",
+  "tts_error": null
+}
+```
+
+### POST /api/translate/speech
+
+`Content-Type: multipart/form-data`
+
+| 필드 | 내용 |
+|---|---|
+| `audio` | 녹음 파일. 브라우저 MediaRecorder의 `audio/webm`(Opus)을 기본으로 하고, 서버가 풀 수 있는 형식(wav, ogg, mp3, m4a 등)이면 받는다. 파일의 Content-Type은 믿지 않고 실제로 풀어 본다 |
+| `source_lang` | 말한 언어. `en` 또는 `ko` |
+| `target_lang` | 번역할 언어. `source_lang`과 달라야 한다 |
+
+- 제한: 파일 10MB 이하, 음성 길이 30초 이하
+- 음성 인식 언어는 `source_lang`으로 고정한다 (언어 자동 판별을 하지 않음)
+- 녹음 원본은 저장하지 않는다. 인식된 글자만 `source_text`로 저장한다
+
+응답 `201 Created`, 본문은 `/api/translate/text`와 같은 형태이며 `mode`가 `speech`, `stt_model`과 `stt_ms`가 채워진다.
+
+### 실패했을 때
+
+| 상황 | 상태 | 본문 `detail` | 기록 |
+|---|---|---|---|
+| 필드 누락, 언어 값 오류, 같은 언어, 글자 수 초과·빈 글자 | 422 | FastAPI 검증 오류 형식 (`[...]`) | 없음 |
+| 파일이 10MB 초과 | 413 | `"Audio file is larger than 10 MB"` | 없음 |
+| 파일을 음성으로 풀 수 없음 | 422 | `"Audio could not be decoded"` | 없음 |
+| 음성이 30초 초과 | 422 | `"Audio is longer than 30 seconds"` | 없음 |
+| 음성에서 말을 찾지 못함 | 422 | `"No speech was recognized"` | 없음 |
+| 음성 인식·번역 모델 오류 | 503 | `"Translation service is unavailable"` | 없음 |
+| 음성 합성만 실패 | 201 | 정상 응답, `audio_id: null`, `tts_error`에 이유 | 있음 |
+
+- 화면은 상태 코드와 위 표의 고정 문자열로 안내 문구를 고른다. 이 문자열은 계약이므로 바꾸려면 이 문서와 화면을 함께 고친다
+- `tts_error`: 음성 합성을 하지 못했을 때의 이유. `"Speech synthesis failed"`(합성 오류) 또는 `"Speech synthesis is not available"`(서버에 합성 모델이 없음). 성공하면 `null`. 합성하지 못했으면 `tts_model`, `tts_ms`도 `null`이다
+- `tts_error`는 번역 응답에만 있고 기록에는 저장하지 않는다. 기록에서 `audio_id`가 `null`이면 화면은 브라우저 내장 음성(speechSynthesis)으로 읽는다
+- 모델 오류의 자세한 내용은 서버 로그에만 남기고 응답에 넣지 않는다
+
+### GET /api/audio/{id}
+
+요청 예: `GET /api/audio/a17a7bf4-ce62-4d8b-9309-a220b1868299`, `Authorization: Bearer <access_token>`. 본문 없음.
+
+응답 `200 OK`, `Content-Type: audio/wav`(16비트 PCM, 모노, 표본 추출률은 합성 모델에 따름), `Cache-Control: private, no-store`.
+`<audio src>`는 인증 헤더를 붙일 수 없으므로 화면은 이 경로를 `fetch`로 받아 blob URL을 만들어 재생하고, 다 쓰면 `URL.revokeObjectURL`로 해제한다.
+
+오류: `401` 인증 실패, `404` 본인 음성 없음(다른 사용자 음성, 없는 ID, 기록 삭제로 지워진 음성 모두 같은 `{"detail": "Audio not found"}`), `422` UUID 형식 오류.
+
+### 저장과 삭제
+
+- 합성 음성은 서버의 음성 폴더(`AUDIO_DIR`)에 파일로 두고 `audio_files` 행이 경로를 가진다. 경로는 응답에 노출하지 않는다
+- `DELETE /api/history/{id}`는 기록, `audio_files` 행, 디스크의 파일을 함께 지운다. 파일 삭제가 실패해도 DB 삭제는 되돌리지 않고 서버 로그에 남긴다
+- 시간 필드(`stt_ms`, `mt_ms`, `tts_ms`)는 각 단계의 모델 호출 시간(밀리초)이다. 모델 스레드를 기다린 시간과 네트워크 시간은 넣지 않는다
 
 ## 오류 응답
 
@@ -191,6 +277,9 @@ T5에서는 디스크 파일을 삭제하지 않는다. 파일 저장소가 생�
 | 401 (자격 증명·토큰 오류) | `{"detail": "Could not validate credentials"}` |
 | 409 | `{"detail": "Email already registered"}` |
 | 404 | `{"detail": "History not found"}` |
+| 404 (음성) | `{"detail": "Audio not found"}` |
+
+번역 경로의 413·422·503 고정 문자열은 번역 절의 "실패했을 때" 표에 있다.
 
 `422`는 FastAPI 검증 오류 형식인 `{"detail": [...]}`이며 각 항목의 `loc`, `msg`, `type`으로
 위치와 이유를 확인한다. 입력에 따라 `input`, `ctx`가 추가될 수 있다.
