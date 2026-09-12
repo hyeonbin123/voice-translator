@@ -9,9 +9,11 @@ from app.services.inference import run_model
 from app.services.interfaces import (
     InvalidAudioError,
     ModelError,
+    NoSpeechError,
     SpeechToText,
     TextToSpeech,
     Translator,
+    UndecodableAudioError,
 )
 from tests.fakes import FakeSpeechToText, FakeTextToSpeech, FakeTranslator, silent_wav
 
@@ -27,8 +29,24 @@ def test_fake_speech_to_text_keeps_the_language_and_rejects_empty_audio():
 
     assert transcript.text == "안녕하세요"
     assert transcript.language == "ko"
-    with pytest.raises(InvalidAudioError):
+    with pytest.raises(UndecodableAudioError):
         FakeSpeechToText().transcribe(b"", "ko")
+    with pytest.raises(NoSpeechError):
+        FakeSpeechToText(text="").transcribe(silent_wav(500), "ko")
+
+
+def test_audio_errors_are_still_invalid_audio_and_model_errors():
+    # Code that catches the parent classes keeps working after the split.
+    for error in (UndecodableAudioError, NoSpeechError):
+        assert issubclass(error, InvalidAudioError)
+        assert issubclass(error, ModelError)
+
+
+def test_fakes_can_be_told_to_fail_like_a_crashed_model():
+    with pytest.raises(ModelError, match="out of memory"):
+        FakeSpeechToText(error=ModelError("out of memory")).transcribe(silent_wav(500), "ko")
+    with pytest.raises(ModelError, match="out of memory"):
+        FakeTranslator(error=ModelError("out of memory")).translate("hello", "en", "ko")
 
 
 def test_fake_translator_marks_the_direction():

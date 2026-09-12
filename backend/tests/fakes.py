@@ -8,11 +8,12 @@ import io
 import wave
 
 from app.services.interfaces import (
-    InvalidAudioError,
     Language,
     ModelError,
+    NoSpeechError,
     SynthesizedAudio,
     Transcript,
+    UndecodableAudioError,
 )
 
 SAMPLE_RATE = 16_000
@@ -30,23 +31,37 @@ def silent_wav(duration_ms: int, sample_rate: int = SAMPLE_RATE) -> bytes:
 
 
 class FakeSpeechToText:
+    """Empty audio is undecodable and `text=""` finds no speech; `error` makes every call fail with it."""
+
     model_name = "fake-stt"
 
-    def __init__(self, text: str | None = None) -> None:
+    def __init__(self, text: str | None = None, error: ModelError | None = None) -> None:
         self.text = text
+        self.error = error
 
     def transcribe(self, audio: bytes, language: Language) -> Transcript:
+        if self.error:
+            raise self.error
         if not audio:
-            raise InvalidAudioError("empty audio")
+            raise UndecodableAudioError("empty audio")
+        if self.text == "":
+            raise NoSpeechError("no speech was recognized")
         # 16 kHz, 16-bit mono PCM is 32 bytes per millisecond; good enough for a fake.
         text = self.text if self.text is not None else f"{language} speech of {len(audio)} bytes"
         return Transcript(text=text, language=language, duration_ms=len(audio) // 32)
 
 
 class FakeTranslator:
+    """`error` makes every call fail with it, like a model that crashed or ran out of memory."""
+
     model_name = "fake-mt"
 
+    def __init__(self, error: ModelError | None = None) -> None:
+        self.error = error
+
     def translate(self, text: str, source: Language, target: Language) -> str:
+        if self.error:
+            raise self.error
         if source == target:
             raise ModelError("source and target languages are the same")
         return f"[{source}->{target}] {text}"

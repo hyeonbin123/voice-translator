@@ -18,7 +18,18 @@ class ModelError(Exception):
 
 
 class InvalidAudioError(ModelError):
-    """The audio could not be decoded, or holds no sound to recognize."""
+    """The audio could not be decoded, or holds no sound to recognize.
+
+    Raise one of the two subclasses; the API answers each with its own fixed message (docs/api.md).
+    """
+
+
+class UndecodableAudioError(InvalidAudioError):
+    """The upload is empty or is not audio that can be decoded."""
+
+
+class NoSpeechError(InvalidAudioError):
+    """The audio decodes, but no speech was recognized in it."""
 
 
 @dataclass(frozen=True)

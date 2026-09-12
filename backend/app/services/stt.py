@@ -6,7 +6,7 @@ from av.error import FFmpegError
 from faster_whisper import WhisperModel
 
 from app.services.cuda import add_cuda_dll_dirs
-from app.services.interfaces import InvalidAudioError, Language, Transcript
+from app.services.interfaces import Language, NoSpeechError, Transcript, UndecodableAudioError
 
 
 class WhisperSpeechToText:
@@ -26,14 +26,14 @@ class WhisperSpeechToText:
 
     def transcribe(self, audio: bytes, language: Language) -> Transcript:
         if not audio:
-            raise InvalidAudioError("empty audio")
+            raise UndecodableAudioError("empty audio")
         try:
             segments, info = self._model.transcribe(
                 io.BytesIO(audio), language=language, beam_size=self.beam_size
             )
             text = " ".join(segment.text.strip() for segment in segments).strip()
         except FFmpegError as exc:
-            raise InvalidAudioError("the audio could not be decoded") from exc
+            raise UndecodableAudioError("the audio could not be decoded") from exc
         if not text:
-            raise InvalidAudioError("no speech was recognized")
+            raise NoSpeechError("no speech was recognized")
         return Transcript(text=text, language=language, duration_ms=round(info.duration * 1000))
