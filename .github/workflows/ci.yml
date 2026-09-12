@@ -8,11 +8,26 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: vtuser
+          POSTGRES_PASSWORD: vtpass
+          POSTGRES_DB: voicetranslator
+        ports:
+          - 55442:5432
+        options: >-
+          --health-cmd "pg_isready -U vtuser -d voicetranslator"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     defaults:
       run:
         working-directory: backend
     env:
       UV_PYTHON: "3.11"
+      DATABASE_URL: postgresql+asyncpg://vtuser:vtpass@localhost:55442/voicetranslator
     steps:
       - uses: actions/checkout@v7
 
@@ -29,6 +44,9 @@ jobs:
 
       - name: Test
         run: uv run pytest -q
+
+      - name: Migrate development database
+        run: uv run alembic upgrade head
 
   frontend:
     runs-on: ubuntu-latest
