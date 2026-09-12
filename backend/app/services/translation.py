@@ -8,12 +8,16 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from collections.abc import Callable
 from pathlib import Path
+from typing import TypeVar
 
 import httpx
 
 from app.services.cuda import add_cuda_dll_dirs
 from app.services.interfaces import Language, ModelError, Translator
+
+T = TypeVar("T")
 
 LANGUAGE_NAMES = {"ko": "Korean", "en": "English"}
 NLLB_CODES = {"ko": "kor_Hang", "en": "eng_Latn"}
@@ -63,11 +67,24 @@ def _check_text(text: str, source: Language, target: Language) -> None:
         raise ModelError("text is empty")
 
 
-def _nonempty(translation: str) -> str:
-    translation = translation.strip()
-    if not translation:
+def _nonempty(translation: object) -> str:
+    if not isinstance(translation, str) or not translation.strip():
         raise ModelError("the model returned an empty translation")
-    return translation
+    return translation.strip()
+
+
+def _guarded(run: Callable[[], T]) -> T:
+    """Run an engine or tokenizer call; any failure inside it becomes a ModelError.
+
+    CTranslate2 raises RuntimeError for CUDA errors such as running out of memory. Callers (the
+    pipeline) only need to know that translation failed, to answer 503 without a history record.
+    """
+    try:
+        return run()
+    except ModelError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - the boundary around third-party engines
+        raise ModelError(f"the translation model failed: {type(exc).__name__}") from exc
 
 
 class _Ct2Model:
@@ -111,8 +128,8 @@ class MarianTranslator:
         _check_text(text, source, target)
         if (source, target) != self.direction:
             raise ModelError(f"{self.model_name} only translates {self.direction[0]}->{self.direction[1]}")
-        pieces = self._model.generate(marian_source_tokens(self._source_sp, text))
-        return _nonempty(self._target_sp.decode(pieces))
+        pieces = _guarded(lambda: self._model.generate(marian_source_tokens(self._source_sp, text)))
+        return _nonempty(_guarded(lambda: self._target_sp.decode(pieces)))
 
 
 class NllbTranslator:
@@ -127,9 +144,9 @@ class NllbTranslator:
 
     def translate(self, text: str, source: Language, target: Language) -> str:
         _check_text(text, source, target)
-        tokens = nllb_source_tokens(self._sp, text, source)
-        pieces = self._model.generate(tokens, target_prefix=[NLLB_CODES[target]])
-        return _nonempty(self._sp.decode(pieces[1:]))  # drop the target language code
+        tokens = _guarded(lambda: nllb_source_tokens(self._sp, text, source))
+        pieces = _guarded(lambda: self._model.generate(tokens, target_prefix=[NLLB_CODES[target]]))
+        return _nonempty(_guarded(lambda: self._sp.decode(pieces[1:])))  # drop the target language code
 
 
 class OllamaTranslator:

@@ -1,8 +1,10 @@
 import json
+from pathlib import Path
 
 import httpx
 import pytest
 
+from app.services import translation
 from app.services.interfaces import ModelError
 from app.services.translation import (
     DirectionalTranslator,
@@ -20,6 +22,54 @@ class SplitProcessor:
     def encode(self, text, out_type):
         assert out_type is str
         return text.split()
+
+    def decode(self, pieces):
+        return " ".join(pieces)
+
+
+class FakeEngine:
+    """Stands in for the CTranslate2 model: returns fixed pieces or raises."""
+
+    def __init__(self, result=None, error=None):
+        self.result, self.error = result, error
+
+    def generate(self, tokens, target_prefix=None):
+        if self.error:
+            raise self.error
+        return self.result
+
+
+@pytest.fixture
+def engine(monkeypatch):
+    """Build the real translator classes around a fake engine and tokenizer, without model files."""
+    holder = {}
+    monkeypatch.setattr(translation, "_Ct2Model", lambda *args: holder["engine"])
+    monkeypatch.setattr(translation, "load_sentencepiece", lambda path: SplitProcessor())
+    return lambda fake: holder.update(engine=fake)
+
+
+def test_marian_returns_the_decoded_translation(engine):
+    engine(FakeEngine(result=["Hello", "world"]))
+    translator = translation.MarianTranslator(Path("model"), "ko", "en")
+    assert translator.translate("안녕", "ko", "en") == "Hello world"
+
+
+@pytest.mark.parametrize(
+    "fake", [FakeEngine(error=RuntimeError("CUDA out of memory")), FakeEngine(result=[])]
+)
+def test_marian_engine_failures_become_model_errors(engine, fake):
+    engine(fake)
+    with pytest.raises(ModelError):
+        translation.MarianTranslator(Path("model"), "ko", "en").translate("안녕", "ko", "en")
+
+
+@pytest.mark.parametrize(
+    "fake", [FakeEngine(error=RuntimeError("CUDA out of memory")), FakeEngine(result=["eng_Latn"])]
+)
+def test_nllb_engine_failures_become_model_errors(engine, fake):
+    engine(fake)
+    with pytest.raises(ModelError):
+        translation.NllbTranslator(Path("model")).translate("안녕", "ko", "en")
 
 
 def test_opus_preprocess_follows_the_training_script():
@@ -72,10 +122,22 @@ def test_ollama_translator_uses_a_fixed_prompt_and_returns_the_reply():
     [
         httpx.Response(500, json={"error": "model crashed"}),
         httpx.Response(200, json={"message": {"content": "   "}}),
+        httpx.Response(200, json={"message": {"content": None}}),
+        httpx.Response(200, json={"message": {"content": 123}}),
+        httpx.Response(200, json={"message": None}),
         httpx.Response(200, text="not json"),
     ],
 )
 def test_ollama_failures_become_model_errors(reply):
     translator, _ = ollama_with(lambda _: reply)
+    with pytest.raises(ModelError):
+        translator.translate("hello", "en", "ko")
+
+
+def test_ollama_connection_error_becomes_model_error():
+    def refuse(request):
+        raise httpx.ConnectError("connection refused", request=request)
+
+    translator, _ = ollama_with(refuse)
     with pytest.raises(ModelError):
         translator.translate("hello", "en", "ko")
