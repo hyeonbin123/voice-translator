@@ -1,0 +1,15 @@
+:root {
+  font-family: system-ui, 'Segoe UI', 'Noto Sans KR', sans-serif;
+  color: #1d2433;
+  background: #f6f7f9;
+}
+
+body {
+  margin: 0;
+}
+
+.app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 20px;
+}
