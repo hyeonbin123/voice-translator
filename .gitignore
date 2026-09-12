@@ -1,0 +1,20 @@
+# Local-only working files
+AGENTS.md
+CLAUDE.md
+HANDOFF.md
+TASKS.md
+COLLAB.md
+work/
+data/
+.env
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+dist/
