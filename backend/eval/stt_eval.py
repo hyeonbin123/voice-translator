@@ -21,28 +21,16 @@ import pyarrow.parquet as pq
 
 from app.services.interfaces import InvalidAudioError
 from app.services.stt import WhisperSpeechToText
+from eval.common import DATA, FLEURS_CONFIG, REPORTS, gpu_memory_mb
 from eval.text_norm import normalize
 
-DATA = Path(__file__).resolve().parents[2] / "data" / "fleurs"
-REPORTS = Path(__file__).resolve().parent / "reports"
-FLEURS_CONFIG = {"ko": "ko_kr", "en": "en_us"}
 SAMPLE_RATE = 16_000
 
 
 def load_split(language: str, split: str, limit: int | None) -> list[dict]:
-    path = DATA / FLEURS_CONFIG[language] / f"{split}.parquet"
+    path = DATA / "fleurs" / FLEURS_CONFIG[language] / f"{split}.parquet"
     rows = pq.read_table(path, columns=["id", "num_samples", "audio", "transcription"]).to_pylist()
     return rows[:limit] if limit else rows
-
-
-def gpu_memory_mb() -> tuple[str, float]:
-    import pynvml
-
-    pynvml.nvmlInit()
-    handle = pynvml.nvmlDeviceGetHandleByIndex(0)
-    name = pynvml.nvmlDeviceGetName(handle)
-    used = pynvml.nvmlDeviceGetMemoryInfo(handle).used / 2**20
-    return (name.decode() if isinstance(name, bytes) else name), used
 
 
 def error_rate(language: str, references: list[str], hypotheses: list[str]) -> float:

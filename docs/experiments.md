@@ -69,3 +69,44 @@
 | test | large-v3-turbo | 4.91% → 4.83% | 4.91% |
 
 - 선택은 그대로다: 가장 낮은 large-v3(5.08%)와 turbo(5.35%)의 차이가 0.27%p로 여전히 1%p 이내라 규칙대로 더 빠른 turbo. Codex가 저장된 결과로 따로 계산한 값과 같다
+
+## 2. 번역 (T3)
+
+**측정 전에 정한 절차** (2026-09-13)
+- **범위**: 글자 입력 번역만 잰다. 음성 인식 오류가 섞인 전체 흐름은 T11에서 잰다
+- **데이터**: FLEURS 병렬 문장. 원문·참조는 `raw_transcription`(문장부호 있는 원문). 같은 문장을 여러 사람이 읽어 행이 겹치므로 문장 ID마다 한 번만 쓴다 → validation 129쌍, test 270쌍. 두 방향(한→영, 영→한)에 같은 문장 쌍을 쓴다
+- **후보**
+
+| 후보 | 방향 | 크기 | 라이선스 | 가져온 곳 |
+|---|---|---|---|---|
+| opus-mt-ko-en | 한→영 | 77M | Apache-2.0 | Hugging Face `Helsinki-NLP/opus-mt-ko-en` |
+| opus-mt-tc-big-ko-en | 한→영 | 약 210M | CC-BY-4.0 | Helsinki 원본 MarianNMT 배포본 (아래 사전 점검) |
+| opus-mt-tc-big-en-ko | 영→한 | 약 210M | CC-BY-4.0 | Helsinki 원본 MarianNMT 배포본 |
+| nllb-200-distilled-600M | 양방향 | 600M | CC-BY-NC-4.0 (고르면 README에 비상업 조건 명시) | Hugging Face `facebook/nllb-200-distilled-600M` |
+| qwen2.5-7b | 양방향 | 7B (4비트) | Apache-2.0 | Ollama `qwen2.5:7b-instruct` |
+
+- **실행 방식**
+  - opus-mt와 NLLB는 CTranslate2로 변환해 GPU float16으로 돌린다 (`eval/mt_convert.py`). 음성 인식과 같은 엔진이라 서버에 PyTorch가 필요 없다(변환할 때만 eval 그룹에서 씀)
+  - 빔 크기 4, 최대 256토큰으로 모든 seq2seq 후보를 같게 둔다
+  - opus-mt 세 모델의 입력에는 원본 배포본의 `preprocess.sh`(전각 문장부호·둥근 따옴표를 ASCII로, 제어 문자·폭 없는 문자 제거, 공백 정리)를 파이썬으로 옮겨 적용한다. 학습 때 입력과 같게 하기 위해서다. opus-mt-ko-en(2020년 배포)의 원본 스크립트는 받지 않았고 같은 규칙이라고 가정한다
+  - Qwen은 Ollama로 부르고 temperature 0, "번역문만 답하라"는 시스템 지시를 고정한다(`OllamaTranslator`). 출력은 앞뒤 공백만 지운다
+  - Qwen 14B는 넣지 않는다: VRAM 약 9GB라 음성 인식·합성과 함께 올릴 수 없다
+- **측정 전 사전 점검** (번역 품질은 재지 않고 동작만 확인, `work/`의 시험 스크립트)
+  - **tc-big의 Hugging Face 변환본은 쓸 수 없다**: 원문·번역문 어휘를 따로 쓰는 모델(`sepvoc`)인데 변환본에는 어휘가 하나뿐이라, 한국어 문장 조각 대부분이 `<unk>`가 된다(예: 13개 중 10개). transformers에서 직접 돌려도 "Half of it, half of it" 같은 결과가 나온다. 그래서 모델 카드에 링크된 원본 배포본(`opusTCv20210807-sepvoc_transformer-big_2022-07-28.zip`, 각 740MB)을 받아 CTranslate2의 MarianConverter로 변환했다. 변환 뒤에는 어휘에 없는 조각이 한→영 3262개 중 2개, 영→한 3973개 중 1개이고 번역이 정상이다
+  - opus-mt-ko-en, NLLB는 변환 뒤 토큰이 Hugging Face 토크나이저와 validation 문장 전체에서 같다 (어휘에 없는 조각은 양쪽 모두 `<unk>`)
+- **지표**
+  - chrF (sacrebleu 기본 설정, 전체 합산). 한국어는 띄어쓰기와 어미 변화가 많아 단어 단위인 BLEU보다 글자 단위가 맞다
+  - 문장당 지연 중앙값과 p95. 방향마다 첫 호출(준비)은 뺀다
+  - VRAM: 모델 적재 전후의 GPU 전체 사용량 차이. Ollama는 모델을 내린 상태에서 첫 호출 전후로 잰다
+- **예산**
+  - 지연: 문장당 중앙값 **1.0초 이하**. 전체 목표 5초 = 음성 인식(10초 음성 약 0.4초, T2) + 번역 + 음성 합성에서 음성 합성 몫을 남기기 위해
+  - VRAM: 번역에 올리는 모델 합계 **6GB 이하**. GPU 11GB에서 음성 인식 2.2GB, 음성 합성 몫 약 2GB, 여유 1GB를 뺀 값
+- **선택 규칙**
+  - 방향마다 따로 고른다. 예산 안의 후보 중 chrF가 가장 높은 후보, 가장 높은 값과 1점 이내인 후보가 여럿이면 그중 가장 빠른 후보
+  - 두 방향에서 고른 모델의 VRAM 합계가 6GB를 넘으면, 합계가 예산 안인 조합 중 두 방향 chrF 평균이 가장 높은 조합
+- **확인**: 고른 모델만 test에 한 번 돌려 보고한다. 이 결과로 결정을 바꾸지 않는다
+- **한계 (측정 전에 적어 둠)**
+  - FLEURS 문장은 위키 문체의 긴 문장이라 실제 서비스의 짧은 대화체와 다르다
+  - 참조 번역이 하나라 맞는 다른 표현도 감점된다
+  - FLEURS 문장은 FLORES에서 왔다. opus-mt는 FLORES를 평가에만 쓴다고 밝히지만(모델 카드의 flores101 점수), Qwen 같은 대형 모델은 학습 중에 이 문장을 봤을 수 있다. 확인할 방법이 없어 한계로만 적는다
+  - 참고: opus-mt-tc-big-ko-en 모델 카드의 flores101-dev 한→영 chrF는 57.0이다. 우리 측정값이 이와 크게 다르면 측정 방법(토큰 분리, 문장 선택)을 먼저 의심한다

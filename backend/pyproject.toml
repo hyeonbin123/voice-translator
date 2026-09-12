@@ -7,12 +7,15 @@ dependencies = [
     "alembic>=1.20.0",
     "asyncpg>=0.31.0",
     "bcrypt>=5.0.0",
+    "ctranslate2>=4.6",
     "email-validator>=2.3.0",
     "fastapi>=0.115",
     "faster-whisper>=1.2",
+    "httpx>=0.28",
     "pydantic-settings>=2.15.0",
     "pyjwt>=2.14.0",
     "python-multipart>=0.0.32",
+    "sentencepiece>=0.2",
     "sqlalchemy[asyncio]>=2.0,<2.1",
     "uvicorn[standard]>=0.30",
 ]
@@ -28,6 +31,9 @@ eval = [
     "jiwer>=4.0.0",
     "nvidia-ml-py>=13.610.43",
     "pyarrow>=25.0.1",
+    "sacrebleu>=2.4",
+    "torch>=2.14.0",
+    "transformers>=4.57",
 ]
 gpu = [
     "nvidia-cublas-cu12>=12.9.2.10",
