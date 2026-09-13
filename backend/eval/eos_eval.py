@@ -3,7 +3,9 @@
   uv run python -m eval.eos_eval run --split validation --tag t33_dev
   uv run python -m eval.eos_eval server --split validation --tag t33_dev_server   (needs docker compose up)
 
-Sessions: FLEURS utterances of one language joined like one speaker talking, with 1.5-3.0 s pauses.
+Sessions: FLEURS utterances of one language, each brought to the same level (standing in for the browser's
+automatic gain control), joined like one speaker talking with 1.5-3.0 s pauses. The reference speech bounds
+come from Whisper's word times, independent of both detectors, and are cached under data/eos/.
 Per-frame speech flags do not depend on the silence threshold, so each detector runs once per session and
 condition, and only the grouping into utterances runs once per threshold.
 
@@ -33,10 +35,12 @@ LANGS = {"en": "en_us", "ko": "ko_kr"}
 SILENCES_MS = (500, 700, 1000)
 CONDITIONS = {"clean": None, "snr20": 20.0, "snr10": 10.0}
 QUIET_FLOOR_DBFS = -60.0  # the clean condition still has a quiet room floor, never digital zeros
+PEAK_DBFS = -20.0  # every clip's loudest 20 ms frame, in place of the browser's automatic gain control
 SESSION_UTTERANCES = 10
 PAUSE_S = (1.5, 3.0)
 LEAD_S = 1.0  # silence before the first utterance, for the energy detector's noise estimate
 SEED = {"validation": 17, "test": 31}
+BOUNDS = DATA / "eos"
 
 # E: energy detector (endpointer.ts)
 E_FRAME = 320  # 20 ms
@@ -55,20 +59,11 @@ PREROLL_MS = 200  # kept before the first speech frame
 MIN_SPEECH_MS = 250
 MAX_CLIP_MS = 29_000  # including the pre-roll, as endpointer.ts counts it
 
-# Reference speech bounds inside each FLEURS clip: frames within 40 dB of the clip's loudest frame.
-REFERENCE_RANGE_DB = 40.0
-
 
 def frame_db(audio: np.ndarray, frame: int) -> np.ndarray:
     count = len(audio) // frame
     frames = audio[: count * frame].reshape(count, frame).astype(np.float64)
     return 20 * np.log10(np.sqrt((frames**2).mean(axis=1)) + 1e-10)
-
-
-def speech_bounds(clip: np.ndarray) -> tuple[int, int]:
-    db = frame_db(clip, E_FRAME)
-    loud = np.flatnonzero(db > db.max() - REFERENCE_RANGE_DB)
-    return int(loud[0] * E_FRAME), int((loud[-1] + 1) * E_FRAME)
 
 
 def pink_noise(samples: int, rng: np.random.Generator) -> np.ndarray:
@@ -80,34 +75,63 @@ def pink_noise(samples: int, rng: np.random.Generator) -> np.ndarray:
 
 
 def load_clips(lang: str, split: str) -> list[tuple[str, np.ndarray]]:
+    """(key, clip) with the key "<parquet row>-<FLEURS id>": the same sentence is read by several people."""
     from faster_whisper.audio import decode_audio
 
     table = pq.read_table(DATA / "fleurs" / LANGS[lang] / f"{split}.parquet", columns=["id", "audio"])
     clips = []
-    for row in table.to_pylist():
-        audio = decode_audio(io.BytesIO(row["audio"]["bytes"]), sampling_rate=RATE)
-        clips.append((str(row["id"]), audio.astype(np.float32)))
+    for row_number, row in enumerate(table.to_pylist()):
+        audio = decode_audio(io.BytesIO(row["audio"]["bytes"]), sampling_rate=RATE).astype(np.float32)
+        gain = 10 ** ((PEAK_DBFS - frame_db(audio, E_FRAME).max()) / 20)
+        clips.append((f"{row_number}-{row['id']}", (audio * gain).astype(np.float32)))
     return clips
 
 
-def build_sessions(clips: list[tuple[str, np.ndarray]], split: str, lang: str) -> list[dict]:
+def word_bounds(clips: list[tuple[str, np.ndarray]], lang: str, split: str) -> dict[str, list[int] | None]:
+    """Reference speech bounds in samples: Whisper's first word start to last word end, or None without words.
+
+    Whisper runs without VAD, at temperature 0 only, so neither detector nor retries shape the reference.
+    """
+    path = BOUNDS / f"{split}_{lang}.json"
+    if path.exists():
+        return json.loads(path.read_text(encoding="utf-8"))
+    from faster_whisper import WhisperModel
+
+    model = WhisperModel("large-v3-turbo", device="cuda", compute_type="float16")
+    bounds: dict[str, list[int] | None] = {}
+    for key, clip in clips:
+        segments, _ = model.transcribe(
+            clip,
+            language=lang,
+            temperature=0.0,
+            condition_on_previous_text=False,
+            vad_filter=False,
+            word_timestamps=True,
+        )
+        words = [word for segment in segments for word in (segment.words or [])]
+        bounds[key] = [int(words[0].start * RATE), int(words[-1].end * RATE)] if words else None
+    BOUNDS.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(bounds), encoding="utf-8")
+    return bounds
+
+
+def build_sessions(clips, bounds: dict, split: str, lang: str) -> list[dict]:
     """Each session: one float32 track and the reference speech bounds of its utterances (samples)."""
+    usable = [(key, clip) for key, clip in clips if bounds.get(key)]
     rng = random.Random(f"{SEED[split]}-{lang}")
-    order = list(range(len(clips)))
-    rng.shuffle(order)
+    rng.shuffle(usable)
     sessions = []
-    for first in range(0, len(order) - SESSION_UTTERANCES + 1, SESSION_UTTERANCES):
+    for first in range(0, len(usable) - SESSION_UTTERANCES + 1, SESSION_UTTERANCES):
         cursor = int(LEAD_S * RATE)
-        parts, refs, ids = [np.zeros(cursor, np.float32)], [], []
-        for index in order[first : first + SESSION_UTTERANCES]:
-            clip_id, clip = clips[index]
-            start, end = speech_bounds(clip)
+        parts, refs, keys = [np.zeros(cursor, np.float32)], [], []
+        for key, clip in usable[first : first + SESSION_UTTERANCES]:
+            start, end = bounds[key]
             refs.append((cursor + start, cursor + end))
-            ids.append(clip_id)
+            keys.append(key)
             pause = np.zeros(int(rng.uniform(*PAUSE_S) * RATE), np.float32)
             parts += [clip, pause]
             cursor += len(clip) + len(pause)
-        sessions.append({"track": np.concatenate(parts), "refs": refs, "ids": ids})
+        sessions.append({"track": np.concatenate(parts), "refs": refs, "keys": keys})
     return sessions
 
 
@@ -214,9 +238,13 @@ def run(args: argparse.Namespace) -> None:
     silero = Silero()
     detectors = {"E": (energy_flags, E_FRAME, E_START_FRAMES), "S": (silero.flags, S_CHUNK, S_START_FRAMES)}
     totals: dict = {}
+    dropped: dict = {}
     for lang in args.langs:
         started = time.perf_counter()
-        sessions = build_sessions(load_clips(lang, args.split), args.split, lang)
+        clips = load_clips(lang, args.split)
+        bounds = word_bounds(clips, lang, args.split)
+        dropped[lang] = sum(1 for key, _ in clips if not bounds.get(key))
+        sessions = build_sessions(clips, bounds, args.split, lang)
         speech_s = sum(end - start for s in sessions for start, end in s["refs"]) / RATE
         pause_s = sum(len(s["track"]) for s in sessions) / RATE - speech_s
         for condition, snr in CONDITIONS.items():
@@ -229,11 +257,14 @@ def run(args: argparse.Namespace) -> None:
                         total = totals.setdefault((name, silence, condition, lang), {"pause_s": pause_s})
                         for field, value in result.items():
                             total[field] = total.get(field, [] if field == "latencies_ms" else 0) + value
-        print(f"{lang}: {len(sessions)} sessions, {time.perf_counter() - started:.0f} s", flush=True)
-    write_report(totals, args)
+        took = time.perf_counter() - started
+        print(
+            f"{lang}: {len(sessions)} sessions, {dropped[lang]} clips without words, {took:.0f} s", flush=True
+        )
+    write_report(totals, dropped, args)
 
 
-def write_report(totals: dict, args: argparse.Namespace) -> None:
+def write_report(totals: dict, dropped: dict, args: argparse.Namespace) -> None:
     rows = []
     for (name, silence, condition, lang), t in sorted(totals.items()):
         rows.append(
@@ -252,11 +283,15 @@ def write_report(totals: dict, args: argparse.Namespace) -> None:
         )
     stamp = datetime.now(UTC)
     base = REPORTS / f"eos_{args.tag}_{stamp:%Y%m%d_%H%M%S}"
-    base.with_suffix(".json").write_text(json.dumps(rows, indent=1), encoding="utf-8")
+    base.with_suffix(".json").write_text(
+        json.dumps({"dropped": dropped, "rows": rows}, indent=1), encoding="utf-8"
+    )
     lines = [
         f"# 말 끝 판정 오프라인 측정 ({args.tag})",
         "",
-        f"- 날짜: {stamp.isoformat()}, FLEURS {args.split}, 세션당 {SESSION_UTTERANCES}문장",
+        f"- 날짜: {stamp.isoformat()}, FLEURS {args.split}, 세션당 {SESSION_UTTERANCES}문장, "
+        f"문장마다 가장 큰 프레임 {PEAK_DBFS:.0f}dBFS, 기준 경계는 Whisper 단어 시각",
+        f"- 단어가 없어 뺀 문장: {dropped}",
         "- 잘림·붙음: 비율, 놓침: 개수, 헛판정: 마디 사이 쉼 1분당, 판정 지연: 잘리지도 붙지도 않은 문장",
         "",
         "| 방법 | 쉼 기준 | 조건 | 언어 | 문장 | 잘림 | 붙음 | 놓침 | 헛판정/분 | 판정 지연 p50 |",
@@ -297,11 +332,13 @@ def server(args: argparse.Namespace) -> None:
     for lang in args.langs:
         target = "ko" if lang == "en" else "en"
         clips = load_clips(lang, args.split)
-        random.Random(f"server-{SEED[args.split]}-{lang}").shuffle(clips)
+        bounds = word_bounds(clips, lang, args.split)
+        usable = [(key, clip) for key, clip in clips if bounds.get(key)]
+        random.Random(f"server-{SEED[args.split]}-{lang}").shuffle(usable)
         for seconds in (3, 5):
             times, failures = [], 0
-            for _, clip in clips[: args.count]:
-                start, _ = speech_bounds(clip)
+            for key, clip in usable[: args.count]:
+                start = bounds[key][0]
                 piece = clip[max(0, start - PREROLL_MS * RATE // 1000) : start + seconds * RATE]
                 files = {"audio": ("utterance.wav", wav_bytes(piece), "audio/wav")}
                 form = {"source_lang": lang, "target_lang": target}
@@ -316,7 +353,9 @@ def server(args: argparse.Namespace) -> None:
             print(key, results[key], flush=True)
     stamp = datetime.now(UTC)
     path = REPORTS / f"eos_{args.tag}_{stamp:%Y%m%d_%H%M%S}.json"
-    path.write_text(json.dumps(results, indent=1), encoding="utf-8")
+    path.write_text(
+        json.dumps({"account": email.split("@")[0], "results": results}, indent=1), encoding="utf-8"
+    )
     print(f"written to {path}")
 
 
