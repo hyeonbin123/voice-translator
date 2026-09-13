@@ -7,12 +7,16 @@
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 360px; }
+body { margin: 0; min-width: 320px; }
 a { color: #2159a1; text-underline-offset: 3px; }
 button, input, textarea, select { font: inherit; }
-button { cursor: pointer; border: 1px solid #c8d2df; border-radius: 8px; padding: 8px 14px; background: white; color: inherit; }
-button:disabled { cursor: wait; opacity: .65; }
+button { cursor: pointer; border: 1px solid #697b92; border-radius: 8px; padding: 8px 14px; background: white; color: inherit; min-height: 44px; }
+button:disabled { cursor: not-allowed; opacity: 1; color: #536175; background: #e8edf3; border-color: #697b92; }
 :focus-visible { outline: 3px solid #2973cc; outline-offset: 3px; }
+.skip-link { position: absolute; left: 16px; top: 8px; z-index: 1; padding: 12px 16px; background: white; border: 2px solid #2159a1; border-radius: 8px; transform: translateY(-160%); }
+.skip-link:focus { transform: translateY(0); }
+[tabindex="-1"] { scroll-margin-block: 20px; }
+::placeholder { color: #536175; opacity: 1; }
 .app { max-width: 1080px; margin: auto; padding: 0 24px 64px; }
 .brand { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding: 24px 0; border-bottom: 1px solid #dce2eb; }
 .brand a { font-weight: 750; font-size: 20px; text-decoration: none; color: #1d2939; }
@@ -24,7 +28,10 @@ h1 { margin: 4px 0 12px; font-size: 28px; letter-spacing: -.04em; }
 .eyebrow { color: #2159a1; font-size: 13px; font-weight: 700; margin: 0; }
 form { display: flex; flex-direction: column; margin-top: 24px; }
 label { margin: 12px 0 6px; font-weight: 600; }
-input { min-width: 0; width: 100%; border: 1px solid #9aa9bc; border-radius: 8px; padding: 10px 12px; background: white; color: inherit; }
+input { min-width: 0; width: 100%; border: 1px solid #697b92; border-radius: 8px; padding: 10px 12px; background: white; color: inherit; }
+input[type="radio"] { accent-color: #2159a1; }
+input[type="file"] { font-size: 14px; }
+input::file-selector-button { font: inherit; color: #1d2939; background: #edf4ff; border: 1px solid #697b92; border-radius: 4px; min-height: 32px; margin-right: 8px; }
 .hint { margin: 8px 0 0; font-size: 13px; }
 .primary { background: #2159a1; color: white; border-color: #2159a1; padding: 11px; margin-top: 24px; font-weight: 650; }
 .switch-auth { text-align: center; font-size: 14px; margin: 24px 0 0; }
@@ -41,13 +48,14 @@ nav a.active { background: #e4edfb; color: #184985; font-weight: 700; }
 .translator fieldset { min-width: 0; margin: 0 0 20px; padding: 0; border: 0; }
 .translator legend { font-weight: 700; margin-bottom: 8px; }
 .direction label { display: block; margin-top: 0; }
-.translator select, .translator textarea { width: 100%; min-width: 0; padding: 12px; border: 1px solid #9aa9bc; border-radius: 8px; color: inherit; background: white; }
+.translator select, .translator textarea { width: 100%; min-width: 0; padding: 12px; border: 1px solid #697b92; border-radius: 8px; color: inherit; background: white; }
 .translator textarea { resize: vertical; }
-.mode-picker label { display: inline-flex; align-items: center; gap: 8px; margin: 0 24px 0 0; }
+.mode-picker label { display: inline-flex; align-items: center; gap: 8px; margin: 0 24px 0 0; min-height: 44px; }
 .mode-picker input { width: auto; }
 .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 12px 0; }
 .recording-panel { padding: 16px; background: #f5f7fa; border-radius: 8px; }
 .recording-panel > label { display: block; }
+.recording-panel p, .error, .notice, .timings dd { overflow-wrap: anywhere; }
 .translation-result { margin-top: 32px; border-top: 1px solid #dce2eb; padding-top: 16px; }
 .result-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
 .result-columns p { white-space: pre-wrap; overflow-wrap: anywhere; }

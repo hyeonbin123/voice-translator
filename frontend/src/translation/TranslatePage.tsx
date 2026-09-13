@@ -18,12 +18,24 @@ export default function TranslatePage({ api }: { api: TranslationApi }) {
   const [busy, setBusy] = useState(false)
   const pending = useRef<AbortController | null>(null)
   const resultHeading = useRef<HTMLHeadingElement>(null)
+  const errorSummary = useRef<HTMLParagraphElement>(null)
+  const recordingError = useRef<HTMLParagraphElement>(null)
+  const recordingStart = useRef<HTMLButtonElement>(null)
+  const recordingCancel = useRef<HTMLButtonElement>(null)
   const recorder = useRecorder(setClip)
   const recording = recorder.state !== 'idle'
   const count = characterCount(text)
+  const previousRecording = useRef(recording)
 
   useEffect(() => () => { pending.current?.abort() }, [])
   useEffect(() => { if (result) resultHeading.current?.focus() }, [result])
+  useEffect(() => { if (error) errorSummary.current?.focus() }, [error])
+  useEffect(() => { if (recorder.error) recordingError.current?.focus() }, [recorder.error])
+  useEffect(() => {
+    if (!previousRecording.current && recording) recordingCancel.current?.focus()
+    if (previousRecording.current && !recording && !recorder.error) recordingStart.current?.focus()
+    previousRecording.current = recording
+  }, [recording, recorder.error])
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -60,7 +72,7 @@ export default function TranslatePage({ api }: { api: TranslationApi }) {
   return (
     <section className="translator">
       <p className="eyebrow">영어 ↔ 한국어</p>
-      <h1>번역</h1>
+      <h1 tabIndex={-1}>번역</h1>
       <p className="muted">말하거나 글을 입력해 대화를 이어 가세요.</p>
       {api.demo && <aside className="notice">
         <strong>예시 모드</strong> · 예시 번역을 보여 주며 기록은 저장하지 않습니다.
@@ -82,23 +94,24 @@ export default function TranslatePage({ api }: { api: TranslationApi }) {
         </fieldset>
         {mode === 'text' ? <>
           <label htmlFor="source-text">번역할 글 ({languageName[source]})</label>
-          <textarea id="source-text" value={text} disabled={busy} rows={6} aria-describedby="text-count"
-            aria-invalid={count > 500} onChange={(event) => setText(event.target.value)} placeholder="번역할 내용을 입력하세요" />
+          <textarea id="source-text" value={text} disabled={busy} rows={6} aria-describedby={`text-count${error ? ' translation-error' : ''}`}
+            aria-invalid={count > 500 || (!!error && count === 0)} onChange={(event) => setText(event.target.value)} placeholder="번역할 내용을 입력하세요" />
           <p id="text-count" className={count > 500 ? 'error' : 'hint'}>{count} / 500자 · 앞뒤 공백 제외</p>
         </> : <div className="recording-panel">
-          <p className="hint">{languageName[source]}로 말해 주세요. 최대 30초 · 10MB. 녹음 원본은 저장하지 않습니다.</p>
+          <p id="audio-hint" className="hint">{languageName[source]}로 말해 주세요. 최대 30초 · 10MB. 녹음 원본은 저장하지 않습니다.</p>
           <div className="actions">
-            {recorder.state === 'idle' ? <button type="button" disabled={busy} onClick={() => { setClip(null); setError(''); void recorder.start() }}>녹음 시작</button> : <>
+            {recorder.state === 'idle' ? <button ref={recordingStart} type="button" disabled={busy} onClick={() => { setClip(null); setError(''); void recorder.start() }}>녹음 시작</button> : <>
               {recorder.state === 'recording' && <button type="button" onClick={recorder.stop}>녹음 끝내기</button>}
-              <button type="button" onClick={recorder.cancel}>녹음 취소</button>
+              <button ref={recordingCancel} type="button" onClick={recorder.cancel}>녹음 취소</button>
             </>}
           </div>
           {recorder.state === 'permission' && <p role="status">마이크 권한을 기다리는 중…</p>}
           {recorder.state === 'recording' && <p role="status">녹음 중 · {recorder.seconds} / 30초</p>}
           {recorder.notice && <p role="status">{recorder.notice}</p>}
-          {recorder.error && <p role="alert" className="error">{recorder.error}</p>}
+          {recorder.error && <p ref={recordingError} tabIndex={-1} role="alert" className="error">{recorder.error}</p>}
           <label htmlFor="audio-file">또는 음성 파일 선택</label>
           <input id="audio-file" type="file" accept="audio/*,.webm,.wav,.ogg,.mp3,.m4a" disabled={busy || recording}
+            aria-describedby={`audio-hint${error ? ' translation-error' : ''}`}
             onChange={(event) => {
               const file = event.target.files?.[0]
               setClip(null); setError('')
@@ -112,8 +125,9 @@ export default function TranslatePage({ api }: { api: TranslationApi }) {
           {busy ? '번역 중…' : '번역하기'}
         </button>
         {busy && <p role="status">번역과 음성을 준비하고 있습니다.</p>}
-        {error && <p className="error" role="alert">{error}</p>}
+        {error && <p id="translation-error" ref={errorSummary} tabIndex={-1} className="error" role="alert">{error}</p>}
       </form>
+      {!result && !busy && <p className="hint">번역하면 이곳에 원문과 번역문이 표시됩니다. 번역 음성도 재생할 수 있습니다.</p>}
       {result && <section className="translation-result" aria-labelledby="result-title">
         <h2 id="result-title" ref={resultHeading} tabIndex={-1}>번역 결과</h2>
         <div className="result-columns">

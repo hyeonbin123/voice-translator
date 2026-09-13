@@ -43,7 +43,7 @@ function HistoryListing({ api, offset }: { api: HistoryApi; offset: number }) {
   }, [api, offset, retry, navigate])
 
   return <section className="history-panel">
-    <p className="eyebrow">나의 번역</p><h1>번역 기록</h1>
+    <p className="eyebrow">나의 번역</p><h1 tabIndex={-1}>번역 기록</h1>
     {!data && !error && <p role="status">기록을 불러오는 중…</p>}
     {error && <><p className="error" role="alert">{error}</p><button onClick={() => {
       setError(''); setRetry((value) => value + 1)
@@ -101,7 +101,7 @@ function HistoryDetail({ api, id, offset }: { api: HistoryApi; id: string; offse
   }
 
   return <section className="history-panel">
-    <Link to={listPath(offset)}>기록 목록으로</Link><h1>기록 상세</h1>
+    <Link to={listPath(offset)}>기록 목록으로</Link><h1 tabIndex={-1}>기록 상세</h1>
     {!item && !error && <p role="status">기록을 불러오는 중…</p>}
     {error && <p className="error" role="alert">{error}</p>}
     {!item && error && <button onClick={() => { setError(''); setRetry((value) => value + 1) }}>기록 다시 불러오기</button>}

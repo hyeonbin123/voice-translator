@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { BrowserRouter, Link, Navigate, NavLink, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { api } from './api/client'
 import type { ApiClient } from './api/client'
@@ -32,15 +32,31 @@ function ProtectedLayout({ client }: { client: ApiClient }) {
 
 export function AppRoutes({ client = api }: { client?: ApiClient }) {
   const session = useSession(client)
+  const location = useLocation()
+  const main = useRef<HTMLElement>(null)
+  const previousRoute = useRef(location.pathname + location.search)
   const translation = useMemo(() => import.meta.env.VITE_TRANSLATION_MOCK === 'true'
     ? mockTranslationApi : new TranslationApi(client), [client])
   const history = useMemo(() => new HistoryApi(client), [client])
   useEffect(() => { void client.initialize() }, [client])
+  useEffect(() => {
+    if (session.status === 'loading') return
+    const heading = main.current?.querySelector('h1')
+    if (heading) document.title = `${heading.textContent} · voice-translator`
+    const route = location.pathname + location.search
+    if (route !== previousRoute.current) heading?.focus()
+    previousRoute.current = route
+  }, [location.pathname, location.search, session.status])
 
   return (
     <div className="app">
+      <a className="skip-link" href="#main" onClick={(event) => {
+        event.preventDefault()
+        const destination = main.current?.querySelector('h1') ?? main.current
+        destination?.focus()
+      }}>본문 바로가기</a>
       <header className="brand"><Link to="/">voice-translator</Link><span>말과 글로 이어지는 대화</span></header>
-      <main id="main">
+      <main id="main" ref={main} tabIndex={-1}>
         {session.status === 'loading' ? <p role="status">로그인 확인 중…</p> : (
           <Routes>
             <Route path="/login" element={<AuthPage key="login" client={client} />} />
@@ -51,7 +67,7 @@ export function AppRoutes({ client = api }: { client?: ApiClient }) {
               <Route path="/history/:id" element={<HistoryPage api={history} />} />
             </Route>
             <Route path="/" element={<Navigate to="/translate" replace />} />
-            <Route path="*" element={<section className="placeholder"><h1>페이지를 찾을 수 없습니다</h1><Link to="/">처음으로</Link></section>} />
+            <Route path="*" element={<section className="placeholder"><h1 tabIndex={-1}>페이지를 찾을 수 없습니다</h1><Link to="/">처음으로</Link></section>} />
           </Routes>
         )}
       </main>
