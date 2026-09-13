@@ -1,0 +1,80 @@
+{
+ "dropped": {
+  "en": 0,
+  "ko": 3
+ },
+ "rows": [
+  {
+   "detector": "S",
+   "silence_ms": 1000,
+   "condition": "clean",
+   "lang": "en",
+   "utterances": 640,
+   "split_rate": 0.0265625,
+   "merge_rate": 0.0,
+   "missed": 0,
+   "false_per_min": 0.0,
+   "latency_p50_ms": 1172.375
+  },
+  {
+   "detector": "S",
+   "silence_ms": 1000,
+   "condition": "clean",
+   "lang": "ko",
+   "utterances": 370,
+   "split_rate": 0.021621621621621623,
+   "merge_rate": 0.0,
+   "missed": 0,
+   "false_per_min": 0.028042809100767885,
+   "latency_p50_ms": 1167.21875
+  },
+  {
+   "detector": "S",
+   "silence_ms": 1000,
+   "condition": "snr10",
+   "lang": "en",
+   "utterances": 640,
+   "split_rate": 0.0296875,
+   "merge_rate": 0.0,
+   "missed": 0,
+   "false_per_min": 0.0,
+   "latency_p50_ms": 1176.375
+  },
+  {
+   "detector": "S",
+   "silence_ms": 1000,
+   "condition": "snr10",
+   "lang": "ko",
+   "utterances": 370,
+   "split_rate": 0.021621621621621623,
+   "merge_rate": 0.0,
+   "missed": 0,
+   "false_per_min": 0.028042809100767885,
+   "latency_p50_ms": 1178.5
+  },
+  {
+   "detector": "S",
+   "silence_ms": 1000,
+   "condition": "snr20",
+   "lang": "en",
+   "utterances": 640,
+   "split_rate": 0.03125,
+   "merge_rate": 0.0,
+   "missed": 0,
+   "false_per_min": 0.0,
+   "latency_p50_ms": 1163.53125
+  },
+  {
+   "detector": "S",
+   "silence_ms": 1000,
+   "condition": "snr20",
+   "lang": "ko",
+   "utterances": 370,
+   "split_rate": 0.024324324324324326,
+   "merge_rate": 0.0,
+   "missed": 0,
+   "false_per_min": 0.028042809100767885,
+   "latency_p50_ms": 1164.0
+  }
+ ]
+}
