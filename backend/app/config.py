@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     ollama_url: str = "http://localhost:11434"
     correction_model: str = "qwen2.5:1.5b-instruct"
     correction_timeout_s: float = Field(default=10, gt=0)
+    # Limit for each slow preparation call (download, load, first correction); a failed try repeats (T37).
+    correction_prepare_timeout_s: float = Field(default=600, gt=0)
 
     @field_validator("jwt_secret_key")
     @classmethod

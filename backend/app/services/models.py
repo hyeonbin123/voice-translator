@@ -79,22 +79,18 @@ def warm_up(models: PipelineModels) -> None:
 
 
 def load_typo_correction(settings: Settings) -> TypoCorrector:
-    """Optional like synthesis, but a failed start does not turn it off: Ollama may come up after the API,
-    and until it answers, each request translates the text as typed.
+    """Optional like synthesis, and never waited for (T37): the model is prepared on a background thread
+    that retries until Ollama answers, and until then typed text is translated as is.
     """
     from app.services.correction import OllamaCorrector
 
     corrector = OllamaCorrector(
-        settings.correction_model, base_url=settings.ollama_url, timeout_s=settings.correction_timeout_s
+        settings.correction_model,
+        base_url=settings.ollama_url,
+        timeout_s=settings.correction_timeout_s,
+        prepare_timeout_s=settings.correction_prepare_timeout_s,
     )
-    try:
-        corrector.prepare()
-    except Exception:  # noqa: BLE001 - correction is a helper step and must never stop the server
-        logger.warning(
-            "Typo correction model %s could not be prepared; text is translated as typed until it answers",
-            settings.correction_model,
-            exc_info=True,
-        )
+    corrector.start()
     return corrector
 
 

@@ -1,5 +1,7 @@
 import ast
 import json
+import logging
+import threading
 from pathlib import Path
 
 import httpx
@@ -9,16 +11,17 @@ from app.services import correction
 from app.services.correction import OllamaCorrector
 
 EVAL_SCRIPT = Path(__file__).resolve().parents[1] / "eval" / "typo_eval.py"
+FINISHED = {"done": True, "done_reason": "stop"}
 
 
-def corrector_with(handler) -> tuple[OllamaCorrector, list[tuple[str, dict]]]:
+def corrector_with(handler, **options) -> tuple[OllamaCorrector, list[tuple[str, dict]]]:
     sent: list[tuple[str, dict]] = []
 
     def record(request: httpx.Request) -> httpx.Response:
         sent.append((request.url.path, json.loads(request.content)))
         return handler(request)
 
-    corrector = OllamaCorrector("qwen2.5:1.5b-instruct")
+    corrector = OllamaCorrector("qwen2.5:1.5b-instruct", **options)
     corrector._client = httpx.Client(base_url="http://ollama.test", transport=httpx.MockTransport(record))
     return corrector, sent
 
@@ -34,17 +37,79 @@ def test_the_server_uses_the_instruction_that_was_measured():
     assert correction.SYSTEM == measured
 
 
-def test_only_english_is_corrected_by_default():
-    corrector = OllamaCorrector("qwen2.5:1.5b-instruct")
-    assert corrector.corrects("en") and not corrector.corrects("ko")
+def test_start_does_not_wait_and_corrects_english_only_once_ready():
+    gate = threading.Event()
+
+    def slow_ollama(_):
+        assert gate.wait(5)
+        return httpx.Response(
+            200, json={"message": {"content": "Hello."}, "done": True, "done_reason": "stop"}
+        )
+
+    corrector, _ = corrector_with(slow_ollama)
     assert corrector.model_name == "ollama/qwen2.5:1.5b-instruct"
+    thread = corrector.start()
+    # Startup goes on while Ollama is still busy, and requests do not wait for it.
+    assert not corrector.corrects("en")
+    gate.set()
+    thread.join(5)
+    assert corrector.corrects("en") and not corrector.corrects("ko")
+
+
+def test_a_failed_start_is_logged_once_and_retried_until_ollama_answers(caplog):
+    caplog.set_level(logging.INFO, logger="app.services.correction")
+    refusals = iter(range(2))
+
+    def late_ollama(request):
+        if next(refusals, None) is not None:
+            raise httpx.ConnectError("connection refused", request=request)
+        return httpx.Response(
+            200, json={"message": {"content": "Hello."}, "done": True, "done_reason": "stop"}
+        )
+
+    corrector, _ = corrector_with(late_ollama, retry_s=0.01)
+    corrector.start().join(5)
+    assert corrector.corrects("en")
+    assert caplog.text.count("is not ready") == 1
+    assert "is ready" in caplog.text
+
+
+def test_close_stops_retrying():
+    def down(request):
+        raise httpx.ConnectError("connection refused", request=request)
+
+    corrector, _ = corrector_with(down, retry_s=0.01)
+    thread = corrector.start()
+    corrector.close()
+    thread.join(5)
+    assert not thread.is_alive() and not corrector.corrects("en")
+
+
+def test_every_preparation_call_has_a_time_limit():
+    timeouts: list[dict] = []
+
+    def record(request: httpx.Request) -> httpx.Response:
+        timeouts.append(request.extensions["timeout"])
+        if request.url.path == "/api/show":
+            return httpx.Response(404, json={"error": "model not found"})
+        return httpx.Response(
+            200, json={"message": {"content": "Hello."}, "done": True, "done_reason": "stop"}
+        )
+
+    corrector = OllamaCorrector("qwen2.5:1.5b-instruct", timeout_s=10, prepare_timeout_s=60)
+    corrector._client = httpx.Client(
+        base_url="http://ollama.test", timeout=10, transport=httpx.MockTransport(record)
+    )
+    corrector.prepare()
+    assert len(timeouts) == 4  # show, pull, load, first correction
+    assert all(value is not None for timeout in timeouts for value in timeout.values())
+    # The download may take minutes, but a stalled Ollama cannot hold the thread forever.
+    assert [timeout["read"] for timeout in timeouts] == [10, 60, 60, 60]
 
 
 def test_correction_sends_the_fixed_instruction_and_returns_the_reply():
     corrector, sent = corrector_with(
-        lambda _: httpx.Response(
-            200, json={"message": {"content": " I have a cat.\n"}, "done_reason": "stop"}
-        )
+        lambda _: httpx.Response(200, json={"message": {"content": " I have a cat.\n"}, **FINISHED})
     )
     assert corrector.correct("I hvae a cat.", "en") == "I have a cat."
     path, payload = sent[0]
@@ -74,6 +139,58 @@ def test_a_failed_correction_gives_none_and_never_logs_the_text(reply, caplog):
     assert corrector.correct("private words typed here", "en") is None
     assert "Typo correction" in caplog.text
     assert "private words typed here" not in caplog.text
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"message": {"content": "I have a cat."}, "done": False},
+        {"message": {"content": "I have a cat."}, "done": True, "done_reason": "load"},
+        {"message": {"content": "I have a cat."}},
+        {"message": {"content": "I cannot help with that request."}, **FINISHED},
+        {"message": {"content": "고양이가 있습니다."}, **FINISHED},
+        {
+            "message": {"content": "Sure! Here is the corrected text: I have a cat. Anything else?"},
+            **FINISHED,
+        },
+    ],
+)
+def test_unfinished_or_unlike_replies_leave_the_text_as_typed(body, caplog):
+    corrector, _ = corrector_with(lambda _: httpx.Response(200, json=body))
+    assert corrector.correct("I hvae a cat.", "en") is None
+    assert "Typo correction" in caplog.text and "I hvae a cat." not in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("typed", "fixed"),
+    [
+        ("I hvae a cat.", "I have a cat."),
+        (
+            "Argentinais well known for haviing oneof the bestpolo teams an players inthe world.",
+            "Argentina is well known for having one of the best polo teams and players in the world.",
+        ),
+    ],
+)
+def test_real_corrections_pass_the_safeguard(typed, fixed):
+    corrector, _ = corrector_with(
+        lambda _: httpx.Response(200, json={"message": {"content": fixed}, **FINISHED})
+    )
+    assert corrector.correct(typed, "en") == fixed
+
+
+def test_long_corrections_are_not_rated_unlike():
+    # validation id 1524 (docs/experiments.md 6): with difflib's autojunk this good correction scored 0.152.
+    typed = (
+        "There arw a lot og social and political effects such as the use of metric system,a shift from "
+        "absolutism to republicanism, nationalism and thebeliefthecountry belongsto the people not to one "
+        "sole ruler."
+    )
+    fixed = (
+        "There are a lot of social and political effects, such as the use of the metric system, a shift "
+        "from absolutism to republicanism, nationalism, and the belief that the country belongs to the "
+        "people, not to one sole ruler."
+    )
+    assert correction.looks_like_a_correction(typed, fixed, "en")
 
 
 @pytest.mark.parametrize("error", [httpx.ConnectError, httpx.ReadTimeout])

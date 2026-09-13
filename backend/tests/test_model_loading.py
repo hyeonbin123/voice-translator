@@ -33,7 +33,9 @@ def fake_model_classes(monkeypatch):
     monkeypatch.setattr(tts, "KokoroTextToSpeech", recording("Kokoro"))
     # Tests must never reach a real Ollama on the machine.
     monkeypatch.setattr(
-        correction, "OllamaCorrector", type("Ollama", (Recorder,), {"prepare": lambda self: None})
+        correction,
+        "OllamaCorrector",
+        type("Ollama", (Recorder,), {"start": lambda self: setattr(self, "started", True)}),
     )
     return Recorder.built
 
@@ -118,11 +120,14 @@ def test_typo_correction_uses_the_configured_ollama_model(fake_model_classes):
             ollama_url="http://ollama:11434",
             correction_model="qwen2.5:1.5b-instruct",
             correction_timeout_s=3,
+            correction_prepare_timeout_s=60,
         )
     )
     ollama = [(args, kwargs) for name, args, kwargs in fake_model_classes if name == "Ollama"]
-    assert ollama == [(("qwen2.5:1.5b-instruct",), {"base_url": "http://ollama:11434", "timeout_s": 3})]
-    assert bundle.corrector is not None
+    expected = {"base_url": "http://ollama:11434", "timeout_s": 3, "prepare_timeout_s": 60}
+    assert ollama == [(("qwen2.5:1.5b-instruct",), expected)]
+    # Preparation is started, not waited for (T37): loading returns while Ollama pulls or loads.
+    assert bundle.corrector.started
 
 
 def test_typo_correction_can_be_disabled(fake_model_classes):
@@ -131,17 +136,6 @@ def test_typo_correction_can_be_disabled(fake_model_classes):
         is None
     )
     assert not any(name == "Ollama" for name, _, _ in fake_model_classes)
-
-
-def test_typo_correction_that_cannot_prepare_stays_on_and_is_logged(fake_model_classes, monkeypatch, caplog):
-    def refuse(self):
-        raise RuntimeError("connection refused")
-
-    # Ollama may start after the API; each request then tries again and falls back to the typed text.
-    monkeypatch.setattr(correction.OllamaCorrector, "prepare", refuse)
-    bundle = models.load_models(Settings(model_device="cpu", tts_enabled=False))
-    assert bundle.corrector is not None
-    assert "could not be prepared" in caplog.text
 
 
 @pytest.fixture

@@ -4,12 +4,14 @@ import time
 from pathlib import Path
 from uuid import uuid4
 
+import httpx
 import pytest
 from sqlalchemy import func, select
 
 from app.models import AudioFile, Translation
 from app.services import pipeline
 from app.services.audio_store import AudioStore
+from app.services.correction import OllamaCorrector
 from app.services.inference import run_model
 from tests.fakes import FakeCorrector, FakeSpeechToText, FakeTextToSpeech, FakeTranslator, silent_wav
 
@@ -91,6 +93,27 @@ async def test_a_failed_correction_translates_the_text_as_typed(db_session, user
     models = pipeline.PipelineModels(None, FakeTranslator(), corrector=FakeCorrector(None))
     result = await translate_with(models, db_session, user, tmp_path, text="I hvae a cat.")
     assert result.translated_text == "[en->ko] I hvae a cat."
+    assert result.mt_model == "fake-mt"
+
+
+async def test_an_unusable_reply_from_ollama_leaves_the_typed_text(db_session, user, tmp_path):
+    # The real corrector, with only Ollama's HTTP answer replaced (T38).
+    refusal = {
+        "message": {"content": "I cannot help with that request."},
+        "done": True,
+        "done_reason": "stop",
+    }
+    corrector = OllamaCorrector("qwen2.5:1.5b-instruct")
+    corrector._client = httpx.Client(
+        base_url="http://ollama.test",
+        transport=httpx.MockTransport(lambda _: httpx.Response(200, json=refusal)),
+    )
+    corrector.start().join(5)  # preparing checks only the HTTP status, so it becomes ready
+    assert corrector.corrects("en")
+    models = pipeline.PipelineModels(None, FakeTranslator(), corrector=corrector)
+    result = await translate_with(models, db_session, user, tmp_path, text="I hvae a cat.")
+    assert result.translated_text == "[en->ko] I hvae a cat."
+    assert result.source_text == "I hvae a cat."
     assert result.mt_model == "fake-mt"
 
 

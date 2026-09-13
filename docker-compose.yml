@@ -24,7 +24,7 @@ services:
       start_period: 60s  # a cold start on a slow disk (HDD) can outlast the retries above
 
   # Typo correction for typed English (T32): the API pulls its small LLM into the ollama volume on the
-  # first start (about 1 GB) and keeps it loaded on the GPU (about 1.3 GB).
+  # first start (about 1 GB, in the background) and keeps it loaded on the GPU (about 1.3 GB).
   ollama:
     image: ollama/ollama:0.34.0
     volumes:
@@ -58,8 +58,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      # Typo correction is optional: the API starts without Ollama and translates typed text as is
+      # until the model is ready (T37).
       ollama:
-        condition: service_healthy
+        condition: service_started
+        required: false
     deploy:
       resources:
         reservations:
