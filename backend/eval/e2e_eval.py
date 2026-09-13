@@ -189,6 +189,156 @@ def write_report(args: argparse.Namespace, results: list[dict], health: list[flo
     print(f"written to {report}")
 
 
+async def memory(args: argparse.Namespace) -> None:
+    """T24: server memory across batches after a fixed warm-up (rule in docs/experiments.md 5절).
+
+    Warm-up: 10 sequential requests (5 per language) and 5 concurrent ko+en pairs. Baseline: 5 s later, the
+    median of 3 readings 1 s apart. Then `--batches` batches of 120 requests (the 60 recordings one by one,
+    then 30 concurrent ko+en pairs), each followed by the same settle-and-read step. Health is polled every
+    0.2 s and memory every 2 s throughout; every raw sample is saved so the tables can be recomputed.
+    """
+    import psutil
+
+    folder = E2E / args.split
+    manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    korean = [item for item in manifest if item["language"] == "ko"]
+    english = [item for item in manifest if item["language"] == "en"]
+    server = psutil.Process(args.server_pid)
+    started = time.perf_counter()
+
+    def clock() -> float:
+        return round(time.perf_counter() - started, 3)
+
+    def read_memory() -> dict:
+        info = server.memory_info()
+        private = getattr(info, "private", info.rss)  # Windows reports private bytes; elsewhere fall back
+        return {
+            "t": clock(),
+            "working_set_mb": round(info.rss / 2**20, 1),
+            "private_mb": round(private / 2**20, 1),
+        }
+
+    async def settle(label: str) -> dict:
+        await asyncio.sleep(5)
+        readings = []
+        for _ in range(3):
+            readings.append(await asyncio.to_thread(read_memory))
+            await asyncio.sleep(1)
+        return {
+            "label": label,
+            "readings": readings,
+            "working_set_mb": statistics.median(r["working_set_mb"] for r in readings),
+            "private_mb": statistics.median(r["private_mb"] for r in readings),
+        }
+
+    requests: list[dict] = []
+    health: list[dict] = []
+    memory_trace: list[dict] = []
+    done = asyncio.Event()
+    async with httpx.AsyncClient(base_url=args.base_url, timeout=300) as client:
+        email, password = f"e2e-{uuid.uuid4().hex[:12]}@example.com", uuid.uuid4().hex
+        account = {"email": email, "password": password}
+        (await client.post("/api/auth/register", json=account)).raise_for_status()
+        login = await client.post("/api/auth/login", data={"username": email, "password": password})
+        headers = {"Authorization": f"Bearer {login.raise_for_status().json()['access_token']}"}
+
+        async def send(item: dict, phase: str, concurrent: bool) -> None:
+            target = "en" if item["language"] == "ko" else "ko"
+            files = {"audio": (item["file"], (folder / item["file"]).read_bytes(), "audio/wav")}
+            data = {"source_lang": item["language"], "target_lang": target}
+            sent = clock()
+            reply = await client.post("/api/translate/speech", headers=headers, files=files, data=data)
+            is_json = reply.headers.get("content-type", "").startswith("application/json")
+            body = reply.json() if is_json else {}
+            requests.append(
+                {"phase": phase, "concurrent": concurrent, "file": item["file"], "t": sent,
+                 "elapsed_s": round(clock() - sent, 3), "status": reply.status_code, "id": body.get("id"),
+                 "stt_ms": body.get("stt_ms"), "mt_ms": body.get("mt_ms"), "tts_ms": body.get("tts_ms")}
+            )
+
+        async def watch_health() -> None:
+            while not done.is_set():
+                sent = clock()
+                reply = await client.get("/api/health")
+                health.append({"t": sent, "seconds": round(clock() - sent, 4), "status": reply.status_code})
+                await asyncio.sleep(0.2)
+
+        async def watch_memory() -> None:
+            while not done.is_set():
+                memory_trace.append(await asyncio.to_thread(read_memory))
+                await asyncio.sleep(2)
+
+        watchers = [asyncio.create_task(watch_health()), asyncio.create_task(watch_memory())]
+        start_reading = await asyncio.to_thread(read_memory)
+        for item in korean[:5] + english[:5]:
+            await send(item, "warmup", False)
+        for pair in zip(korean[5:10], english[5:10], strict=True):
+            await asyncio.gather(*(send(item, "warmup", True) for item in pair))
+        checkpoints = [await settle("baseline")]
+        for batch in range(1, args.batches + 1):
+            phase = f"batch{batch}"
+            for item in manifest:
+                await send(item, phase, False)
+            for pair in zip(korean, english, strict=True):
+                await asyncio.gather(*(send(item, phase, True) for item in pair))
+            checkpoints.append(await settle(f"after {phase}"))
+        done.set()
+        await asyncio.gather(*watchers)
+        for request in requests:
+            if request.get("id"):
+                await client.delete(f"/api/history/{request['id']}", headers=headers)
+
+    measured_from = checkpoints[0]["readings"][-1]["t"]
+    measured = [r for r in requests if r["phase"] != "warmup"]
+    sequential = [r["elapsed_s"] for r in measured if not r["concurrent"] and r["status"] == 201]
+    health_measured = [h["seconds"] for h in health if h["t"] >= measured_from and h["status"] == 200]
+    base, last = checkpoints[0], checkpoints[-1]
+    second = checkpoints[2] if len(checkpoints) > 2 else checkpoints[-1]
+    summary = {
+        "server_pid": args.server_pid,
+        "split": args.split,
+        "batches": args.batches,
+        "requests_measured": len(measured),
+        "server_errors": sum(r["status"] >= 500 for r in requests),
+        "other_failures": sum(r["status"] != 201 and r["status"] < 500 for r in requests),
+        "health_failures": sum(h["status"] != 200 for h in health),
+        "sequential_elapsed_p50_s": statistics.median(sequential) if sequential else None,
+        "health_p95_s": percentile_95(health_measured) if health_measured else None,
+        "memory_at_start": start_reading,
+        "checkpoints": [{k: v for k, v in c.items() if k != "readings"} for c in checkpoints],
+        "private_growth_mb": round(last["private_mb"] - base["private_mb"], 1),
+        "private_growth_batch2_to_last_mb": round(last["private_mb"] - second["private_mb"], 1),
+        "working_set_growth_mb": round(last["working_set_mb"] - base["working_set_mb"], 1),
+    }
+    stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+    base_path = REPORTS / f"e2e_{args.tag}_{stamp}"
+    payload = {"summary": summary, "checkpoints": checkpoints, "requests": requests, "health": health,
+               "memory_trace": memory_trace}
+    raw = json.dumps(payload, ensure_ascii=False, indent=1)
+    base_path.with_suffix(".json").write_text(raw, encoding="utf-8")
+    lines = [
+        f"# 메모리 측정 ({args.tag})",
+        "",
+        f"- 날짜: {datetime.now(UTC).isoformat()}, 서버 PID {args.server_pid}",
+        f"- 준비 20개 뒤 기준점, 120개 묶음 {args.batches}번. 측정 요청 {len(measured)}개",
+        f"- 서버 오류 {summary['server_errors']}, 그 밖의 실패 {summary['other_failures']}, "
+        f"health 실패 {summary['health_failures']}",
+        f"- 순차 요청 전체 지연 중앙값 {summary['sequential_elapsed_p50_s']:.2f}초, "
+        f"측정 구간 health p95 {summary['health_p95_s']:.3f}초",
+        f"- 전용 메모리 증가: 기준점→마지막 {summary['private_growth_mb']}MB, "
+        f"2번째 묶음 뒤→마지막 {summary['private_growth_batch2_to_last_mb']}MB. "
+        f"작업 집합 증가 {summary['working_set_growth_mb']}MB",
+        "",
+        "| 시점 | 작업 집합(MB) | 전용 메모리(MB) |",
+        "|---|---|---|",
+        f"| 서버 시작 뒤 첫 요청 전 | {start_reading['working_set_mb']} | {start_reading['private_mb']} |",
+    ]
+    lines += [f"| {c['label']} | {c['working_set_mb']} | {c['private_mb']} |" for c in checkpoints]
+    report = base_path.with_suffix(".md")
+    report.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"written to {report}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     phases = parser.add_subparsers(dest="phase", required=True)
@@ -199,9 +349,17 @@ def main() -> None:
     go.add_argument("--base-url", default="http://127.0.0.1:8000")
     go.add_argument("--concurrency", type=int, choices=[1, 2], default=1)
     go.add_argument("--tag", default="run")
+    mem = phases.add_parser("memory", help="server memory across batches after a warm-up (T24)")
+    mem.add_argument("--split", choices=["validation", "test"], default="validation")
+    mem.add_argument("--base-url", default="http://127.0.0.1:8010")
+    mem.add_argument("--server-pid", type=int, required=True)
+    mem.add_argument("--batches", type=int, default=4)
+    mem.add_argument("--tag", default="memory")
     args = parser.parse_args()
     if args.phase == "prepare":
         prepare(args)
+    elif args.phase == "memory":
+        asyncio.run(memory(args))
     else:
         asyncio.run(run(args))
 

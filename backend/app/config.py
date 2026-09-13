@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     stt_model: str = "large-v3-turbo"
     ct2_dir: Path = Path(__file__).resolve().parents[2] / "data" / "models" / "ct2"
     tts_enabled: bool = True
+    # Freeze the loaded models out of the garbage collector's reach (T23). Off only to measure without it.
+    gc_freeze: bool = True
 
     @field_validator("jwt_secret_key")
     @classmethod

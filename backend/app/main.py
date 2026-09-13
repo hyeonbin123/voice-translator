@@ -22,7 +22,8 @@ async def lifespan(app: FastAPI):
         # faster-whisper runs a full gc.collect() on every decoded upload; with the models' millions of
         # objects that held the GIL ~0.4 s and stalled every other request (docs/experiments.md, T23).
         # Freezing moves everything alive now out of the collector's reach, so that collection stays short.
-        gc.freeze()
+        if settings.gc_freeze:
+            gc.freeze()
         logger.info("Models loaded")
     try:
         yield

@@ -70,16 +70,54 @@ def test_recognition_that_cannot_load_stops_startup(fake_model_classes, monkeypa
         models.load_models(Settings(model_device="cpu"))
 
 
+def test_translation_that_cannot_load_stops_startup(fake_model_classes, monkeypatch):
+    def broken(*args, **kwargs):
+        raise RuntimeError("converted model missing")
+
+    monkeypatch.setattr(translation, "MarianTranslator", broken)
+    with pytest.raises(RuntimeError, match="converted model missing"):
+        models.load_models(Settings(model_device="cpu"))
+
+
+@pytest.fixture
+def frozen(monkeypatch):
+    """Records what app.state.models held at each gc.freeze() call."""
+    calls = []
+    monkeypatch.setattr(main.gc, "freeze", lambda: calls.append(getattr(main.app.state, "models", None)))
+    return calls
+
+
 @pytest.mark.parametrize("load", [True, False])
-async def test_lifespan_loads_models_only_when_asked(monkeypatch, load):
+async def test_lifespan_loads_models_only_when_asked(monkeypatch, frozen, load):
     bundle = PipelineModels(stt=FakeSpeechToText(), translator=FakeTranslator(), tts=FakeTextToSpeech())
-    frozen = []
     monkeypatch.setattr(main, "get_settings", lambda: Settings(load_models=load))
     monkeypatch.setattr(main, "load_models", lambda settings: bundle)
-    monkeypatch.setattr(main.gc, "freeze", lambda: frozen.append(True))
 
     async with main.lifespan(main.app):
         assert getattr(main.app.state, "models", None) is (bundle if load else None)
-        # The loaded models are moved out of the collector's reach (T23), and only then.
-        assert frozen == ([True] if load else [])
+        # Frozen once, after the models are in place (T23), and only when models are loaded.
+        assert frozen == ([bundle] if load else [])
     assert not hasattr(main.app.state, "models")  # released on shutdown
+
+
+async def test_freezing_can_be_turned_off(monkeypatch, frozen):
+    bundle = PipelineModels(stt=FakeSpeechToText(), translator=FakeTranslator())
+    monkeypatch.setattr(main, "get_settings", lambda: Settings(load_models=True, gc_freeze=False))
+    monkeypatch.setattr(main, "load_models", lambda settings: bundle)
+
+    async with main.lifespan(main.app):
+        assert main.app.state.models is bundle
+    assert frozen == []
+
+
+async def test_failed_loading_stops_startup_without_freezing(monkeypatch, frozen):
+    def broken(settings):
+        raise RuntimeError("model files missing")
+
+    monkeypatch.setattr(main, "get_settings", lambda: Settings(load_models=True))
+    monkeypatch.setattr(main, "load_models", broken)
+    with pytest.raises(RuntimeError, match="model files missing"):
+        async with main.lifespan(main.app):
+            pass
+    assert frozen == []
+    assert not hasattr(main.app.state, "models")
