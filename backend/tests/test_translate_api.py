@@ -2,6 +2,7 @@ import io
 import wave
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 import av
@@ -12,6 +13,7 @@ from app.core.security import create_token
 from app.dependencies import get_audio_store, get_models
 from app.main import app
 from app.models import AudioFile, Translation, User
+from app.services import stt, translation, tts
 from app.services.audio_store import AudioStore
 from app.services.interfaces import ModelError, NoSpeechError, UndecodableAudioError
 from app.services.pipeline import MAX_AUDIO_BYTES, PipelineModels
@@ -170,9 +172,113 @@ async def test_model_failures(
     for _ in range(2):  # Fake failures must repeat, not be consumed once.
         response = await speech_request(client, auth_headers)
         assert response.status_code == status and response.json() == {"detail": detail}
-    assert str(error) in caplog.text
+    # Logged by type, never by message (T49): a library's message can quote the input.
+    assert type(error).__name__ in caplog.text and str(error) not in caplog.text
     await assert_no_history(client, auth_headers, db_session)
     assert not store.directory.exists()
+
+
+SOURCE_MARK, TRANSLATION_MARK = "원문표식", "translation-mark"
+
+
+class FailingWhisper:
+    """faster-whisper failing as CTranslate2 does: on the call, or while the segments are read (T48)."""
+
+    lazy = False
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def transcribe(self, audio, language, **options):
+        if not self.lazy:
+            raise RuntimeError(f"CUDA failed while decoding {SOURCE_MARK}")
+
+        def segments():
+            yield SimpleNamespace(text="partial")
+            raise RuntimeError(f"CUDA failed while decoding {SOURCE_MARK}")
+
+        return segments(), SimpleNamespace(duration=1.0)
+
+
+@pytest.mark.parametrize("lazy", [False, True], ids=["on-the-call", "while-reading"])
+async def test_a_recognition_engine_error_answers_503_without_quoting_it(
+    client, auth_headers, services, db_session, monkeypatch, caplog, lazy
+):
+    monkeypatch.setattr(stt, "WhisperModel", FailingWhisper)
+    monkeypatch.setattr(stt, "add_cuda_dll_dirs", lambda: None)
+    monkeypatch.setattr(FailingWhisper, "lazy", lazy)
+    models, _ = services
+    whisper = stt.WhisperSpeechToText("tiny", device="cpu", compute_type="int8")
+    app.dependency_overrides[get_models] = lambda: replace(models, stt=whisper)
+    response = await speech_request(client, auth_headers)
+    assert response.status_code == 503 and response.json() == {"detail": "Translation service is unavailable"}
+    assert "Translation pipeline failed: ModelError <- RuntimeError" in caplog.text
+    assert SOURCE_MARK not in caplog.text and SOURCE_MARK not in response.text
+    await assert_no_history(client, auth_headers, db_session)
+
+
+class QuotingTokenizer:
+    """A tokenizer whose error quotes the text, raised while handling another error that quotes it too."""
+
+    def encode(self, text, out_type):
+        try:
+            raise KeyError(f"no piece for {text}")
+        except KeyError:
+            raise ValueError(f"cannot encode {text}")  # noqa: B904 - the implicit context is the point
+
+    def decode(self, pieces):
+        return " ".join(pieces)
+
+
+async def test_a_translation_error_quoting_the_input_is_logged_without_it(
+    client, auth_headers, services, db_session, monkeypatch, caplog
+):
+    # The real Marian adapter and its model boundary; only the tokenizer and engine are replaced (T49).
+    engine = SimpleNamespace(generate=lambda tokens, target_prefix=None: ["unused"])
+    monkeypatch.setattr(translation, "_Ct2Model", lambda *args: engine)
+    monkeypatch.setattr(translation, "load_sentencepiece", lambda path: QuotingTokenizer())
+    models, _ = services
+    marian = translation.MarianTranslator(Path("model"), "ko", "en")
+    app.dependency_overrides[get_models] = lambda: replace(models, translator=marian)
+    response = await text_request(client, auth_headers, text=f"{SOURCE_MARK} 문장입니다")
+    assert response.status_code == 503 and response.json() == {"detail": "Translation service is unavailable"}
+    # The stage and the chain of types stay visible; neither message is.
+    assert "Translation pipeline failed: ModelError <- ValueError <- KeyError" in caplog.text
+    assert SOURCE_MARK not in caplog.text and SOURCE_MARK not in response.text
+    await assert_no_history(client, auth_headers, db_session)
+
+
+class MarkingTranslator:
+    model_name = "marking-mt"
+
+    def translate(self, text, source, target):
+        return f"{TRANSLATION_MARK} of the text"
+
+
+class QuotingSynthesis:
+    """Speech synthesis whose error, inside the real model boundary, quotes the translation."""
+
+    model_name = "quoting-tts"
+
+    def synthesize(self, text, language):
+        def front_end():
+            raise ValueError(f"cannot read {text}")
+
+        return tts._guarded(front_end)
+
+
+async def test_a_synthesis_error_quoting_the_translation_is_logged_without_it(
+    client, auth_headers, services, caplog
+):
+    models, _ = services
+    app.dependency_overrides[get_models] = lambda: replace(
+        models, translator=MarkingTranslator(), tts=QuotingSynthesis()
+    )
+    response = await text_request(client, auth_headers, text=f"{SOURCE_MARK} 문장입니다")
+    # Synthesis failing still keeps the translation and its record.
+    assert response.status_code == 201 and response.json()["tts_error"] == "Speech synthesis failed"
+    assert "Speech synthesis or audio storage failed: ModelError <- ValueError" in caplog.text
+    assert TRANSLATION_MARK not in caplog.text and SOURCE_MARK not in caplog.text
 
 
 async def test_fake_empty_recognition(client, auth_headers, services, db_session):

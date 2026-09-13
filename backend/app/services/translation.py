@@ -208,7 +208,7 @@ class OllamaTranslator:
             response.raise_for_status()
             content = response.json()["message"]["content"]
         except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
-            raise ModelError(f"the translation model is unavailable: {exc}") from exc
+            raise ModelError(f"the translation model is unavailable: {type(exc).__name__}") from exc
         return _nonempty(content)
 
 

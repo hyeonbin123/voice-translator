@@ -13,6 +13,7 @@ import threading
 
 import httpx
 
+from app.services.errors import describe
 from app.services.interfaces import Language
 
 logger = logging.getLogger(__name__)
@@ -87,8 +88,8 @@ class OllamaCorrector:
             content = body["message"]["content"]
             # Anything but a normal finish ("length": cut off at num_predict) would drop part of the text.
             finished = body.get("done") is True and body.get("done_reason") == "stop"
-        except (httpx.HTTPError, ValueError, KeyError, TypeError, AttributeError):
-            logger.warning("Typo correction failed; translating the text as typed", exc_info=True)
+        except (httpx.HTTPError, ValueError, KeyError, TypeError, AttributeError) as exc:
+            logger.warning("Typo correction failed; translating the text as typed: %s", describe(exc))
             return None
         if not finished or not isinstance(content, str) or not content.strip():
             logger.warning("Typo correction gave no finished reply; translating the text as typed")
@@ -125,15 +126,15 @@ class OllamaCorrector:
             while not self._closed.is_set():
                 try:
                     self.prepare()
-                except Exception:  # noqa: BLE001 - any failure leaves correction off until a later try works
+                except Exception as exc:  # noqa: BLE001 - any failure leaves correction off until a later try works
                     failures += 1
                     if failures == 1 and not self._closed.is_set():  # once, not every retry
                         logger.warning(
                             "Typo correction model %s is not ready; typed text is translated as is. "
-                            "Trying again every %.0f s",
+                            "Trying again every %.0f s: %s",
                             self._model,
                             self._retry_s,
-                            exc_info=True,
+                            describe(exc),
                         )
                     self._closed.wait(self._retry_s)
                     continue

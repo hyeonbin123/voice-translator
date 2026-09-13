@@ -9,7 +9,7 @@ from faster_whisper import WhisperModel
 from faster_whisper.audio import _group_frames, _ignore_invalid_frames, _resample_frames
 
 from app.services.cuda import add_cuda_dll_dirs
-from app.services.interfaces import Language, NoSpeechError, Transcript, UndecodableAudioError
+from app.services.interfaces import Language, ModelError, NoSpeechError, Transcript, UndecodableAudioError
 
 SAMPLE_RATE = 16_000
 
@@ -89,7 +89,13 @@ class WhisperSpeechToText:
         model_input = io.BytesIO(source) if isinstance(source, bytes) else source
         try:
             segments, info = self._model.transcribe(model_input, language=language, **options)
+            # segments is a generator: the model runs here, so its errors surface here too.
             text = " ".join(segment.text.strip() for segment in segments).strip()
         except FFmpegError as exc:
             raise UndecodableAudioError("the audio could not be decoded") from exc
+        except ModelError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - the boundary around the engine (CUDA errors among others)
+            # Became a 500 before (T48); the API answers model failures with 503.
+            raise ModelError(f"the speech recognition model failed: {type(exc).__name__}") from exc
         return text, info.duration

@@ -16,6 +16,7 @@ from app.models import AudioFile, Translation
 from app.schemas.history import HistoryItem
 from app.schemas.translate import TranslationResponse
 from app.services.audio_store import AudioStore
+from app.services.errors import describe
 from app.services.inference import run_model
 from app.services.interfaces import (
     Language,
@@ -138,8 +139,9 @@ async def translate(
             item.tts_model = models.tts.model_name
             item.tts_ms = tts_ms
             tts_error = None
-        except (ModelError, OSError):
-            logger.exception("Speech synthesis or audio storage failed")
+        except (ModelError, OSError) as exc:
+            # Types and place only: a synthesis error's message can quote the translation (T49).
+            logger.error("Speech synthesis or audio storage failed: %s", describe(exc))
             tts_error = "Speech synthesis failed"
     try:
         db.add(item)

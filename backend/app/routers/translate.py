@@ -11,6 +11,7 @@ from starlette.formparsers import MultiPartException, MultiPartParser
 from app.dependencies import CurrentUser, DbSession, Models, StoredAudio
 from app.schemas.translate import LanguagePair, TextRequest, TranslationResponse
 from app.services import pipeline
+from app.services.errors import describe
 from app.services.interfaces import Language, ModelError, NoSpeechError, UndecodableAudioError
 
 logger = logging.getLogger(__name__)
@@ -20,16 +21,17 @@ router = APIRouter(prefix="/translate", tags=["translate"])
 async def execute(response: Response, **kwargs) -> TranslationResponse:
     try:
         result = await pipeline.translate(**kwargs)
+    # The log names the failure but never its messages: a library's message can quote the input (T49).
     except UndecodableAudioError as exc:
-        logger.warning("Undecodable audio", exc_info=True)
+        logger.warning("Undecodable audio: %s", describe(exc))
         raise HTTPException(422, "Audio could not be decoded") from exc
     except NoSpeechError as exc:
-        logger.warning("No speech recognized", exc_info=True)
+        logger.warning("No speech recognized: %s", describe(exc))
         raise HTTPException(422, "No speech was recognized") from exc
     except pipeline.AudioTooLongError as exc:
         raise HTTPException(422, "Audio is longer than 30 seconds") from exc
     except ModelError as exc:
-        logger.exception("Translation pipeline failed")
+        logger.error("Translation pipeline failed: %s", describe(exc))
         raise HTTPException(503, "Translation service is unavailable") from exc
     response.headers["Location"] = f"/api/history/{result.id}"
     return result

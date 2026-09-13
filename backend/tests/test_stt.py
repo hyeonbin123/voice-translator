@@ -9,7 +9,7 @@ from av.error import InvalidDataError
 from faster_whisper.audio import decode_audio as faster_whisper_decode_audio
 
 from app.services import stt
-from app.services.interfaces import NoSpeechError, UndecodableAudioError
+from app.services.interfaces import ModelError, NoSpeechError, UndecodableAudioError
 from tests.fakes import silent_wav
 
 
@@ -54,6 +54,27 @@ def make_whisper(monkeypatch):
 @pytest.fixture
 def whisper(make_whisper):
     return make_whisper()
+
+
+def test_an_engine_error_on_the_call_becomes_a_model_error(make_whisper, monkeypatch):
+    # T48: CTranslate2 raises RuntimeError (CUDA errors among others); the API answers 503, not 500.
+    monkeypatch.setattr(FakeWhisperModel, "error", RuntimeError("CUDA failed on private words"))
+    with pytest.raises(ModelError) as caught:
+        make_whisper().transcribe(silent_wav(100), "en")
+    assert "private words" not in str(caught.value)
+
+
+def test_an_engine_error_while_reading_the_segments_becomes_a_model_error(make_whisper, monkeypatch):
+    # faster-whisper returns a generator; the model runs, and fails, while the segments are read.
+    def segments():
+        yield SimpleNamespace(text="partial")
+        raise RuntimeError("CUDA failed on private words")
+
+    monkeypatch.setattr(
+        FakeWhisperModel, "transcribe", lambda self, audio, language, **options: (segments(), None)
+    )
+    with pytest.raises(ModelError):
+        make_whisper().transcribe(silent_wav(100), "en")
 
 
 def test_joins_segments_and_reports_the_duration(whisper):
