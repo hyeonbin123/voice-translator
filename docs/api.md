@@ -296,6 +296,23 @@ backend 폴더에서 `uv sync` 후 `uv run alembic upgrade head`를 실행해 �
 환경 변수로 설정한다. 키는 저장소에 기록하지 않는다.
 `ACCESS_TOKEN_EXPIRE_MINUTES`(기본 30), `REFRESH_TOKEN_EXPIRE_DAYS`(기본 7)로 유효 기간을 바꿀 수 있다.
 
+모델 설정(모두 환경 변수, 아래 이름 그대로). 모델을 올리려면 backend에서 `uv sync --group gpu --group tts`로
+음성 합성 의존성까지 설치한다. Docker 이미지는 `LOAD_MODELS=true`, `CT2_DIR=/models/ct2`, `AUDIO_DIR=/data/audio`로 뜬다.
+
+| 변수 | 기본값 | 내용 |
+|---|---|---|
+| `LOAD_MODELS` | `false` | 앱 시작 때 세 모델을 올린다. 끄면 번역 요청은 503 (테스트·CI는 끈 채로 돈다) |
+| `MODEL_DEVICE` | `cuda` | `cuda` 또는 `cpu`. GPU는 float16, CPU는 int8 |
+| `STT_MODEL` | `large-v3-turbo` | faster-whisper 모델 이름 |
+| `CT2_DIR` | `<프로젝트>/data/models/ct2` | 변환한 번역 모델 폴더 (`eval.mt_convert`) |
+| `TTS_ENABLED` | `true` | 끄면 음성 합성 없이 뜨고 응답에 `tts_error`가 들어간다 |
+| `STT_VAD_FILTER` | `true` | 말소리 구간만 인식 모델에 넘긴다 (docs/experiments.md 1-1) |
+| `STT_OWN_DECODE` | `false` | 업로드를 faster-whisper 대신 앱에서 디코딩한다. 비교용으로만 남긴 설정 (5절 후보 C) |
+| `WARM_UP` | `true` | 모델을 올린 뒤 번역·합성·인식을 한 번씩 돌려 첫 요청의 지연을 없앤다 |
+| `GC_FREEZE` | `true` | 모델을 올린 뒤 `gc.freeze()`. 번역 중 다른 요청이 막히지 않게 한다 (5절) |
+| `MODEL_THREADS` | `1` | 모델 호출 스레드 수 (docs/experiments.md 4절) |
+| `AUDIO_DIR` | `<프로젝트>/work/audio` | 번역 음성 파일을 두는 폴더 |
+
 `uv run pytest`는 conftest가 고유한 `vt_test_<uuid>` DB를 생성하고 Alembic을 적용하여 실제 PostgreSQL로
 테스트한 뒤 해당 DB만 삭제한다. 접속 계정에 CREATE DATABASE 권한이 필요하다.
 `TEST_DATABASE_ADMIN_URL`로 테스트 서버 접속을 바꿀 수 있다(미설정 시 DATABASE_URL 사용).
