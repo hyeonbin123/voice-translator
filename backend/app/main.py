@@ -7,10 +7,30 @@ from fastapi import FastAPI
 
 from app.config import get_settings
 from app.routers import audio, auth, health, history, translate
+from app.services.errors import describe
 from app.services.models import load_models, warm_up
 
 logger = logging.getLogger(__name__)
 
+
+class WithoutExceptionMessages(logging.Filter):
+    """Log an exception as its chain of types and place, never its messages or traceback (T49, T54).
+
+    A library's message can quote the user's text or the translation. The app's own logs already use
+    describe(); this catches the rest: an unexpected error that uvicorn logs as "Exception in ASGI
+    application" (Starlette always re-raises it), and any app record logged with exc_info.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.exc_info and record.exc_info[1] is not None:
+            record.msg = f"{record.getMessage()}: {describe(record.exc_info[1])}"
+            record.args = None
+            record.exc_info = None
+            record.exc_text = None
+        return True
+
+
+_without_messages = WithoutExceptionMessages()
 # uvicorn configures only its own loggers, so without a handler the app's INFO lines (model loading and
 # warm-up times) were dropped (T30). Propagation stays on, so pytest's caplog still receives them.
 _app_logger = logging.getLogger("app")
@@ -18,7 +38,14 @@ if not _app_logger.handlers:
     _handler = logging.StreamHandler()
     _handler.setFormatter(logging.Formatter("%(levelname)s:     %(name)s: %(message)s"))
     _app_logger.addHandler(_handler)
+for _handler in _app_logger.handlers:
+    # On the handler, so it also covers records from app.* child loggers.
+    if not any(isinstance(f, WithoutExceptionMessages) for f in _handler.filters):
+        _handler.addFilter(_without_messages)
 _app_logger.setLevel(logging.INFO)
+_uvicorn_errors = logging.getLogger("uvicorn.error")
+if not any(isinstance(f, WithoutExceptionMessages) for f in _uvicorn_errors.filters):
+    _uvicorn_errors.addFilter(_without_messages)
 
 
 @asynccontextmanager

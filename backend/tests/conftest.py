@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from alembic import command
 from app.config import get_settings
 from app.core.security import create_token, hash_password
+from app.db.session import ENGINE_OPTIONS
 from app.dependencies import get_db
 from app.main import app
 from app.models import User
@@ -54,7 +55,7 @@ def migrated_database():
 
 @pytest.fixture
 async def db_engine(migrated_database):
-    engine = create_async_engine(migrated_database)
+    engine = create_async_engine(migrated_database, **ENGINE_OPTIONS)
     try:
         yield engine
     finally:

@@ -235,7 +235,8 @@ async def test_audio_store_never_reads_or_deletes_outside_directory(tmp_path, ca
         assert await store.read(path) is None
         await store.delete(path)
         assert outside.read_bytes() == b"private"
-    assert "outside AUDIO_DIR" in caplog.text
+    # Logged as the exception's type and place, not its message (T54): the refusal in resolve().
+    assert "ValueError (at audio_store.py" in caplog.text and "in resolve)" in caplog.text
 
 
 @pytest.mark.parametrize("failure_stage", ["write", "close"])
