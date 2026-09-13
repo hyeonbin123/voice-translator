@@ -18,6 +18,7 @@
 | 번역 | opus-mt-tc-big 한→영·영→한 (CTranslate2로 변환), 영→한은 문장 단위로 번역 |
 | 오타 교정 | 글자로 입력한 영어만 번역 전에 qwen2.5 1.5B(Ollama)로 오타·띄어쓰기를 고침 |
 | 음성 합성 | 한국어 MeloTTS, 영어 Kokoro-82M |
+| 대화 모드 | 버튼 없이 말하고 멈추면 번역 음성까지. 브라우저에서 Silero VAD(onnxruntime-web)가 1초 쉼을 말 끝으로 판정해 한 마디씩 보냄, 재생 중에는 듣지 않음 |
 | 배포 | Docker Compose: db, api(GPU), ollama(GPU, 오타 교정), web(nginx가 화면과 `/api` 프록시) |
 
 ### 측정해서 고른 결과
@@ -28,6 +29,7 @@
 |---|---|---|
 | 음성 인식 | large-v3-turbo + VAD | 한국어 CER 4.57%, 영어 WER 4.95%. 음성 1초당 처리 약 0.04초 |
 | 번역 | opus-mt-tc-big | chrF 한→영 55.7, 영→한 36.1 |
+| 대화 모드 말 끝 판정 | Silero VAD, 1초 쉼 (음량 기준 판정보다 잡음에 강함) | 문장이 중간에 잘리는 비율 2.2~3.1%, 붙음·놓침 0, 말이 끝나고 판정까지 약 1.17초. 말을 멈춘 뒤 번역 음성까지 약 2.0초(추정). 1.5초 목표와 잘림 5% 이하를 함께 만족하는 방법이 없어 문장을 온전히 번역하는 쪽을 골랐다 |
 | 오타 교정 (영어 글자 입력) | qwen2.5 1.5B로 교정한 뒤 번역 | 오타를 섞은 영→한 chrF 27.5 → 34.8, 깨끗한 입력 36.1 → 36.6. 문장당 약 0.15초 추가. 한국어 입력은 교정이 깨끗한 문장을 망가뜨려 쓰지 않음 |
 | 음성 합성 | MeloTTS(한), Kokoro(영) | 합성 음성을 다시 인식한 오류: 한국어 CER 5.58%, 영어 WER 3.91% |
 | 전체 흐름 | 위 조합, 모델 스레드 1개 | 10초 음성 → 원문·번역문·번역 음성까지 중앙값 0.89초(p95 1.62초), 동시 2요청 1.54초. 번역 중 다른 요청 응답 p95 0.033초 |
@@ -113,6 +115,8 @@ uv run python -m eval.fleurs_download        # FLEURS 한국어·영어 validati
 - **평가 데이터**: FLEURS는 위키 문체의 긴 문장이라 짧은 대화체와 다르다. 참조 번역이 하나라 맞는 다른 표현도 감점된다. 영→한 chrF가 한→영보다 20점 낮은 것은 모든 후보에 공통이다
 - **측정 환경**: 한 PC(RTX 2080 Ti, Windows)에서 서버와 측정 도구를 함께 돌렸다. 다른 GPU나 여러 대에서는 재지 않았다
 - **접근성**: 키보드·axe·360px 검사는 자동이다. 스크린리더와 실제 마이크로는 사람이 확인해야 한다
+- **대화 모드**: 말 끝 판정은 FLEURS를 이어 붙인 녹음과 합성 잡음으로 쟀다. 읽는 말투라 실제 대화의 머뭇거림과 다르고, 실제 마이크·스피커로 쓴 확인은 아직 없다. 브라우저 판정이 오프라인 측정과 같은 결과를 내는 것은 같은 음성으로 확인했다. 대화 모드를 처음 켜면 말소리 판정 파일(WASM 약 14MB, gzip 약 3.7MB)을 한 번 받는다
+- **가끔 느려지는 서버 인식 (T42)**: 측정 중 약 10분 동안 인식이 5~43초 걸린 구간이 두 번 있었다. 같은 음성을 다시 보내면 정상이었고 원인은 찾지 못했다
 - **음성 합성 준비물**: MeloTTS는 쓰지 않는 언어의 BERT 토크나이저도 받는다(프랑스어·스페인어·일본어·다국어). Windows에서는 MeloTTS와 Kokoro에 작은 우회가 필요하고 코드에 들어 있다 (Linux 컨테이너는 필요 없음)
 
 ## 모델과 데이터의 라이선스
@@ -121,7 +125,9 @@ uv run python -m eval.fleurs_download        # FLEURS 한국어·영어 validati
 |---|---|---|---|---|
 | 음성 인식 | Whisper large-v3-turbo | OpenAI | MIT | [openai/whisper-large-v3-turbo](https://huggingface.co/openai/whisper-large-v3-turbo) |
 | 음성 인식 (쓰는 변환본) | faster-whisper-large-v3-turbo | Mobius Labs | MIT | [mobiuslabsgmbh/faster-whisper-large-v3-turbo](https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo) |
-| 말소리 구간 검출 | Silero VAD (faster-whisper에 포함) | Silero | MIT | [snakers4/silero-vad](https://github.com/snakers4/silero-vad) |
+| 말소리 구간 검출 (서버 인식, 대화 모드의 말 끝 판정) | Silero VAD v6 (faster-whisper에 포함된 ONNX 파일) | Silero | MIT | [snakers4/silero-vad](https://github.com/snakers4/silero-vad). 대화 모드는 같은 파일을 `frontend/src/conversation/assets/`에 넣어 브라우저로 보낸다 (라이선스 원문 동봉) |
+| 대화 모드의 브라우저 추론 | onnxruntime-web 1.29.0 | Microsoft | MIT | [microsoft/onnxruntime](https://github.com/microsoft/onnxruntime). WASM 파일을 화면과 함께 배포 (라이선스 원문 동봉) |
+| 오타 교정 (영어 글자 입력) | Qwen2.5-1.5B-Instruct (Ollama `qwen2.5:1.5b-instruct`) | Alibaba Cloud Qwen | Apache-2.0 | [Qwen/Qwen2.5-1.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct) |
 | 번역 한→영 | opus-mt-tc-big-ko-en | Helsinki-NLP (University of Helsinki) | CC-BY-4.0 | [Helsinki-NLP/opus-mt-tc-big-ko-en](https://huggingface.co/Helsinki-NLP/opus-mt-tc-big-ko-en). 원본 MarianNMT 배포본을 CTranslate2로 변환해 씀 |
 | 번역 영→한 | opus-mt-tc-big-en-ko | Helsinki-NLP (University of Helsinki) | CC-BY-4.0 | [Helsinki-NLP/opus-mt-tc-big-en-ko](https://huggingface.co/Helsinki-NLP/opus-mt-tc-big-en-ko). 위와 같이 변환 |
 | 음성 합성 한국어 | MeloTTS-Korean | MyShell.ai | MIT | [myshell-ai/MeloTTS](https://github.com/myshell-ai/MeloTTS), [myshell-ai/MeloTTS-Korean](https://huggingface.co/myshell-ai/MeloTTS-Korean) |
@@ -134,7 +140,7 @@ uv run python -m eval.fleurs_download        # FLEURS 한국어·영어 validati
 | 음성 합성 영어 | Kokoro-82M | hexgrad | Apache-2.0 | [hexgrad/Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) |
 | 평가 데이터 | FLEURS | Google | CC-BY-4.0 | [google/fleurs](https://huggingface.co/datasets/google/fleurs) |
 
-라이선스는 2026-09-13에 각 모델 카드와 저장소에서 확인했다. 모델 가중치는 이 저장소에 들어 있지 않고, 실행할 때 원본에서 받는다.
+라이선스는 2026-09-13~14에 각 모델 카드와 저장소에서 확인했다. 저장소에 들어 있는 모델 가중치는 대화 모드용 Silero VAD v6 ONNX 파일(1.2MB) 하나이고, 나머지는 실행할 때 원본에서 받는다.
 
 ## 문서
 
