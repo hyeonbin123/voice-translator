@@ -165,3 +165,31 @@ describe('API authentication', () => {
     expect((await client.request('/api/history/id', { method: 'DELETE' })).status).toBe(204)
   })
 })
+
+describe('translation contract errors', () => {
+  it.each([
+    [413, 'Audio file is larger than 10 MB', '음성 파일은 10MB 이하로 선택해 주세요.', '/api/translate/speech'],
+    [422, 'Audio could not be decoded', '음성 파일을 읽을 수 없습니다. 다시 녹음하거나 다른 파일을 선택해 주세요.', '/api/translate/speech'],
+    [422, 'Audio is longer than 30 seconds', '음성은 30초 이하로 녹음해 주세요.', '/api/translate/speech'],
+    [422, 'No speech was recognized', '말소리를 찾지 못했습니다. 마이크를 확인하고 다시 녹음해 주세요.', '/api/translate/speech'],
+    [503, 'Translation service is unavailable', '번역 서비스를 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.', '/api/translate/text'],
+    [404, 'Audio not found', '번역 음성이 없거나 삭제되었습니다. 다시 번역해 주세요.', '/api/audio/id'],
+    [503, 'unknown private input', '요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.', '/api/translate/text'],
+    [503, 'No speech was recognized', '요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.', '/api/translate/speech'],
+    [422, [{ input: 'unknown private input', msg: 'unknown private input' }], '입력 내용과 번역 방향을 확인해 주세요.', '/api/translate/text'],
+    [404, 'Audio not found', '요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.', '/api/history/id'],
+  ] as const)('maps only the allowed status/detail/path for %s %j', async (status, detail, message, path) => {
+    await login()
+    fetchMock.mockResolvedValueOnce(response({ detail, input: 'unknown private input' }, status))
+    await expect(client.request(path)).rejects.toMatchObject({ name: 'ApiError', status, message })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('uses safe local text for an HTML proxy error', async () => {
+    await login()
+    fetchMock.mockResolvedValueOnce(new Response('<html>private input</html>', { status: 413 }))
+    await expect(client.request('/api/translate/speech')).rejects.toMatchObject({
+      status: 413, message: '요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+    })
+  })
+})

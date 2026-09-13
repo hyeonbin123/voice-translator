@@ -7,6 +7,8 @@ import { useSession } from './auth/useSession'
 import TranslatePage from './translation/TranslatePage'
 import { TranslationApi } from './translation/api'
 import { mockTranslationApi } from './translation/mock'
+import HistoryPage from './history/HistoryPage'
+import { HistoryApi } from './history/api'
 
 function ProtectedLayout({ client }: { client: ApiClient }) {
   const session = useSession(client)
@@ -28,21 +30,11 @@ function ProtectedLayout({ client }: { client: ApiClient }) {
   )
 }
 
-function Placeholder({ history = false }: { history?: boolean }) {
-  return (
-    <section className="placeholder">
-      <p className="eyebrow">{history ? '나의 번역' : '영어 ↔ 한국어'}</p>
-      <h1>{history ? '번역 기록' : '번역'}</h1>
-      <p>{history ? '번역 기록을 모아 볼 공간입니다.' : '말하거나 입력한 내용을 번역할 공간입니다.'}</p>
-      <p className="muted">{history ? '기록 조회 기능을 준비하고 있습니다.' : '음성·텍스트 번역 기능을 준비하고 있습니다.'}</p>
-    </section>
-  )
-}
-
 export function AppRoutes({ client = api }: { client?: ApiClient }) {
   const session = useSession(client)
-  const translation = useMemo(() => import.meta.env.DEV && import.meta.env.VITE_TRANSLATION_MOCK !== 'false'
+  const translation = useMemo(() => import.meta.env.VITE_TRANSLATION_MOCK === 'true'
     ? mockTranslationApi : new TranslationApi(client), [client])
+  const history = useMemo(() => new HistoryApi(client), [client])
   useEffect(() => { void client.initialize() }, [client])
 
   return (
@@ -55,7 +47,8 @@ export function AppRoutes({ client = api }: { client?: ApiClient }) {
             <Route path="/register" element={<AuthPage key="register" client={client} register />} />
             <Route element={<ProtectedLayout client={client} />}>
               <Route path="/translate" element={<TranslatePage api={translation} />} />
-              <Route path="/history" element={<Placeholder history />} />
+              <Route path="/history" element={<HistoryPage api={history} />} />
+              <Route path="/history/:id" element={<HistoryPage api={history} />} />
             </Route>
             <Route path="/" element={<Navigate to="/translate" replace />} />
             <Route path="*" element={<section className="placeholder"><h1>페이지를 찾을 수 없습니다</h1><Link to="/">처음으로</Link></section>} />

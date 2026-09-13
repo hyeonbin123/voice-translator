@@ -63,7 +63,7 @@ export default function TranslatePage({ api }: { api: TranslationApi }) {
       <h1>번역</h1>
       <p className="muted">말하거나 글을 입력해 대화를 이어 가세요.</p>
       {api.demo && <aside className="notice">
-        <strong>예시 모드</strong> · 실제 번역과 기록 저장은 아직 연결되지 않았습니다.
+        <strong>예시 모드</strong> · 예시 번역을 보여 주며 기록은 저장하지 않습니다.
         <br />한국어는 “안녕하세요”, “감사합니다”, 영어는 “Hello”, “Thank you”를 입력해 보세요.
         녹음 결과도 고정된 인사말 예시입니다.
       </aside>}

@@ -56,11 +56,19 @@ nav a.active { background: #e4edfb; color: #184985; font-weight: 700; }
 .timings { display: flex; flex-wrap: wrap; gap: 16px 32px; margin-bottom: 0; }
 .timings dt { font-size: 13px; color: #536175; }
 .timings dd { margin: 0; font-variant-numeric: tabular-nums; }
+.history-panel { padding: 32px; border: 1px solid #dce2eb; border-radius: 16px; background: white; }
+.history-list { list-style: none; padding: 0; }
+.history-list li { border-bottom: 1px solid #dce2eb; }
+.history-link { display: flex; flex-direction: column; gap: 6px; padding: 16px 0; overflow-wrap: anywhere; }
+.history-link > span:not(.hint) { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.history-panel h2 { font-size: 18px; }
+.danger { color: #a12020; border-color: #a12020; }
 @media (max-width: 520px) {
   .app { padding-left: 16px; padding-right: 16px; }
   .brand { gap: 4px; flex-direction: column; align-items: flex-start; }
   .auth-card { padding: 24px; margin-top: 0; }
   .placeholder { padding: 24px; }
   .translator { padding: 20px; }
+  .history-panel { padding: 20px; }
   .result-columns { grid-template-columns: 1fr; gap: 4px; }
 }

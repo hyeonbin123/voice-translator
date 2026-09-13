@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { errorMessage } from '../api/client'
 import { TranslationApi, type TranslationResult } from './api'
 
-export default function Playback({ result, api }: { result: TranslationResult; api: TranslationApi }) {
+type PlaybackResult = Pick<TranslationResult, 'audio_id' | 'translated_text' | 'target_lang'> & Partial<Pick<TranslationResult, 'tts_error'>>
+
+export default function Playback({ result, api }: { result: PlaybackResult; api: Pick<TranslationApi, 'audio'> }) {
   const audio = useRef<HTMLAudioElement>(null)
   const [url, setUrl] = useState('')
   const [error, setError] = useState('')

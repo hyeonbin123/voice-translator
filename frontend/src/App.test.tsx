@@ -13,6 +13,7 @@ const fetchMock = vi.fn<typeof fetch>()
 let client: ApiClient
 
 beforeEach(() => {
+  vi.stubEnv('VITE_TRANSLATION_MOCK', undefined)
   sessionStorage.clear()
   localStorage.clear()
   fetchMock.mockReset()
@@ -67,7 +68,7 @@ describe('authentication screens and routes', () => {
   })
 
   it('protects a direct history link and returns there after login, then logs out', async () => {
-    fetchMock.mockResolvedValueOnce(response(tokens)).mockResolvedValueOnce(response(person))
+    fetchMock.mockResolvedValueOnce(response(tokens)).mockResolvedValueOnce(response(person)).mockImplementation(async () => response({ items: [], total: 0 }))
     show('/history')
     expect(await screen.findByRole('heading', { name: '로그인' })).toBeInTheDocument()
     const user = await fill()
@@ -133,10 +134,12 @@ describe('authentication screens and routes', () => {
 
   it('restores the session on a direct link under StrictMode', async () => {
     sessionStorage.setItem(REFRESH_KEY, 'old-refresh')
-    fetchMock.mockResolvedValueOnce(response(tokens)).mockResolvedValueOnce(response(person))
+    fetchMock.mockResolvedValueOnce(response(tokens)).mockResolvedValueOnce(response(person)).mockImplementation(async () => response({ items: [], total: 0 }))
     show('/history')
     expect(await screen.findByRole('heading', { name: '번역 기록' })).toBeInTheDocument()
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(await screen.findByText(/아직 번역 기록이 없습니다/)).toBeInTheDocument()
+    expect(fetchMock.mock.calls.filter(([path]) => path === '/api/auth/refresh')).toHaveLength(1)
+    expect(fetchMock.mock.calls.filter(([path]) => path === '/api/auth/me')).toHaveLength(1)
   })
 
   it('returns to login when an authenticated request cannot refresh', async () => {
@@ -159,4 +162,21 @@ describe('authentication screens and routes', () => {
     expect(screen.queryByRole('heading', { name: '번역 기록' })).not.toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
+})
+
+it.each([undefined, 'false', 'TRUE'])('defaults to the real API in development for mock=%s and displays a model-free server 503 safely', async (mock) => {
+  vi.stubEnv('DEV', true)
+  vi.stubEnv('VITE_TRANSLATION_MOCK', mock)
+  sessionStorage.setItem(REFRESH_KEY, 'refresh')
+  fetchMock.mockResolvedValueOnce(response(tokens)).mockResolvedValueOnce(response(person))
+    .mockResolvedValueOnce(response({ detail: 'Translation service is unavailable', input: 'private-server-input' }, 503))
+  show('/translate')
+  await screen.findByRole('heading', { name: '번역' })
+  expect(screen.queryByText('예시 모드')).not.toBeInTheDocument()
+  fireEvent.change(screen.getByLabelText(/번역할 글/), { target: { value: '안녕하세요' } })
+  await userEvent.click(screen.getByRole('button', { name: '번역하기' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('번역 서비스를 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.')
+  expect(screen.queryByText(/private-server-input|Translation service is unavailable/)).not.toBeInTheDocument()
+  expect(fetchMock.mock.calls[2][0]).toBe('/api/translate/text')
+  expect(new Headers(fetchMock.mock.calls[2][1]?.headers).get('Authorization')).toBe('Bearer access')
 })
