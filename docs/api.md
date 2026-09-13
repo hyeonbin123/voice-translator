@@ -239,7 +239,8 @@ T5에서는 디스크 파일을 삭제하지 않는다. 파일 저장소가 생�
 | 상황 | 상태 | 본문 `detail` | 기록 |
 |---|---|---|---|
 | 필드 누락, 언어 값 오류, 같은 언어, 글자 수 초과·빈 글자 | 422 | FastAPI 검증 오류 형식 (`[...]`) | 없음 |
-| 파일이 10MB 초과 | 413 | `"Audio file is larger than 10 MB"` | 없음 |
+| multipart 형식 자체가 잘못됨(경계 없음 등) | 400 | `"Invalid multipart request"` | 없음 |
+| 파일이 10MB(10 × 1024 × 1024바이트) 초과 | 413 | `"Audio file is larger than 10 MB"` | 없음 |
 | 파일을 음성으로 풀 수 없음 | 422 | `"Audio could not be decoded"` | 없음 |
 | 음성이 30초 초과 | 422 | `"Audio is longer than 30 seconds"` | 없음 |
 | 음성에서 말을 찾지 못함 | 422 | `"No speech was recognized"` | 없음 |

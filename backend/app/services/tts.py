@@ -8,10 +8,12 @@ module needs none of them.
 from __future__ import annotations
 
 import io
+import os
 import sys
 import types
 import wave
 from collections.abc import Callable
+from pathlib import Path
 from typing import TypeVar
 
 import numpy as np
@@ -139,15 +141,29 @@ class MeloTextToSpeech:
         return wav_bytes(audio, self._sample_rate)
 
 
-class KokoroTextToSpeech:
-    """Kokoro-82M, English only. Apache-2.0.
-
-    Its English front end falls back to espeak-ng, whose bundled library cannot open data paths with
-    non-ASCII characters on Windows. Set ESPEAK_DATA_PATH to an ASCII path before building this when the
-    default location has such characters; Linux containers need nothing.
+def _espeak_data_on_windows() -> None:
+    """Kokoro's English front end falls back to espeak-ng, whose bundled library cannot open a data path
+    with non-ASCII characters on Windows, and ends the whole process when it tries. When the data sits
+    under such a path (this project's folder does) and ESPEAK_DATA_PATH isn't set, work from the data's
+    parent folder and pass a relative ASCII path. This changes the process's working directory, which is
+    safe here because the app uses absolute paths only. Linux containers need nothing.
     """
+    if sys.platform != "win32" or os.environ.get("ESPEAK_DATA_PATH"):
+        return
+    import espeakng_loader
+
+    data = Path(espeakng_loader.get_data_path())
+    if str(data).isascii():
+        return
+    os.chdir(data.parent)
+    os.environ["ESPEAK_DATA_PATH"] = data.name
+
+
+class KokoroTextToSpeech:
+    """Kokoro-82M, English only. Apache-2.0. See _espeak_data_on_windows for its one Windows workaround."""
 
     def __init__(self, voice: str = "af_heart", device: str = "cuda") -> None:
+        _espeak_data_on_windows()
         from kokoro import KPipeline
 
         self.model_name = f"kokoro/Kokoro-82M/{voice}"

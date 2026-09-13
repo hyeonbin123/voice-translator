@@ -1,6 +1,7 @@
 import secrets
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings
@@ -13,6 +14,14 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = Field(default=30, gt=0)
     refresh_token_expire_days: int = Field(default=7, gt=0)
     audio_dir: Path = Path(__file__).resolve().parents[2] / "work" / "audio"
+
+    # Models (T11, chosen in docs/experiments.md). Off by default so tests and CI need no GPU or model
+    # files; the server sets LOAD_MODELS=true. Without them every translation answers 503.
+    load_models: bool = False
+    model_device: Literal["cuda", "cpu"] = "cuda"
+    stt_model: str = "large-v3-turbo"
+    ct2_dir: Path = Path(__file__).resolve().parents[2] / "data" / "models" / "ct2"
+    tts_enabled: bool = True
 
     @field_validator("jwt_secret_key")
     @classmethod
