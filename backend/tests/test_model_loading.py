@@ -151,11 +151,12 @@ def frozen(monkeypatch):
 @pytest.mark.parametrize("status", [500, 200])
 async def test_shutdown_stops_the_typo_correction_preparation(monkeypatch, frozen, status):
     """T39: a preparation stalled at shutdown neither retries nor turns on afterwards, and a restart works."""
-    gate = threading.Event()
+    gate, entered = threading.Event(), threading.Event()
 
     def ollama(stalled: bool):
         def answer(_):
             if stalled:
+                entered.set()
                 assert gate.wait(5)
             reply = {"message": {"content": "Hello."}, "done": True, "done_reason": "stop"}
             return httpx.Response(status if stalled else 200, json=reply)
@@ -166,6 +167,7 @@ async def test_shutdown_stops_the_typo_correction_preparation(monkeypatch, froze
 
     def load(settings):
         corrector = correction.OllamaCorrector("qwen2.5:1.5b-instruct", retry_s=0.01)
+        corrector._client.close()
         transport = httpx.MockTransport(ollama(stalled=not correctors))
         corrector._client = httpx.Client(base_url="http://ollama.test", transport=transport)
         correctors.append(corrector)
@@ -175,6 +177,8 @@ async def test_shutdown_stops_the_typo_correction_preparation(monkeypatch, froze
     monkeypatch.setattr(main, "get_settings", lambda: Settings(load_models=True, warm_up=False))
     monkeypatch.setattr(main, "load_models", load)
     async with main.lifespan(main.app):
+        # Shut down only once the worker is inside an HTTP call (T41: not before it reaches Ollama).
+        assert entered.wait(5)
         assert not correctors[0].corrects("en")  # still preparing: requests translate as typed
     gate.set()  # the stalled call now ends, failing (500) or succeeding (200), after shutdown
     workers[0].join(5)

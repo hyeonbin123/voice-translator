@@ -101,20 +101,30 @@ TYPED, FIXED = "I hvae a cat.", "I have a cat."
 FINISHED = {"done": True, "done_reason": "stop"}
 
 
-def ready_corrector(reply: httpx.Response) -> OllamaCorrector:
-    """The real corrector, prepared, with only Ollama's HTTP answer to the typed text replaced (T38, T40)."""
+@pytest.fixture
+def ready_corrector():
+    """Makes the real corrector, prepared, with only Ollama's HTTP answer to the typed text replaced (T38,
+    T40), and closes each one after the test (T41)."""
+    made: list[OllamaCorrector] = []
 
-    def ollama(request: httpx.Request) -> httpx.Response:
-        body = json.loads(request.content)
-        if request.url.path == "/api/chat" and body["messages"][1]["content"] == TYPED:
-            return reply
-        return httpx.Response(200, json={"message": {"content": "Hello."}, **FINISHED})
+    def make(reply: httpx.Response) -> OllamaCorrector:
+        def ollama(request: httpx.Request) -> httpx.Response:
+            body = json.loads(request.content)
+            if request.url.path == "/api/chat" and body["messages"][1]["content"] == TYPED:
+                return reply
+            return httpx.Response(200, json={"message": {"content": "Hello."}, **FINISHED})
 
-    corrector = OllamaCorrector("qwen2.5:1.5b-instruct")
-    corrector._client = httpx.Client(base_url="http://ollama.test", transport=httpx.MockTransport(ollama))
-    corrector.start().join(5)
-    assert corrector.corrects("en")
-    return corrector
+        corrector = OllamaCorrector("qwen2.5:1.5b-instruct")
+        corrector._client.close()
+        corrector._client = httpx.Client(base_url="http://ollama.test", transport=httpx.MockTransport(ollama))
+        made.append(corrector)
+        corrector.start().join(5)
+        assert corrector.corrects("en")
+        return corrector
+
+    yield make
+    for corrector in made:
+        corrector.close()
 
 
 async def saved(db_session, result) -> tuple[str, str, str]:
@@ -122,7 +132,9 @@ async def saved(db_session, result) -> tuple[str, str, str]:
     return tuple((await db_session.execute(query.where(Translation.id == result.id))).one())
 
 
-async def test_a_real_correction_reaches_translation_and_the_record(db_session, user, tmp_path):
+async def test_a_real_correction_reaches_translation_and_the_record(
+    db_session, user, tmp_path, ready_corrector
+):
     corrector = ready_corrector(httpx.Response(200, json={"message": {"content": FIXED}, **FINISHED}))
     models = pipeline.PipelineModels(None, FakeTranslator(), corrector=corrector)
     result = await translate_with(models, db_session, user, tmp_path, text=TYPED)
@@ -145,7 +157,9 @@ async def test_a_real_correction_reaches_translation_and_the_record(db_session, 
     ],
     ids=["http-500", "not-json", "empty", "cut-off", "unfinished", "other-finish", "refusal", "korean"],
 )
-async def test_an_unusable_reply_from_ollama_leaves_the_typed_text(reply, db_session, user, tmp_path, caplog):
+async def test_an_unusable_reply_from_ollama_leaves_the_typed_text(
+    reply, db_session, user, tmp_path, caplog, ready_corrector
+):
     models = pipeline.PipelineModels(None, FakeTranslator(), corrector=ready_corrector(reply))
     result = await translate_with(models, db_session, user, tmp_path, text=TYPED)
     expected = (TYPED, f"[en->ko] {TYPED}", "fake-mt")

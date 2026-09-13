@@ -65,6 +65,10 @@ class OllamaCorrector:
         self._ready = threading.Event()
         self._closed = threading.Event()
         self._worker: threading.Thread | None = None
+        # Pairs close() with the worker's end, so exactly one of them closes the client and the model never
+        # turns on after shutdown (T41).
+        self._lock = threading.Lock()
+        self._worker_done = False
 
     def corrects(self, language: Language) -> bool:
         return language in self.languages and self._ready.is_set() and not self._closed.is_set()
@@ -110,9 +114,10 @@ class OllamaCorrector:
         Never waits: a preparation call already sent ends within its time limit, and the worker then closes
         the HTTP client; with no worker running, close() closes it here.
         """
-        self._closed.set()
-        if self._worker is None or not self._worker.is_alive():
-            self._client.close()
+        with self._lock:
+            self._closed.set()
+            if self._worker is None or self._worker_done:
+                self._client.close()
 
     def _prepare_until_ready(self) -> None:
         failures = 0
@@ -132,13 +137,16 @@ class OllamaCorrector:
                         )
                     self._closed.wait(self._retry_s)
                     continue
-                if not self._closed.is_set():  # a preparation that ends after shutdown stays off
-                    self._ready.set()
-                    logger.info("Typo correction model %s is ready", self._model)
+                with self._lock:  # a preparation that ends after shutdown stays off
+                    if not self._closed.is_set():
+                        self._ready.set()
+                        logger.info("Typo correction model %s is ready", self._model)
                 return
         finally:
-            if self._closed.is_set():
-                self._client.close()
+            with self._lock:
+                self._worker_done = True
+                if self._closed.is_set():
+                    self._client.close()
 
     def prepare(self) -> None:
         """Pull the model if Ollama lacks it (the first compose start), load it to stay, and correct once.

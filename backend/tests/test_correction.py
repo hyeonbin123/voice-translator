@@ -22,8 +22,61 @@ def corrector_with(handler, **options) -> tuple[OllamaCorrector, list[tuple[str,
         return handler(request)
 
     corrector = OllamaCorrector("qwen2.5:1.5b-instruct", **options)
+    corrector._client.close()  # replaced by a client that only reaches the handler
     corrector._client = httpx.Client(base_url="http://ollama.test", transport=httpx.MockTransport(record))
     return corrector, sent
+
+
+class SteppedLock:
+    """Pauses the preparation thread at its n-th use of the corrector's lock, to hit one interleaving."""
+
+    def __init__(self, pause_at: int) -> None:
+        self._lock = threading.Lock()
+        self.pause_at = pause_at
+        self.uses = 0
+        self.waiting = threading.Event()
+        self.go = threading.Event()
+
+    def __enter__(self) -> None:
+        if threading.current_thread().name == "typo-correction-prepare":
+            self.uses += 1
+            if self.uses == self.pause_at:
+                self.waiting.set()
+                assert self.go.wait(5)
+        self._lock.acquire()
+
+    def __exit__(self, *exc) -> None:
+        self._lock.release()
+
+
+@pytest.mark.parametrize(
+    ("pause_at", "was_ready"), [(1, False), (2, True)], ids=["before-turning-on", "at-worker-end"]
+)
+def test_close_racing_the_worker_closes_the_client_and_never_turns_on_after(pause_at, was_ready, caplog):
+    # T41: close() lands while the worker is paused right before its readiness check, or right before its
+    # final clean-up (where the client used to stay open).
+    caplog.set_level(logging.INFO, logger="app.services.correction")
+    corrector, _ = corrector_with(
+        lambda _: httpx.Response(200, json={"message": {"content": "Hello."}, **FINISHED})
+    )
+    lock = corrector._lock = SteppedLock(pause_at)
+    thread = corrector.start()
+    assert lock.waiting.wait(5)
+    corrector.close()
+    lock.go.set()
+    thread.join(5)
+    assert not thread.is_alive()
+    assert corrector._client.is_closed and not corrector.corrects("en")
+    assert ("is ready" in caplog.text) is was_ready
+
+
+def test_close_without_a_worker_closes_the_client():
+    corrector, sent = corrector_with(
+        lambda _: httpx.Response(200, json={"message": {"content": "Hi."}, **FINISHED})
+    )
+    corrector.close()
+    assert corrector._client.is_closed
+    assert corrector.correct("I hvae a cat.", "en") is None and sent == []
 
 
 def test_the_server_uses_the_instruction_that_was_measured():
@@ -97,6 +150,7 @@ def test_every_preparation_call_has_a_time_limit():
         )
 
     corrector = OllamaCorrector("qwen2.5:1.5b-instruct", timeout_s=10, prepare_timeout_s=60)
+    corrector._client.close()
     corrector._client = httpx.Client(
         base_url="http://ollama.test", timeout=10, transport=httpx.MockTransport(record)
     )
