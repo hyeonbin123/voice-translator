@@ -1,3 +1,8 @@
+# The whole service: database, API with the real models on the GPU, and the built screen.
+#   docker compose up --build        then open http://localhost:8080 (WEB_HOST_PORT)
+# The first start downloads the Whisper, MeloTTS and Kokoro weights into the hfcache volume (a few GB) and
+# loads them (about a minute). The translation models come from data/models/ct2 (eval/mt_convert.py).
+# For local development, `docker compose up -d db` starts only the database (README).
 services:
   db:
     image: postgres:16
@@ -17,5 +22,44 @@ services:
       timeout: 5s
       retries: 10
 
+  api:
+    build: ./backend
+    # Optional .env: JWT_SECRET_KEY keeps users signed in across restarts. DATABASE_URL below wins.
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-vtuser}:${POSTGRES_PASSWORD:-vtpass}@db:5432/${POSTGRES_DB:-voicetranslator}
+    volumes:
+      - ./data/models/ct2:/models/ct2:ro
+      - hfcache:/models/hf
+      - audio:/data/audio
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 900s  # the first start downloads and loads the models
+
+  web:
+    build: ./frontend
+    ports:
+      - "${WEB_HOST_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
 volumes:
   pgdata:
+  hfcache:
+  audio:
