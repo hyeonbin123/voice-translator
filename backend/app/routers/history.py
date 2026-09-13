@@ -5,8 +5,8 @@ from fastapi import APIRouter, HTTPException, Query, Response
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import selectinload
 
-from app.dependencies import CurrentUser, DbSession
-from app.models import Translation
+from app.dependencies import CurrentUser, DbSession, StoredAudio
+from app.models import AudioFile, Translation
 from app.schemas.history import HistoryItem, HistoryPage
 
 router = APIRouter(prefix="/history", tags=["history"])
@@ -45,7 +45,10 @@ async def get_history(id: UUID, user: CurrentUser, db: DbSession) -> Translation
 
 
 @router.delete("/{id}", status_code=204)
-async def delete_history(id: UUID, user: CurrentUser, db: DbSession) -> Response:
+async def delete_history(id: UUID, user: CurrentUser, db: DbSession, store: StoredAudio) -> Response:
+    path = await db.scalar(
+        select(AudioFile.path).join(Translation).where(Translation.id == id, Translation.user_id == user.id)
+    )
     deleted_id = await db.scalar(
         delete(Translation)
         .where(Translation.id == id, Translation.user_id == user.id)
@@ -53,6 +56,8 @@ async def delete_history(id: UUID, user: CurrentUser, db: DbSession) -> Response
     )
     if deleted_id is None:
         raise HTTPException(404, "History not found")
-    # PostgreSQL cascades audio_files rows. T6 will connect physical file deletion.
     await db.commit()
+    # PostgreSQL cascades audio_files rows. Disk failures must not undo the DB deletion.
+    if path is not None:
+        await store.delete(path)
     return Response(status_code=204)

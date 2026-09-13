@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.routers import auth, health, history
+from app.routers import audio, auth, health, history, translate
 
 app = FastAPI(title="voice-translator API", version="0.1.0")
 
@@ -9,3 +9,5 @@ app = FastAPI(title="voice-translator API", version="0.1.0")
 app.include_router(health.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(history.router, prefix="/api")
+app.include_router(translate.router, prefix="/api")
+app.include_router(audio.router, prefix="/api")
