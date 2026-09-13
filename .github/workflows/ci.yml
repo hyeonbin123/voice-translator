@@ -27,7 +27,7 @@ jobs:
         working-directory: backend
     env:
       UV_PYTHON: "3.11"
-      DATABASE_URL: postgresql+asyncpg://vtuser:vtpass@localhost:55442/voicetranslator
+      DATABASE_URL: postgresql+asyncpg://vtuser:vtpass@127.0.0.1:55442/voicetranslator
     steps:
       - uses: actions/checkout@v7
 

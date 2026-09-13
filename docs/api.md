@@ -296,7 +296,7 @@ API 프로세스가 요청을 받고 있다는 뜻일 뿐, DB 연결이나 모�
 ## 실행 설정과 DB
 
 백엔드는 기본값과 환경 변수만 사용하며 `.env`를 자동으로 읽지 않는다. `.env.example`은 설정 예시다.
-`DATABASE_URL` 기본값은 compose 개발 DB(`localhost:55442/voicetranslator`)다.
+`DATABASE_URL` 기본값은 compose 개발 DB(`127.0.0.1:55442/voicetranslator`)다. DB는 IPv4로만 열리므로 `localhost` 대신 `127.0.0.1`을 쓴다(Windows에서 `localhost`는 IPv6를 먼저 시도해 연결마다 약 2초가 늦었다).
 backend 폴더에서 `uv sync` 후 `uv run alembic upgrade head`를 실행해 테이블을 만든다.
 
 `JWT_SECRET_KEY`가 없으면 프로세스마다 임의 키를 생성하므로 서버 재시작 시 기존 토큰이 무효가 된다.

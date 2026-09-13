@@ -9,7 +9,9 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # Environment variables override defaults; no .env file is loaded implicitly.
-    database_url: str = "postgresql+asyncpg://vtuser:vtpass@localhost:55442/voicetranslator"
+    # 127.0.0.1, not localhost: the compose DB listens on IPv4 only (T50), and on Windows "localhost" tries
+    # ::1 first, which cost about 2 s per new connection.
+    database_url: str = "postgresql+asyncpg://vtuser:vtpass@127.0.0.1:55442/voicetranslator"
     jwt_secret_key: SecretStr = Field(default_factory=lambda: SecretStr(secrets.token_urlsafe(48)))
     access_token_expire_minutes: int = Field(default=30, gt=0)
     refresh_token_expire_days: int = Field(default=7, gt=0)
