@@ -240,6 +240,8 @@ def score(utterances: list[dict], refs: list[tuple[int, int]]) -> dict:
 def run(args: argparse.Namespace) -> None:
     silero = Silero()
     detectors = {"E": (energy_flags, E_FRAME, E_START_FRAMES), "S": (silero.flags, S_CHUNK, S_START_FRAMES)}
+    # The test split gets only the chosen combination (docs/experiments.md 7).
+    detectors = {name: detector for name, detector in detectors.items() if name in args.detectors}
     totals: dict = {}
     dropped: dict = {}
     for lang in args.langs:
@@ -255,7 +257,7 @@ def run(args: argparse.Namespace) -> None:
                 audio = with_noise(session, snr, seed=SEED[args.split] * 1000 + index)
                 for name, (detect, frame, start_frames) in detectors.items():
                     flags = detect(audio)
-                    for silence in SILENCES_MS:
+                    for silence in args.silences:
                         result = score(group(flags, frame, silence, start_frames), session["refs"])
                         total = totals.setdefault((name, silence, condition, lang), {"pause_s": pause_s})
                         for field, value in result.items():
@@ -372,6 +374,8 @@ def main() -> None:
         command.add_argument("--split", choices=("validation", "test"), default="validation")
         command.add_argument("--langs", nargs="+", choices=tuple(LANGS), default=list(LANGS))
         command.add_argument("--tag", required=True)
+    sub.choices["run"].add_argument("--detectors", nargs="+", choices=("E", "S"), default=["E", "S"])
+    sub.choices["run"].add_argument("--silences", nargs="+", type=int, default=list(SILENCES_MS))
     sub.choices["server"].add_argument("--base-url", default="http://localhost:8080")
     sub.choices["server"].add_argument("--count", type=int, default=30)
     args = parser.parse_args()
