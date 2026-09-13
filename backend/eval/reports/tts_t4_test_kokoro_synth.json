@@ -1,0 +1,2113 @@
+{
+ "candidate": "kokoro",
+ "split": "test",
+ "languages": {
+  "en": {
+   "model_name": "kokoro/Kokoro-82M/af_heart",
+   "vram_mb": 513,
+   "failures": 0,
+   "items": [
+    {
+     "id": 1660,
+     "synth_s": 0.182,
+     "audio_s": 6.62,
+     "per_audio_second": 0.0275
+    },
+    {
+     "id": 1661,
+     "synth_s": 0.194,
+     "audio_s": 6.0,
+     "per_audio_second": 0.0323
+    },
+    {
+     "id": 1662,
+     "synth_s": 0.215,
+     "audio_s": 7.53,
+     "per_audio_second": 0.0286
+    },
+    {
+     "id": 1663,
+     "synth_s": 0.216,
+     "audio_s": 8.43,
+     "per_audio_second": 0.0257
+    },
+    {
+     "id": 1664,
+     "synth_s": 0.179,
+     "audio_s": 6.22,
+     "per_audio_second": 0.0288
+    },
+    {
+     "id": 1665,
+     "synth_s": 0.249,
+     "audio_s": 9.6,
+     "per_audio_second": 0.0259
+    },
+    {
+     "id": 1666,
+     "synth_s": 0.196,
+     "audio_s": 7.5,
+     "per_audio_second": 0.0262
+    },
+    {
+     "id": 1667,
+     "synth_s": 0.247,
+     "audio_s": 10.88,
+     "per_audio_second": 0.0227
+    },
+    {
+     "id": 1668,
+     "synth_s": 0.28,
+     "audio_s": 10.65,
+     "per_audio_second": 0.0263
+    },
+    {
+     "id": 1669,
+     "synth_s": 0.17,
+     "audio_s": 5.12,
+     "per_audio_second": 0.0331
+    },
+    {
+     "id": 1670,
+     "synth_s": 0.467,
+     "audio_s": 21.2,
+     "per_audio_second": 0.022
+    },
+    {
+     "id": 1671,
+     "synth_s": 0.25,
+     "audio_s": 9.53,
+     "per_audio_second": 0.0263
+    },
+    {
+     "id": 1672,
+     "synth_s": 0.188,
+     "audio_s": 7.03,
+     "per_audio_second": 0.0268
+    },
+    {
+     "id": 1673,
+     "synth_s": 0.242,
+     "audio_s": 10.78,
+     "per_audio_second": 0.0224
+    },
+    {
+     "id": 1674,
+     "synth_s": 0.175,
+     "audio_s": 5.58,
+     "per_audio_second": 0.0315
+    },
+    {
+     "id": 1675,
+     "synth_s": 0.187,
+     "audio_s": 6.83,
+     "per_audio_second": 0.0274
+    },
+    {
+     "id": 1676,
+     "synth_s": 0.184,
+     "audio_s": 6.55,
+     "per_audio_second": 0.0281
+    },
+    {
+     "id": 1677,
+     "synth_s": 0.175,
+     "audio_s": 6.03,
+     "per_audio_second": 0.0291
+    },
+    {
+     "id": 1678,
+     "synth_s": 0.266,
+     "audio_s": 12.05,
+     "per_audio_second": 0.0221
+    },
+    {
+     "id": 1679,
+     "synth_s": 0.142,
+     "audio_s": 3.23,
+     "per_audio_second": 0.0441
+    },
+    {
+     "id": 1680,
+     "synth_s": 0.228,
+     "audio_s": 9.22,
+     "per_audio_second": 0.0247
+    },
+    {
+     "id": 1681,
+     "synth_s": 0.305,
+     "audio_s": 14.3,
+     "per_audio_second": 0.0214
+    },
+    {
+     "id": 1682,
+     "synth_s": 0.26,
+     "audio_s": 11.65,
+     "per_audio_second": 0.0223
+    },
+    {
+     "id": 1683,
+     "synth_s": 0.233,
+     "audio_s": 9.8,
+     "per_audio_second": 0.0238
+    },
+    {
+     "id": 1684,
+     "synth_s": 0.215,
+     "audio_s": 7.78,
+     "per_audio_second": 0.0276
+    },
+    {
+     "id": 1685,
+     "synth_s": 0.24,
+     "audio_s": 10.55,
+     "per_audio_second": 0.0227
+    },
+    {
+     "id": 1686,
+     "synth_s": 0.237,
+     "audio_s": 9.6,
+     "per_audio_second": 0.0246
+    },
+    {
+     "id": 1687,
+     "synth_s": 0.238,
+     "audio_s": 7.58,
+     "per_audio_second": 0.0314
+    },
+    {
+     "id": 1688,
+     "synth_s": 0.303,
+     "audio_s": 12.72,
+     "per_audio_second": 0.0238
+    },
+    {
+     "id": 1689,
+     "synth_s": 0.349,
+     "audio_s": 15.05,
+     "per_audio_second": 0.0232
+    },
+    {
+     "id": 1690,
+     "synth_s": 0.298,
+     "audio_s": 12.18,
+     "per_audio_second": 0.0245
+    },
+    {
+     "id": 1691,
+     "synth_s": 0.204,
+     "audio_s": 7.15,
+     "per_audio_second": 0.0285
+    },
+    {
+     "id": 1692,
+     "synth_s": 0.189,
+     "audio_s": 6.75,
+     "per_audio_second": 0.028
+    },
+    {
+     "id": 1693,
+     "synth_s": 0.169,
+     "audio_s": 7.03,
+     "per_audio_second": 0.0241
+    },
+    {
+     "id": 1694,
+     "synth_s": 0.211,
+     "audio_s": 8.2,
+     "per_audio_second": 0.0257
+    },
+    {
+     "id": 1695,
+     "synth_s": 0.245,
+     "audio_s": 10.53,
+     "per_audio_second": 0.0233
+    },
+    {
+     "id": 1696,
+     "synth_s": 0.201,
+     "audio_s": 7.53,
+     "per_audio_second": 0.0267
+    },
+    {
+     "id": 1697,
+     "synth_s": 0.173,
+     "audio_s": 5.97,
+     "per_audio_second": 0.029
+    },
+    {
+     "id": 1698,
+     "synth_s": 0.192,
+     "audio_s": 6.33,
+     "per_audio_second": 0.0303
+    },
+    {
+     "id": 1699,
+     "synth_s": 0.241,
+     "audio_s": 10.03,
+     "per_audio_second": 0.0241
+    },
+    {
+     "id": 1700,
+     "synth_s": 0.145,
+     "audio_s": 3.6,
+     "per_audio_second": 0.0404
+    },
+    {
+     "id": 1701,
+     "synth_s": 0.185,
+     "audio_s": 6.35,
+     "per_audio_second": 0.0291
+    },
+    {
+     "id": 1702,
+     "synth_s": 0.203,
+     "audio_s": 7.47,
+     "per_audio_second": 0.0272
+    },
+    {
+     "id": 1703,
+     "synth_s": 0.165,
+     "audio_s": 5.47,
+     "per_audio_second": 0.0301
+    },
+    {
+     "id": 1704,
+     "synth_s": 0.193,
+     "audio_s": 7.22,
+     "per_audio_second": 0.0267
+    },
+    {
+     "id": 1705,
+     "synth_s": 0.196,
+     "audio_s": 7.83,
+     "per_audio_second": 0.0251
+    },
+    {
+     "id": 1706,
+     "synth_s": 0.286,
+     "audio_s": 13.35,
+     "per_audio_second": 0.0214
+    },
+    {
+     "id": 1707,
+     "synth_s": 0.22,
+     "audio_s": 7.05,
+     "per_audio_second": 0.0311
+    },
+    {
+     "id": 1708,
+     "synth_s": 0.24,
+     "audio_s": 9.75,
+     "per_audio_second": 0.0246
+    },
+    {
+     "id": 1709,
+     "synth_s": 0.227,
+     "audio_s": 9.47,
+     "per_audio_second": 0.024
+    },
+    {
+     "id": 1710,
+     "synth_s": 0.226,
+     "audio_s": 9.28,
+     "per_audio_second": 0.0243
+    },
+    {
+     "id": 1711,
+     "synth_s": 0.217,
+     "audio_s": 9.8,
+     "per_audio_second": 0.0222
+    },
+    {
+     "id": 1712,
+     "synth_s": 0.266,
+     "audio_s": 11.8,
+     "per_audio_second": 0.0225
+    },
+    {
+     "id": 1713,
+     "synth_s": 0.224,
+     "audio_s": 8.6,
+     "per_audio_second": 0.026
+    },
+    {
+     "id": 1714,
+     "synth_s": 0.239,
+     "audio_s": 9.62,
+     "per_audio_second": 0.0248
+    },
+    {
+     "id": 1715,
+     "synth_s": 0.312,
+     "audio_s": 14.05,
+     "per_audio_second": 0.0222
+    },
+    {
+     "id": 1716,
+     "synth_s": 0.4,
+     "audio_s": 19.8,
+     "per_audio_second": 0.0202
+    },
+    {
+     "id": 1717,
+     "synth_s": 0.216,
+     "audio_s": 8.7,
+     "per_audio_second": 0.0249
+    },
+    {
+     "id": 1718,
+     "synth_s": 0.24,
+     "audio_s": 10.47,
+     "per_audio_second": 0.0229
+    },
+    {
+     "id": 1719,
+     "synth_s": 0.258,
+     "audio_s": 10.4,
+     "per_audio_second": 0.0248
+    },
+    {
+     "id": 1720,
+     "synth_s": 0.167,
+     "audio_s": 5.62,
+     "per_audio_second": 0.0297
+    },
+    {
+     "id": 1721,
+     "synth_s": 0.197,
+     "audio_s": 7.35,
+     "per_audio_second": 0.0268
+    },
+    {
+     "id": 1722,
+     "synth_s": 0.179,
+     "audio_s": 7.35,
+     "per_audio_second": 0.0244
+    },
+    {
+     "id": 1723,
+     "synth_s": 0.257,
+     "audio_s": 10.25,
+     "per_audio_second": 0.0251
+    },
+    {
+     "id": 1724,
+     "synth_s": 0.241,
+     "audio_s": 8.72,
+     "per_audio_second": 0.0276
+    },
+    {
+     "id": 1725,
+     "synth_s": 0.237,
+     "audio_s": 10.45,
+     "per_audio_second": 0.0226
+    },
+    {
+     "id": 1726,
+     "synth_s": 0.217,
+     "audio_s": 9.0,
+     "per_audio_second": 0.0241
+    },
+    {
+     "id": 1727,
+     "synth_s": 0.196,
+     "audio_s": 7.1,
+     "per_audio_second": 0.0277
+    },
+    {
+     "id": 1728,
+     "synth_s": 0.156,
+     "audio_s": 6.22,
+     "per_audio_second": 0.0251
+    },
+    {
+     "id": 1729,
+     "synth_s": 0.288,
+     "audio_s": 13.22,
+     "per_audio_second": 0.0217
+    },
+    {
+     "id": 1730,
+     "synth_s": 0.274,
+     "audio_s": 11.05,
+     "per_audio_second": 0.0248
+    },
+    {
+     "id": 1731,
+     "synth_s": 0.17,
+     "audio_s": 4.33,
+     "per_audio_second": 0.0392
+    },
+    {
+     "id": 1732,
+     "synth_s": 0.305,
+     "audio_s": 12.6,
+     "per_audio_second": 0.0242
+    },
+    {
+     "id": 1733,
+     "synth_s": 0.355,
+     "audio_s": 15.05,
+     "per_audio_second": 0.0236
+    },
+    {
+     "id": 1734,
+     "synth_s": 0.202,
+     "audio_s": 7.35,
+     "per_audio_second": 0.0275
+    },
+    {
+     "id": 1735,
+     "synth_s": 0.367,
+     "audio_s": 17.8,
+     "per_audio_second": 0.0206
+    },
+    {
+     "id": 1736,
+     "synth_s": 0.141,
+     "audio_s": 3.7,
+     "per_audio_second": 0.0382
+    },
+    {
+     "id": 1737,
+     "synth_s": 0.156,
+     "audio_s": 4.6,
+     "per_audio_second": 0.0339
+    },
+    {
+     "id": 1738,
+     "synth_s": 0.174,
+     "audio_s": 7.22,
+     "per_audio_second": 0.0241
+    },
+    {
+     "id": 1739,
+     "synth_s": 0.195,
+     "audio_s": 7.0,
+     "per_audio_second": 0.0279
+    },
+    {
+     "id": 1740,
+     "synth_s": 0.18,
+     "audio_s": 5.7,
+     "per_audio_second": 0.0316
+    },
+    {
+     "id": 1741,
+     "synth_s": 0.163,
+     "audio_s": 6.75,
+     "per_audio_second": 0.0241
+    },
+    {
+     "id": 1742,
+     "synth_s": 0.162,
+     "audio_s": 6.62,
+     "per_audio_second": 0.0245
+    },
+    {
+     "id": 1743,
+     "synth_s": 0.384,
+     "audio_s": 19.23,
+     "per_audio_second": 0.02
+    },
+    {
+     "id": 1744,
+     "synth_s": 0.172,
+     "audio_s": 5.42,
+     "per_audio_second": 0.0317
+    },
+    {
+     "id": 1745,
+     "synth_s": 0.2,
+     "audio_s": 7.33,
+     "per_audio_second": 0.0273
+    },
+    {
+     "id": 1746,
+     "synth_s": 0.17,
+     "audio_s": 5.05,
+     "per_audio_second": 0.0337
+    },
+    {
+     "id": 1747,
+     "synth_s": 0.145,
+     "audio_s": 3.25,
+     "per_audio_second": 0.0447
+    },
+    {
+     "id": 1748,
+     "synth_s": 0.161,
+     "audio_s": 5.25,
+     "per_audio_second": 0.0307
+    },
+    {
+     "id": 1749,
+     "synth_s": 0.219,
+     "audio_s": 9.75,
+     "per_audio_second": 0.0224
+    },
+    {
+     "id": 1750,
+     "synth_s": 0.162,
+     "audio_s": 4.78,
+     "per_audio_second": 0.0338
+    },
+    {
+     "id": 1751,
+     "synth_s": 0.29,
+     "audio_s": 11.6,
+     "per_audio_second": 0.025
+    },
+    {
+     "id": 1752,
+     "synth_s": 0.214,
+     "audio_s": 7.53,
+     "per_audio_second": 0.0285
+    },
+    {
+     "id": 1753,
+     "synth_s": 0.29,
+     "audio_s": 13.57,
+     "per_audio_second": 0.0213
+    },
+    {
+     "id": 1754,
+     "synth_s": 0.193,
+     "audio_s": 7.5,
+     "per_audio_second": 0.0257
+    },
+    {
+     "id": 1755,
+     "synth_s": 0.142,
+     "audio_s": 3.67,
+     "per_audio_second": 0.0388
+    },
+    {
+     "id": 1756,
+     "synth_s": 0.244,
+     "audio_s": 9.12,
+     "per_audio_second": 0.0267
+    },
+    {
+     "id": 1757,
+     "synth_s": 0.223,
+     "audio_s": 8.25,
+     "per_audio_second": 0.027
+    },
+    {
+     "id": 1758,
+     "synth_s": 0.239,
+     "audio_s": 8.57,
+     "per_audio_second": 0.0279
+    },
+    {
+     "id": 1759,
+     "synth_s": 0.338,
+     "audio_s": 14.57,
+     "per_audio_second": 0.0232
+    },
+    {
+     "id": 1760,
+     "synth_s": 0.19,
+     "audio_s": 5.6,
+     "per_audio_second": 0.0339
+    },
+    {
+     "id": 1761,
+     "synth_s": 0.188,
+     "audio_s": 6.92,
+     "per_audio_second": 0.0271
+    },
+    {
+     "id": 1762,
+     "synth_s": 0.16,
+     "audio_s": 5.17,
+     "per_audio_second": 0.031
+    },
+    {
+     "id": 1763,
+     "synth_s": 0.211,
+     "audio_s": 8.22,
+     "per_audio_second": 0.0256
+    },
+    {
+     "id": 1764,
+     "synth_s": 0.21,
+     "audio_s": 8.15,
+     "per_audio_second": 0.0257
+    },
+    {
+     "id": 1765,
+     "synth_s": 0.23,
+     "audio_s": 8.32,
+     "per_audio_second": 0.0277
+    },
+    {
+     "id": 1766,
+     "synth_s": 0.186,
+     "audio_s": 6.47,
+     "per_audio_second": 0.0288
+    },
+    {
+     "id": 1767,
+     "synth_s": 0.205,
+     "audio_s": 7.2,
+     "per_audio_second": 0.0284
+    },
+    {
+     "id": 1768,
+     "synth_s": 0.23,
+     "audio_s": 8.5,
+     "per_audio_second": 0.027
+    },
+    {
+     "id": 1769,
+     "synth_s": 0.225,
+     "audio_s": 9.12,
+     "per_audio_second": 0.0247
+    },
+    {
+     "id": 1770,
+     "synth_s": 0.163,
+     "audio_s": 4.72,
+     "per_audio_second": 0.0345
+    },
+    {
+     "id": 1771,
+     "synth_s": 0.235,
+     "audio_s": 9.5,
+     "per_audio_second": 0.0247
+    },
+    {
+     "id": 1772,
+     "synth_s": 0.157,
+     "audio_s": 4.55,
+     "per_audio_second": 0.0344
+    },
+    {
+     "id": 1773,
+     "synth_s": 0.226,
+     "audio_s": 9.25,
+     "per_audio_second": 0.0244
+    },
+    {
+     "id": 1774,
+     "synth_s": 0.302,
+     "audio_s": 13.1,
+     "per_audio_second": 0.0231
+    },
+    {
+     "id": 1775,
+     "synth_s": 0.232,
+     "audio_s": 9.9,
+     "per_audio_second": 0.0234
+    },
+    {
+     "id": 1776,
+     "synth_s": 0.224,
+     "audio_s": 6.2,
+     "per_audio_second": 0.0361
+    },
+    {
+     "id": 1777,
+     "synth_s": 0.224,
+     "audio_s": 9.4,
+     "per_audio_second": 0.0238
+    },
+    {
+     "id": 1778,
+     "synth_s": 0.169,
+     "audio_s": 3.88,
+     "per_audio_second": 0.0435
+    },
+    {
+     "id": 1779,
+     "synth_s": 0.197,
+     "audio_s": 5.38,
+     "per_audio_second": 0.0366
+    },
+    {
+     "id": 1780,
+     "synth_s": 0.24,
+     "audio_s": 10.3,
+     "per_audio_second": 0.0233
+    },
+    {
+     "id": 1781,
+     "synth_s": 0.191,
+     "audio_s": 5.67,
+     "per_audio_second": 0.0337
+    },
+    {
+     "id": 1782,
+     "synth_s": 0.315,
+     "audio_s": 13.3,
+     "per_audio_second": 0.0237
+    },
+    {
+     "id": 1783,
+     "synth_s": 0.197,
+     "audio_s": 7.25,
+     "per_audio_second": 0.0271
+    },
+    {
+     "id": 1784,
+     "synth_s": 0.258,
+     "audio_s": 11.25,
+     "per_audio_second": 0.0229
+    },
+    {
+     "id": 1785,
+     "synth_s": 0.285,
+     "audio_s": 12.88,
+     "per_audio_second": 0.0221
+    },
+    {
+     "id": 1786,
+     "synth_s": 0.205,
+     "audio_s": 9.22,
+     "per_audio_second": 0.0222
+    },
+    {
+     "id": 1787,
+     "synth_s": 0.209,
+     "audio_s": 8.32,
+     "per_audio_second": 0.0251
+    },
+    {
+     "id": 1788,
+     "synth_s": 0.265,
+     "audio_s": 11.43,
+     "per_audio_second": 0.0232
+    },
+    {
+     "id": 1789,
+     "synth_s": 0.274,
+     "audio_s": 12.62,
+     "per_audio_second": 0.0217
+    },
+    {
+     "id": 1790,
+     "synth_s": 0.256,
+     "audio_s": 11.03,
+     "per_audio_second": 0.0232
+    },
+    {
+     "id": 1791,
+     "synth_s": 0.157,
+     "audio_s": 4.92,
+     "per_audio_second": 0.0319
+    },
+    {
+     "id": 1792,
+     "synth_s": 0.182,
+     "audio_s": 5.53,
+     "per_audio_second": 0.0329
+    },
+    {
+     "id": 1793,
+     "synth_s": 0.203,
+     "audio_s": 8.12,
+     "per_audio_second": 0.0249
+    },
+    {
+     "id": 1794,
+     "synth_s": 0.215,
+     "audio_s": 8.68,
+     "per_audio_second": 0.0248
+    },
+    {
+     "id": 1795,
+     "synth_s": 0.32,
+     "audio_s": 15.0,
+     "per_audio_second": 0.0213
+    },
+    {
+     "id": 1796,
+     "synth_s": 0.204,
+     "audio_s": 6.58,
+     "per_audio_second": 0.031
+    },
+    {
+     "id": 1797,
+     "synth_s": 0.212,
+     "audio_s": 8.55,
+     "per_audio_second": 0.0248
+    },
+    {
+     "id": 1798,
+     "synth_s": 0.21,
+     "audio_s": 8.68,
+     "per_audio_second": 0.0242
+    },
+    {
+     "id": 1799,
+     "synth_s": 0.196,
+     "audio_s": 5.45,
+     "per_audio_second": 0.0359
+    },
+    {
+     "id": 1800,
+     "synth_s": 0.234,
+     "audio_s": 9.07,
+     "per_audio_second": 0.0257
+    },
+    {
+     "id": 1801,
+     "synth_s": 0.24,
+     "audio_s": 9.55,
+     "per_audio_second": 0.0251
+    },
+    {
+     "id": 1802,
+     "synth_s": 0.16,
+     "audio_s": 5.1,
+     "per_audio_second": 0.0313
+    },
+    {
+     "id": 1803,
+     "synth_s": 0.188,
+     "audio_s": 6.3,
+     "per_audio_second": 0.0298
+    },
+    {
+     "id": 1804,
+     "synth_s": 0.265,
+     "audio_s": 11.62,
+     "per_audio_second": 0.0228
+    },
+    {
+     "id": 1805,
+     "synth_s": 0.159,
+     "audio_s": 4.45,
+     "per_audio_second": 0.0358
+    },
+    {
+     "id": 1806,
+     "synth_s": 0.249,
+     "audio_s": 11.03,
+     "per_audio_second": 0.0226
+    },
+    {
+     "id": 1807,
+     "synth_s": 0.196,
+     "audio_s": 8.55,
+     "per_audio_second": 0.023
+    },
+    {
+     "id": 1808,
+     "synth_s": 0.187,
+     "audio_s": 6.17,
+     "per_audio_second": 0.0302
+    },
+    {
+     "id": 1809,
+     "synth_s": 0.262,
+     "audio_s": 10.8,
+     "per_audio_second": 0.0242
+    },
+    {
+     "id": 1810,
+     "synth_s": 0.173,
+     "audio_s": 7.15,
+     "per_audio_second": 0.0242
+    },
+    {
+     "id": 1811,
+     "synth_s": 0.182,
+     "audio_s": 6.67,
+     "per_audio_second": 0.0272
+    },
+    {
+     "id": 1812,
+     "synth_s": 0.254,
+     "audio_s": 11.55,
+     "per_audio_second": 0.022
+    },
+    {
+     "id": 1813,
+     "synth_s": 0.263,
+     "audio_s": 11.05,
+     "per_audio_second": 0.0238
+    },
+    {
+     "id": 1814,
+     "synth_s": 0.217,
+     "audio_s": 9.1,
+     "per_audio_second": 0.0238
+    },
+    {
+     "id": 1815,
+     "synth_s": 0.203,
+     "audio_s": 7.72,
+     "per_audio_second": 0.0262
+    },
+    {
+     "id": 1816,
+     "synth_s": 0.191,
+     "audio_s": 7.17,
+     "per_audio_second": 0.0266
+    },
+    {
+     "id": 1817,
+     "synth_s": 0.133,
+     "audio_s": 4.45,
+     "per_audio_second": 0.03
+    },
+    {
+     "id": 1818,
+     "synth_s": 0.167,
+     "audio_s": 6.92,
+     "per_audio_second": 0.0241
+    },
+    {
+     "id": 1819,
+     "synth_s": 0.223,
+     "audio_s": 9.57,
+     "per_audio_second": 0.0233
+    },
+    {
+     "id": 1820,
+     "synth_s": 0.16,
+     "audio_s": 5.7,
+     "per_audio_second": 0.0281
+    },
+    {
+     "id": 1821,
+     "synth_s": 0.161,
+     "audio_s": 5.7,
+     "per_audio_second": 0.0283
+    },
+    {
+     "id": 1822,
+     "synth_s": 0.218,
+     "audio_s": 8.88,
+     "per_audio_second": 0.0246
+    },
+    {
+     "id": 1823,
+     "synth_s": 0.216,
+     "audio_s": 8.85,
+     "per_audio_second": 0.0244
+    },
+    {
+     "id": 1824,
+     "synth_s": 0.278,
+     "audio_s": 12.95,
+     "per_audio_second": 0.0215
+    },
+    {
+     "id": 1825,
+     "synth_s": 0.192,
+     "audio_s": 6.58,
+     "per_audio_second": 0.0292
+    },
+    {
+     "id": 1826,
+     "synth_s": 0.202,
+     "audio_s": 6.25,
+     "per_audio_second": 0.0323
+    },
+    {
+     "id": 1827,
+     "synth_s": 0.168,
+     "audio_s": 5.33,
+     "per_audio_second": 0.0316
+    },
+    {
+     "id": 1828,
+     "synth_s": 0.195,
+     "audio_s": 6.75,
+     "per_audio_second": 0.0289
+    },
+    {
+     "id": 1829,
+     "synth_s": 0.26,
+     "audio_s": 10.8,
+     "per_audio_second": 0.024
+    },
+    {
+     "id": 1830,
+     "synth_s": 0.201,
+     "audio_s": 8.68,
+     "per_audio_second": 0.0231
+    },
+    {
+     "id": 1831,
+     "synth_s": 0.238,
+     "audio_s": 10.15,
+     "per_audio_second": 0.0235
+    },
+    {
+     "id": 1832,
+     "synth_s": 0.25,
+     "audio_s": 10.1,
+     "per_audio_second": 0.0247
+    },
+    {
+     "id": 1833,
+     "synth_s": 0.228,
+     "audio_s": 9.82,
+     "per_audio_second": 0.0232
+    },
+    {
+     "id": 1834,
+     "synth_s": 0.219,
+     "audio_s": 8.53,
+     "per_audio_second": 0.0257
+    },
+    {
+     "id": 1835,
+     "synth_s": 0.279,
+     "audio_s": 12.2,
+     "per_audio_second": 0.0229
+    },
+    {
+     "id": 1836,
+     "synth_s": 0.311,
+     "audio_s": 13.38,
+     "per_audio_second": 0.0232
+    },
+    {
+     "id": 1837,
+     "synth_s": 0.204,
+     "audio_s": 9.07,
+     "per_audio_second": 0.0225
+    },
+    {
+     "id": 1838,
+     "synth_s": 0.171,
+     "audio_s": 5.9,
+     "per_audio_second": 0.029
+    },
+    {
+     "id": 1839,
+     "synth_s": 0.142,
+     "audio_s": 3.52,
+     "per_audio_second": 0.0402
+    },
+    {
+     "id": 1840,
+     "synth_s": 0.219,
+     "audio_s": 9.57,
+     "per_audio_second": 0.0228
+    },
+    {
+     "id": 1841,
+     "synth_s": 0.235,
+     "audio_s": 10.22,
+     "per_audio_second": 0.023
+    },
+    {
+     "id": 1842,
+     "synth_s": 0.352,
+     "audio_s": 15.2,
+     "per_audio_second": 0.0231
+    },
+    {
+     "id": 1843,
+     "synth_s": 0.232,
+     "audio_s": 9.5,
+     "per_audio_second": 0.0244
+    },
+    {
+     "id": 1844,
+     "synth_s": 0.167,
+     "audio_s": 6.0,
+     "per_audio_second": 0.0278
+    },
+    {
+     "id": 1845,
+     "synth_s": 0.195,
+     "audio_s": 7.83,
+     "per_audio_second": 0.0249
+    },
+    {
+     "id": 1846,
+     "synth_s": 0.212,
+     "audio_s": 8.72,
+     "per_audio_second": 0.0243
+    },
+    {
+     "id": 1847,
+     "synth_s": 0.201,
+     "audio_s": 8.22,
+     "per_audio_second": 0.0245
+    },
+    {
+     "id": 1848,
+     "synth_s": 0.223,
+     "audio_s": 10.03,
+     "per_audio_second": 0.0223
+    },
+    {
+     "id": 1849,
+     "synth_s": 0.217,
+     "audio_s": 7.85,
+     "per_audio_second": 0.0277
+    },
+    {
+     "id": 1850,
+     "synth_s": 0.282,
+     "audio_s": 12.88,
+     "per_audio_second": 0.0219
+    },
+    {
+     "id": 1851,
+     "synth_s": 0.181,
+     "audio_s": 6.28,
+     "per_audio_second": 0.0288
+    },
+    {
+     "id": 1852,
+     "synth_s": 0.368,
+     "audio_s": 18.05,
+     "per_audio_second": 0.0204
+    },
+    {
+     "id": 1853,
+     "synth_s": 0.162,
+     "audio_s": 4.75,
+     "per_audio_second": 0.0342
+    },
+    {
+     "id": 1854,
+     "synth_s": 0.182,
+     "audio_s": 7.58,
+     "per_audio_second": 0.024
+    },
+    {
+     "id": 1855,
+     "synth_s": 0.253,
+     "audio_s": 11.32,
+     "per_audio_second": 0.0223
+    },
+    {
+     "id": 1856,
+     "synth_s": 0.211,
+     "audio_s": 9.62,
+     "per_audio_second": 0.0219
+    },
+    {
+     "id": 1857,
+     "synth_s": 0.206,
+     "audio_s": 9.07,
+     "per_audio_second": 0.0227
+    },
+    {
+     "id": 1858,
+     "synth_s": 0.193,
+     "audio_s": 5.85,
+     "per_audio_second": 0.0329
+    },
+    {
+     "id": 1859,
+     "synth_s": 0.275,
+     "audio_s": 12.53,
+     "per_audio_second": 0.0219
+    },
+    {
+     "id": 1860,
+     "synth_s": 0.167,
+     "audio_s": 4.4,
+     "per_audio_second": 0.038
+    },
+    {
+     "id": 1861,
+     "synth_s": 0.22,
+     "audio_s": 8.0,
+     "per_audio_second": 0.0274
+    },
+    {
+     "id": 1862,
+     "synth_s": 0.232,
+     "audio_s": 10.28,
+     "per_audio_second": 0.0226
+    },
+    {
+     "id": 1863,
+     "synth_s": 0.294,
+     "audio_s": 12.57,
+     "per_audio_second": 0.0234
+    },
+    {
+     "id": 1864,
+     "synth_s": 0.287,
+     "audio_s": 13.07,
+     "per_audio_second": 0.0219
+    },
+    {
+     "id": 1865,
+     "synth_s": 0.199,
+     "audio_s": 7.9,
+     "per_audio_second": 0.0252
+    },
+    {
+     "id": 1866,
+     "synth_s": 0.163,
+     "audio_s": 5.15,
+     "per_audio_second": 0.0316
+    },
+    {
+     "id": 1867,
+     "synth_s": 0.195,
+     "audio_s": 7.53,
+     "per_audio_second": 0.0259
+    },
+    {
+     "id": 1868,
+     "synth_s": 0.242,
+     "audio_s": 10.68,
+     "per_audio_second": 0.0227
+    },
+    {
+     "id": 1869,
+     "synth_s": 0.275,
+     "audio_s": 11.2,
+     "per_audio_second": 0.0245
+    },
+    {
+     "id": 1870,
+     "synth_s": 0.144,
+     "audio_s": 4.55,
+     "per_audio_second": 0.0317
+    },
+    {
+     "id": 1871,
+     "synth_s": 0.151,
+     "audio_s": 4.4,
+     "per_audio_second": 0.0343
+    },
+    {
+     "id": 1872,
+     "synth_s": 0.211,
+     "audio_s": 9.55,
+     "per_audio_second": 0.0221
+    },
+    {
+     "id": 1873,
+     "synth_s": 0.221,
+     "audio_s": 7.7,
+     "per_audio_second": 0.0287
+    },
+    {
+     "id": 1874,
+     "synth_s": 0.238,
+     "audio_s": 9.72,
+     "per_audio_second": 0.0245
+    },
+    {
+     "id": 1875,
+     "synth_s": 0.205,
+     "audio_s": 6.97,
+     "per_audio_second": 0.0294
+    },
+    {
+     "id": 1876,
+     "synth_s": 0.177,
+     "audio_s": 6.17,
+     "per_audio_second": 0.0287
+    },
+    {
+     "id": 1877,
+     "synth_s": 0.279,
+     "audio_s": 11.38,
+     "per_audio_second": 0.0245
+    },
+    {
+     "id": 1878,
+     "synth_s": 0.239,
+     "audio_s": 10.43,
+     "per_audio_second": 0.0229
+    },
+    {
+     "id": 1879,
+     "synth_s": 0.141,
+     "audio_s": 5.17,
+     "per_audio_second": 0.0272
+    },
+    {
+     "id": 1880,
+     "synth_s": 0.132,
+     "audio_s": 4.33,
+     "per_audio_second": 0.0305
+    },
+    {
+     "id": 1881,
+     "synth_s": 0.195,
+     "audio_s": 7.85,
+     "per_audio_second": 0.0249
+    },
+    {
+     "id": 1882,
+     "synth_s": 0.184,
+     "audio_s": 7.9,
+     "per_audio_second": 0.0233
+    },
+    {
+     "id": 1883,
+     "synth_s": 0.227,
+     "audio_s": 10.55,
+     "per_audio_second": 0.0215
+    },
+    {
+     "id": 1884,
+     "synth_s": 0.198,
+     "audio_s": 7.62,
+     "per_audio_second": 0.0259
+    },
+    {
+     "id": 1885,
+     "synth_s": 0.206,
+     "audio_s": 7.38,
+     "per_audio_second": 0.028
+    },
+    {
+     "id": 1886,
+     "synth_s": 0.18,
+     "audio_s": 6.42,
+     "per_audio_second": 0.028
+    },
+    {
+     "id": 1887,
+     "synth_s": 0.16,
+     "audio_s": 6.2,
+     "per_audio_second": 0.0258
+    },
+    {
+     "id": 1888,
+     "synth_s": 0.203,
+     "audio_s": 7.85,
+     "per_audio_second": 0.0259
+    },
+    {
+     "id": 1889,
+     "synth_s": 0.215,
+     "audio_s": 4.88,
+     "per_audio_second": 0.0441
+    },
+    {
+     "id": 1890,
+     "synth_s": 0.232,
+     "audio_s": 7.78,
+     "per_audio_second": 0.0299
+    },
+    {
+     "id": 1891,
+     "synth_s": 0.194,
+     "audio_s": 4.8,
+     "per_audio_second": 0.0405
+    },
+    {
+     "id": 1892,
+     "synth_s": 0.262,
+     "audio_s": 10.2,
+     "per_audio_second": 0.0257
+    },
+    {
+     "id": 1893,
+     "synth_s": 0.222,
+     "audio_s": 9.25,
+     "per_audio_second": 0.024
+    },
+    {
+     "id": 1894,
+     "synth_s": 0.202,
+     "audio_s": 5.8,
+     "per_audio_second": 0.0349
+    },
+    {
+     "id": 1895,
+     "synth_s": 0.205,
+     "audio_s": 6.97,
+     "per_audio_second": 0.0295
+    },
+    {
+     "id": 1896,
+     "synth_s": 0.301,
+     "audio_s": 13.22,
+     "per_audio_second": 0.0227
+    },
+    {
+     "id": 1897,
+     "synth_s": 0.197,
+     "audio_s": 6.12,
+     "per_audio_second": 0.0321
+    },
+    {
+     "id": 1898,
+     "synth_s": 0.269,
+     "audio_s": 11.57,
+     "per_audio_second": 0.0232
+    },
+    {
+     "id": 1899,
+     "synth_s": 0.237,
+     "audio_s": 10.55,
+     "per_audio_second": 0.0225
+    },
+    {
+     "id": 1900,
+     "synth_s": 0.234,
+     "audio_s": 8.1,
+     "per_audio_second": 0.0289
+    },
+    {
+     "id": 1901,
+     "synth_s": 0.277,
+     "audio_s": 11.95,
+     "per_audio_second": 0.0232
+    },
+    {
+     "id": 1902,
+     "synth_s": 0.195,
+     "audio_s": 4.67,
+     "per_audio_second": 0.0418
+    },
+    {
+     "id": 1903,
+     "synth_s": 0.264,
+     "audio_s": 9.68,
+     "per_audio_second": 0.0273
+    },
+    {
+     "id": 1904,
+     "synth_s": 0.192,
+     "audio_s": 7.42,
+     "per_audio_second": 0.0258
+    },
+    {
+     "id": 1905,
+     "synth_s": 0.169,
+     "audio_s": 6.25,
+     "per_audio_second": 0.0271
+    },
+    {
+     "id": 1906,
+     "synth_s": 0.181,
+     "audio_s": 6.38,
+     "per_audio_second": 0.0284
+    },
+    {
+     "id": 1907,
+     "synth_s": 0.162,
+     "audio_s": 5.85,
+     "per_audio_second": 0.0278
+    },
+    {
+     "id": 1908,
+     "synth_s": 0.155,
+     "audio_s": 4.47,
+     "per_audio_second": 0.0346
+    },
+    {
+     "id": 1909,
+     "synth_s": 0.169,
+     "audio_s": 7.15,
+     "per_audio_second": 0.0237
+    },
+    {
+     "id": 1910,
+     "synth_s": 0.164,
+     "audio_s": 4.97,
+     "per_audio_second": 0.0329
+    },
+    {
+     "id": 1911,
+     "synth_s": 0.209,
+     "audio_s": 9.55,
+     "per_audio_second": 0.0219
+    },
+    {
+     "id": 1912,
+     "synth_s": 0.2,
+     "audio_s": 7.75,
+     "per_audio_second": 0.0257
+    },
+    {
+     "id": 1913,
+     "synth_s": 0.203,
+     "audio_s": 7.12,
+     "per_audio_second": 0.0286
+    },
+    {
+     "id": 1914,
+     "synth_s": 0.189,
+     "audio_s": 6.88,
+     "per_audio_second": 0.0275
+    },
+    {
+     "id": 1915,
+     "synth_s": 0.213,
+     "audio_s": 8.35,
+     "per_audio_second": 0.0255
+    },
+    {
+     "id": 1916,
+     "synth_s": 0.233,
+     "audio_s": 10.05,
+     "per_audio_second": 0.0231
+    },
+    {
+     "id": 1917,
+     "synth_s": 0.174,
+     "audio_s": 7.35,
+     "per_audio_second": 0.0236
+    },
+    {
+     "id": 1918,
+     "synth_s": 0.197,
+     "audio_s": 8.2,
+     "per_audio_second": 0.024
+    },
+    {
+     "id": 1919,
+     "synth_s": 0.18,
+     "audio_s": 7.15,
+     "per_audio_second": 0.0251
+    },
+    {
+     "id": 1920,
+     "synth_s": 0.221,
+     "audio_s": 7.55,
+     "per_audio_second": 0.0293
+    },
+    {
+     "id": 1921,
+     "synth_s": 0.231,
+     "audio_s": 8.75,
+     "per_audio_second": 0.0264
+    },
+    {
+     "id": 1922,
+     "synth_s": 0.249,
+     "audio_s": 8.38,
+     "per_audio_second": 0.0297
+    },
+    {
+     "id": 1923,
+     "synth_s": 0.325,
+     "audio_s": 13.7,
+     "per_audio_second": 0.0237
+    },
+    {
+     "id": 1924,
+     "synth_s": 0.277,
+     "audio_s": 10.5,
+     "per_audio_second": 0.0264
+    },
+    {
+     "id": 1925,
+     "synth_s": 0.192,
+     "audio_s": 8.35,
+     "per_audio_second": 0.023
+    },
+    {
+     "id": 1926,
+     "synth_s": 0.139,
+     "audio_s": 5.42,
+     "per_audio_second": 0.0256
+    },
+    {
+     "id": 1927,
+     "synth_s": 0.225,
+     "audio_s": 9.32,
+     "per_audio_second": 0.0242
+    },
+    {
+     "id": 1928,
+     "synth_s": 0.184,
+     "audio_s": 6.6,
+     "per_audio_second": 0.0278
+    },
+    {
+     "id": 1929,
+     "synth_s": 0.168,
+     "audio_s": 6.92,
+     "per_audio_second": 0.0243
+    },
+    {
+     "id": 1930,
+     "synth_s": 0.175,
+     "audio_s": 7.03,
+     "per_audio_second": 0.0249
+    },
+    {
+     "id": 1931,
+     "synth_s": 0.207,
+     "audio_s": 8.47,
+     "per_audio_second": 0.0245
+    },
+    {
+     "id": 1932,
+     "synth_s": 0.353,
+     "audio_s": 17.15,
+     "per_audio_second": 0.0206
+    },
+    {
+     "id": 1933,
+     "synth_s": 0.208,
+     "audio_s": 9.57,
+     "per_audio_second": 0.0217
+    },
+    {
+     "id": 1934,
+     "synth_s": 0.184,
+     "audio_s": 7.05,
+     "per_audio_second": 0.0262
+    },
+    {
+     "id": 1935,
+     "synth_s": 0.163,
+     "audio_s": 6.6,
+     "per_audio_second": 0.0248
+    },
+    {
+     "id": 1936,
+     "synth_s": 0.339,
+     "audio_s": 16.27,
+     "per_audio_second": 0.0208
+    },
+    {
+     "id": 1937,
+     "synth_s": 0.497,
+     "audio_s": 23.38,
+     "per_audio_second": 0.0212
+    },
+    {
+     "id": 1938,
+     "synth_s": 0.218,
+     "audio_s": 9.03,
+     "per_audio_second": 0.0242
+    },
+    {
+     "id": 1939,
+     "synth_s": 0.227,
+     "audio_s": 8.4,
+     "per_audio_second": 0.027
+    },
+    {
+     "id": 1940,
+     "synth_s": 0.239,
+     "audio_s": 10.12,
+     "per_audio_second": 0.0236
+    },
+    {
+     "id": 1941,
+     "synth_s": 0.147,
+     "audio_s": 4.0,
+     "per_audio_second": 0.0368
+    },
+    {
+     "id": 1942,
+     "synth_s": 0.199,
+     "audio_s": 8.7,
+     "per_audio_second": 0.0229
+    },
+    {
+     "id": 1943,
+     "synth_s": 0.219,
+     "audio_s": 8.72,
+     "per_audio_second": 0.0251
+    },
+    {
+     "id": 1944,
+     "synth_s": 0.173,
+     "audio_s": 6.67,
+     "per_audio_second": 0.0259
+    },
+    {
+     "id": 1945,
+     "synth_s": 0.167,
+     "audio_s": 5.4,
+     "per_audio_second": 0.031
+    },
+    {
+     "id": 1946,
+     "synth_s": 0.249,
+     "audio_s": 11.15,
+     "per_audio_second": 0.0224
+    },
+    {
+     "id": 1947,
+     "synth_s": 0.206,
+     "audio_s": 7.53,
+     "per_audio_second": 0.0273
+    },
+    {
+     "id": 1948,
+     "synth_s": 0.232,
+     "audio_s": 9.95,
+     "per_audio_second": 0.0233
+    },
+    {
+     "id": 1949,
+     "synth_s": 0.161,
+     "audio_s": 5.7,
+     "per_audio_second": 0.0282
+    },
+    {
+     "id": 1950,
+     "synth_s": 0.254,
+     "audio_s": 11.0,
+     "per_audio_second": 0.023
+    },
+    {
+     "id": 1951,
+     "synth_s": 0.194,
+     "audio_s": 8.68,
+     "per_audio_second": 0.0223
+    },
+    {
+     "id": 1952,
+     "synth_s": 0.208,
+     "audio_s": 9.22,
+     "per_audio_second": 0.0226
+    },
+    {
+     "id": 1953,
+     "synth_s": 0.146,
+     "audio_s": 3.92,
+     "per_audio_second": 0.0372
+    },
+    {
+     "id": 1954,
+     "synth_s": 0.197,
+     "audio_s": 8.6,
+     "per_audio_second": 0.0229
+    },
+    {
+     "id": 1955,
+     "synth_s": 0.204,
+     "audio_s": 8.1,
+     "per_audio_second": 0.0252
+    },
+    {
+     "id": 1956,
+     "synth_s": 0.204,
+     "audio_s": 8.25,
+     "per_audio_second": 0.0248
+    },
+    {
+     "id": 1957,
+     "synth_s": 0.131,
+     "audio_s": 4.0,
+     "per_audio_second": 0.0327
+    },
+    {
+     "id": 1958,
+     "synth_s": 0.181,
+     "audio_s": 7.5,
+     "per_audio_second": 0.0241
+    },
+    {
+     "id": 1959,
+     "synth_s": 0.159,
+     "audio_s": 6.38,
+     "per_audio_second": 0.025
+    },
+    {
+     "id": 1960,
+     "synth_s": 0.278,
+     "audio_s": 12.18,
+     "per_audio_second": 0.0228
+    },
+    {
+     "id": 1961,
+     "synth_s": 0.344,
+     "audio_s": 14.97,
+     "per_audio_second": 0.023
+    },
+    {
+     "id": 1962,
+     "synth_s": 0.17,
+     "audio_s": 7.25,
+     "per_audio_second": 0.0235
+    },
+    {
+     "id": 1963,
+     "synth_s": 0.212,
+     "audio_s": 9.5,
+     "per_audio_second": 0.0223
+    },
+    {
+     "id": 1964,
+     "synth_s": 0.214,
+     "audio_s": 9.4,
+     "per_audio_second": 0.0227
+    },
+    {
+     "id": 1965,
+     "synth_s": 0.183,
+     "audio_s": 5.92,
+     "per_audio_second": 0.0309
+    },
+    {
+     "id": 1966,
+     "synth_s": 0.172,
+     "audio_s": 5.88,
+     "per_audio_second": 0.0293
+    },
+    {
+     "id": 1967,
+     "synth_s": 0.317,
+     "audio_s": 11.93,
+     "per_audio_second": 0.0265
+    },
+    {
+     "id": 1968,
+     "synth_s": 0.276,
+     "audio_s": 11.75,
+     "per_audio_second": 0.0235
+    },
+    {
+     "id": 1969,
+     "synth_s": 0.26,
+     "audio_s": 10.32,
+     "per_audio_second": 0.0252
+    },
+    {
+     "id": 1970,
+     "synth_s": 0.251,
+     "audio_s": 9.38,
+     "per_audio_second": 0.0268
+    },
+    {
+     "id": 1971,
+     "synth_s": 0.25,
+     "audio_s": 10.85,
+     "per_audio_second": 0.0231
+    },
+    {
+     "id": 1972,
+     "synth_s": 0.157,
+     "audio_s": 5.45,
+     "per_audio_second": 0.0287
+    },
+    {
+     "id": 1973,
+     "synth_s": 0.229,
+     "audio_s": 10.78,
+     "per_audio_second": 0.0212
+    },
+    {
+     "id": 1974,
+     "synth_s": 0.158,
+     "audio_s": 4.7,
+     "per_audio_second": 0.0337
+    },
+    {
+     "id": 1975,
+     "synth_s": 0.209,
+     "audio_s": 9.57,
+     "per_audio_second": 0.0218
+    },
+    {
+     "id": 1976,
+     "synth_s": 0.16,
+     "audio_s": 5.38,
+     "per_audio_second": 0.0298
+    },
+    {
+     "id": 1977,
+     "synth_s": 0.185,
+     "audio_s": 6.95,
+     "per_audio_second": 0.0267
+    },
+    {
+     "id": 1978,
+     "synth_s": 0.142,
+     "audio_s": 3.65,
+     "per_audio_second": 0.039
+    },
+    {
+     "id": 1979,
+     "synth_s": 0.2,
+     "audio_s": 7.8,
+     "per_audio_second": 0.0257
+    },
+    {
+     "id": 1980,
+     "synth_s": 0.214,
+     "audio_s": 8.45,
+     "per_audio_second": 0.0253
+    },
+    {
+     "id": 1981,
+     "synth_s": 0.162,
+     "audio_s": 6.88,
+     "per_audio_second": 0.0235
+    },
+    {
+     "id": 1982,
+     "synth_s": 0.178,
+     "audio_s": 7.25,
+     "per_audio_second": 0.0245
+    },
+    {
+     "id": 1983,
+     "synth_s": 0.281,
+     "audio_s": 12.47,
+     "per_audio_second": 0.0226
+    },
+    {
+     "id": 1984,
+     "synth_s": 0.225,
+     "audio_s": 10.68,
+     "per_audio_second": 0.0211
+    },
+    {
+     "id": 1985,
+     "synth_s": 0.234,
+     "audio_s": 11.0,
+     "per_audio_second": 0.0213
+    },
+    {
+     "id": 1986,
+     "synth_s": 0.207,
+     "audio_s": 9.25,
+     "per_audio_second": 0.0224
+    },
+    {
+     "id": 1987,
+     "synth_s": 0.161,
+     "audio_s": 6.3,
+     "per_audio_second": 0.0255
+    },
+    {
+     "id": 1988,
+     "synth_s": 0.184,
+     "audio_s": 8.12,
+     "per_audio_second": 0.0226
+    },
+    {
+     "id": 1989,
+     "synth_s": 0.311,
+     "audio_s": 13.53,
+     "per_audio_second": 0.023
+    },
+    {
+     "id": 1990,
+     "synth_s": 0.265,
+     "audio_s": 11.07,
+     "per_audio_second": 0.0239
+    },
+    {
+     "id": 1991,
+     "synth_s": 0.195,
+     "audio_s": 7.53,
+     "per_audio_second": 0.0259
+    },
+    {
+     "id": 1992,
+     "synth_s": 0.222,
+     "audio_s": 8.62,
+     "per_audio_second": 0.0258
+    },
+    {
+     "id": 1993,
+     "synth_s": 0.18,
+     "audio_s": 7.62,
+     "per_audio_second": 0.0236
+    },
+    {
+     "id": 1994,
+     "synth_s": 0.171,
+     "audio_s": 5.95,
+     "per_audio_second": 0.0288
+    },
+    {
+     "id": 1995,
+     "synth_s": 0.256,
+     "audio_s": 10.38,
+     "per_audio_second": 0.0247
+    },
+    {
+     "id": 1996,
+     "synth_s": 0.196,
+     "audio_s": 8.38,
+     "per_audio_second": 0.0234
+    },
+    {
+     "id": 1997,
+     "synth_s": 0.312,
+     "audio_s": 15.07,
+     "per_audio_second": 0.0207
+    },
+    {
+     "id": 1998,
+     "synth_s": 0.162,
+     "audio_s": 6.3,
+     "per_audio_second": 0.0258
+    },
+    {
+     "id": 1999,
+     "synth_s": 0.173,
+     "audio_s": 7.33,
+     "per_audio_second": 0.0236
+    },
+    {
+     "id": 2000,
+     "synth_s": 0.206,
+     "audio_s": 9.0,
+     "per_audio_second": 0.0229
+    },
+    {
+     "id": 2001,
+     "synth_s": 0.215,
+     "audio_s": 8.4,
+     "per_audio_second": 0.0256
+    },
+    {
+     "id": 2002,
+     "synth_s": 0.2,
+     "audio_s": 6.72,
+     "per_audio_second": 0.0297
+    },
+    {
+     "id": 2003,
+     "synth_s": 0.15,
+     "audio_s": 5.62,
+     "per_audio_second": 0.0267
+    },
+    {
+     "id": 2004,
+     "synth_s": 0.203,
+     "audio_s": 6.65,
+     "per_audio_second": 0.0306
+    },
+    {
+     "id": 2005,
+     "synth_s": 0.165,
+     "audio_s": 4.15,
+     "per_audio_second": 0.0398
+    },
+    {
+     "id": 2006,
+     "synth_s": 0.179,
+     "audio_s": 7.72,
+     "per_audio_second": 0.0231
+    },
+    {
+     "id": 2007,
+     "synth_s": 0.172,
+     "audio_s": 7.15,
+     "per_audio_second": 0.0241
+    },
+    {
+     "id": 2008,
+     "synth_s": 0.249,
+     "audio_s": 10.65,
+     "per_audio_second": 0.0234
+    },
+    {
+     "id": 2009,
+     "synth_s": 0.248,
+     "audio_s": 10.75,
+     "per_audio_second": 0.0231
+    }
+   ]
+  }
+ }
+}

@@ -57,6 +57,8 @@ def synth(args: argparse.Namespace) -> None:
     from eval.tts_candidates import CANDIDATES
 
     load, languages = CANDIDATES[args.candidate]
+    if args.languages:  # e.g. the test run covers only the language a candidate was chosen for
+        languages = [language for language in languages if language in args.languages]
     record: dict = {"candidate": args.candidate, "split": args.split, "languages": {}}
     for language in languages:
         before = gpu_memory_mb()
@@ -186,6 +188,7 @@ def main() -> None:
     synth_parser.add_argument("--candidate", required=True)
     synth_parser.add_argument("--split", choices=["validation", "test"], default="validation")
     synth_parser.add_argument("--limit", type=int, default=None, help="first N sentences per language")
+    synth_parser.add_argument("--languages", nargs="+", choices=["ko", "en"], help="default: all it speaks")
     synth_parser.add_argument("--tag", default="run")
     score_parser = phases.add_parser("score", help="re-recognize every candidate's audio for a tag")
     score_parser.add_argument("--tag", default="run")
