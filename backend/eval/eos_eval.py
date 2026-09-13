@@ -97,6 +97,9 @@ def word_bounds(clips: list[tuple[str, np.ndarray]], lang: str, split: str) -> d
         return json.loads(path.read_text(encoding="utf-8"))
     from faster_whisper import WhisperModel
 
+    from app.services.cuda import add_cuda_dll_dirs
+
+    add_cuda_dll_dirs()  # Windows: CTranslate2 finds cuBLAS/cuDNN only in the nvidia wheels' folders
     model = WhisperModel("large-v3-turbo", device="cuda", compute_type="float16")
     bounds: dict[str, list[int] | None] = {}
     for key, clip in clips:
