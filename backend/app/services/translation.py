@@ -59,7 +59,8 @@ def split_sentences(text: str) -> list[str]:
     """Split before each sentence, but not after an abbreviation; a number such as 3.5 has no space."""
     sentences: list[str] = []
     for piece in _SENTENCE_END.split(text.strip()):
-        if sentences and _is_abbreviation(sentences[-1].rsplit(" ", 1)[-1]):
+        # The last word whatever white space precedes it: a newline or tab before "Dr." too (T27).
+        if sentences and _is_abbreviation(sentences[-1].split()[-1]):
             sentences[-1] = f"{sentences[-1]} {piece}"
         elif piece:
             sentences.append(piece)

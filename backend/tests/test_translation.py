@@ -101,6 +101,8 @@ def test_opus_preprocess_follows_the_training_script():
             ["The U.N. met Mr. Smith and J. Doe, e.g. at 3.5 km.", "Then left."],
         ),
         ("  한 문장  ", ["한 문장"]),
+        ("Meet\nDr. Kim. Next.", ["Meet\nDr. Kim.", "Next."]),
+        ("Ask\tMr. Lee first. Then go.", ["Ask\tMr. Lee first.", "Then go."]),
         ("   ", []),
     ],
 )
