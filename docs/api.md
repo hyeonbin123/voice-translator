@@ -309,6 +309,10 @@ backend 폴더에서 `uv sync` 후 `uv run alembic upgrade head`를 실행해 �
 | `STT_VAD_FILTER` | `true` | 말소리 구간만 인식 모델에 넘긴다 (docs/experiments.md 1-1) |
 | `STT_OWN_DECODE` | `false` | 업로드를 faster-whisper 대신 앱에서 디코딩한다. 비교용으로만 남긴 설정 (5절 후보 C) |
 | `WARM_UP` | `true` | 모델을 올린 뒤 번역·합성·인식을 한 번씩 돌려 첫 요청의 지연을 없앤다 |
+| `TYPO_CORRECTION` | `true` | 글자로 입력한 영어를 번역 전에 Ollama의 작은 LLM으로 오타·띄어쓰기만 고친다 (docs/experiments.md 6절). 한국어 입력과 음성 인식 결과는 고치지 않는다. Ollama가 응답하지 않거나 답이 이상하면 입력한 그대로 번역한다. 기록의 `source_text`는 입력한 그대로, `mt_model`에는 교정 모델이 붙고(`... + ollama/...`), `mt_ms`는 교정 시간을 포함한다 |
+| `OLLAMA_URL` | `http://localhost:11434` | 교정 모델을 돌리는 Ollama 주소. Docker compose는 `http://ollama:11434` |
+| `CORRECTION_MODEL` | `qwen2.5:1.5b-instruct` | 교정 모델. Ollama에 없으면 시작할 때 받는다(약 1GB). 올린 뒤 계속 올려 둔다(`ollama stop <모델>`로 내림) |
+| `CORRECTION_TIMEOUT_S` | `10` | 교정 요청 제한 시간(초). 넘으면 입력한 그대로 번역한다 |
 | `GC_FREEZE` | `true` | 모델을 올린 뒤 `gc.freeze()`. 번역 중 다른 요청이 막히지 않게 한다 (5절) |
 | `MODEL_THREADS` | `1` | 모델 호출 스레드 수 (docs/experiments.md 4절) |
 | `AUDIO_DIR` | `<프로젝트>/work/audio` | 번역 음성 파일을 두는 폴더 |

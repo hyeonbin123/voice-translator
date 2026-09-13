@@ -23,6 +23,25 @@ services:
       retries: 10
       start_period: 60s  # a cold start on a slow disk (HDD) can outlast the retries above
 
+  # Typo correction for typed English (T32): the API pulls its small LLM into the ollama volume on the
+  # first start (about 1 GB) and keeps it loaded on the GPU (about 1.3 GB).
+  ollama:
+    image: ollama/ollama:0.34.0
+    volumes:
+      - ollama:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   api:
     build: ./backend
     # Optional .env: JWT_SECRET_KEY keeps users signed in across restarts. DATABASE_URL below wins.
@@ -31,12 +50,15 @@ services:
         required: false
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-vtuser}:${POSTGRES_PASSWORD:-vtpass}@db:5432/${POSTGRES_DB:-voicetranslator}
+      OLLAMA_URL: http://ollama:11434
     volumes:
       - ./data/models/ct2:/models/ct2:ro
       - hfcache:/models/hf
       - audio:/data/audio
     depends_on:
       db:
+        condition: service_healthy
+      ollama:
         condition: service_healthy
     deploy:
       resources:
@@ -64,3 +86,4 @@ volumes:
   pgdata:
   hfcache:
   audio:
+  ollama:

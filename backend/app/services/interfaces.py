@@ -70,3 +70,16 @@ class TextToSpeech(Protocol):
     model_name: str
 
     def synthesize(self, text: str, language: Language) -> SynthesizedAudio: ...
+
+
+@runtime_checkable
+class TypoCorrector(Protocol):
+    """Fixes typing mistakes in typed text before translation (T32)."""
+
+    model_name: str
+
+    def corrects(self, language: Language) -> bool: ...
+
+    def correct(self, text: str, language: Language) -> str | None:
+        """The corrected text, or None on any failure: the caller then translates the text as typed."""
+        ...

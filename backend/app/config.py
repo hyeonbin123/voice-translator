@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     stt_own_decode: bool = False
     # Run every model once after loading, so the first request does not pay for lazy loading (T25).
     warm_up: bool = True
+    # Fix typos in typed English before translating it, with a small LLM served by Ollama (T32,
+    # docs/experiments.md 6). When Ollama cannot be reached, text is translated as typed.
+    typo_correction: bool = True
+    ollama_url: str = "http://localhost:11434"
+    correction_model: str = "qwen2.5:1.5b-instruct"
+    correction_timeout_s: float = Field(default=10, gt=0)
 
     @field_validator("jwt_secret_key")
     @classmethod

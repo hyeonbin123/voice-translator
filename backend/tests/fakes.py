@@ -67,6 +67,23 @@ class FakeTranslator:
         return f"[{source}->{target}] {text}"
 
 
+class FakeCorrector:
+    """Corrects English only, like the server's. `fixed` is its answer; None acts like Ollama being down."""
+
+    model_name = "fake-corrector"
+
+    def __init__(self, fixed: str | None = "corrected text") -> None:
+        self.fixed = fixed
+        self.calls: list[tuple[str, Language]] = []
+
+    def corrects(self, language: Language) -> bool:
+        return language == "en"
+
+    def correct(self, text: str, language: Language) -> str | None:
+        self.calls.append((text, language))
+        return self.fixed
+
+
 class FakeTextToSpeech:
     model_name = "fake-tts"
 

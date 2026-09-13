@@ -4,7 +4,7 @@ import pytest
 
 from app import main
 from app.config import Settings
-from app.services import models, stt, translation, tts
+from app.services import correction, models, stt, translation, tts
 from app.services.interfaces import ModelError
 from app.services.pipeline import PipelineModels
 from tests.fakes import FakeSpeechToText, FakeTextToSpeech, FakeTranslator
@@ -31,6 +31,10 @@ def fake_model_classes(monkeypatch):
     monkeypatch.setattr(translation, "MarianTranslator", recording("Marian"))
     monkeypatch.setattr(tts, "MeloTextToSpeech", recording("Melo"))
     monkeypatch.setattr(tts, "KokoroTextToSpeech", recording("Kokoro"))
+    # Tests must never reach a real Ollama on the machine.
+    monkeypatch.setattr(
+        correction, "OllamaCorrector", type("Ollama", (Recorder,), {"prepare": lambda self: None})
+    )
     return Recorder.built
 
 
@@ -42,8 +46,10 @@ def test_loads_the_chosen_models_on_the_configured_device(fake_model_classes, tm
     assert ("Marian", tmp_path / "opus-mt-tc-big-ko-en") in built
     assert ("Marian", tmp_path / "opus-mt-tc-big-en-ko") in built
     assert ("Melo", "ko") in built
-    assert all(kwargs.get("device") == "cpu" for _, _, kwargs in fake_model_classes)
-    assert all(kwargs.get("compute_type", "int8") == "int8" for _, _, kwargs in fake_model_classes)
+    # Ollama places the typo correction model itself.
+    local = [kwargs for name, _, kwargs in fake_model_classes if name != "Ollama"]
+    assert all(kwargs.get("device") == "cpu" for kwargs in local)
+    assert all(kwargs.get("compute_type", "int8") == "int8" for kwargs in local)
     assert "ko->en" in bundle.translator.model_name
     assert "ko: Melo" in bundle.tts.model_name and "en: Kokoro" in bundle.tts.model_name
 
@@ -102,6 +108,40 @@ def test_translation_that_cannot_load_stops_startup(fake_model_classes, monkeypa
     monkeypatch.setattr(translation, "MarianTranslator", broken)
     with pytest.raises(RuntimeError, match="converted model missing"):
         models.load_models(Settings(model_device="cpu"))
+
+
+def test_typo_correction_uses_the_configured_ollama_model(fake_model_classes):
+    bundle = models.load_models(
+        Settings(
+            model_device="cpu",
+            tts_enabled=False,
+            ollama_url="http://ollama:11434",
+            correction_model="qwen2.5:1.5b-instruct",
+            correction_timeout_s=3,
+        )
+    )
+    ollama = [(args, kwargs) for name, args, kwargs in fake_model_classes if name == "Ollama"]
+    assert ollama == [(("qwen2.5:1.5b-instruct",), {"base_url": "http://ollama:11434", "timeout_s": 3})]
+    assert bundle.corrector is not None
+
+
+def test_typo_correction_can_be_disabled(fake_model_classes):
+    assert (
+        models.load_models(Settings(model_device="cpu", tts_enabled=False, typo_correction=False)).corrector
+        is None
+    )
+    assert not any(name == "Ollama" for name, _, _ in fake_model_classes)
+
+
+def test_typo_correction_that_cannot_prepare_stays_on_and_is_logged(fake_model_classes, monkeypatch, caplog):
+    def refuse(self):
+        raise RuntimeError("connection refused")
+
+    # Ollama may start after the API; each request then tries again and falls back to the typed text.
+    monkeypatch.setattr(correction.OllamaCorrector, "prepare", refuse)
+    bundle = models.load_models(Settings(model_device="cpu", tts_enabled=False))
+    assert bundle.corrector is not None
+    assert "could not be prepared" in caplog.text
 
 
 @pytest.fixture

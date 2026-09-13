@@ -6,7 +6,7 @@ from collections.abc import Callable
 from typing import Any
 
 from app.config import Settings
-from app.services.interfaces import Language, TextToSpeech
+from app.services.interfaces import Language, TextToSpeech, TypoCorrector
 from app.services.pipeline import PipelineModels
 
 logger = logging.getLogger(__name__)
@@ -40,7 +40,8 @@ def load_models(settings: Settings) -> PipelineModels:
         }
     )
     tts = load_speech_synthesis(device) if settings.tts_enabled else None
-    return PipelineModels(stt=stt, translator=translator, tts=tts)
+    corrector = load_typo_correction(settings) if settings.typo_correction else None
+    return PipelineModels(stt=stt, translator=translator, tts=tts, corrector=corrector)
 
 
 def warm_up(models: PipelineModels) -> None:
@@ -75,6 +76,26 @@ def warm_up(models: PipelineModels) -> None:
         english = step("speech synthesis en", lambda: tts.synthesize(WARM_UP_TEXT["en"], "en"))
     if stt is not None and english is not None:
         step("speech recognition en", lambda: stt.transcribe(english.wav, "en"))
+
+
+def load_typo_correction(settings: Settings) -> TypoCorrector:
+    """Optional like synthesis, but a failed start does not turn it off: Ollama may come up after the API,
+    and until it answers, each request translates the text as typed.
+    """
+    from app.services.correction import OllamaCorrector
+
+    corrector = OllamaCorrector(
+        settings.correction_model, base_url=settings.ollama_url, timeout_s=settings.correction_timeout_s
+    )
+    try:
+        corrector.prepare()
+    except Exception:  # noqa: BLE001 - correction is a helper step and must never stop the server
+        logger.warning(
+            "Typo correction model %s could not be prepared; text is translated as typed until it answers",
+            settings.correction_model,
+            exc_info=True,
+        )
+    return corrector
 
 
 def load_speech_synthesis(device: str) -> TextToSpeech | None:

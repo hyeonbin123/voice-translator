@@ -11,7 +11,7 @@ from app.models import AudioFile, Translation
 from app.services import pipeline
 from app.services.audio_store import AudioStore
 from app.services.inference import run_model
-from tests.fakes import FakeSpeechToText, FakeTextToSpeech, FakeTranslator, silent_wav
+from tests.fakes import FakeCorrector, FakeSpeechToText, FakeTextToSpeech, FakeTranslator, silent_wav
 
 
 async def test_models_run_off_loop_and_queue_wait_is_excluded(db_session, user, tmp_path, monkeypatch):
@@ -62,6 +62,45 @@ async def test_models_run_off_loop_and_queue_wait_is_excluded(db_session, user, 
     result = await task
     assert calls == ["transcribe", "translate", "synthesize"]
     assert (result.stt_ms, result.mt_ms, result.tts_ms) == (12, 23, 34)
+
+
+async def translate_with(models, db_session, user, tmp_path, source="en", target="ko", **request):
+    return await pipeline.translate(
+        models=models,
+        store=AudioStore(tmp_path),
+        db=db_session,
+        user_id=user.id,
+        source=source,
+        target=target,
+        **request,
+    )
+
+
+async def test_typed_english_is_corrected_before_translation(db_session, user, tmp_path):
+    corrector = FakeCorrector("I have a cat.")
+    models = pipeline.PipelineModels(None, FakeTranslator(), corrector=corrector)
+    result = await translate_with(models, db_session, user, tmp_path, text="I hvae a cat.")
+    assert corrector.calls == [("I hvae a cat.", "en")]
+    assert result.translated_text == "[en->ko] I have a cat."
+    # The record keeps what the user typed, and names both models.
+    assert result.source_text == "I hvae a cat."
+    assert result.mt_model == "fake-mt + fake-corrector"
+
+
+async def test_a_failed_correction_translates_the_text_as_typed(db_session, user, tmp_path):
+    models = pipeline.PipelineModels(None, FakeTranslator(), corrector=FakeCorrector(None))
+    result = await translate_with(models, db_session, user, tmp_path, text="I hvae a cat.")
+    assert result.translated_text == "[en->ko] I hvae a cat."
+    assert result.mt_model == "fake-mt"
+
+
+async def test_korean_text_and_speech_are_not_corrected(db_session, user, tmp_path):
+    corrector = FakeCorrector()
+    models = pipeline.PipelineModels(FakeSpeechToText(), FakeTranslator(), corrector=corrector)
+    korean = await translate_with(models, db_session, user, tmp_path, "ko", "en", text="안녕하세요")
+    spoken = await translate_with(models, db_session, user, tmp_path, audio=silent_wav(100))
+    assert corrector.calls == []
+    assert korean.mt_model == spoken.mt_model == "fake-mt"
 
 
 async def test_event_loop_stays_responsive_during_model_call(db_session, user, tmp_path, monkeypatch):

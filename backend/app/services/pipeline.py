@@ -23,6 +23,7 @@ from app.services.interfaces import (
     SpeechToText,
     TextToSpeech,
     Translator,
+    TypoCorrector,
     UndecodableAudioError,
 )
 
@@ -40,6 +41,7 @@ class PipelineModels:
     stt: SpeechToText | None
     translator: Translator | None
     tts: TextToSpeech | None = None
+    corrector: TypoCorrector | None = None
 
 
 def validate_audio(audio: bytes) -> None:
@@ -65,6 +67,20 @@ def _timed(fn: Callable[..., T], *args) -> tuple[T, int]:
     return result, round((perf_counter() - start) * 1000)
 
 
+def _translate_text(
+    translator: Translator, corrector: TypoCorrector | None, text: str, source: Language, target: Language
+) -> tuple[str, bool]:
+    """Translate, first fixing typos when the corrector handles the source language (T32).
+
+    Also returns whether a correction was used; without one the text is translated as typed.
+    """
+    corrected = (
+        corrector.correct(text, source) if corrector is not None and corrector.corrects(source) else None
+    )
+    translated = translator.translate(corrected if corrected is not None else text, source, target)
+    return translated, corrected is not None
+
+
 async def translate(
     *,
     models: PipelineModels,
@@ -87,7 +103,15 @@ async def translate(
         stt_model = models.stt.model_name
     if models.translator is None:
         raise ModelError("Translation model is unavailable")
-    translated, mt_ms = await run_model(_timed, models.translator.translate, text, source, target)
+    # Typed text only: speech recognition output has no keyboard typos, and spoken replies should not wait
+    # for another model. The record keeps the text as typed; mt_ms includes the correction.
+    corrector = models.corrector if audio is None else None
+    (translated, corrected), mt_ms = await run_model(
+        _timed, _translate_text, models.translator, corrector, text, source, target
+    )
+    mt_model = models.translator.model_name
+    if corrected and corrector is not None:
+        mt_model = f"{mt_model} + {corrector.model_name}"
     item = Translation(
         user_id=user_id,
         mode="speech" if audio is not None else "text",
@@ -97,7 +121,7 @@ async def translate(
         translated_text=translated,
         stt_model=stt_model,
         stt_ms=stt_ms,
-        mt_model=models.translator.model_name,
+        mt_model=mt_model,
         mt_ms=mt_ms,
         tts_model=None,
         tts_ms=None,

@@ -16,8 +16,9 @@
 | 프론트엔드 | React + TypeScript (Vite), 브라우저 마이크 녹음(MediaRecorder) |
 | 음성 인식 | Whisper large-v3-turbo (faster-whisper / CTranslate2, GPU float16) + VAD |
 | 번역 | opus-mt-tc-big 한→영·영→한 (CTranslate2로 변환), 영→한은 문장 단위로 번역 |
+| 오타 교정 | 글자로 입력한 영어만 번역 전에 qwen2.5 1.5B(Ollama)로 오타·띄어쓰기를 고침 |
 | 음성 합성 | 한국어 MeloTTS, 영어 Kokoro-82M |
-| 배포 | Docker Compose: db, api(GPU), web(nginx가 화면과 `/api` 프록시) |
+| 배포 | Docker Compose: db, api(GPU), ollama(GPU, 오타 교정), web(nginx가 화면과 `/api` 프록시) |
 
 ### 측정해서 고른 결과
 
@@ -27,10 +28,11 @@
 |---|---|---|
 | 음성 인식 | large-v3-turbo + VAD | 한국어 CER 4.57%, 영어 WER 4.95%. 음성 1초당 처리 약 0.04초 |
 | 번역 | opus-mt-tc-big | chrF 한→영 55.7, 영→한 36.1 |
+| 오타 교정 (영어 글자 입력) | qwen2.5 1.5B로 교정한 뒤 번역 | 오타를 섞은 영→한 chrF 27.5 → 34.8, 깨끗한 입력 36.1 → 36.6. 문장당 약 0.15초 추가. 한국어 입력은 교정이 깨끗한 문장을 망가뜨려 쓰지 않음 |
 | 음성 합성 | MeloTTS(한), Kokoro(영) | 합성 음성을 다시 인식한 오류: 한국어 CER 5.58%, 영어 WER 3.91% |
 | 전체 흐름 | 위 조합, 모델 스레드 1개 | 10초 음성 → 원문·번역문·번역 음성까지 중앙값 0.89초(p95 1.62초), 동시 2요청 1.54초. 번역 중 다른 요청 응답 p95 0.033초 |
 
-GPU는 RTX 2080 Ti(11GB)에서 쟀고, 세 모델이 올라간 서버는 VRAM 약 4.6~5.1GB를 쓴다.
+GPU는 RTX 2080 Ti(11GB)에서 쟀고, 세 모델이 올라간 서버는 VRAM 약 4.6~5.1GB를 쓴다. 오타 교정 모델(Ollama)이 약 1.3GB를 더 쓴다.
 
 ## 전체 실행 (Docker)
 
@@ -47,7 +49,7 @@ cd ..
 docker compose up -d --build
 ```
 
-http://localhost:8080 에서 쓴다 (포트는 `.env`의 `WEB_HOST_PORT`). 처음 시작할 때 음성 인식·합성 가중치(약 2.5GB)를 `hfcache` 볼륨으로 받고, 모델을 올린 뒤 한 번씩 돌려 둔 다음 준비 완료가 된다. 로그인이 서버 재시작 뒤에도 유지되게 하려면 `.env`에 `JWT_SECRET_KEY`를 둔다 (`.env.example` 참고).
+http://localhost:8080 에서 쓴다 (포트는 `.env`의 `WEB_HOST_PORT`). 처음 시작할 때 음성 인식·합성 가중치(약 2.5GB)를 `hfcache` 볼륨으로, 오타 교정 모델(약 1GB)을 `ollama` 볼륨으로 받고, 모델을 올린 뒤 한 번씩 돌려 둔 다음 준비 완료가 된다. 로그인이 서버 재시작 뒤에도 유지되게 하려면 `.env`에 `JWT_SECRET_KEY`를 둔다 (`.env.example` 참고).
 
 ## 로컬 개발
 
