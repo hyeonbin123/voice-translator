@@ -119,6 +119,22 @@ def test_marian_by_sentence_translates_each_sentence_on_its_own(engine):
     assert len(echo.calls) == 3
 
 
+@pytest.mark.parametrize(
+    ("text", "calls"),
+    [
+        ("Meet\nDr. Kim. Next.", [["Meet", "Dr.", "Kim.", "</s>"], ["Next.", "</s>"]]),
+        ("Ask\tMr. Lee first. Then go.", [["Ask", "Mr.", "Lee", "first.", "</s>"], ["Then", "go.", "</s>"]]),
+        ("Met\nJ. Doe. Bye.", [["Met", "J.", "Doe.", "</s>"], ["Bye.", "</s>"]]),
+    ],
+)
+def test_marian_by_sentence_keeps_abbreviations_after_any_white_space(engine, text, calls):
+    # T27/T31: what reaches the engine, sentence by sentence, through the real adapter.
+    echo = EchoEngine()
+    engine(echo)
+    translation.MarianTranslator(Path("model"), "en", "ko", by_sentence=True).translate(text, "en", "ko")
+    assert echo.calls == calls
+
+
 def test_marian_translates_the_whole_input_by_default(engine):
     echo = EchoEngine()
     engine(echo)
