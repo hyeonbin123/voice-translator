@@ -73,9 +73,13 @@ def test_recognition_that_cannot_load_stops_startup(fake_model_classes, monkeypa
 @pytest.mark.parametrize("load", [True, False])
 async def test_lifespan_loads_models_only_when_asked(monkeypatch, load):
     bundle = PipelineModels(stt=FakeSpeechToText(), translator=FakeTranslator(), tts=FakeTextToSpeech())
+    frozen = []
     monkeypatch.setattr(main, "get_settings", lambda: Settings(load_models=load))
     monkeypatch.setattr(main, "load_models", lambda settings: bundle)
+    monkeypatch.setattr(main.gc, "freeze", lambda: frozen.append(True))
 
     async with main.lifespan(main.app):
         assert getattr(main.app.state, "models", None) is (bundle if load else None)
+        # The loaded models are moved out of the collector's reach (T23), and only then.
+        assert frozen == ([True] if load else [])
     assert not hasattr(main.app.state, "models")  # released on shutdown
