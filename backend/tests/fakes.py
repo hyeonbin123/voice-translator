@@ -83,6 +83,9 @@ class FakeCorrector:
         self.calls.append((text, language))
         return self.fixed
 
+    def close(self) -> None:
+        self.closed = True
+
 
 class FakeTextToSpeech:
     model_name = "fake-tts"
@@ -94,6 +97,4 @@ class FakeTextToSpeech:
         if self.fail:
             raise ModelError("synthesis failed on purpose")
         duration_ms = 100 * max(1, len(text.split()))
-        return SynthesizedAudio(
-            wav=silent_wav(duration_ms), sample_rate=SAMPLE_RATE, duration_ms=duration_ms
-        )
+        return SynthesizedAudio(wav=silent_wav(duration_ms), sample_rate=SAMPLE_RATE, duration_ms=duration_ms)

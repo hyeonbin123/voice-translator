@@ -83,3 +83,7 @@ class TypoCorrector(Protocol):
     def correct(self, text: str, language: Language) -> str | None:
         """The corrected text, or None on any failure: the caller then translates the text as typed."""
         ...
+
+    def close(self) -> None:
+        """Called once when the app shuts down; must not block."""
+        ...

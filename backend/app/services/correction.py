@@ -64,15 +64,18 @@ class OllamaCorrector:
         self._retry_s = retry_s
         self._ready = threading.Event()
         self._closed = threading.Event()
+        self._worker: threading.Thread | None = None
 
     def corrects(self, language: Language) -> bool:
-        return language in self.languages and self._ready.is_set()
+        return language in self.languages and self._ready.is_set() and not self._closed.is_set()
 
     def correct(self, text: str, language: Language) -> str | None:
         """The corrected text, or None when the model gave none; the caller then keeps the original.
 
         The log never carries the text itself.
         """
+        if self._closed.is_set():
+            return None
         try:
             response = self._client.post("/api/chat", json=self._payload(text, language))
             response.raise_for_status()
@@ -95,36 +98,47 @@ class OllamaCorrector:
         return corrected
 
     def start(self) -> threading.Thread:
-        thread = threading.Thread(
+        self._worker = threading.Thread(
             target=self._prepare_until_ready, name="typo-correction-prepare", daemon=True
         )
-        thread.start()
-        return thread
+        self._worker.start()
+        return self._worker
 
     def close(self) -> None:
-        """Stop retrying; a request already sent still ends within its time limit."""
+        """Turn correction off for good and stop preparing (T39, called when the app shuts down).
+
+        Never waits: a preparation call already sent ends within its time limit, and the worker then closes
+        the HTTP client; with no worker running, close() closes it here.
+        """
         self._closed.set()
+        if self._worker is None or not self._worker.is_alive():
+            self._client.close()
 
     def _prepare_until_ready(self) -> None:
         failures = 0
-        while not self._closed.is_set():
-            try:
-                self.prepare()
-            except Exception:  # noqa: BLE001 - any failure leaves correction off until a later try works
-                failures += 1
-                if failures == 1:  # once, not every retry
-                    logger.warning(
-                        "Typo correction model %s is not ready; typed text is translated as is. "
-                        "Trying again every %.0f s",
-                        self._model,
-                        self._retry_s,
-                        exc_info=True,
-                    )
-                self._closed.wait(self._retry_s)
-                continue
-            self._ready.set()
-            logger.info("Typo correction model %s is ready", self._model)
-            return
+        try:
+            while not self._closed.is_set():
+                try:
+                    self.prepare()
+                except Exception:  # noqa: BLE001 - any failure leaves correction off until a later try works
+                    failures += 1
+                    if failures == 1 and not self._closed.is_set():  # once, not every retry
+                        logger.warning(
+                            "Typo correction model %s is not ready; typed text is translated as is. "
+                            "Trying again every %.0f s",
+                            self._model,
+                            self._retry_s,
+                            exc_info=True,
+                        )
+                    self._closed.wait(self._retry_s)
+                    continue
+                if not self._closed.is_set():  # a preparation that ends after shutdown stays off
+                    self._ready.set()
+                    logger.info("Typo correction model %s is ready", self._model)
+                return
+        finally:
+            if self._closed.is_set():
+                self._client.close()
 
     def prepare(self) -> None:
         """Pull the model if Ollama lacks it (the first compose start), load it to stay, and correct once.

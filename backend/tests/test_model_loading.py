@@ -1,5 +1,7 @@
 import logging
+import threading
 
+import httpx
 import pytest
 
 from app import main
@@ -144,6 +146,46 @@ def frozen(monkeypatch):
     calls = []
     monkeypatch.setattr(main.gc, "freeze", lambda: calls.append(getattr(main.app.state, "models", None)))
     return calls
+
+
+@pytest.mark.parametrize("status", [500, 200])
+async def test_shutdown_stops_the_typo_correction_preparation(monkeypatch, frozen, status):
+    """T39: a preparation stalled at shutdown neither retries nor turns on afterwards, and a restart works."""
+    gate = threading.Event()
+
+    def ollama(stalled: bool):
+        def answer(_):
+            if stalled:
+                assert gate.wait(5)
+            reply = {"message": {"content": "Hello."}, "done": True, "done_reason": "stop"}
+            return httpx.Response(status if stalled else 200, json=reply)
+
+        return answer
+
+    correctors, workers = [], []
+
+    def load(settings):
+        corrector = correction.OllamaCorrector("qwen2.5:1.5b-instruct", retry_s=0.01)
+        transport = httpx.MockTransport(ollama(stalled=not correctors))
+        corrector._client = httpx.Client(base_url="http://ollama.test", transport=transport)
+        correctors.append(corrector)
+        workers.append(corrector.start())
+        return PipelineModels(stt=FakeSpeechToText(), translator=FakeTranslator(), corrector=corrector)
+
+    monkeypatch.setattr(main, "get_settings", lambda: Settings(load_models=True, warm_up=False))
+    monkeypatch.setattr(main, "load_models", load)
+    async with main.lifespan(main.app):
+        assert not correctors[0].corrects("en")  # still preparing: requests translate as typed
+    gate.set()  # the stalled call now ends, failing (500) or succeeding (200), after shutdown
+    workers[0].join(5)
+    assert not workers[0].is_alive()
+    assert not correctors[0].corrects("en") and correctors[0]._client.is_closed
+
+    async with main.lifespan(main.app):  # the next start prepares its own corrector
+        workers[1].join(5)
+        assert correctors[1].corrects("en")
+    assert not correctors[1].corrects("en") and correctors[1]._client.is_closed
+    assert not correctors[0].corrects("en")
 
 
 @pytest.mark.parametrize("load", [True, False])

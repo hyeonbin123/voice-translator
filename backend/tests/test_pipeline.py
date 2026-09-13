@@ -1,4 +1,5 @@
 import asyncio
+import json
 import threading
 import time
 from pathlib import Path
@@ -96,25 +97,61 @@ async def test_a_failed_correction_translates_the_text_as_typed(db_session, user
     assert result.mt_model == "fake-mt"
 
 
-async def test_an_unusable_reply_from_ollama_leaves_the_typed_text(db_session, user, tmp_path):
-    # The real corrector, with only Ollama's HTTP answer replaced (T38).
-    refusal = {
-        "message": {"content": "I cannot help with that request."},
-        "done": True,
-        "done_reason": "stop",
-    }
+TYPED, FIXED = "I hvae a cat.", "I have a cat."
+FINISHED = {"done": True, "done_reason": "stop"}
+
+
+def ready_corrector(reply: httpx.Response) -> OllamaCorrector:
+    """The real corrector, prepared, with only Ollama's HTTP answer to the typed text replaced (T38, T40)."""
+
+    def ollama(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        if request.url.path == "/api/chat" and body["messages"][1]["content"] == TYPED:
+            return reply
+        return httpx.Response(200, json={"message": {"content": "Hello."}, **FINISHED})
+
     corrector = OllamaCorrector("qwen2.5:1.5b-instruct")
-    corrector._client = httpx.Client(
-        base_url="http://ollama.test",
-        transport=httpx.MockTransport(lambda _: httpx.Response(200, json=refusal)),
-    )
-    corrector.start().join(5)  # preparing checks only the HTTP status, so it becomes ready
+    corrector._client = httpx.Client(base_url="http://ollama.test", transport=httpx.MockTransport(ollama))
+    corrector.start().join(5)
     assert corrector.corrects("en")
+    return corrector
+
+
+async def saved(db_session, result) -> tuple[str, str, str]:
+    query = select(Translation.source_text, Translation.translated_text, Translation.mt_model)
+    return tuple((await db_session.execute(query.where(Translation.id == result.id))).one())
+
+
+async def test_a_real_correction_reaches_translation_and_the_record(db_session, user, tmp_path):
+    corrector = ready_corrector(httpx.Response(200, json={"message": {"content": FIXED}, **FINISHED}))
     models = pipeline.PipelineModels(None, FakeTranslator(), corrector=corrector)
-    result = await translate_with(models, db_session, user, tmp_path, text="I hvae a cat.")
-    assert result.translated_text == "[en->ko] I hvae a cat."
-    assert result.source_text == "I hvae a cat."
-    assert result.mt_model == "fake-mt"
+    result = await translate_with(models, db_session, user, tmp_path, text=TYPED)
+    expected = (TYPED, f"[en->ko] {FIXED}", "fake-mt + ollama/qwen2.5:1.5b-instruct")
+    assert (result.source_text, result.translated_text, result.mt_model) == expected
+    assert await saved(db_session, result) == expected
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [
+        httpx.Response(500, json={"error": "model crashed"}),
+        httpx.Response(200, text="not json"),
+        httpx.Response(200, json={"message": {"content": "   "}, **FINISHED}),
+        httpx.Response(200, json={"message": {"content": "I have a"}, "done": True, "done_reason": "length"}),
+        httpx.Response(200, json={"message": {"content": FIXED}, "done": False}),
+        httpx.Response(200, json={"message": {"content": FIXED}, "done": True, "done_reason": "load"}),
+        httpx.Response(200, json={"message": {"content": "I cannot help with that request."}, **FINISHED}),
+        httpx.Response(200, json={"message": {"content": "고양이가 있습니다."}, **FINISHED}),
+    ],
+    ids=["http-500", "not-json", "empty", "cut-off", "unfinished", "other-finish", "refusal", "korean"],
+)
+async def test_an_unusable_reply_from_ollama_leaves_the_typed_text(reply, db_session, user, tmp_path, caplog):
+    models = pipeline.PipelineModels(None, FakeTranslator(), corrector=ready_corrector(reply))
+    result = await translate_with(models, db_session, user, tmp_path, text=TYPED)
+    expected = (TYPED, f"[en->ko] {TYPED}", "fake-mt")
+    assert (result.source_text, result.translated_text, result.mt_model) == expected
+    assert await saved(db_session, result) == expected
+    assert "Typo correction" in caplog.text and TYPED not in caplog.text
 
 
 async def test_korean_text_and_speech_are_not_corrected(db_session, user, tmp_path):

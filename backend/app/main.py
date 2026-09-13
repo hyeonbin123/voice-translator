@@ -41,7 +41,12 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        if hasattr(app.state, "models"):
+        models = getattr(app.state, "models", None)
+        if models is not None:
+            # Stop the typo correction model's background preparation (T39); close() does not wait.
+            corrector = getattr(models, "corrector", None)
+            if corrector is not None:
+                corrector.close()
             del app.state.models
 
 
