@@ -55,7 +55,16 @@ http://localhost:8080 에서 쓴다 (포트는 `.env`의 `WEB_HOST_PORT`). 처�
 
 ## 로컬 개발
 
-준비: Python 3.11, uv, Node.js 24, Docker. 명령은 프로젝트 폴더에서 시작하고, 백엔드와 프론트엔드는 각각 다른 터미널에서 실행한다.
+준비: Python 3.11, uv, Node.js 24, Docker. 명령은 프로젝트 폴더에서 시작하고, 백엔드와 프론트엔드는 각각 다른 터미널에서 실행한다. 모델 없이 화면과 테스트만 볼 때는 0단계를 건너뛰고 2단계를 `LOAD_MODELS` 없이 실행한다(아래 설명).
+
+```bash
+# 0. 번역 모델 변환 (처음 한 번, data/models/ct2에 만듦. 위 "전체 실행 (Docker)"과 같은 명령)
+cd backend
+uv sync --group gpu --group eval
+uv run python -m eval.fleurs_download --splits validation
+uv run python -m eval.mt_convert --models opus-mt-tc-big-ko-en opus-mt-tc-big-en-ko
+cd ..
+```
 
 ```bash
 # 1. DB (이 PC에서만 접속: 127.0.0.1:55442. Windows가 예약하는 5432~5631을 피함.
@@ -66,6 +75,7 @@ docker compose up -d db
 
 ```bash
 # 2. 백엔드: http://localhost:8000/api/health
+#    (eval과 tts 그룹은 함께 설치할 수 없어, 0단계 뒤 여기서 tts로 바꾼다)
 cd backend
 uv sync --group gpu --group tts
 uv run alembic upgrade head
