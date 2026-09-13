@@ -1,5 +1,5 @@
-﻿import { StrictMode } from 'react'
-import { act, render, screen } from '@testing-library/react'
+import { StrictMode } from 'react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -19,7 +19,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock)
   client = new ApiClient()
 })
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 
 function show(path = '/login') {
   return render(<StrictMode><MemoryRouter initialEntries={[path]}><AppRoutes client={client} /></MemoryRouter></StrictMode>)
@@ -33,6 +33,39 @@ async function fill(password = 'password123') {
 }
 
 describe('authentication screens and routes', () => {
+  it('connects /translate to the contract demo and supports both translation directions', async () => {
+    vi.stubEnv('VITE_TRANSLATION_MOCK', 'true')
+    sessionStorage.setItem(REFRESH_KEY, 'refresh')
+    fetchMock.mockResolvedValueOnce(response(tokens)).mockResolvedValueOnce(response(person))
+    show('/translate')
+    expect(await screen.findByText('예시 모드')).toBeInTheDocument()
+    const user = userEvent.setup()
+    fireEvent.change(screen.getByLabelText(/번역할 글/), { target: { value: '안녕하세요' } })
+    await user.click(screen.getByRole('button', { name: '번역하기' }))
+    expect(await screen.findByText('Hello')).toHaveAttribute('lang', 'en')
+    await user.selectOptions(screen.getByLabelText('말하거나 입력할 언어'), 'en')
+    fireEvent.change(screen.getByLabelText(/번역할 글/), { target: { value: 'Thank you' } })
+    await user.click(screen.getByRole('button', { name: '번역하기' }))
+    expect(await screen.findByText('감사합니다')).toHaveAttribute('lang', 'ko')
+    expect(fetchMock).toHaveBeenCalledTimes(2) // Only real authentication, no demo network request.
+  })
+
+  it('uses the actual translation endpoint when the demo is disabled and returns to login on expired auth', async () => {
+    vi.stubEnv('VITE_TRANSLATION_MOCK', 'false')
+    sessionStorage.setItem(REFRESH_KEY, 'refresh')
+    fetchMock.mockResolvedValueOnce(response(tokens)).mockResolvedValueOnce(response(person))
+    show('/translate')
+    await screen.findByRole('heading', { name: '번역' })
+    expect(screen.queryByText('예시 모드')).not.toBeInTheDocument()
+    fetchMock.mockResolvedValueOnce(response({}, 401)).mockResolvedValueOnce(response({}, 401))
+    fireEvent.change(screen.getByLabelText(/번역할 글/), { target: { value: '안녕하세요' } })
+    await userEvent.click(screen.getByRole('button', { name: '번역하기' }))
+    expect(await screen.findByRole('heading', { name: '로그인' })).toBeInTheDocument()
+    expect(fetchMock.mock.calls[2][0]).toBe('/api/translate/text')
+    expect(fetchMock.mock.calls[3][0]).toBe('/api/auth/refresh')
+    expect(sessionStorage.length).toBe(0)
+  })
+
   it('protects a direct history link and returns there after login, then logs out', async () => {
     fetchMock.mockResolvedValueOnce(response(tokens)).mockResolvedValueOnce(response(person))
     show('/history')

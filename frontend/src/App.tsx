@@ -1,9 +1,12 @@
-﻿import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { BrowserRouter, Link, Navigate, NavLink, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { api } from './api/client'
 import type { ApiClient } from './api/client'
 import AuthPage from './auth/AuthPage'
 import { useSession } from './auth/useSession'
+import TranslatePage from './translation/TranslatePage'
+import { TranslationApi } from './translation/api'
+import { mockTranslationApi } from './translation/mock'
 
 function ProtectedLayout({ client }: { client: ApiClient }) {
   const session = useSession(client)
@@ -38,6 +41,8 @@ function Placeholder({ history = false }: { history?: boolean }) {
 
 export function AppRoutes({ client = api }: { client?: ApiClient }) {
   const session = useSession(client)
+  const translation = useMemo(() => import.meta.env.DEV && import.meta.env.VITE_TRANSLATION_MOCK !== 'false'
+    ? mockTranslationApi : new TranslationApi(client), [client])
   useEffect(() => { void client.initialize() }, [client])
 
   return (
@@ -49,7 +54,7 @@ export function AppRoutes({ client = api }: { client?: ApiClient }) {
             <Route path="/login" element={<AuthPage key="login" client={client} />} />
             <Route path="/register" element={<AuthPage key="register" client={client} register />} />
             <Route element={<ProtectedLayout client={client} />}>
-              <Route path="/translate" element={<Placeholder />} />
+              <Route path="/translate" element={<TranslatePage api={translation} />} />
               <Route path="/history" element={<Placeholder history />} />
             </Route>
             <Route path="/" element={<Navigate to="/translate" replace />} />

@@ -9,7 +9,7 @@
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 360px; }
 a { color: #2159a1; text-underline-offset: 3px; }
-button, input { font: inherit; }
+button, input, textarea, select { font: inherit; }
 button { cursor: pointer; border: 1px solid #c8d2df; border-radius: 8px; padding: 8px 14px; background: white; color: inherit; }
 button:disabled { cursor: wait; opacity: .65; }
 :focus-visible { outline: 3px solid #2973cc; outline-offset: 3px; }
@@ -37,9 +37,30 @@ nav a.active { background: #e4edfb; color: #184985; font-weight: 700; }
 .account { font-size: 14px; min-width: 0; }
 .account span { overflow-wrap: anywhere; }
 .placeholder { padding: 32px; border: 1px solid #dce2eb; border-radius: 16px; background: white; }
+.translator { padding: 32px; border: 1px solid #dce2eb; border-radius: 16px; background: white; }
+.translator fieldset { min-width: 0; margin: 0 0 20px; padding: 0; border: 0; }
+.translator legend { font-weight: 700; margin-bottom: 8px; }
+.direction label { display: block; margin-top: 0; }
+.translator select, .translator textarea { width: 100%; min-width: 0; padding: 12px; border: 1px solid #9aa9bc; border-radius: 8px; color: inherit; background: white; }
+.translator textarea { resize: vertical; }
+.mode-picker label { display: inline-flex; align-items: center; gap: 8px; margin: 0 24px 0 0; }
+.mode-picker input { width: auto; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 12px 0; }
+.recording-panel { padding: 16px; background: #f5f7fa; border-radius: 8px; }
+.recording-panel > label { display: block; }
+.translation-result { margin-top: 32px; border-top: 1px solid #dce2eb; padding-top: 16px; }
+.result-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.result-columns p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.result-columns h3 { font-size: 15px; color: #536175; }
+.playback audio { display: block; width: 100%; margin-top: 16px; }
+.timings { display: flex; flex-wrap: wrap; gap: 16px 32px; margin-bottom: 0; }
+.timings dt { font-size: 13px; color: #536175; }
+.timings dd { margin: 0; font-variant-numeric: tabular-nums; }
 @media (max-width: 520px) {
   .app { padding-left: 16px; padding-right: 16px; }
   .brand { gap: 4px; flex-direction: column; align-items: flex-start; }
   .auth-card { padding: 24px; margin-top: 0; }
   .placeholder { padding: 24px; }
+  .translator { padding: 20px; }
+  .result-columns { grid-template-columns: 1fr; gap: 4px; }
 }

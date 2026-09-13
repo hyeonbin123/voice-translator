@@ -32,14 +32,33 @@ class SessionChangedError extends Error {
   constructor() { super('로그인 상태가 바뀌었습니다. 다시 시도해 주세요.') }
 }
 
-async function checked(response: Response): Promise<Response> {
+async function checked(response: Response, path = '/api/auth/login'): Promise<Response> {
   if (response.ok) return response
-  // Validation payloads can contain the submitted password; never echo them.
-  const messages: Record<number, string> = {
+  // Only known status/detail pairs select local text. Never echo response inputs.
+  const auth = path.startsWith('/api/auth/')
+  const messages: Record<number, string> = auth ? {
     401: '이메일 또는 비밀번호를 확인해 주세요.',
     409: '이미 가입된 이메일입니다. 로그인해 주세요.',
     422: '입력한 이메일과 비밀번호 조건을 확인해 주세요.',
     429: '요청이 많습니다. 잠시 후 다시 시도해 주세요.',
+  } : {
+    401: '로그인이 만료되었습니다. 다시 로그인해 주세요.',
+    422: '입력 내용과 번역 방향을 확인해 주세요.',
+    429: '요청이 많습니다. 잠시 후 다시 시도해 주세요.',
+  }
+  const translationErrors: Record<string, string> = {
+    '413:Audio file is larger than 10 MB': '음성 파일은 10MB 이하로 선택해 주세요.',
+    '422:Audio could not be decoded': '음성 파일을 읽을 수 없습니다. 다시 녹음하거나 다른 파일을 선택해 주세요.',
+    '422:Audio is longer than 30 seconds': '음성은 30초 이하로 녹음해 주세요.',
+    '422:No speech was recognized': '말소리를 찾지 못했습니다. 마이크를 확인하고 다시 녹음해 주세요.',
+    '503:Translation service is unavailable': '번역 서비스를 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.',
+    '404:Audio not found': '번역 음성이 없거나 삭제되었습니다. 다시 번역해 주세요.',
+  }
+  if (path.startsWith('/api/translate/') || path.startsWith('/api/audio/')) {
+    const body: unknown = await response.json().catch(() => null)
+    const detail = body && typeof body === 'object' && 'detail' in body ? body.detail : null
+    const message = typeof detail === 'string' ? translationErrors[`${response.status}:${detail}`] : undefined
+    if (message) throw new ApiError(response.status, message)
   }
   throw new ApiError(response.status, messages[response.status] ?? '요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.')
 }
@@ -143,7 +162,7 @@ export class ApiClient {
       this.assertCurrent(generation)
     }
     if (response.status === 401) this.logout(true)
-    return checked(response)
+    return checked(response, path)
   }
 
   initialize = (): Promise<void> => {
