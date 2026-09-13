@@ -11,6 +11,15 @@ from app.services.models import load_models, warm_up
 
 logger = logging.getLogger(__name__)
 
+# uvicorn configures only its own loggers, so without a handler the app's INFO lines (model loading and
+# warm-up times) were dropped (T30). Propagation stays on, so pytest's caplog still receives them.
+_app_logger = logging.getLogger("app")
+if not _app_logger.handlers:
+    _handler = logging.StreamHandler()
+    _handler.setFormatter(logging.Formatter("%(levelname)s:     %(name)s: %(message)s"))
+    _app_logger.addHandler(_handler)
+_app_logger.setLevel(logging.INFO)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

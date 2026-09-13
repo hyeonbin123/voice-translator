@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 
 from app import main
@@ -204,3 +206,12 @@ def test_a_failed_warm_up_step_is_logged_and_the_rest_still_run(caplog):
 
 def test_warm_up_skips_models_that_are_not_loaded():
     models.warm_up(PipelineModels(stt=None, translator=None, tts=None))
+
+
+def test_app_info_logs_reach_a_handler_under_uvicorn():
+    # T30: uvicorn leaves the root logger without handlers; the app's own handler prints INFO lines
+    # such as the warm-up times, and propagation still feeds pytest's caplog.
+    app_logger = logging.getLogger("app")
+    assert any(type(handler) is logging.StreamHandler for handler in app_logger.handlers)
+    assert logging.getLogger("app.services.models").isEnabledFor(logging.INFO)
+    assert app_logger.propagate
