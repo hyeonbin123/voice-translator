@@ -7,7 +7,7 @@ from fastapi import FastAPI
 
 from app.config import get_settings
 from app.routers import audio, auth, health, history, translate
-from app.services.models import load_models
+from app.services.models import load_models, warm_up
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +19,10 @@ async def lifespan(app: FastAPI):
         logger.info("Loading the models (about a minute on the first start)")
         # Loading holds the CPU and GPU for tens of seconds; keep it off the event loop.
         app.state.models = await asyncio.to_thread(load_models, settings)
+        # The first call of each model loads more (MeloTTS's BERT among others); pay for it here (T25).
+        # Before the freeze below, so what it creates is frozen too.
+        if settings.warm_up:
+            await asyncio.to_thread(warm_up, app.state.models)
         # faster-whisper runs a full gc.collect() on every decoded upload; with the models' millions of
         # objects that held the GIL ~0.4 s and stalled every other request (docs/experiments.md, T23).
         # Freezing moves everything alive now out of the collector's reach, so that collection stays short.

@@ -1,12 +1,17 @@
 """Load the models chosen in docs/experiments.md into the bundle the translation pipeline uses (T11)."""
 
 import logging
+import time
+from collections.abc import Callable
+from typing import Any
 
 from app.config import Settings
-from app.services.interfaces import TextToSpeech
+from app.services.interfaces import Language, TextToSpeech
 from app.services.pipeline import PipelineModels
 
 logger = logging.getLogger(__name__)
+
+WARM_UP_TEXT: dict[Language, str] = {"ko": "안녕하세요.", "en": "Hello."}
 
 
 def load_models(settings: Settings) -> PipelineModels:
@@ -36,6 +41,40 @@ def load_models(settings: Settings) -> PipelineModels:
     )
     tts = load_speech_synthesis(device) if settings.tts_enabled else None
     return PipelineModels(stt=stt, translator=translator, tts=tts)
+
+
+def warm_up(models: PipelineModels) -> None:
+    """Run each model once, so the first request does not pay for what loads lazily (T25).
+
+    In the container the first synthesis took 5-20 s and later ones about 0.2 s. Speech recognition gets
+    the English synthesis as input, since VAD would skip the model on silence. A step that fails is
+    logged and skipped: the server still starts, and a real request reports the failure as usual.
+    """
+
+    def step(name: str, run: Callable[[], Any]) -> Any:
+        start = time.perf_counter()
+        try:
+            result = run()
+        except Exception:  # noqa: BLE001 - warming up must never stop the server
+            logger.warning("Warm-up step %s failed", name, exc_info=True)
+            return None
+        logger.info("Warm-up %s took %.1f s", name, time.perf_counter() - start)
+        return result
+
+    translator, tts, stt = models.translator, models.tts, models.stt
+    directions: tuple[tuple[Language, Language], ...] = (("ko", "en"), ("en", "ko"))
+    if translator is not None:
+        for source, target in directions:
+            step(
+                f"translation {source}->{target}",
+                lambda s=source, t=target: translator.translate(WARM_UP_TEXT[s], s, t),
+            )
+    english = None
+    if tts is not None:
+        step("speech synthesis ko", lambda: tts.synthesize(WARM_UP_TEXT["ko"], "ko"))
+        english = step("speech synthesis en", lambda: tts.synthesize(WARM_UP_TEXT["en"], "en"))
+    if stt is not None and english is not None:
+        step("speech recognition en", lambda: stt.transcribe(english.wav, "en"))
 
 
 def load_speech_synthesis(device: str) -> TextToSpeech | None:

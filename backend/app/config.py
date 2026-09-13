@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     stt_vad_filter: bool = True
     # Decode uploads in app/services/stt.py instead of inside faster-whisper (T23 candidate C).
     stt_own_decode: bool = False
+    # Run every model once after loading, so the first request does not pay for lazy loading (T25).
+    warm_up: bool = True
 
     @field_validator("jwt_secret_key")
     @classmethod

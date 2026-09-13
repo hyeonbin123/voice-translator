@@ -3,6 +3,7 @@ import pytest
 from app import main
 from app.config import Settings
 from app.services import models, stt, translation, tts
+from app.services.interfaces import ModelError
 from app.services.pipeline import PipelineModels
 from tests.fakes import FakeSpeechToText, FakeTextToSpeech, FakeTranslator
 
@@ -143,3 +144,63 @@ async def test_failed_loading_stops_startup_without_freezing(monkeypatch, frozen
             pass
     assert frozen == []
     assert not hasattr(main.app.state, "models")
+
+
+@pytest.mark.parametrize("enabled", [True, False])
+async def test_models_are_warmed_up_before_freezing(monkeypatch, enabled):
+    bundle = PipelineModels(stt=FakeSpeechToText(), translator=FakeTranslator(), tts=FakeTextToSpeech())
+    order = []
+    monkeypatch.setattr(main, "get_settings", lambda: Settings(load_models=True, warm_up=enabled))
+    monkeypatch.setattr(main, "load_models", lambda settings: bundle)
+    monkeypatch.setattr(main, "warm_up", lambda models: order.append(("warm_up", models)))
+    monkeypatch.setattr(main.gc, "freeze", lambda: order.append(("freeze", None)))
+
+    async with main.lifespan(main.app):
+        pass
+    # T25: what warming up creates must be frozen too, so it runs first; and it can be turned off.
+    assert order == ([("warm_up", bundle)] if enabled else []) + [("freeze", None)]
+
+
+class Spies:
+    """Models that record each call; synthesis returns a real (silent) WAV from FakeTextToSpeech."""
+
+    def __init__(self, synthesis_fails: bool = False) -> None:
+        self.calls: list[tuple] = []
+        self.synthesis_fails = synthesis_fails
+
+    def translate(self, text, source, target):
+        self.calls.append(("translate", source, target))
+        return "translated"
+
+    def synthesize(self, text, language):
+        self.calls.append(("synthesize", language))
+        if self.synthesis_fails:
+            raise ModelError("synthesis failed on purpose")
+        return FakeTextToSpeech().synthesize(text, language)
+
+    def transcribe(self, audio, language):
+        self.calls.append(("transcribe", language, audio[:4]))
+
+
+def test_warm_up_runs_each_model_and_recognizes_the_english_synthesis():
+    spies = Spies()
+    models.warm_up(PipelineModels(stt=spies, translator=spies, tts=spies))
+    assert spies.calls == [
+        ("translate", "ko", "en"),
+        ("translate", "en", "ko"),
+        ("synthesize", "ko"),
+        ("synthesize", "en"),
+        ("transcribe", "en", b"RIFF"),
+    ]
+
+
+def test_a_failed_warm_up_step_is_logged_and_the_rest_still_run(caplog):
+    spies = Spies(synthesis_fails=True)
+    models.warm_up(PipelineModels(stt=spies, translator=spies, tts=spies))
+    # Without an English synthesis there is nothing to recognize, so recognition is skipped.
+    assert [call[0] for call in spies.calls] == ["translate", "translate", "synthesize", "synthesize"]
+    assert "Warm-up step speech synthesis ko failed" in caplog.text
+
+
+def test_warm_up_skips_models_that_are_not_loaded():
+    models.warm_up(PipelineModels(stt=None, translator=None, tts=None))
