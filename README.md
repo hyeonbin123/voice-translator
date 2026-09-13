@@ -58,7 +58,8 @@ http://localhost:8080 에서 쓴다 (포트는 `.env`의 `WEB_HOST_PORT`). 처�
 준비: Python 3.11, uv, Node.js 24, Docker. 명령은 프로젝트 폴더에서 시작하고, 백엔드와 프론트엔드는 각각 다른 터미널에서 실행한다.
 
 ```bash
-# 1. DB (호스트 포트 55442. Windows가 예약하는 5432~5631을 피함)
+# 1. DB (이 PC에서만 접속: 127.0.0.1:55442. Windows가 예약하는 5432~5631을 피함.
+#    다른 PC에서 접속해야 하면 .env의 POSTGRES_HOST_IP를 바꾸고 예시 비밀번호부터 바꾼다)
 cp .env.example .env
 docker compose up -d db
 ```

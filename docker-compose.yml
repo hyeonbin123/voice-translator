@@ -15,7 +15,10 @@ services:
     ports:
       # Windows (Hyper-V/WSL) can reserve host ports 5432-5631, so the default sits outside
       # that range. Override with POSTGRES_HOST_PORT; DATABASE_URL must use the same port.
-      - "${POSTGRES_HOST_PORT:-55442}:5432"
+      # Only this machine can reach it: without a host address Docker listens on every network
+      # interface, and the database would take the example password from anywhere the firewall allows.
+      # Set POSTGRES_HOST_IP=0.0.0.0 only on purpose, with a real password.
+      - "${POSTGRES_HOST_IP:-127.0.0.1}:${POSTGRES_HOST_PORT:-55442}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vtuser}"]
       interval: 5s
