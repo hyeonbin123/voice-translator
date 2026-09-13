@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     tts_enabled: bool = True
     # Freeze the loaded models out of the garbage collector's reach (T23). Off only to measure without it.
     gc_freeze: bool = True
+    # Pass only the speech parts to Whisper (T14, docs/experiments.md 1-1): no empty results on speech, and
+    # silence comes back as "no speech" instead of made-up text.
+    stt_vad_filter: bool = True
     # Decode uploads in app/services/stt.py instead of inside faster-whisper (T23 candidate C).
     stt_own_decode: bool = False
 

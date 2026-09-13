@@ -45,6 +45,28 @@ def test_loads_the_chosen_models_on_the_configured_device(fake_model_classes, tm
     assert "ko: Melo" in bundle.tts.model_name and "en: Kokoro" in bundle.tts.model_name
 
 
+def test_speech_recognition_settings_reach_the_model(fake_model_classes):
+    models.load_models(Settings(model_device="cpu", tts_enabled=False))
+    models.load_models(
+        Settings(model_device="cpu", tts_enabled=False, stt_vad_filter=False, stt_own_decode=True)
+    )
+    whisper = [kwargs for name, _, kwargs in fake_model_classes if name == "Whisper"]
+    # VAD on by default (T14); decoding in our code off until T23 candidate C is judged.
+    settings = [(kwargs["vad_filter"], kwargs["own_decode"]) for kwargs in whisper]
+    assert settings == [(True, False), (False, True)]
+
+
+def test_only_english_to_korean_translates_sentence_by_sentence(fake_model_classes, tmp_path):
+    models.load_models(Settings(model_device="cpu", ct2_dir=tmp_path, tts_enabled=False))
+    marian = {
+        args[0].name: kwargs.get("by_sentence", False)
+        for name, args, kwargs in fake_model_classes
+        if name == "Marian"
+    }
+    # T17 (docs/experiments.md 2-1): splitting helped en->ko and did not help ko->en.
+    assert marian == {"opus-mt-tc-big-en-ko": True, "opus-mt-tc-big-ko-en": False}
+
+
 def test_synthesis_that_cannot_load_is_turned_off_not_fatal(fake_model_classes, monkeypatch, caplog):
     def broken(*args, **kwargs):
         raise RuntimeError("CUDA out of memory")
