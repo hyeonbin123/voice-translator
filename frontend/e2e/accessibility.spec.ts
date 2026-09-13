@@ -79,6 +79,93 @@ async function login(page: Page) {
   await expect(page.getByRole('heading', { name: '번역', exact: true })).toBeFocused()
 }
 
+test('conversation keyboard controls, live states, turn error recovery and 360px layout', async ({ page }) => {
+  // Only the inference/device boundaries are replaced. The real detector, session, UI and API run.
+  // No ONNX model is loaded in this test; the real-browser model check belongs to Claude.
+  let runtimeLoads = 0
+  await page.route((url) => url.pathname === '/src/conversation/sileroRuntime.ts', async (route) => {
+    runtimeLoads++
+    await route.fulfill({ contentType: 'application/javascript', body: `
+      export async function getSileroRunner() {
+        return async input => ({ probability: input[64], h: new Float32Array(128), c: new Float32Array(128) });
+      }` })
+  })
+  await page.addInitScript(() => {
+    const harness = window as unknown as { capture: (speechFrames: number, quietFrames: number) => void; finishSpeech: () => void }
+    class Context {
+      sampleRate = 16000; destination = {}; audioWorklet = { addModule: async () => {} }
+      async resume() {} async close() {}
+      createMediaStreamSource() { return { connect() {}, disconnect() {} } }
+    }
+    class Node {
+      epoch = 0
+      port = { onmessage: null as ((event: unknown) => void) | null, close() {},
+        postMessage: (data: { epoch: number }) => { this.epoch = data.epoch } }
+      connect() {} disconnect() {}
+      constructor() {
+        harness.capture = (speech, quiet) => {
+          const samples = new Float32Array((speech + quiet) * 512)
+          samples.fill(.8, 0, speech * 512)
+          this.port.onmessage?.({ data: { samples, epoch: this.epoch } })
+        }
+      }
+    }
+    Object.defineProperty(window, 'AudioContext', { value: Context })
+    Object.defineProperty(window, 'AudioWorkletNode', { value: Node })
+    window.speechSynthesis.speak = (utterance) => {
+      harness.finishSpeech = () => utterance.onend?.(new SpeechSynthesisEvent('end', { utterance }))
+    }
+  })
+  let calls = 0
+  let release!: () => void
+  await page.route('**/api/translate/speech', async (route) => {
+    calls++
+    if (calls === 1) await route.fulfill({ status: 422, json: { detail: 'No speech was recognized' } })
+    else {
+      await new Promise<void>((resolve) => { release = resolve })
+      await route.fulfill({ status: 201, json: { ...item, mode: 'speech' } })
+    }
+  })
+  const capture = (speech: number, quiet: number) => page.evaluate(([a, b]) => {
+    (window as unknown as { capture: (a: number, b: number) => void }).capture(a, b)
+  }, [speech, quiet])
+  await login(page)
+  expect(runtimeLoads).toBe(0)
+  await tabTo(page, page.getByRole('radio', { name: '글자 입력', exact: true }))
+  await page.keyboard.press('ArrowLeft')
+  await expect(page.getByRole('radio', { name: '대화 모드', exact: true })).toBeChecked()
+  const panel = page.getByRole('region', { name: '대화 모드' })
+  expect(runtimeLoads).toBe(0)
+  await audit(page, 'conversation-idle-360')
+  await activate(page, page.getByRole('button', { name: '대화 시작', exact: true }))
+  await expect(panel.getByRole('status')).toContainText('듣는 중')
+  expect(runtimeLoads).toBe(1)
+  await expect(page.getByLabel('말하거나 입력할 언어')).toBeDisabled()
+  await expect(page.getByRole('button', { name: '대화 멈춤' })).toBeFocused()
+  await capture(2, 0)
+  await expect(panel.getByRole('status')).toContainText('말소리 감지')
+  await capture(6, 31)
+  await expect(panel.getByRole('heading', { name: '1번째 말 · 번역 실패' })).toBeVisible()
+  await expect(panel.getByText(/말소리를 찾지 못했습니다/)).toBeVisible()
+  await audit(page, 'conversation-error-360')
+  await capture(8, 31)
+  await expect(panel.getByRole('status')).toContainText('듣는 중 · 번역 중')
+  await audit(page, 'conversation-translating-360')
+  release()
+  await expect(panel.getByRole('status')).toContainText('재생 중 · 듣기 멈춤')
+  await expect(panel.getByText('Hello', { exact: true })).toHaveAttribute('lang', 'en')
+  await capture(8, 31)
+  expect(calls).toBe(2)
+  await audit(page, 'conversation-playing-360')
+  await page.evaluate(() => (window as unknown as { finishSpeech: () => void }).finishSpeech())
+  await expect(panel.getByRole('status')).toContainText('듣는 중')
+  await activate(page, page.getByRole('button', { name: '대화 멈춤' }))
+  await expect(panel.getByRole('status')).toHaveText('멈춤')
+  await expect(page.getByLabel('말하거나 입력할 언어')).toBeEnabled()
+  await expect(panel.getByRole('heading', { name: '2번째 말 · 번역 완료' })).toBeVisible()
+  await audit(page, 'conversation-stopped-360')
+})
+
 test('keyboard signup, skip link, login error, login and logout; labels and contrast', async ({ page }) => {
   await page.goto('/register')
   await expect(page.getByRole('heading', { name: '회원가입' })).toBeVisible()

@@ -71,6 +71,12 @@ nav a.active { background: #e4edfb; color: #184985; font-weight: 700; }
 .history-link > span:not(.hint) { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .history-panel h2 { font-size: 18px; }
 .danger { color: #a12020; border-color: #a12020; }
+.conversation-panel > label { display: block; }
+.conversation-panel .primary { margin-top: 0; }
+.conversation-turns { list-style: none; padding: 0; }
+.conversation-turns > li { margin-top: 20px; padding: 16px; background: #f5f7fa; border: 1px solid #dce2eb; border-radius: 8px; overflow-wrap: anywhere; }
+.conversation-turns h3 { font-size: 16px; margin-top: 0; }
+.conversation-turns h4 { margin: 8px 0; color: #536175; }
 @media (max-width: 520px) {
   .app { padding-left: 16px; padding-right: 16px; }
   .brand { gap: 4px; flex-direction: column; align-items: flex-start; }
