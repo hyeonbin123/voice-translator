@@ -22,6 +22,7 @@ export default function TranslatePage({ api }: { api: TranslationApi }) {
   const recordingError = useRef<HTMLParagraphElement>(null)
   const recordingStart = useRef<HTMLButtonElement>(null)
   const recordingCancel = useRef<HTMLButtonElement>(null)
+  const audioFile = useRef<HTMLInputElement>(null)
   const recorder = useRecorder(setClip)
   const recording = recorder.state !== 'idle'
   const count = characterCount(text)
@@ -109,17 +110,23 @@ export default function TranslatePage({ api }: { api: TranslationApi }) {
           {recorder.state === 'recording' && <p role="status">녹음 중 · {recorder.seconds} / 30초</p>}
           {recorder.notice && <p role="status">{recorder.notice}</p>}
           {recorder.error && <p ref={recordingError} tabIndex={-1} role="alert" className="error">{recorder.error}</p>}
-          <label htmlFor="audio-file">또는 음성 파일 선택</label>
-          <input id="audio-file" type="file" accept="audio/*,.webm,.wav,.ogg,.mp3,.m4a" disabled={busy || recording}
-            aria-describedby={`audio-hint${error ? ' translation-error' : ''}`}
+          <button type="button" disabled={busy || recording} onClick={() => audioFile.current?.click()}
+            aria-describedby={`audio-hint audio-selection${error ? ' translation-error' : ''}`}>
+            또는 음성 파일 선택
+          </button>
+          <input ref={audioFile} id="audio-file" type="file" hidden aria-label="음성 파일"
+            accept="audio/*,.webm,.wav,.ogg,.mp3,.m4a" disabled={busy || recording}
             onChange={(event) => {
               const file = event.target.files?.[0]
+              if (!file) return
               setClip(null); setError('')
-              if (file && (file.size === 0 || file.size > MAX_AUDIO_BYTES)) setError('비어 있지 않은 10MB 이하 음성 파일을 선택해 주세요.')
-              else if (file) setClip(file)
+              if (file.size === 0 || file.size > MAX_AUDIO_BYTES) setError('비어 있지 않은 10MB 이하 음성 파일을 선택해 주세요.')
+              else setClip(file)
               event.target.value = ''
             }} />
-          {clip && <p role="status">{clip instanceof File ? clip.name : '녹음 완료'} · {(clip.size / 1000).toFixed(1)} KB · 번역할 준비가 되었습니다.</p>}
+          <p id="audio-selection" role="status" aria-atomic="true">
+            {clip ? <>{clip instanceof File ? `선택한 파일: ${clip.name}` : '녹음 완료'} · {(clip.size / 1000).toFixed(1)} KB · 번역할 준비가 되었습니다.</> : '선택한 음성이 없습니다.'}
+          </p>
         </div>}
         <button className="primary" type="submit" disabled={busy || recording || (mode === 'speech' && !clip)}>
           {busy ? '번역 중…' : '번역하기'}
