@@ -12,6 +12,7 @@ from app.services.translation import (
     marian_source_tokens,
     nllb_source_tokens,
     opus_preprocess,
+    split_sentences,
 )
 from tests.fakes import FakeTranslator
 
@@ -37,6 +38,17 @@ class FakeEngine:
         if self.error:
             raise self.error
         return self.result
+
+
+class EchoEngine:
+    """Returns the source pieces in capitals as the translation and records each call."""
+
+    def __init__(self):
+        self.calls = []
+
+    def generate(self, tokens, target_prefix=None):
+        self.calls.append(tokens)
+        return [piece.upper() for piece in tokens[:-1]]  # without the end-of-sentence token
 
 
 @pytest.fixture
@@ -76,6 +88,40 @@ def test_opus_preprocess_follows_the_training_script():
     assert opus_preprocess("“안녕”，  세상！") == '"안녕", 세상!'
     assert opus_preprocess("끝。다음") == "끝. 다음"
     assert opus_preprocess(" a​b\tc ") == "a b c"  # zero-width and control characters become spaces
+
+
+@pytest.mark.parametrize(
+    ("text", "sentences"),
+    [
+        ("비가 왔다. 그래서 집에 있었다.", ["비가 왔다.", "그래서 집에 있었다."]),
+        ("Is it? Yes!\nGood.", ["Is it?", "Yes!", "Good."]),
+        ("첫째。 둘째？ 셋째！", ["첫째。", "둘째？", "셋째！"]),
+        (
+            "The U.N. met Mr. Smith and J. Doe, e.g. at 3.5 km. Then left.",
+            ["The U.N. met Mr. Smith and J. Doe, e.g. at 3.5 km.", "Then left."],
+        ),
+        ("  한 문장  ", ["한 문장"]),
+        ("   ", []),
+    ],
+)
+def test_split_sentences(text, sentences):
+    assert split_sentences(text) == sentences
+
+
+def test_marian_by_sentence_translates_each_sentence_on_its_own(engine):
+    echo = EchoEngine()
+    engine(echo)
+    translator = translation.MarianTranslator(Path("model"), "en", "ko", by_sentence=True)
+    result = translator.translate("It rained. Dr. Kim left early!  Why?", "en", "ko")
+    assert result == "IT RAINED. DR. KIM LEFT EARLY! WHY?"
+    assert len(echo.calls) == 3
+
+
+def test_marian_translates_the_whole_input_by_default(engine):
+    echo = EchoEngine()
+    engine(echo)
+    translation.MarianTranslator(Path("model"), "en", "ko").translate("One. Two.", "en", "ko")
+    assert len(echo.calls) == 1
 
 
 def test_source_tokens_add_language_code_and_end_of_sentence():

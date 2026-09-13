@@ -1,7 +1,9 @@
-"""Translation evaluation on FLEURS parallel sentences (task T3).
+"""Translation evaluation on FLEURS parallel sentences (tasks T3 and T17).
 
 Usage, from backend/ with the gpu and eval groups installed and the models converted (eval.mt_convert):
     uv run python -m eval.mt_eval --split validation --tag t3_dev
+    uv run python -m eval.mt_eval --split validation --tag t17_dev --models opus-mt-tc-big-ko-en \
+        opus-mt-tc-big-ko-en/split opus-mt-tc-big-en-ko opus-mt-tc-big-en-ko/split
 
 The candidates and the selection rule are written in docs/experiments.md before any run.
 """
@@ -21,7 +23,7 @@ import pyarrow.parquet as pq
 import sacrebleu
 
 from app.services.interfaces import Language, ModelError, Translator
-from app.services.translation import MarianTranslator, NllbTranslator, OllamaTranslator
+from app.services.translation import MarianTranslator, NllbTranslator, OllamaTranslator, split_sentences
 from eval.common import DATA, FLEURS_CONFIG, MODELS, REPORTS, gpu_memory_mb
 
 OLLAMA_URL = "http://localhost:11434"
@@ -37,6 +39,15 @@ CANDIDATES: dict[str, tuple[Callable[[], Translator], list[tuple[Language, Langu
     "opus-mt-tc-big-en-ko": (lambda: MarianTranslator(CT2 / "opus-mt-tc-big-en-ko", "en", "ko"), [EN_KO]),
     "nllb-200-distilled-600M": (lambda: NllbTranslator(CT2 / "nllb-200-distilled-600M"), [KO_EN, EN_KO]),
     "qwen2.5-7b": (lambda: OllamaTranslator(QWEN, OLLAMA_URL), [KO_EN, EN_KO]),
+    # T17: the chosen models translating one sentence at a time (docs/experiments.md 2-1)
+    "opus-mt-tc-big-ko-en/split": (
+        lambda: MarianTranslator(CT2 / "opus-mt-tc-big-ko-en", "ko", "en", by_sentence=True),
+        [KO_EN],
+    ),
+    "opus-mt-tc-big-en-ko/split": (
+        lambda: MarianTranslator(CT2 / "opus-mt-tc-big-en-ko", "en", "ko", by_sentence=True),
+        [EN_KO],
+    ),
 }
 
 
@@ -86,6 +97,7 @@ def evaluate(name: str, pairs: list[dict]) -> dict:
                     "id": pair["id"],
                     "latency_s": round(latencies[-1], 3),
                     "chrf": round(sacrebleu.sentence_chrf(hypothesis, [pair[target]]).score, 1),
+                    "sentences": len(split_sentences(pair[source])),
                     "source": pair[source],
                     "reference": pair[target],
                     "hypothesis": hypothesis,
@@ -107,7 +119,7 @@ def evaluate(name: str, pairs: list[dict]) -> dict:
     return result
 
 
-def write_report(results: list[dict], args: argparse.Namespace, gpu_name: str, pair_count: int) -> str:
+def write_report(results: list[dict], args: argparse.Namespace, gpu_name: str, pairs: list[dict]) -> str:
     stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     REPORTS.mkdir(parents=True, exist_ok=True)
     base = REPORTS / f"mt_{args.tag}_{stamp}"
@@ -117,7 +129,11 @@ def write_report(results: list[dict], args: argparse.Namespace, gpu_name: str, p
         f"# 번역 평가 ({args.tag})",
         "",
         f"- 날짜: {datetime.now(UTC).isoformat()}",
-        f"- 데이터: FLEURS {args.split} 병렬 문장 {pair_count}쌍",
+        f"- 데이터: FLEURS {args.split} 병렬 문장 {len(pairs)}쌍. 두 문장 이상으로 나뉘는 원문: "
+        + ", ".join(
+            f"{language} {sum(len(split_sentences(pair[language])) > 1 for pair in pairs)}개"
+            for language in ("ko", "en")
+        ),
         f"- GPU: {gpu_name}. seq2seq는 CTranslate2 float16·빔 4, Qwen은 Ollama temperature 0",
         f"- chrF: sacrebleu {sacrebleu.__version__} 기본 설정, 전체 합산",
         "- 지연: 문장당 초, 방향별 첫 호출 제외",
@@ -159,7 +175,7 @@ def main() -> None:
     for name in args.models:
         print(f"evaluating {name} ...", flush=True)
         results.append(evaluate(name, pairs))
-    print(f"written to {write_report(results, args, gpu_name, len(pairs))}")
+    print(f"written to {write_report(results, args, gpu_name, pairs)}")
 
 
 if __name__ == "__main__":

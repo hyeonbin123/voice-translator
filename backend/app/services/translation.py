@@ -43,6 +43,29 @@ def opus_preprocess(text: str) -> str:
     return re.sub(r" +", " ", text).strip(" ")
 
 
+# Sentence ends: . ? ! (and full-width forms) followed by white space (docs/experiments.md 2-1, T17).
+_SENTENCE_END = re.compile(r"(?<=[.?!。？！])\s+")
+_ABBREVIATIONS = {"mr", "mrs", "ms", "dr", "st", "vs", "etc", "e.g", "i.e"}
+
+
+def _is_abbreviation(word: str) -> bool:
+    # Initials and dotted capitals ("J.", "U.N.") or a common abbreviation ("Dr.", "e.g.").
+    return word.endswith(".") and (
+        re.fullmatch(r"(?:[A-Z]\.)+", word) is not None or word[:-1].lower() in _ABBREVIATIONS
+    )
+
+
+def split_sentences(text: str) -> list[str]:
+    """Split before each sentence, but not after an abbreviation; a number such as 3.5 has no space."""
+    sentences: list[str] = []
+    for piece in _SENTENCE_END.split(text.strip()):
+        if sentences and _is_abbreviation(sentences[-1].rsplit(" ", 1)[-1]):
+            sentences[-1] = f"{sentences[-1]} {piece}"
+        elif piece:
+            sentences.append(piece)
+    return sentences
+
+
 def load_sentencepiece(path: Path):
     import sentencepiece
 
@@ -107,7 +130,11 @@ class _Ct2Model:
 
 
 class MarianTranslator:
-    """One opus-mt model, which translates in one direction only."""
+    """One opus-mt model, which translates in one direction only.
+
+    With by_sentence, the input is split into sentences, each translated on its own and joined with a
+    space: opus-mt was trained on single sentences (docs/experiments.md 2-1, T17).
+    """
 
     def __init__(
         self,
@@ -117,9 +144,11 @@ class MarianTranslator:
         device: str = "cuda",
         compute_type: str = "float16",
         beam_size: int = 4,
+        by_sentence: bool = False,
     ) -> None:
         self.direction = (source, target)
         self.model_name = f"ctranslate2/{model_dir.name}"
+        self.by_sentence = by_sentence
         self._model = _Ct2Model(model_dir, device, compute_type, beam_size)
         self._source_sp = load_sentencepiece(model_dir / "source.spm")
         self._target_sp = load_sentencepiece(model_dir / "target.spm")
@@ -128,6 +157,10 @@ class MarianTranslator:
         _check_text(text, source, target)
         if (source, target) != self.direction:
             raise ModelError(f"{self.model_name} only translates {self.direction[0]}->{self.direction[1]}")
+        sentences = split_sentences(text) if self.by_sentence else [text]
+        return " ".join(self._translate_one(sentence) for sentence in sentences)
+
+    def _translate_one(self, text: str) -> str:
         pieces = _guarded(lambda: self._model.generate(marian_source_tokens(self._source_sp, text)))
         return _nonempty(_guarded(lambda: self._target_sp.decode(pieces)))
 
