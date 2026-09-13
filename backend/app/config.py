@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     tts_enabled: bool = True
     # Freeze the loaded models out of the garbage collector's reach (T23). Off only to measure without it.
     gc_freeze: bool = True
+    # Decode uploads in app/services/stt.py instead of inside faster-whisper (T23 candidate C).
+    stt_own_decode: bool = False
 
     @field_validator("jwt_secret_key")
     @classmethod

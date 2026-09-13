@@ -1,7 +1,12 @@
+import gc
+import io
+import wave
 from types import SimpleNamespace
 
+import numpy as np
 import pytest
 from av.error import InvalidDataError
+from faster_whisper.audio import decode_audio as faster_whisper_decode_audio
 
 from app.services import stt
 from app.services.interfaces import NoSpeechError, UndecodableAudioError
@@ -18,12 +23,14 @@ class FakeWhisperModel:
     segments_without_no_speech: list[str] | None = None
     error: Exception | None = None
     calls: list[dict] = []
+    inputs: list = []
 
     def __init__(self, model_size, device, compute_type):
         pass
 
     def transcribe(self, audio, language, **options):
         self.calls.append(options)
+        self.inputs.append(audio)
         if self.error:
             raise self.error
         texts = self.segments
@@ -40,6 +47,7 @@ def make_whisper(monkeypatch):
     monkeypatch.setattr(FakeWhisperModel, "segments_without_no_speech", None)
     monkeypatch.setattr(FakeWhisperModel, "error", None)
     monkeypatch.setattr(FakeWhisperModel, "calls", [])
+    monkeypatch.setattr(FakeWhisperModel, "inputs", [])
     return lambda **options: stt.WhisperSpeechToText("tiny", device="cpu", compute_type="int8", **options)
 
 
@@ -98,6 +106,44 @@ def test_retry_that_still_finds_nothing_is_no_speech(make_whisper):
     with pytest.raises(NoSpeechError):
         make_whisper(retry_without_no_speech=True).transcribe(silent_wav(1000), "ko")
     assert len(FakeWhisperModel.calls) == 2
+
+
+def tone_wav(seconds: float = 1.5, rate: int = 8000) -> bytes:
+    """A 440 Hz tone at a rate other than 16 kHz, so decoding has to resample."""
+    t = np.arange(int(rate * seconds)) / rate
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as out:
+        out.setnchannels(1)
+        out.setsampwidth(2)
+        out.setframerate(rate)
+        out.writeframes((0.3 * np.sin(2 * np.pi * 440 * t) * 32767).astype("<i2").tobytes())
+    return buffer.getvalue()
+
+
+def test_own_decode_gives_faster_whispers_samples_without_collecting_garbage(monkeypatch):
+    audio = tone_wav()
+    expected = faster_whisper_decode_audio(io.BytesIO(audio))
+    collections = []
+    monkeypatch.setattr(gc, "collect", lambda *args: collections.append(args) or 0)
+    samples = stt.decode_audio(audio)
+    assert samples.dtype == np.float32
+    assert len(samples) == 24000  # 1.5 s at 16 kHz
+    assert np.array_equal(samples, expected)
+    assert collections == []
+
+
+def test_own_decode_hands_faster_whisper_the_samples(make_whisper):
+    FakeWhisperModel.segments = ["hello"]
+    make_whisper(own_decode=True).transcribe(silent_wav(1000), "en")
+    (model_input,) = FakeWhisperModel.inputs
+    assert isinstance(model_input, np.ndarray)
+    assert len(model_input) == 16000
+
+
+def test_own_decode_reports_undecodable_audio(make_whisper):
+    with pytest.raises(UndecodableAudioError):
+        make_whisper(own_decode=True).transcribe(b"not audio", "en")
+    assert FakeWhisperModel.inputs == []
 
 
 def test_vad_and_threshold_options_reach_faster_whisper(make_whisper):

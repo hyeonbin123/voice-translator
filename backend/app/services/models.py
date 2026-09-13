@@ -19,7 +19,7 @@ def load_models(settings: Settings) -> PipelineModels:
 
     device = settings.model_device
     engine = {"device": device, "compute_type": "float16" if device == "cuda" else "int8"}
-    stt = WhisperSpeechToText(settings.stt_model, **engine)
+    stt = WhisperSpeechToText(settings.stt_model, own_decode=settings.stt_own_decode, **engine)
     translator = DirectionalTranslator(
         {
             ("ko", "en"): MarianTranslator(settings.ct2_dir / "opus-mt-tc-big-ko-en", "ko", "en", **engine),
