@@ -22,10 +22,10 @@ beforeEach(() => {
 })
 afterEach(() => vi.unstubAllGlobals())
 
-it('opens echo-canceled mono capture, resamples, drops paused/stale worklet messages and releases resources', async () => {
+it('opens echo-canceled mono capture with automatic gain, resamples, drops paused/stale worklet messages and releases resources', async () => {
   const capture = vi.fn(), controller = new AbortController()
   const mic = await openMicrophone(capture, controller.signal, vi.fn())
-  expect(getUserMedia).toHaveBeenCalledWith({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } })
+  expect(getUserMedia).toHaveBeenCalledWith({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
   port.onmessage!({ data: { samples: new Float32Array(480), epoch: 0 } })
   expect(capture.mock.calls[0][0].length).toBe(160)
   mic.setPaused(true)

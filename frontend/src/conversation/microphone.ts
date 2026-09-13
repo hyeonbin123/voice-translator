@@ -29,7 +29,7 @@ export const openMicrophone: OpenMicrophone = async (samples, signal, failed) =>
     const resumed = context.resume()
     // Permission may outlive a failed resume; mark the rejection handled immediately.
     void resumed.catch(() => undefined)
-    const acquired = navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } })
+    const acquired = navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
     stream = await acquired
     if (closed) { stream.getTracks().forEach((track) => track.stop()); throw new Error('Canceled') }
     await resumed
