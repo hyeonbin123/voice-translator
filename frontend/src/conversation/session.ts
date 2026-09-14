@@ -80,7 +80,7 @@ export class ConversationSession {
           if (signal.aborted || epoch !== this.captureEpoch) return
           for (const event of events) {
             if (event.type === 'start') this.update({ speaking: true, notice: '' })
-            else {
+            else if (event.type === 'end' || event.type === 'discard') {
               this.update({ speaking: false })
               if (event.type === 'end') this.enqueue(event.samples)
               else this.update({ notice: '짧은 소리는 건너뛰었습니다. 계속 말해 주세요.' })

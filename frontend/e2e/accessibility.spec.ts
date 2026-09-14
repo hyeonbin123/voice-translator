@@ -133,6 +133,7 @@ test('conversation keyboard controls, live states, turn error recovery and 360px
   expect(runtimeLoads).toBe(0)
   await tabTo(page, page.getByRole('radio', { name: '글자 입력', exact: true }))
   await page.keyboard.press('ArrowLeft')
+  await page.keyboard.press('ArrowLeft')
   await expect(page.getByRole('radio', { name: '대화 모드', exact: true })).toBeChecked()
   const panel = page.getByRole('region', { name: '대화 모드' })
   expect(runtimeLoads).toBe(0)
@@ -164,6 +165,101 @@ test('conversation keyboard controls, live states, turn error recovery and 360px
   await expect(page.getByLabel('말하거나 입력할 언어')).toBeEnabled()
   await expect(panel.getByRole('heading', { name: '2번째 말 · 번역 완료' })).toBeVisible()
   await audit(page, 'conversation-stopped-360')
+})
+
+test('live subtitles: keyboard start/stop, stable text, final announcement, playback and narrow layout', async ({ page }) => {
+  await page.route((url) => url.pathname === '/src/conversation/sileroRuntime.ts', async (route) => {
+    await route.fulfill({ contentType: 'application/javascript', body: `
+      export async function getSileroRunner() {
+        return async input => ({ probability: input[64], h: new Float32Array(128), c: new Float32Array(128) });
+      }` })
+  })
+  await page.addInitScript(() => {
+    const harness = window as unknown as { capture: (speech: number, quiet: number) => void; finishSpeech: () => void }
+    class Context {
+      sampleRate = 16000; destination = {}; audioWorklet = { addModule: async () => {} }
+      async resume() {} async close() {}
+      createMediaStreamSource() { return { connect() {}, disconnect() {} } }
+    }
+    class Node {
+      epoch = 0
+      port = { onmessage: null as ((event: unknown) => void) | null, close() {},
+        postMessage: (data: { epoch: number }) => { this.epoch = data.epoch } }
+      connect() {} disconnect() {}
+      constructor() {
+        harness.capture = (speech, quiet) => {
+          const samples = new Float32Array((speech + quiet) * 512)
+          samples.fill(.8, 0, speech * 512)
+          this.port.onmessage?.({ data: { samples, epoch: this.epoch } })
+        }
+      }
+    }
+    Object.defineProperty(window, 'AudioContext', { value: Context })
+    Object.defineProperty(window, 'AudioWorkletNode', { value: Node })
+    window.speechSynthesis.speak = (utterance) => {
+      harness.finishSpeech = () => utterance.onend?.(new SpeechSynthesisEvent('end', { utterance }))
+    }
+  })
+  const received: (string | Record<string, unknown>)[] = []
+  let reply!: (value: unknown) => void
+  let closed = false
+  await page.routeWebSocket((url) => url.pathname === '/api/translate/live', (ws) => {
+    expect(new URL(ws.url()).search).toBe('')
+    reply = (value) => ws.send(JSON.stringify(value))
+    ws.onClose(() => { closed = true })
+    ws.onMessage((raw) => {
+      if (typeof raw !== 'string') { received.push('audio'); return }
+      const message = JSON.parse(raw)
+      received.push(message)
+      if (message.type === 'start') { expect(message.token).toBe(tokens.access_token); reply({ type: 'ready' }) }
+    })
+  })
+  const capture = (speech: number, quiet: number) => page.evaluate(([a, b]) => {
+    (window as unknown as { capture: (a: number, b: number) => void }).capture(a, b)
+  }, [speech, quiet])
+  await login(page)
+  await tabTo(page, page.getByRole('radio', { name: '글자 입력', exact: true }))
+  await page.keyboard.press('ArrowLeft')
+  await expect(page.getByRole('radio', { name: '동시통역', exact: true })).toBeChecked()
+  const panel = page.getByRole('region', { name: '동시통역', exact: true })
+  await audit(page, 'live-idle-360')
+  await activate(page, page.getByRole('button', { name: '동시통역 시작' }))
+  await expect(panel.getByRole('status').first()).toHaveText('듣는 중')
+  await expect(page.getByRole('button', { name: '동시통역 멈춤' })).toBeFocused()
+  await expect(page.getByLabel('말하거나 입력할 언어')).toBeDisabled()
+  await capture(8, 6)
+  await expect.poll(() => received.at(-1)).toEqual({ type: 'pause', id: 1 })
+  reply({ type: 'source', id: 1, text: '안녕하세요 오늘 날씨가', stable: 5 })
+  reply({ type: 'translation', id: 1, text: 'Hello, the weather today is', stable: 0 })
+  const captions = panel.getByRole('list', { name: '동시통역 내용' })
+  await expect(captions).toHaveAttribute('aria-live', 'off')
+  await expect(captions.locator('strong')).toHaveText('안녕하세요')
+  await expect(captions.locator('.live-draft').last()).toHaveText('Hello, the weather today is')
+  await expect(captions.getByText('갱신 중인 부분:', { exact: true })).toHaveCount(2)
+  await audit(page, 'live-subtitles-360')
+  await capture(0, 25)
+  await expect.poll(() => received.at(-1)).toEqual({ type: 'end', id: 1 })
+  reply({ type: 'error', id: 1, detail: 'No speech was recognized' })
+  await expect(panel.getByRole('alert')).toContainText('다음 말은 계속 번역합니다')
+  await capture(8, 31)
+  await expect.poll(() => received.at(-1)).toEqual({ type: 'end', id: 2 })
+  reply({ type: 'final', id: 2, result: { ...item, mode: 'speech', audio_id: null, source_text: '안녕하세요', translated_text: 'Hello' } })
+  await expect(panel.getByRole('status').first()).toHaveText('재생 중 · 듣기 멈춤')
+  await expect(panel.locator('[aria-live="polite"]')).toContainText('2번째 번역 완료. 원문: 안녕하세요 번역문: Hello')
+  const count = received.length
+  await capture(8, 31)
+  expect(received).toHaveLength(count)
+  await audit(page, 'live-final-playing-360')
+  await page.evaluate(() => (window as unknown as { finishSpeech: () => void }).finishSpeech())
+  await expect(panel.getByRole('status').first()).toHaveText('듣는 중')
+  await capture(2, 0)
+  await expect.poll(() => received.some((message) => typeof message !== 'string' && message.type === 'utterance' && message.id === 3)).toBe(true)
+  await activate(page, page.getByRole('button', { name: '동시통역 멈춤' }))
+  await expect(panel.getByRole('status').first()).toHaveText('멈춤')
+  await expect.poll(() => closed).toBe(true)
+  expect(received.at(-1)).toEqual({ type: 'cancel', id: 3 })
+  await expect(page.getByLabel('말하거나 입력할 언어')).toBeEnabled()
+  await audit(page, 'live-stopped-360')
 })
 
 test('keyboard signup, skip link, login error, login and logout; labels and contrast', async ({ page }) => {

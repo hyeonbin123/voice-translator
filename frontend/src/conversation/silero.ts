@@ -11,8 +11,9 @@ const MAX_FRAMES = Math.round(29_000 / FRAME_MS)
 
 export interface VadResult { probability: number; h: Float32Array; c: Float32Array }
 export type VadRunner = (input: Float32Array, h: Float32Array, c: Float32Array) => Promise<VadResult>
+export type LiveEndpointEvent = EndpointEvent | { type: 'audio'; samples: Float32Array } | { type: 'pause' | 'resume' }
 export interface SpeechEndpointer {
-  push(samples: Float32Array): Promise<EndpointEvent[]>
+  push(samples: Float32Array): Promise<LiveEndpointEvent[]>
   interrupt(): boolean
 }
 export type CreateEndpointer = () => Promise<SpeechEndpointer>
@@ -21,6 +22,11 @@ export const createSileroEndpointer: CreateEndpointer = async () => {
   // Neither ONNX Runtime nor the model is fetched on the initial page load.
   const { getSileroRunner } = await import('./sileroRuntime')
   return new SileroEndpointer(await getSileroRunner())
+}
+
+export const createLiveEndpointer: CreateEndpointer = async () => {
+  const { getSileroRunner } = await import('./sileroRuntime')
+  return new SileroEndpointer(await getSileroRunner(), true)
 }
 
 export class SileroEndpointer implements SpeechEndpointer {
@@ -40,7 +46,8 @@ export class SileroEndpointer implements SpeechEndpointer {
   private quietFrames = 0
   private startSample = 0
 
-  constructor(run: VadRunner) { this.run = run }
+  private readonly streaming: boolean
+  constructor(run: VadRunner, streaming = false) { this.run = run; this.streaming = streaming }
 
   interrupt(): boolean {
     const discarded = this.frames !== null
@@ -52,7 +59,7 @@ export class SileroEndpointer implements SpeechEndpointer {
     return discarded
   }
 
-  push(samples: Float32Array): Promise<EndpointEvent[]> {
+  push(samples: Float32Array): Promise<LiveEndpointEvent[]> {
     const epoch = this.epoch
     const owned = samples.slice()
     const task = this.tail.then(() => this.process(owned, epoch))
@@ -60,9 +67,9 @@ export class SileroEndpointer implements SpeechEndpointer {
     return task
   }
 
-  private async process(samples: Float32Array, epoch: number): Promise<EndpointEvent[]> {
+  private async process(samples: Float32Array, epoch: number): Promise<LiveEndpointEvent[]> {
     if (epoch !== this.epoch) return []
-    const events: EndpointEvent[] = []
+    const events: LiveEndpointEvent[] = []
     for (const sample of samples) {
       this.pending[this.pendingSize++] = sample
       if (this.pendingSize !== SILERO_CHUNK) continue
@@ -86,9 +93,22 @@ export class SileroEndpointer implements SpeechEndpointer {
         this.startSample = this.cursor - this.frames.length * SILERO_CHUNK
         this.speechFrames = 2; this.quietFrames = 0
         events.push({ type: 'start', startSample: this.startSample })
+        if (this.streaming) for (const samples of this.frames) events.push({ type: 'audio', samples })
       } else {
+        const previousQuiet = this.quietFrames
         this.frames.push(frame)
         if (speech) { this.speechFrames++; this.quietFrames = 0 } else this.quietFrames++
+        if (this.streaming) {
+          if (speech && previousQuiet >= PAD_FRAMES) {
+            events.push({ type: 'resume' })
+            // Keep the silence after the tail padding locally until speech resumes. The pause
+            // snapshot must equal the conversation WAV, but an internal gap must not disappear.
+            for (const samples of this.frames.slice(-(previousQuiet - PAD_FRAMES + 1))) {
+              events.push({ type: 'audio', samples })
+            }
+          } else if (this.quietFrames <= PAD_FRAMES) events.push({ type: 'audio', samples: frame })
+          if (this.quietFrames === PAD_FRAMES) events.push({ type: 'pause' })
+        }
       }
       const forced = this.frames.length >= MAX_FRAMES
       if (!forced && this.quietFrames < PAUSE_FRAMES) continue

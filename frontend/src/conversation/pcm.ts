@@ -29,6 +29,16 @@ export class MonoResampler {
   }
 }
 
+export function encodePcm16(samples: Float32Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(samples.length * 2)
+  const view = new DataView(buffer)
+  samples.forEach((sample, i) => {
+    const value = Math.max(-1, Math.min(1, sample))
+    view.setInt16(i * 2, Math.round(value * (value < 0 ? 32768 : 32767)), true)
+  })
+  return buffer
+}
+
 export function encodeWav(samples: Float32Array): File {
   const buffer = new ArrayBuffer(44 + samples.length * 2)
   const view = new DataView(buffer)
@@ -40,9 +50,6 @@ export function encodeWav(samples: Float32Array): File {
   view.setUint16(22, 1, true); view.setUint32(24, SAMPLE_RATE, true)
   view.setUint32(28, SAMPLE_RATE * 2, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true)
   ascii(36, 'data'); view.setUint32(40, samples.length * 2, true)
-  samples.forEach((sample, i) => {
-    const value = Math.max(-1, Math.min(1, sample))
-    view.setInt16(44 + i * 2, Math.round(value * (value < 0 ? 32768 : 32767)), true)
-  })
+  new Uint8Array(buffer, 44).set(new Uint8Array(encodePcm16(samples)))
   return new File([buffer], 'conversation.wav', { type: 'audio/wav' })
 }

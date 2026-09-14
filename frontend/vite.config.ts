@@ -15,7 +15,7 @@ export default defineConfig({
   resolve: { conditions: ['onnxruntime-web-use-extern-wasm', 'module', 'browser', 'development|production'] },
   server: {
     // The API runs separately (uvicorn on :8000) and every API route is under /api.
-    proxy: { '/api': 'http://localhost:8000' },
+    proxy: { '/api': { target: 'http://localhost:8000', ws: true } },
   },
   test: {
     include: ['src/**/*.test.{ts,tsx}'],

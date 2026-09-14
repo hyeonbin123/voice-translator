@@ -137,6 +137,14 @@ export class ApiClient {
   }
 
   /** Authenticated API requests, including future JSON, multipart, and audio responses. */
+  async liveToken(rejectedToken?: string): Promise<string> {
+    const generation = this.generation
+    if (!this.accessToken || this.accessToken === rejectedToken) await this.refresh()
+    this.assertCurrent(generation)
+    if (!this.accessToken) throw new SessionChangedError()
+    return this.accessToken
+  }
+
   async request(path: string, init: RequestInit = {}): Promise<Response> {
     if (!path.startsWith('/api/')) throw new Error('API paths must start with /api/')
     const generation = this.generation

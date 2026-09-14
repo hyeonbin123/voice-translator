@@ -77,6 +77,9 @@ nav a.active { background: #e4edfb; color: #184985; font-weight: 700; }
 .conversation-turns > li { margin-top: 20px; padding: 16px; background: #f5f7fa; border: 1px solid #dce2eb; border-radius: 8px; overflow-wrap: anywhere; }
 .conversation-turns h3 { font-size: 16px; margin-top: 0; }
 .conversation-turns h4 { margin: 8px 0; color: #536175; }
+.live-draft { color: #536175; }
+.live-caption strong { color: #182438; font-weight: 700; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 @media (max-width: 520px) {
   .app { padding-left: 16px; padding-right: 16px; }
   .brand { gap: 4px; flex-direction: column; align-items: flex-start; }

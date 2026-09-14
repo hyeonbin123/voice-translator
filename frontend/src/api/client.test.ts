@@ -29,6 +29,23 @@ function deferred<T>() {
 }
 
 describe('API authentication', () => {
+  it('shares refresh for live authentication and never restores a logged-out session', async () => {
+    await login()
+    expect(await client.liveToken()).toBe('access-1')
+    expect(fetchMock).not.toHaveBeenCalled()
+    fetchMock.mockResolvedValueOnce(response(tokens('2')))
+    expect(await Promise.all([client.liveToken('access-1'), client.liveToken('access-1')])).toEqual(['access-2', 'access-2'])
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(await client.liveToken('access-1')).toBe('access-2')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const pending = deferred<Response>(); fetchMock.mockReturnValueOnce(pending.promise)
+    const refreshing = client.liveToken('access-2')
+    client.logout(); pending.resolve(response(tokens('late')))
+    await expect(refreshing).rejects.toThrow('로그인 상태가 바뀌었습니다')
+    expect(client.getSnapshot().status).toBe('anonymous')
+    expect(sessionStorage.getItem(REFRESH_KEY)).toBeNull()
+  })
+
   it('sends the OAuth2 form, preserves passwords, and persists only the refresh token', async () => {
     fetchMock.mockResolvedValueOnce(response(tokens())).mockResolvedValueOnce(response(user))
     await client.login(user.email, ' password+한글 ')

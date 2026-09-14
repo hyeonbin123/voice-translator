@@ -22,13 +22,20 @@ export const MAX_AUDIO_BYTES = 10_000_000 // Conservative decimal MB; server val
 export const characterCount = (text: string) => Array.from(text.trim()).length
 
 export class TranslationApi {
-  private readonly client: Pick<ApiClient, 'request'>
+  private readonly client: Pick<ApiClient, 'request'> & Partial<Pick<ApiClient, 'liveToken' | 'logout'>>
   readonly demo: boolean
 
-  constructor(client: Pick<ApiClient, 'request'>, demo = false) {
+  constructor(client: Pick<ApiClient, 'request'> & Partial<Pick<ApiClient, 'liveToken' | 'logout'>>, demo = false) {
     this.client = client
     this.demo = demo
   }
+
+  async liveToken(rejectedToken?: string): Promise<string> {
+    if (this.demo || !this.client.liveToken) throw new Error('Live translation needs authentication')
+    return this.client.liveToken(rejectedToken)
+  }
+
+  expireLiveAuthentication() { this.client.logout?.(true) }
 
   async text(text: string, direction: Direction, signal: AbortSignal): Promise<TranslationResult> {
     return (await this.client.request('/api/translate/text', {

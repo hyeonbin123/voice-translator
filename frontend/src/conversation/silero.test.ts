@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { SileroEndpointer, SILERO_CHUNK, createSileroEndpointer } from './silero'
-import type { EndpointEvent } from './endpointer'
+import type { LiveEndpointEvent } from './silero'
 
 const ort = vi.hoisted(() => ({ run: vi.fn(), create: vi.fn(), env: { wasm: {} as Record<string, unknown> } }))
 vi.mock('onnxruntime-web/wasm', () => ({
@@ -11,7 +11,7 @@ vi.mock('onnxruntime-web/wasm', () => ({
   },
 }))
 const samples = (frames: number, value = 0) => new Float32Array(frames * SILERO_CHUNK).fill(value)
-const ends = (events: EndpointEvent[]) => events.filter((e) => e.type === 'end')
+const ends = (events: LiveEndpointEvent[]) => events.filter((e) => e.type === 'end')
 
 beforeEach(() => {
   vi.resetModules(); ort.run.mockReset(); ort.create.mockReset()
