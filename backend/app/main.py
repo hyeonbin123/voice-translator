@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.config import get_settings
-from app.routers import audio, auth, health, history, translate
+from app.routers import audio, auth, health, history, live, translate
 from app.services.errors import describe
 from app.services.models import load_models, warm_up
 
@@ -85,4 +85,5 @@ app.include_router(health.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(history.router, prefix="/api")
 app.include_router(translate.router, prefix="/api")
+app.include_router(live.router, prefix="/api")
 app.include_router(audio.router, prefix="/api")

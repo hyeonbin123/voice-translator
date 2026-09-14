@@ -59,6 +59,16 @@ class SpeechToText(Protocol):
 
 
 @runtime_checkable
+class LiveSpeechToText(SpeechToText, Protocol):
+    def transcribe_live(self, pcm: bytes, language: Language) -> str:
+        """Recognize 16 kHz mono 16-bit little-endian PCM, an utterance so far, for live subtitles (T34).
+
+        Returns an empty string where transcribe would raise NoSpeechError.
+        """
+        ...
+
+
+@runtime_checkable
 class Translator(Protocol):
     model_name: str
 

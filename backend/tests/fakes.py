@@ -51,6 +51,34 @@ class FakeSpeechToText:
         return Transcript(text=text, language=language, duration_ms=len(audio) // 32)
 
 
+class FakeLiveSpeechToText(FakeSpeechToText):
+    """Hears one word per 0.1 s of 16 kHz 16-bit audio, in live updates and finals alike, so the final text
+    of a clip is its last update's text. `live_error` makes the live updates fail."""
+
+    def __init__(
+        self, text: str | None = None, error: ModelError | None = None, live_error: ModelError | None = None
+    ) -> None:
+        super().__init__(text, error)
+        self.live_error = live_error
+
+    @staticmethod
+    def words(pcm_bytes: int) -> str:
+        return " ".join(f"w{i}" for i in range(pcm_bytes // 3200))
+
+    def transcribe_live(self, pcm: bytes, language: Language) -> str:
+        if self.live_error:
+            raise self.live_error
+        return self.words(len(pcm))
+
+    def transcribe(self, audio: bytes, language: Language) -> Transcript:
+        if self.text is not None or self.error or not audio:
+            return super().transcribe(audio, language)
+        text = self.words(len(audio) - 44)  # after the 44-byte WAV header
+        if not text:
+            raise NoSpeechError("no speech was recognized")
+        return Transcript(text=text, language=language, duration_ms=(len(audio) - 44) // 32)
+
+
 class FakeTranslator:
     """`error` makes every call fail with it, like a model that crashed or ran out of memory."""
 

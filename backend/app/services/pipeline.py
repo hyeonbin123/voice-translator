@@ -1,4 +1,10 @@
-"""Protocol-only translation orchestration; model loading belongs to the app lifespan."""
+"""Protocol-only translation orchestration; model loading belongs to the app lifespan.
+
+A translation is first prepared (recognition, translation, synthesis) and then saved as a history record.
+The HTTP API does both in one go. The live WebSocket prepares when the speaker pauses and saves only once
+the pause turns out to be the end of the utterance (T56), so a prepared translation touches neither the
+disk nor the database.
+"""
 
 import io
 import logging
@@ -6,7 +12,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from fractions import Fraction
 from time import perf_counter
-from typing import TypeVar
+from typing import Literal, TypeVar
 from uuid import UUID, uuid4
 
 import av
@@ -22,6 +28,7 @@ from app.services.interfaces import (
     Language,
     ModelError,
     SpeechToText,
+    SynthesizedAudio,
     TextToSpeech,
     Translator,
     TypoCorrector,
@@ -43,6 +50,25 @@ class PipelineModels:
     translator: Translator | None
     tts: TextToSpeech | None = None
     corrector: TypoCorrector | None = None
+
+
+@dataclass
+class Prepared:
+    """A finished translation that is not a record yet: its speech is still in memory."""
+
+    mode: Literal["text", "speech"]
+    source: Language
+    target: Language
+    source_text: str
+    translated_text: str
+    mt_model: str
+    mt_ms: int
+    stt_model: str | None = None
+    stt_ms: int | None = None
+    speech: SynthesizedAudio | None = None
+    tts_model: str | None = None
+    tts_ms: int | None = None
+    tts_error: str | None = "Speech synthesis is not available"
 
 
 def validate_audio(audio: bytes) -> None:
@@ -82,17 +108,14 @@ def _translate_text(
     return translated, corrected is not None
 
 
-async def translate(
+async def prepare(
     *,
     models: PipelineModels,
-    store: AudioStore,
-    db: AsyncSession,
-    user_id: UUID,
     source: Language,
     target: Language,
     text: str | None = None,
     audio: bytes | None = None,
-) -> TranslationResponse:
+) -> Prepared:
     stt_ms = None
     stt_model = None
     if audio is not None:
@@ -113,34 +136,59 @@ async def translate(
     mt_model = models.translator.model_name
     if corrected and corrector is not None:
         mt_model = f"{mt_model} + {corrector.model_name}"
-    item = Translation(
-        user_id=user_id,
+    prepared = Prepared(
         mode="speech" if audio is not None else "text",
-        source_lang=source,
-        target_lang=target,
+        source=source,
+        target=target,
         source_text=text,
         translated_text=translated,
-        stt_model=stt_model,
-        stt_ms=stt_ms,
         mt_model=mt_model,
         mt_ms=mt_ms,
+        stt_model=stt_model,
+        stt_ms=stt_ms,
+    )
+    if models.tts is not None:
+        try:
+            prepared.speech, prepared.tts_ms = await run_model(
+                _timed, models.tts.synthesize, translated, target
+            )
+            prepared.tts_model = models.tts.model_name
+            prepared.tts_error = None
+        except (ModelError, OSError) as exc:
+            # Types and place only: a synthesis error's message can quote the translation (T49).
+            logger.error("Speech synthesis or audio storage failed: %s", describe(exc))
+            prepared.tts_error = "Speech synthesis failed"
+    return prepared
+
+
+async def save(
+    *, db: AsyncSession, store: AudioStore, user_id: UUID, prepared: Prepared
+) -> TranslationResponse:
+    item = Translation(
+        user_id=user_id,
+        mode=prepared.mode,
+        source_lang=prepared.source,
+        target_lang=prepared.target,
+        source_text=prepared.source_text,
+        translated_text=prepared.translated_text,
+        stt_model=prepared.stt_model,
+        stt_ms=prepared.stt_ms,
+        mt_model=prepared.mt_model,
+        mt_ms=prepared.mt_ms,
         tts_model=None,
         tts_ms=None,
         audio_file=None,
     )
-    tts_error = "Speech synthesis is not available"
+    tts_error = prepared.tts_error
     saved_path = None
-    if models.tts is not None:
+    if prepared.speech is not None:
         try:
-            synthesized, tts_ms = await run_model(_timed, models.tts.synthesize, translated, target)
             audio_id = uuid4()
-            saved_path = await store.save(audio_id, synthesized.wav)
-            item.audio_file = AudioFile(id=audio_id, path=saved_path, duration_ms=synthesized.duration_ms)
-            item.tts_model = models.tts.model_name
-            item.tts_ms = tts_ms
-            tts_error = None
-        except (ModelError, OSError) as exc:
-            # Types and place only: a synthesis error's message can quote the translation (T49).
+            saved_path = await store.save(audio_id, prepared.speech.wav)
+            item.audio_file = AudioFile(id=audio_id, path=saved_path, duration_ms=prepared.speech.duration_ms)
+            item.tts_model = prepared.tts_model
+            item.tts_ms = prepared.tts_ms
+        except OSError as exc:
             logger.error("Speech synthesis or audio storage failed: %s", describe(exc))
             tts_error = "Speech synthesis failed"
     try:
@@ -155,3 +203,18 @@ async def translate(
             await store.delete(saved_path)
         raise
     return result
+
+
+async def translate(
+    *,
+    models: PipelineModels,
+    store: AudioStore,
+    db: AsyncSession,
+    user_id: UUID,
+    source: Language,
+    target: Language,
+    text: str | None = None,
+    audio: bytes | None = None,
+) -> TranslationResponse:
+    prepared = await prepare(models=models, source=source, target=target, text=text, audio=audio)
+    return await save(db=db, store=store, user_id=user_id, prepared=prepared)

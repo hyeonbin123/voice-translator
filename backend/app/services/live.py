@@ -6,10 +6,24 @@ letters only: case, spaces and punctuation change between results (Korean spacin
 changing what was said.
 """
 
+import io
 import re
 import unicodedata
+import wave
 
 _WORD = re.compile(r"\S+")
+SAMPLE_RATE = 16_000
+
+
+def wav_from_pcm(pcm: bytes) -> bytes:
+    """16 kHz mono 16-bit PCM as the WAV file conversation mode uploads (frontend pcm.ts)."""
+    buffer = io.BytesIO()
+    with wave.open(buffer, "wb") as out:
+        out.setnchannels(1)
+        out.setsampwidth(2)
+        out.setframerate(SAMPLE_RATE)
+        out.writeframes(pcm[: len(pcm) // 2 * 2])
+    return buffer.getvalue()
 
 
 def letters(text: str) -> str:

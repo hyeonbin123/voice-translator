@@ -267,6 +267,42 @@ access 헤더 없이 refresh 토큰을 JSON으로 보낸다.
 - `DELETE /api/history/{id}`는 기록, `audio_files` 행, 디스크의 파일을 함께 지운다. 파일 삭제가 실패해도 DB 삭제는 되돌리지 않고 서버 로그에 남긴다
 - 시간 필드(`stt_ms`, `mt_ms`, `tts_ms`)는 각 단계의 모델 호출 시간(밀리초)이다. 모델 스레드를 기다린 시간과 네트워크 시간은 넣지 않는다
 
+### WS /api/translate/live (동시통역)
+
+말하는 동안 원문·번역문 자막을 받고, 말을 멈추면 대화 모드와 같은 최종 결과를 받는 웹소켓 (docs/experiments.md 8절). 한 마디의 경계는 브라우저가 대화 모드처럼 정한다(Silero VAD, 1초 조용하면 끝).
+
+브라우저 WebSocket은 인증 헤더를 붙일 수 없고 주소의 토큰은 로그에 남으므로, 토큰은 연결 뒤 첫 메시지로 보낸다. 글 메시지는 JSON, 소리는 바이너리 메시지다.
+
+**브라우저 → 서버**
+
+| 메시지 | 뜻 |
+|---|---|
+| `{"type": "start", "token": "<access_token>", "source_lang": "ko", "target_lang": "en"}` | 연결 뒤 10초 안에 보내는 첫 메시지. 성공하면 서버가 `{"type": "ready"}` |
+| `{"type": "utterance", "id": 1}` | 새 마디 시작. `id`는 브라우저가 정하는 정수. 진행 중인 마디가 있으면 그 마디는 버린다 |
+| 바이너리 | 지금 마디의 소리. 16kHz 모노 16비트 little-endian PCM, 말 앞 192ms부터. 마디 밖의 소리는 버린다 |
+| `{"type": "pause", "id": 1}` | 말 끝 뒤 192ms 조용함. 지금까지 보낸 소리가 대화 모드가 올릴 소리와 같아, 서버가 최종 인식·번역·합성을 미리 시작한다 |
+| `{"type": "resume", "id": 1}` | 1초가 되기 전에 다시 말함. 서버는 미리 한 결과를 버리고 자막 갱신을 이어 간다 |
+| `{"type": "end", "id": 1}` | 1초 조용함 확인(또는 29초 강제 끊김). 서버가 기록을 저장하고 `final`을 보낸다. `pause` 없이 오면 받은 소리 전체로 처리한다 |
+| `{"type": "cancel", "id": 1}` | 그 마디를 버린다(짧은 소리, 번역 음성 재생 시작, 멈춤) |
+
+지금 마디가 아닌 `id`의 `pause`·`resume`·`end`·`cancel`은 무시한다.
+
+**서버 → 브라우저**
+
+| 메시지 | 뜻 |
+|---|---|
+| `{"type": "source", "id": 1, "text": "...", "stable": 12}` | 그 마디의 지금까지 소리를 인식한 원문. `stable`은 앞에서부터 진하게(확정) 보일 글자 수: 바로 앞 결과와 같은 앞부분을 단어 경계까지 자른 것(대소문자·띄어쓰기·문장부호는 무시). 나머지는 흐리게 보인다. 진한 부분도 다음 결과에서 바뀔 수 있다 |
+| `{"type": "translation", "id": 1, "text": "...", "stable": 0}` | 위 원문의 번역. 번역은 원문이 늘 때마다 앞부분까지 자주 바뀌어(측정에서 진하게 보일 부분의 16~20%가 나중에 바뀜) `stable`은 늘 0이다: 최종 결과 전까지 모두 흐리게 보인다(docs/experiments.md 8절) |
+| `{"type": "final", "id": 1, "result": {...}}` | 최종 결과. `result`는 `POST /api/translate/speech`의 201 응답과 같은 필드이고 같은 기록이 저장된다. 음성은 `GET /api/audio/{audio_id}`로 받는다 |
+| `{"type": "error", "id": 1, "detail": "..."}` | 그 마디만 실패, 기록 없음. `detail`은 음성 번역 API의 422·503 문구와 같다(`"Audio could not be decoded"`, `"Audio is longer than 30 seconds"`, `"No speech was recognized"`, `"Translation service is unavailable"`), 저장이 실패하면 `"The translation could not be saved"`. 연결은 유지된다 |
+
+**닫힘 코드**: `4401` 토큰이 없거나 틀림, 없는 사용자, 또는 연결 중 토큰 만료(만료 뒤 첫 메시지에서 닫는다. 화면은 토큰을 새로 받아 다시 연결한다), `4422` 첫 메시지가 없거나 틀림, 언어 오류, 계약에 없는 메시지, `4503` 서버에 모델이 없음.
+
+- 자막 갱신: 서버는 한 마디에서 한 번에 한 갱신만 돌리고, 끝나면 그때까지 받은 소리 전체를 다시 인식한다. 두 갱신의 시작은 `LIVE_UPDATE_MS` 이상 떨어진다. 원문은 인식이 끝나는 대로, 번역문은 번역이 끝나는 대로 보낸다. 원문이 바뀌지 않으면 번역하지 않는다
+- 자막 갱신의 인식 설정은 `LIVE_BEAM_SIZE`·`LIVE_TEMPERATURE_FALLBACK`을 쓰고, 최종 결과는 음성 번역 API와 같은 설정·같은 WAV로 처리한다. 모델 호출은 HTTP 요청과 같은 모델 스레드 대기열에서 돈다
+- 한 마디 소리가 30초를 넘으면 그 마디는 `end`에서 `"Audio is longer than 30 seconds"` 오류가 된다
+- 연결이 끊기면 진행 중인 마디와 아직 저장하지 않은 최종 결과는 버린다
+
 ## 상태 확인
 
 ### GET /api/health
@@ -316,6 +352,9 @@ backend 폴더에서 `uv sync` 후 `uv run alembic upgrade head`를 실행해 �
 | `TTS_ENABLED` | `true` | 끄면 음성 합성 없이 뜨고 응답에 `tts_error`가 들어간다 |
 | `STT_VAD_FILTER` | `true` | 말소리 구간만 인식 모델에 넘긴다 (docs/experiments.md 1-1) |
 | `STT_OWN_DECODE` | `false` | 업로드를 faster-whisper 대신 앱에서 디코딩한다. 비교용으로만 남긴 설정 (5절 후보 C) |
+| `LIVE_UPDATE_MS` | `1000` | 동시통역 자막 갱신 사이의 최소 간격(밀리초). 한 마디의 두 갱신 시작이 이만큼 떨어진다. 측정으로 고름: 짧을수록 빨리 보이지만 더 흔들린다 (docs/experiments.md 8절) |
+| `LIVE_BEAM_SIZE` | `5` | 동시통역 자막 갱신의 인식 beam 크기. 최종 결과는 늘 음성 번역 API와 같은 설정을 쓴다 |
+| `LIVE_TEMPERATURE_FALLBACK` | `true` | 자막 갱신 인식이 결과가 나쁠 때 temperature를 올려 다시 풀지. 끄면 temperature 0으로 한 번만 푼다 |
 | `WARM_UP` | `true` | 모델을 올린 뒤 번역·합성·인식을 한 번씩 돌려 첫 요청의 지연을 없앤다 |
 | `TYPO_CORRECTION` | `true` | 글자로 입력한 영어를 번역 전에 Ollama의 작은 LLM으로 오타·띄어쓰기만 고친다 (docs/experiments.md 6절). 한국어 입력과 음성 인식 결과는 고치지 않는다. Ollama가 응답하지 않거나, 정상 종료로 답하지 않았거나(교정문은 `done`이 true이고 `done_reason`이 "stop"일 때만 쓴다), 한글이 섞였거나, 입력과 글자가 절반 넘게 다르면(거절문·설명을 붙인 답 등, docs/experiments.md 6절) 입력한 그대로 번역한다. 글자는 거의 같은데 뜻만 바뀐 교정까지 막지는 못한다. 서버 시작은 Ollama를 기다리지 않는다: 교정 모델은 뒤에서 준비되고(첫 시작의 내려받기 포함, 실패하면 30초마다 다시 시도), 준비되기 전에는 입력 그대로 번역한다. 기록의 `source_text`는 입력한 그대로, `mt_model`에는 교정 모델이 붙고(`... + ollama/...`), `mt_ms`는 교정 시간을 포함한다 |
 | `OLLAMA_URL` | `http://localhost:11434` | 교정 모델을 돌리는 Ollama 주소. Docker compose는 `http://ollama:11434` |

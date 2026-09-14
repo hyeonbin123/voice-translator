@@ -40,6 +40,11 @@ def create_token(user_id: UUID, kind: TokenKind) -> str:
 
 
 def decode_token(token: str, kind: TokenKind) -> UUID:
+    return decode_token_with_expiry(token, kind)[0]
+
+
+def decode_token_with_expiry(token: str, kind: TokenKind) -> tuple[UUID, datetime]:
+    """The user, and when the token stops being valid: a WebSocket outlives the token it opened with."""
     payload = jwt.decode(
         token,
         get_settings().jwt_secret_key.get_secret_value(),
@@ -49,6 +54,6 @@ def decode_token(token: str, kind: TokenKind) -> UUID:
     if payload["type"] != kind:
         raise jwt.InvalidTokenError("Invalid token type")
     try:
-        return UUID(payload["sub"])
-    except (ValueError, TypeError, AttributeError) as exc:
+        return UUID(payload["sub"]), datetime.fromtimestamp(payload["exp"], UTC)
+    except (ValueError, TypeError, AttributeError, OverflowError) as exc:
         raise jwt.InvalidTokenError("Invalid subject") from exc

@@ -41,6 +41,9 @@ class WhisperSpeechToText:
     retry_without_no_speech, a result that comes back empty is recognized once more with the no-speech
     check off (the candidates in docs/experiments.md 1-1, T14). With own_decode, the upload is decoded by
     decode_audio above instead of inside faster-whisper (docs/experiments.md 5, candidate C).
+
+    transcribe_live serves live subtitles (T34): the same options, but with live_beam_size and, without
+    live_temperature_fallback, temperature 0 only (docs/experiments.md 8).
     """
 
     def __init__(
@@ -53,6 +56,8 @@ class WhisperSpeechToText:
         no_speech_threshold: float | None = 0.6,
         retry_without_no_speech: bool = False,
         own_decode: bool = False,
+        live_beam_size: int = 1,
+        live_temperature_fallback: bool = False,
     ) -> None:
         add_cuda_dll_dirs()
         self.model_name = f"faster-whisper/{model_size}"
@@ -61,6 +66,9 @@ class WhisperSpeechToText:
             "vad_filter": vad_filter,
             "no_speech_threshold": no_speech_threshold,
         }
+        self.live_options = {**self.options, "beam_size": live_beam_size}
+        if not live_temperature_fallback:
+            self.live_options["temperature"] = 0.0
         self.retry_without_no_speech = retry_without_no_speech
         self.own_decode = own_decode
         self._model = WhisperModel(model_size, device=device, compute_type=compute_type)
@@ -75,6 +83,13 @@ class WhisperSpeechToText:
         if not text:
             raise NoSpeechError("no speech was recognized")
         return Transcript(text=text, language=language, duration_ms=round(duration * 1000))
+
+    def transcribe_live(self, pcm: bytes, language: Language) -> str:
+        samples = np.frombuffer(pcm[: len(pcm) // 2 * 2], dtype="<i2").astype(np.float32) / 32768.0
+        if not samples.size:
+            return ""
+        text, _ = self._recognize(samples, language, self.live_options)
+        return text
 
     def _decode(self, audio: bytes) -> np.ndarray:
         try:

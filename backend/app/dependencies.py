@@ -2,9 +2,10 @@ from collections.abc import AsyncIterator
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, HTTPException
+from fastapi.requests import HTTPConnection
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import get_settings
 from app.core.security import TokenKind, decode_token
@@ -22,6 +23,15 @@ async def get_db() -> AsyncIterator[AsyncSession]:
 
 
 DbSession = Annotated[AsyncSession, Depends(get_db)]
+
+
+def get_sessions() -> async_sessionmaker[AsyncSession]:
+    """For a handler that opens a session only when it needs one: the live WebSocket stays open for as long
+    as a person keeps talking and must not hold a database connection all that time."""
+    return SessionLocal
+
+
+Sessions = Annotated[async_sessionmaker[AsyncSession], Depends(get_sessions)]
 
 
 def unauthorized() -> HTTPException:
@@ -46,9 +56,10 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Db
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
-def get_models(request: Request) -> PipelineModels:
-    # T11 assigns PipelineModels to app.state.models during lifespan startup.
-    return getattr(request.app.state, "models", PipelineModels(stt=None, translator=None))
+def get_models(connection: HTTPConnection) -> PipelineModels:
+    # T11 assigns PipelineModels to app.state.models during lifespan startup. HTTPConnection, not Request:
+    # the live WebSocket needs the models too.
+    return getattr(connection.app.state, "models", PipelineModels(stt=None, translator=None))
 
 
 def get_audio_store() -> AudioStore:

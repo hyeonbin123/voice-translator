@@ -31,6 +31,13 @@ class Settings(BaseSettings):
     stt_vad_filter: bool = True
     # Decode uploads in app/services/stt.py instead of inside faster-whisper (T23 candidate C).
     stt_own_decode: bool = False
+    # Live subtitles over the WebSocket (T34, docs/experiments.md 8): the least time between the starts of two
+    # updates of one utterance, and how an update recognizes. Chosen by measurement: every 1000 ms, with the
+    # final recognition's settings (the least flicker). The final result always uses the settings above, as
+    # conversation mode does.
+    live_update_ms: int = Field(default=1000, ge=0)
+    live_beam_size: int = Field(default=5, ge=1)
+    live_temperature_fallback: bool = True
     # Run every model once after loading, so the first request does not pay for lazy loading (T25).
     warm_up: bool = True
     # Fix typos in typed English before translating it, with a small LLM served by Ollama (T32,
