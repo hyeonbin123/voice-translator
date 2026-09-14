@@ -396,8 +396,13 @@ async def stream_one(ws, http, auth: dict, number: int, utterance: dict, final: 
     async def at_frame(count: int) -> None:
         await asyncio.sleep(max(0.0, t0 + count * FRAME_S - loop.time()))
 
+    def frame(index: int) -> bytes:
+        return pcm[index * S_CHUNK : (index + 1) * S_CHUNK].tobytes()
+
+    # As the browser does (frontend/src/conversation/silero.ts): quiet frames past the six after speech are
+    # held back and sent only if speech resumes, so at a pause the server has exactly the clip.
     receiver = asyncio.create_task(receive())
-    quiet, paused, pauses = 0, False, 0
+    quiet, pauses = 0, 0
     for i, flag in enumerate(flags):
         await at_frame(i + 1)
         if i + 1 < detected:
@@ -406,20 +411,22 @@ async def stream_one(ws, http, auth: dict, number: int, utterance: dict, final: 
             await ws.send(json.dumps({"type": "utterance", "id": number}))
             await ws.send(pcm[: detected * S_CHUNK].tobytes())
             continue
-        await ws.send(pcm[i * S_CHUNK : (i + 1) * S_CHUNK].tobytes())
         if flag:
-            if paused:
+            if quiet >= PAD_FRAMES:
                 await ws.send(json.dumps({"type": "resume", "id": number}))
-                paused = False
+                for held in range(i - (quiet - PAD_FRAMES), i):
+                    await ws.send(frame(held))
+            await ws.send(frame(i))
             quiet = 0
         else:
             quiet += 1
+            if quiet <= PAD_FRAMES:
+                await ws.send(frame(i))
             if quiet == PAD_FRAMES:
                 await ws.send(json.dumps({"type": "pause", "id": number}))
-                paused, pauses = True, pauses + 1
-    for j in range(QUIET_END_FRAMES - PAD_FRAMES):  # quiet frames up to the end decision
+                pauses += 1
+    for j in range(QUIET_END_FRAMES - PAD_FRAMES):  # the quiet up to the end decision stays in the browser
         await at_frame(len(flags) + j + 1)
-        await ws.send(bytes(2 * S_CHUNK))
     await ws.send(json.dumps({"type": "end", "id": number}))
     outcome = await asyncio.wait_for(receiver, 120)
     final_at, audio_at = messages[-1][0], None
