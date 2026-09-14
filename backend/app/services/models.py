@@ -30,6 +30,7 @@ def load_models(settings: Settings) -> PipelineModels:
         own_decode=settings.stt_own_decode,
         live_beam_size=settings.live_beam_size,
         live_temperature_fallback=settings.live_temperature_fallback,
+        num_workers=settings.stt_num_workers,
         **engine,
     )
     translator = DirectionalTranslator(

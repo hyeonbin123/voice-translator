@@ -30,3 +30,14 @@ def _model_threads() -> ThreadPoolExecutor:
 async def run_model(fn: Callable[..., T], *args) -> T:
     """Run `fn(*args)` on a model thread, queued if all of them are busy."""
     return await asyncio.get_running_loop().run_in_executor(_model_threads(), partial(fn, *args))
+
+
+@lru_cache
+def _live_thread() -> ThreadPoolExecutor:
+    return ThreadPoolExecutor(max_workers=1, thread_name_prefix="live")
+
+
+async def run_live_model(fn: Callable[..., T], *args) -> T:
+    """Run a live subtitle update on a thread of its own, so it does not queue behind finals and other
+    requests (LIVE_UPDATE_THREAD, docs/experiments.md 8, T61)."""
+    return await asyncio.get_running_loop().run_in_executor(_live_thread(), partial(fn, *args))

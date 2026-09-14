@@ -27,7 +27,7 @@ from app.schemas.translate import LanguagePair
 from app.services import pipeline
 from app.services.audio_store import AudioStore
 from app.services.errors import describe
-from app.services.inference import run_model
+from app.services.inference import run_live_model, run_model
 from app.services.interfaces import (
     Language,
     LiveSpeechToText,
@@ -52,10 +52,12 @@ UNAUTHORIZED, INVALID, UNAVAILABLE = 4401, 4422, 4503
 class LiveOptions:
     interval_s: float  # least time between the starts of two updates of one utterance
     start_timeout_s: float = 10.0
+    update_thread: bool = False  # updates on a thread of their own (LIVE_UPDATE_THREAD, T61)
 
 
 def get_live_options() -> LiveOptions:
-    return LiveOptions(interval_s=get_settings().live_update_ms / 1000)
+    settings = get_settings()
+    return LiveOptions(interval_s=settings.live_update_ms / 1000, update_thread=settings.live_update_thread)
 
 
 @dataclass(eq=False)
@@ -112,6 +114,7 @@ class LiveConnection:
         self.target: Language = pair.target_lang
         self.expires_at = expires_at
         self.options = options
+        self.run_update = run_live_model if options.update_thread else run_model
         self.current: Utterance | None = None
         self.tasks: set[asyncio.Task] = set()
         self.sending = asyncio.Lock()
@@ -270,7 +273,7 @@ class LiveConnection:
             pcm = bytes(utterance.pcm)
             seen, next_at = len(pcm), loop.time() + self.options.interval_s
             try:
-                text = await run_model(self.stt.transcribe_live, pcm, self.source)
+                text = await self.run_update(self.stt.transcribe_live, pcm, self.source)
             except ModelError as exc:
                 logger.warning("Live recognition failed: %s", describe(exc))
                 continue
@@ -288,7 +291,7 @@ class LiveConnection:
             if not changed or not letters(text) or utterance.paused:
                 continue  # at a pause the final translation is on its way
             try:
-                translation = await run_model(self.translator.translate, text, self.source, self.target)
+                translation = await self.run_update(self.translator.translate, text, self.source, self.target)
             except ModelError as exc:
                 logger.warning("Live translation failed: %s", describe(exc))
                 continue

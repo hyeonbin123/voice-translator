@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     live_update_ms: int = Field(default=1000, ge=0)
     live_beam_size: int = Field(default=5, ge=1)
     live_temperature_fallback: bool = True
+    # Updates on a thread of their own, and recognition replicas so they can run beside a final (T61).
+    live_update_thread: bool = False
+    stt_num_workers: int = Field(default=1, ge=1)
     # Run every model once after loading, so the first request does not pay for lazy loading (T25).
     warm_up: bool = True
     # Fix typos in typed English before translating it, with a small LLM served by Ollama (T32,

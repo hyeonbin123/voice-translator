@@ -58,6 +58,7 @@ class WhisperSpeechToText:
         own_decode: bool = False,
         live_beam_size: int = 1,
         live_temperature_fallback: bool = False,
+        num_workers: int = 1,
     ) -> None:
         add_cuda_dll_dirs()
         self.model_name = f"faster-whisper/{model_size}"
@@ -71,7 +72,10 @@ class WhisperSpeechToText:
             self.live_options["temperature"] = 0.0
         self.retry_without_no_speech = retry_without_no_speech
         self.own_decode = own_decode
-        self._model = WhisperModel(model_size, device=device, compute_type=compute_type)
+        # num_workers: calls from several threads run side by side only with as many replicas (T61).
+        self._model = WhisperModel(
+            model_size, device=device, compute_type=compute_type, num_workers=num_workers
+        )
 
     def transcribe(self, audio: bytes, language: Language) -> Transcript:
         if not audio:

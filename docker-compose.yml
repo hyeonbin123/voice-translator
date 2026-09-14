@@ -54,6 +54,9 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-vtuser}:${POSTGRES_PASSWORD:-vtpass}@db:5432/${POSTGRES_DB:-voicetranslator}
       OLLAMA_URL: http://ollama:11434
+      # Live subtitles (docs/experiments.md 8, T61): a thread of their own and two recognition replicas.
+      LIVE_UPDATE_THREAD: ${LIVE_UPDATE_THREAD:-false}
+      STT_NUM_WORKERS: ${STT_NUM_WORKERS:-1}
     volumes:
       - ./data/models/ct2:/models/ct2:ro
       - hfcache:/models/hf

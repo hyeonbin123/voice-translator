@@ -408,3 +408,30 @@ async def test_a_failed_save_is_an_error_and_leaves_no_file(live, db_session, tm
     assert not list((tmp_path / "audio").glob("*.wav"))
     assert "RuntimeError" in caplog.text
     assert "secret" not in caplog.text and live.token not in caplog.text
+
+
+async def test_updates_can_run_on_a_thread_of_their_own(live):
+    calls: list[tuple[str, str]] = []
+
+    class Named(FakeLiveSpeechToText):
+        def transcribe_live(self, pcm, language):
+            calls.append(("update", threading.current_thread().name))
+            return super().transcribe_live(pcm, language)
+
+        def transcribe(self, audio, language):
+            calls.append(("final", threading.current_thread().name))
+            return super().transcribe(audio, language)
+
+    app.dependency_overrides[get_models] = lambda: replace(live.models, stt=Named())
+    app.dependency_overrides[get_live_options] = lambda: LiveOptions(interval_s=0.0, update_thread=True)
+    with live.client.websocket_connect("/api/translate/live") as ws:
+        start(ws, live.token)
+        ws.send_json({"type": "utterance", "id": 1})
+        ws.send_bytes(SECOND)
+        until(ws, "translation")
+        ws.send_json({"type": "end", "id": 1})
+        until(ws, "final")
+    updates = [name for kind, name in calls if kind == "update"]
+    finals = [name for kind, name in calls if kind == "final"]
+    assert updates and all(name.startswith("live") for name in updates)
+    assert finals and all(name.startswith("model") for name in finals)

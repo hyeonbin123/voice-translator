@@ -376,7 +376,9 @@ FRAME_S = S_CHUNK / RATE
 QUIET_END_FRAMES = round(SILENCE_MS / (FRAME_S * 1000))  # 31: the browser decides the end here
 
 
-async def stream_one(ws, http, auth: dict, number: int, utterance: dict, final: dict) -> dict:
+async def stream_one(
+    ws, http, auth: dict, number: int, utterance: dict, final: dict, pause_frames: int = PAD_FRAMES
+) -> dict:
     """Send one clip as the browser would, a 32 ms frame at a time in real time, with its pause, resume and
     end messages, and time what comes back from the clip's start."""
     loop = asyncio.get_running_loop()
@@ -412,17 +414,17 @@ async def stream_one(ws, http, auth: dict, number: int, utterance: dict, final: 
             await ws.send(pcm[: detected * S_CHUNK].tobytes())
             continue
         if flag:
-            if quiet >= PAD_FRAMES:
+            if quiet >= pause_frames:
                 await ws.send(json.dumps({"type": "resume", "id": number}))
-                for held in range(i - (quiet - PAD_FRAMES), i):
-                    await ws.send(frame(held))
+            for held in range(i - max(0, quiet - PAD_FRAMES), i):
+                await ws.send(frame(held))
             await ws.send(frame(i))
             quiet = 0
         else:
             quiet += 1
             if quiet <= PAD_FRAMES:
                 await ws.send(frame(i))
-            if quiet == PAD_FRAMES:
+            if quiet == pause_frames:  # the final starts here (T61 candidate Q); the clip ends at six
                 await ws.send(json.dumps({"type": "pause", "id": number}))
                 pauses += 1
     for j in range(QUIET_END_FRAMES - PAD_FRAMES):  # the quiet up to the end decision stays in the browser
@@ -472,7 +474,7 @@ async def stream_all(args: argparse.Namespace, chosen: dict) -> dict:
                 assert json.loads(await ws.recv())["type"] == "ready"
                 results[lang] = []
                 for number, (key, utterance, final) in enumerate(clips, 1):
-                    result = await stream_one(ws, http, auth, number, utterance, final)
+                    result = await stream_one(ws, http, auth, number, utterance, final, args.pause_frames)
                     results[lang].append({"key": key, **result})
                     await asyncio.sleep(0.5)  # a moment between utterances, like playback would take
             print(f"{lang}: {len(results[lang])} clips streamed", flush=True)
@@ -517,6 +519,8 @@ def service(args: argparse.Namespace) -> None:
         f"# 동시통역 실제 서비스 측정 ({args.tag})",
         "",
         f"- 날짜: {stamp.isoformat()}, FLEURS {args.split}, 언어별 {args.count}문장, {args.base_url}",
+        f"- 미리 처리를 부르는 쉼: {args.pause_frames}조각({args.pause_frames * 32}ms). "
+        "서버 설정은 따로 적는다",
         f"- 뺀 문장: {skipped}",
         "- 표시 지연: 오프라인과 같은 정의(서버 최종 원문이 이 PC의 최종 인식과 글자가 다른 마디는 뺌). "
         "말 끝 → 최종·음성: 마지막 단어 끝부터 final 메시지, 번역 음성 받기 완료까지",
@@ -550,6 +554,8 @@ def main() -> None:
     sub.choices["run"].add_argument("--intervals", nargs="+", type=int, default=list(INTERVALS_MS))
     sub.choices["run"].add_argument("--partials", nargs="+", choices=tuple(PARTIAL), default=list(PARTIAL))
     sub.choices["service"].add_argument("--base-url", default="http://localhost:8080")
+    # T61 candidate Q: quiet frames before the browser asks for the final (6 = 192 ms, the clip's end).
+    sub.choices["service"].add_argument("--pause-frames", type=int, default=PAD_FRAMES)
     args = parser.parse_args()
     {"run": run, "service": service}[args.command](args)
 
