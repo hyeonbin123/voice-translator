@@ -252,6 +252,23 @@ access 헤더 없이 refresh 토큰을 JSON으로 보낸다.
 - `tts_error`는 번역 응답에만 있고 기록에는 저장하지 않는다. 기록에서 `audio_id`가 `null`이면 화면은 브라우저 내장 음성(speechSynthesis)으로 읽는다
 - 모델 오류의 자세한 내용은 서버 로그에만 남기고 응답에 넣지 않는다
 
+### POST /api/translate/dialog (두 사람 대화)
+
+한 화면에서 한국어·영어 화자가 번갈아 말할 때 쓴다(T35). 요청은 `POST /api/translate/speech`와 같은 multipart이되 언어 대신 직전 마디의 언어를 보낸다.
+
+| 필드 | 내용 |
+|---|---|
+| `audio` | 한 마디의 녹음 파일. 제한은 음성 번역과 같다(10MB, 30초) |
+| `previous_lang` | 선택. 직전 마디가 어느 언어로 처리됐는지(`ko` 또는 `en`). 첫 마디는 보내지 않는다 |
+
+서버는 인식 모델의 언어 판별에서 한국어·영어 확률만 남겨 큰 쪽을 말한 언어로 보고, 다른 언어로 번역·합성한다. 확신(큰 쪽 ÷ 둘의 합)이 `DIALOG_LANGUAGE_THRESHOLD`보다 낮고 `previous_lang`이 있으면, 대화가 번갈아 이어진다고 보고 `previous_lang`의 반대 언어로 처리한다(docs/experiments.md 10절).
+
+응답 `201 Created`: 음성 번역 응답의 필드에 두 개가 더 붙는다.
+- `language_confidence`: 판별한 언어의 확신(0.5~1.0)
+- `language_guessed`: 확신이 낮아 번갈아 처리로 정했으면 `true`. 화면은 이때 방향을 바꿀 수 있게 알려 준다
+
+`source_lang`·`target_lang`은 실제로 처리한 방향이고, 기록도 이 방향으로 음성 번역과 똑같이 남는다. 방향이 틀렸으면 화면이 같은 녹음을 `POST /api/translate/speech`에 반대 방향으로 다시 보내고 틀린 기록을 지운다. 실패 응답은 음성 번역과 같다(`previous_lang` 값이 틀리면 422).
+
 ### GET /api/audio/{id}
 
 요청 예: `GET /api/audio/a17a7bf4-ce62-4d8b-9309-a220b1868299`, `Authorization: Bearer <access_token>`. 본문 없음.

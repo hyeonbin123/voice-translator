@@ -50,6 +50,17 @@ class FakeSpeechToText:
         text = self.text if self.text is not None else f"{language} speech of {len(audio)} bytes"
         return Transcript(text=text, language=language, duration_ms=len(audio) // 32)
 
+    # What detect_language answers (T35); tests set them.
+    language: Language = "ko"
+    confidence: float = 1.0
+
+    def detect_language(self, audio: bytes) -> tuple[Language, float]:
+        if self.error:
+            raise self.error
+        if not audio:
+            raise UndecodableAudioError("empty audio")
+        return self.language, self.confidence
+
 
 class FakeLiveSpeechToText(FakeSpeechToText):
     """Hears one word per 0.1 s of 16 kHz 16-bit audio, in live updates and finals alike, so the final text

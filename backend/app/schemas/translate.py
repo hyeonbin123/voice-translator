@@ -23,3 +23,10 @@ class TextRequest(LanguagePair):
 
 class TranslationResponse(HistoryItem):
     tts_error: str | None
+
+
+class DialogResponse(TranslationResponse):
+    """A two-person conversation turn (T35): source_lang is the language that was taken as spoken."""
+
+    language_confidence: float  # the detected language's share of the Korean and English probabilities
+    language_guessed: bool  # too unsure: taken as the language opposite to the previous utterance

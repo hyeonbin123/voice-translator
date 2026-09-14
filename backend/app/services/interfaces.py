@@ -69,6 +69,16 @@ class LiveSpeechToText(SpeechToText, Protocol):
 
 
 @runtime_checkable
+class LanguageDetector(Protocol):
+    def detect_language(self, audio: bytes) -> tuple[Language, float]:
+        """Korean or English, from an encoded audio file, and its share of the two probabilities (T35).
+
+        Raises UndecodableAudioError or NoSpeechError as transcribe does.
+        """
+        ...
+
+
+@runtime_checkable
 class Translator(Protocol):
     model_name: str
 

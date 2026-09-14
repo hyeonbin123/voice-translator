@@ -1,4 +1,5 @@
 import logging
+from contextlib import contextmanager
 from typing import Annotated
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, Response, UploadFile
@@ -8,19 +9,29 @@ from pydantic import ValidationError
 from python_multipart.exceptions import MultipartParseError
 from starlette.formparsers import MultiPartException, MultiPartParser
 
+from app.config import get_settings
 from app.dependencies import CurrentUser, DbSession, Models, StoredAudio
-from app.schemas.translate import LanguagePair, TextRequest, TranslationResponse
+from app.schemas.translate import DialogResponse, LanguagePair, TextRequest, TranslationResponse
 from app.services import pipeline
 from app.services.errors import describe
-from app.services.interfaces import Language, ModelError, NoSpeechError, UndecodableAudioError
+from app.services.inference import run_model
+from app.services.interfaces import (
+    Language,
+    LanguageDetector,
+    ModelError,
+    NoSpeechError,
+    UndecodableAudioError,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/translate", tags=["translate"])
 
 
-async def execute(response: Response, **kwargs) -> TranslationResponse:
+@contextmanager
+def failures_as_http():
+    """The API's fixed answers for a translation that failed (docs/api.md)."""
     try:
-        result = await pipeline.translate(**kwargs)
+        yield
     # The log names the failure but never its messages: a library's message can quote the input (T49).
     except UndecodableAudioError as exc:
         logger.warning("Undecodable audio: %s", describe(exc))
@@ -33,6 +44,11 @@ async def execute(response: Response, **kwargs) -> TranslationResponse:
     except ModelError as exc:
         logger.error("Translation pipeline failed: %s", describe(exc))
         raise HTTPException(503, "Translation service is unavailable") from exc
+
+
+async def execute(response: Response, **kwargs) -> TranslationResponse:
+    with failures_as_http():
+        result = await pipeline.translate(**kwargs)
     response.headers["Location"] = f"/api/history/{result.id}"
     return result
 
@@ -126,12 +142,6 @@ async def translate_speech(
     except ValidationError as exc:
         errors = [{**error, "loc": ("body", *error["loc"])} for error in exc.errors()]
         raise RequestValidationError(errors) from exc
-    # Defense in depth if another caller supplies an already parsed UploadFile.
-    if audio.size is not None and audio.size > pipeline.MAX_AUDIO_BYTES:
-        raise HTTPException(413, "Audio file is larger than 10 MB")
-    content = await audio.read(pipeline.MAX_AUDIO_BYTES + 1)
-    if len(content) > pipeline.MAX_AUDIO_BYTES:
-        raise HTTPException(413, "Audio file is larger than 10 MB")
     return await execute(
         response,
         models=models,
@@ -140,5 +150,54 @@ async def translate_speech(
         user_id=user.id,
         source=pair.source_lang,
         target=pair.target_lang,
+        audio=await read_audio(audio),
+    )
+
+
+async def read_audio(audio: UploadFile) -> bytes:
+    # Defense in depth if another caller supplies an already parsed UploadFile.
+    if audio.size is not None and audio.size > pipeline.MAX_AUDIO_BYTES:
+        raise HTTPException(413, "Audio file is larger than 10 MB")
+    content = await audio.read(pipeline.MAX_AUDIO_BYTES + 1)
+    if len(content) > pipeline.MAX_AUDIO_BYTES:
+        raise HTTPException(413, "Audio file is larger than 10 MB")
+    return content
+
+
+OTHER: dict[Language, Language] = {"ko": "en", "en": "ko"}
+
+
+@router.post("/dialog", status_code=201, response_model=DialogResponse)
+async def translate_dialog(
+    response: Response,
+    user: CurrentUser,
+    db: DbSession,
+    models: Models,
+    store: StoredAudio,
+    audio: Annotated[UploadFile, File()],
+    previous_lang: Annotated[Language | None, Form()] = None,
+) -> DialogResponse:
+    """Two people, one screen (T35): the utterance's language is detected and it is translated into the
+    other. When the detection is unsure, the conversation is taken to alternate (docs/experiments.md 10)."""
+    content = await read_audio(audio)
+    if not isinstance(models.stt, LanguageDetector):
+        raise HTTPException(503, "Translation service is unavailable")
+    with failures_as_http():
+        await run_model(pipeline.validate_audio, content)
+        language, confidence = await run_model(models.stt.detect_language, content)
+    guessed = previous_lang is not None and confidence < get_settings().dialog_language_threshold
+    if guessed:
+        language = OTHER[previous_lang]
+    result = await execute(
+        response,
+        models=models,
+        store=store,
+        db=db,
+        user_id=user.id,
+        source=language,
+        target=OTHER[language],
         audio=content,
+    )
+    return DialogResponse(
+        **result.model_dump(), language_confidence=round(confidence, 3), language_guessed=guessed
     )

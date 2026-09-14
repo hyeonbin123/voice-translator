@@ -95,6 +95,21 @@ class WhisperSpeechToText:
         text, _ = self._recognize(samples, language, self.live_options)
         return text
 
+    def detect_language(self, audio: bytes) -> tuple[Language, float]:
+        """Whisper's language detection with only Korean and English kept (docs/experiments.md 10)."""
+        if not audio:
+            raise UndecodableAudioError("empty audio")
+        samples = self._decode(audio)
+        try:
+            _, _, probabilities = self._model.detect_language(samples, vad_filter=self.options["vad_filter"])
+        except Exception as exc:  # noqa: BLE001 - the boundary around the engine, as in _recognize
+            raise ModelError(f"language detection failed: {type(exc).__name__}") from exc
+        found = dict(probabilities)
+        ko, en = found.get("ko", 0.0), found.get("en", 0.0)
+        if ko + en == 0:
+            return "ko", 0.5
+        return ("ko" if ko >= en else "en"), max(ko, en) / (ko + en)
+
     def _decode(self, audio: bytes) -> np.ndarray:
         try:
             samples = decode_audio(audio)
