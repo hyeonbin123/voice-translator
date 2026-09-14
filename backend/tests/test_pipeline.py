@@ -14,6 +14,7 @@ from app.services import pipeline
 from app.services.audio_store import AudioStore
 from app.services.correction import OllamaCorrector
 from app.services.inference import run_model
+from app.services.interfaces import SynthesizedAudio
 from tests.fakes import FakeCorrector, FakeSpeechToText, FakeTextToSpeech, FakeTranslator, silent_wav
 
 
@@ -271,3 +272,40 @@ async def test_partial_write_is_removed(tmp_path, monkeypatch, failure_stage):
     with pytest.raises(OSError, match="disk full"):
         await store.save(uuid4(), b"a synthesized wav")
     assert not list(tmp_path.iterdir())
+
+
+async def test_a_save_cancelled_while_writing_leaves_neither_record_nor_file(db_session, user, tmp_path):
+    """A live connection that closes mid-save cancels it while the worker thread writes the file (T59)."""
+    entered, release = threading.Event(), threading.Event()
+    store = AudioStore(tmp_path / "audio")
+    resolve = store.resolve
+
+    def held(name):
+        entered.set()
+        assert release.wait(5)
+        return resolve(name)
+
+    store.resolve = held
+    speech = SynthesizedAudio(wav=silent_wav(100), sample_rate=16_000, duration_ms=100)
+    prepared = pipeline.Prepared(
+        mode="speech",
+        source="ko",
+        target="en",
+        source_text="원문",
+        translated_text="text",
+        mt_model="fake-mt",
+        mt_ms=1,
+        speech=speech,
+        tts_error=None,
+    )
+    saving = asyncio.create_task(
+        pipeline.save(db=db_session, store=store, user_id=user.id, prepared=prepared)
+    )
+    assert await asyncio.to_thread(entered.wait, 5)
+    saving.cancel()
+    await asyncio.sleep(0)  # the cancellation reaches save() while the write is still held
+    release.set()
+    with pytest.raises(asyncio.CancelledError):
+        await saving
+    assert not list((tmp_path / "audio").glob("*"))
+    assert await db_session.scalar(select(func.count()).select_from(Translation)) == 0

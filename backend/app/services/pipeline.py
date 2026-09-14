@@ -6,6 +6,8 @@ the pause turns out to be the end of the utterance (T56), so a prepared translat
 disk nor the database.
 """
 
+import asyncio
+import contextlib
 import io
 import logging
 from collections.abc import Callable
@@ -182,15 +184,22 @@ async def save(
     tts_error = prepared.tts_error
     saved_path = None
     if prepared.speech is not None:
+        audio_id = uuid4()
+        # The write runs in a worker thread that a cancellation cannot stop: a live connection that closes
+        # mid-save would leave a file no record points to (T59). So wait for it, then remove what it wrote.
+        writing = asyncio.ensure_future(store.save(audio_id, prepared.speech.wav))
         try:
-            audio_id = uuid4()
-            saved_path = await store.save(audio_id, prepared.speech.wav)
+            saved_path = await asyncio.shield(writing)
             item.audio_file = AudioFile(id=audio_id, path=saved_path, duration_ms=prepared.speech.duration_ms)
             item.tts_model = prepared.tts_model
             item.tts_ms = prepared.tts_ms
         except OSError as exc:
             logger.error("Speech synthesis or audio storage failed: %s", describe(exc))
             tts_error = "Speech synthesis failed"
+        except asyncio.CancelledError:
+            with contextlib.suppress(OSError, ValueError):
+                await store.delete(await writing)
+            raise
     try:
         db.add(item)
         await db.flush()

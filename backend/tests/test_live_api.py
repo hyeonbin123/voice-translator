@@ -1,6 +1,8 @@
 """The live subtitle WebSocket (T56) with fake models, through Starlette's test client."""
 
+import asyncio
 import logging
+import threading
 import time
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
@@ -296,3 +298,113 @@ async def test_the_connection_closes_once_the_token_expires(live, user):
         time.sleep(1.2)
         ws.send_json({"type": "utterance", "id": 1})
         assert closed_with(ws) == 4401
+
+
+class HeldFinal(FakeLiveSpeechToText):
+    """Holds the first final recognition in the model thread until released, and notes when each update
+    starts (T60: the fast fakes above never catch the server in the middle of a call)."""
+
+    def __init__(self, hold: bool = True) -> None:
+        super().__init__()
+        self.entered, self.release, self.left = threading.Event(), threading.Event(), threading.Event()
+        self.hold = hold
+        self.update_starts: list[float] = []
+
+    def transcribe(self, audio, language):
+        if self.hold:
+            self.hold = False
+            self.entered.set()
+            try:
+                assert self.release.wait(5)
+            finally:
+                self.left.set()
+        return super().transcribe(audio, language)
+
+    def transcribe_live(self, pcm, language):
+        self.update_starts.append(time.perf_counter())
+        return super().transcribe_live(pcm, language)
+
+
+async def test_speech_while_the_final_is_prepared_drops_that_final(live, db_session):
+    stt = HeldFinal()
+    app.dependency_overrides[get_models] = lambda: replace(live.models, stt=stt)
+    with live.client.websocket_connect("/api/translate/live") as ws:
+        start(ws, live.token)
+        ws.send_json({"type": "utterance", "id": 1})
+        ws.send_bytes(SECOND)
+        ws.send_json({"type": "pause", "id": 1})
+        assert stt.entered.wait(5)  # the prepared final is inside the recognition model
+        ws.send_json({"type": "resume", "id": 1})
+        ws.send_bytes(SECOND)
+        stt.release.set()
+        ws.send_json({"type": "pause", "id": 1})
+        ws.send_json({"type": "end", "id": 1})
+        final = until(ws, "final")[-1]
+    # Whether the resume came before or after the held call returned, only the second pause counts.
+    assert final["result"]["source_text"] == words(2 * len(SECOND))
+    assert await records(db_session) == 1
+
+
+async def test_a_connection_closed_while_the_final_is_prepared_saves_nothing(live, db_session, tmp_path):
+    stt = HeldFinal()
+    app.dependency_overrides[get_models] = lambda: replace(live.models, stt=stt)
+    with live.client.websocket_connect("/api/translate/live") as ws:
+        start(ws, live.token)
+        ws.send_json({"type": "utterance", "id": 1})
+        ws.send_bytes(SECOND)
+        ws.send_json({"type": "pause", "id": 1})
+        ws.send_json({"type": "end", "id": 1})
+        assert stt.entered.wait(5)
+    time.sleep(0.2)  # the server has seen the disconnect and cancelled the final
+    stt.release.set()
+    assert stt.left.wait(5)
+    await asyncio.sleep(0.3)
+    assert await records(db_session) == 0
+    assert not list((tmp_path / "audio").glob("*.wav"))
+
+
+async def test_updates_start_at_least_the_interval_apart(live):
+    stt = HeldFinal(hold=False)
+    app.dependency_overrides[get_models] = lambda: replace(live.models, stt=stt)
+    app.dependency_overrides[get_live_options] = lambda: LiveOptions(interval_s=0.3)
+    with live.client.websocket_connect("/api/translate/live") as ws:
+        start(ws, live.token)
+        ws.send_json({"type": "utterance", "id": 1})
+        began = time.perf_counter()
+        while time.perf_counter() - began < 1.6:
+            ws.send_bytes(SECOND[:3200])  # 0.1 s of audio, faster than real time
+            time.sleep(0.05)
+        ws.send_json({"type": "end", "id": 1})
+        until(ws, "final")
+    starts = stt.update_starts
+    assert len(starts) >= 4
+    assert all(later - earlier >= 0.25 for earlier, later in zip(starts, starts[1:], strict=False))
+
+
+async def test_a_failed_save_is_an_error_and_leaves_no_file(live, db_session, tmp_path, caplog):
+    factory = app.dependency_overrides[get_sessions]()
+    opened = []
+
+    def sessions():
+        session = factory()
+        opened.append(session)
+        if len(opened) > 1:  # the first session checks the user at the start
+
+            async def fail_commit():
+                raise RuntimeError("secret database words")
+
+            session.commit = fail_commit
+        return session
+
+    app.dependency_overrides[get_sessions] = lambda: sessions
+    with caplog.at_level(logging.WARNING), live.client.websocket_connect("/api/translate/live") as ws:
+        start(ws, live.token)
+        ws.send_json({"type": "utterance", "id": 1})
+        ws.send_bytes(SECOND)
+        ws.send_json({"type": "end", "id": 1})
+        error = until(ws, "error")[-1]
+    assert error == {"type": "error", "id": 1, "detail": "The translation could not be saved"}
+    assert await records(db_session) == 0
+    assert not list((tmp_path / "audio").glob("*.wav"))
+    assert "RuntimeError" in caplog.text
+    assert "secret" not in caplog.text and live.token not in caplog.text
