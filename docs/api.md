@@ -307,9 +307,29 @@ access 헤더 없이 refresh 토큰을 JSON으로 보낸다.
 
 ### GET /api/health
 
-인증이 필요 없다. 응답 `200 OK`, 본문 `{"status": "ok"}`.
+인증이 필요 없다. DB에 `SELECT 1`을 보내(2초 제한) 연결을 확인하고, 올라간 모델의 이름을 알려 준다. 응답 `200 OK` 예:
 
-API 프로세스가 요청을 받고 있다는 뜻일 뿐, DB 연결이나 모델 준비는 확인하지 않는다. `LOAD_MODELS=true`면 앱은 모델을 올리고 준비 단계를 마친 뒤에 요청을 받기 시작하므로, 그때부터 200이 나온다(Docker compose의 api 상태 검사가 이 경로를 쓴다). 오타 교정 모델은 기다리지 않고 뒤에서 준비하므로 200이어도 아직 교정이 켜지지 않았을 수 있다.
+```json
+{
+  "status": "ok",
+  "database": "ok",
+  "models": {
+    "speech_recognition": "faster-whisper/large-v3-turbo",
+    "translation": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+    "speech_synthesis": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+    "typo_correction": "ollama/qwen2.5:1.5b-instruct"
+  },
+  "typo_correction_ready": true,
+  "live": true
+}
+```
+
+- DB에 닿지 못하면 `503 Service Unavailable`, `status`와 `database`가 `"unavailable"`이다. 이유는 서버 로그에만 남긴다(메시지 없이 종류와 위치만)
+- 모델을 올리지 않았으면(`LOAD_MODELS=false`, 테스트·CI) `models`의 값이 모두 `null`이고 번역 요청은 503이다
+- `typo_correction_ready`: 오타 교정 모델은 서버 시작을 기다리지 않고 뒤에서 준비하므로(T37) 준비됐는지 따로 알린다
+- `live`: 동시통역 웹소켓(`/api/translate/live`)을 쓸 수 있는지(자막 갱신용 인식과 번역 모델이 있음)
+- `LOAD_MODELS=true`면 앱은 모델을 올리고 준비 단계를 마친 뒤에 요청을 받기 시작하므로 그때부터 응답한다. Docker compose의 api 상태 검사가 이 경로를 쓰므로, DB가 끊기면 api가 unhealthy가 된다
+- 모델 이름은 인증 없이 보인다. 비밀값은 들어 있지 않다
 
 ## 오류 응답
 
