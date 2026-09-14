@@ -5,10 +5,14 @@ import { TranslationApi, type TranslationResult, type Direction } from './api'
 export const mockTranslationApi = new TranslationApi({
   async request(path, init) {
     init?.signal?.throwIfAborted()
+    if (init?.method === 'DELETE') return new Response(null, { status: 204 })
     const speech = path === '/api/translate/speech'
+    const dialog = path === '/api/translate/dialog'
     const form = init?.body as FormData
-    const input: Direction & { text: string } = speech
-      ? { source_lang: form.get('source_lang'), target_lang: form.get('target_lang'), text: '' }
+    const previous = dialog ? form.get('previous_lang') : null
+    const input: Direction & { text: string } = speech || dialog
+      ? { source_lang: dialog ? (previous === 'ko' ? 'en' : 'ko') : form.get('source_lang'),
+        target_lang: dialog ? (previous === 'ko' ? 'ko' : 'en') : form.get('target_lang'), text: '' }
       : JSON.parse(init?.body as string)
     const samples = new Map(input.source_lang === 'ko'
       ? [['안녕하세요', 'Hello'], ['감사합니다', 'Thank you']]
@@ -24,6 +28,7 @@ export const mockTranslationApi = new TranslationApi({
       stt_ms: speech ? 200 : null, mt_ms: 120, tts_ms: null, audio_id: null,
       created_at: new Date().toISOString(), tts_error: 'Speech synthesis is not available',
     }
+    if (dialog) Object.assign(body, { language_confidence: previous ? .62 : .98, language_guessed: Boolean(previous) })
     return new Response(JSON.stringify(body), { status: 201, headers: {
       'Content-Type': 'application/json', Location: `/api/history/${body.id}`,
     } })

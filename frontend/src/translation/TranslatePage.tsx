@@ -5,6 +5,7 @@ import Playback from './Playback'
 import { useRecorder } from './useRecorder'
 import ConversationPanel from '../conversation/ConversationPanel'
 import LivePanel from '../live/LivePanel'
+import DialogPanel from '../dialog/DialogPanel'
 
 const languageName = { ko: '한국어', en: '영어' }
 const timing = (value: number | null) => value === null ? '실행 안 함' : `${value.toLocaleString('ko-KR')} ms`
@@ -13,7 +14,7 @@ export default function TranslatePage({ api }: { api: TranslationApi }) {
   const [source, setSource] = useState<Language>('ko')
   const target = source === 'ko' ? 'en' : 'ko'
   const [text, setText] = useState('')
-  const [mode, setMode] = useState<'text' | 'speech' | 'conversation' | 'live'>('text')
+  const [mode, setMode] = useState<'text' | 'speech' | 'conversation' | 'dialog' | 'live'>('text')
   const [conversationActive, setConversationActive] = useState(false)
   const [clip, setClip] = useState<Blob | null>(null)
   const [result, setResult] = useState<TranslationResult | null>(null)
@@ -43,7 +44,7 @@ export default function TranslatePage({ api }: { api: TranslationApi }) {
 
   async function submit(event: FormEvent) {
     event.preventDefault()
-    if (pending.current || recording || mode === 'conversation' || mode === 'live') return
+    if (pending.current || recording || mode === 'conversation' || mode === 'dialog' || mode === 'live') return
     setError('')
     if (mode === 'text' && (count < 1 || count > 500)) {
       setError('앞뒤 공백을 제외하고 1~500자를 입력해 주세요.')
@@ -84,21 +85,22 @@ export default function TranslatePage({ api }: { api: TranslationApi }) {
         녹음 결과도 고정된 인사말 예시입니다.
       </aside>}
       <form onSubmit={(event) => { void submit(event) }} aria-busy={busy}>
-        <fieldset disabled={busy || recording || conversationActive} className="direction">
+        {mode !== 'dialog' && <fieldset disabled={busy || recording || conversationActive} className="direction">
           <legend>번역 방향</legend>
           <label htmlFor="source-language">말하거나 입력할 언어</label>
           <select id="source-language" value={source} onChange={(event) => {
             setSource(event.target.value as Language); setClip(null); setError('')
           }}><option value="ko">한국어 → 영어</option><option value="en">영어 → 한국어</option></select>
-        </fieldset>
+        </fieldset>}
         <fieldset disabled={busy || recording || conversationActive} className="mode-picker">
           <legend>입력 방법</legend>
           <label><input type="radio" name="input-mode" checked={mode === 'text'} onChange={() => { setMode('text'); setError('') }} /> 글자 입력</label>
           <label><input type="radio" name="input-mode" checked={mode === 'speech'} onChange={() => { setMode('speech'); setError('') }} /> 음성 입력</label>
+          <label><input type="radio" name="input-mode" checked={mode === 'dialog'} onChange={() => { setMode('dialog'); setError(''); setResult(null) }} /> 두 사람 대화</label>
           <label><input type="radio" name="input-mode" checked={mode === 'conversation'} onChange={() => { setMode('conversation'); setError(''); setResult(null) }} /> 대화 모드</label>
           <label><input type="radio" name="input-mode" checked={mode === 'live'} onChange={() => { setMode('live'); setError(''); setResult(null) }} /> 동시통역</label>
         </fieldset>
-        {mode === 'live' ? <LivePanel api={api} direction={{ source_lang: source, target_lang: target }} onActiveChange={setConversationActive} /> : mode === 'conversation' ? <ConversationPanel api={api} direction={{ source_lang: source, target_lang: target }} onActiveChange={setConversationActive} /> : mode === 'text' ? <>
+        {mode === 'live' ? <LivePanel api={api} direction={{ source_lang: source, target_lang: target }} onActiveChange={setConversationActive} /> : mode === 'dialog' ? <DialogPanel api={api} onActiveChange={setConversationActive} /> : mode === 'conversation' ? <ConversationPanel api={api} direction={{ source_lang: source, target_lang: target }} onActiveChange={setConversationActive} /> : mode === 'text' ? <>
           <label htmlFor="source-text">번역할 글 ({languageName[source]})</label>
           <textarea id="source-text" value={text} disabled={busy} rows={6} aria-describedby={`text-count${error ? ' translation-error' : ''}`}
             aria-invalid={count > 500 || (!!error && count === 0)} onChange={(event) => setText(event.target.value)} placeholder="번역할 내용을 입력하세요" />
@@ -133,13 +135,13 @@ export default function TranslatePage({ api }: { api: TranslationApi }) {
             {clip ? <>{clip instanceof File ? `선택한 파일: ${clip.name}` : '녹음 완료'} · {(clip.size / 1000).toFixed(1)} KB · 번역할 준비가 되었습니다.</> : '선택한 음성이 없습니다.'}
           </p>
         </div>}
-        {mode !== 'conversation' && mode !== 'live' && <button className="primary" type="submit" disabled={busy || recording || (mode === 'speech' && !clip)}>
+        {mode !== 'conversation' && mode !== 'dialog' && mode !== 'live' && <button className="primary" type="submit" disabled={busy || recording || (mode === 'speech' && !clip)}>
           {busy ? '번역 중…' : '번역하기'}
         </button>}
         {busy && <p role="status">번역과 음성을 준비하고 있습니다.</p>}
         {error && <p id="translation-error" ref={errorSummary} tabIndex={-1} className="error" role="alert">{error}</p>}
       </form>
-      {mode !== 'conversation' && mode !== 'live' && !result && !busy && <p className="hint">번역하면 이곳에 원문과 번역문이 표시됩니다. 번역 음성도 재생할 수 있습니다.</p>}
+      {mode !== 'conversation' && mode !== 'dialog' && mode !== 'live' && !result && !busy && <p className="hint">번역하면 이곳에 원문과 번역문이 표시됩니다. 번역 음성도 재생할 수 있습니다.</p>}
       {result && <section className="translation-result" aria-labelledby="result-title">
         <h2 id="result-title" ref={resultHeading} tabIndex={-1}>번역 결과</h2>
         <div className="result-columns">

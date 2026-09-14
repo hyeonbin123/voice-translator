@@ -167,6 +167,118 @@ test('conversation keyboard controls, live states, turn error recovery and 360px
   await audit(page, 'conversation-stopped-360')
 })
 
+test('two-person dialog keyboard, guessed direction, face-to-face view and 360px layout', async ({ page }) => {
+  await page.route((url) => url.pathname === '/src/conversation/sileroRuntime.ts', async (route) => {
+    await route.fulfill({ contentType: 'application/javascript', body: `
+      export async function getSileroRunner() {
+        return async input => ({ probability: input[64], h: new Float32Array(128), c: new Float32Array(128) });
+      }` })
+  })
+  await page.addInitScript(() => {
+    const harness = window as unknown as { captureDialog: (speechFrames: number, quietFrames: number) => void; finishDialogSpeech: () => void }
+    class Context {
+      sampleRate = 16000; destination = {}; audioWorklet = { addModule: async () => {} }
+      async resume() {} async close() {}
+      createMediaStreamSource() { return { connect() {}, disconnect() {} } }
+    }
+    class Node {
+      epoch = 0
+      port = { onmessage: null as ((event: unknown) => void) | null, close() {},
+        postMessage: (data: { epoch: number }) => { this.epoch = data.epoch } }
+      connect() {} disconnect() {}
+      constructor() {
+        harness.captureDialog = (speech, quiet) => {
+          const samples = new Float32Array((speech + quiet) * 512)
+          samples.fill(.8, 0, speech * 512)
+          this.port.onmessage?.({ data: { samples, epoch: this.epoch } })
+        }
+      }
+    }
+    Object.defineProperty(window, 'AudioContext', { value: Context })
+    Object.defineProperty(window, 'AudioWorkletNode', { value: Node })
+    window.speechSynthesis.speak = (utterance) => {
+      harness.finishDialogSpeech = () => utterance.onend?.(new SpeechSynthesisEvent('end', { utterance }))
+    }
+  })
+  const dialogBodies: string[] = []
+  const dialogResults = [
+    { ...item, id: 'wrong', mode: 'speech', source_lang: 'ko', target_lang: 'en', source_text: '안녕하세요',
+      translated_text: 'Hello', language_confidence: .55, language_guessed: true },
+    { ...item, id: 'english', mode: 'speech', source_lang: 'en', target_lang: 'ko', source_text: 'Thank you',
+      translated_text: '감사합니다', language_confidence: .98, language_guessed: false },
+  ]
+  await page.route('**/api/translate/dialog', async (route) => {
+    dialogBodies.push(route.request().postData() ?? '')
+    await route.fulfill({ status: 201, json: dialogResults[dialogBodies.length - 1] })
+  })
+  let correctionBody = ''
+  await page.route('**/api/translate/speech', async (route) => {
+    correctionBody = route.request().postData() ?? ''
+    await route.fulfill({ status: 201, json: { ...item, id: 'corrected', mode: 'speech', source_lang: 'en',
+      target_lang: 'ko', source_text: 'Hello', translated_text: '안녕하세요' } })
+  })
+  let deleted = ''
+  await page.route('**/api/history/wrong', async (route) => {
+    deleted = route.request().method()
+    await route.fulfill({ status: 204, body: '' })
+  })
+  const capture = (speech: number, quiet: number) => page.evaluate(([a, b]) => {
+    (window as unknown as { captureDialog: (a: number, b: number) => void }).captureDialog(a, b)
+  }, [speech, quiet])
+  const finishSpeech = () => page.evaluate(() =>
+    (window as unknown as { finishDialogSpeech: () => void }).finishDialogSpeech())
+
+  await login(page)
+  await tabTo(page, page.getByRole('radio', { name: '글자 입력', exact: true }))
+  await page.keyboard.press('ArrowRight'); await page.keyboard.press('ArrowRight')
+  await expect(page.getByRole('radio', { name: '두 사람 대화', exact: true })).toBeChecked()
+  await expect(page.getByLabel('말하거나 입력할 언어')).toHaveCount(0)
+  const panel = page.getByRole('region', { name: '두 사람 대화' })
+  await expect(panel.getByLabel('두 사람 대화 내용')).toHaveAttribute('aria-live', 'polite')
+  await audit(page, 'dialog-bubbles-idle-360')
+  await activate(page, panel.getByRole('button', { name: '두 사람 대화 시작' }))
+  await expect(panel.getByRole('status')).toContainText('듣는 중')
+
+  await capture(8, 31)
+  await expect(panel.getByText(/방향을 추정했습니다/)).toBeVisible()
+  expect(dialogBodies[0]).not.toContain('name="previous_lang"')
+  await expect(panel.getByRole('status')).toContainText('재생 중 · 듣기 멈춤')
+  await finishSpeech()
+  await expect(panel.getByRole('status')).toContainText('듣는 중')
+  await capture(8, 31)
+  await expect(panel.getByText('감사합니다', { exact: true })).toBeVisible()
+  expect(dialogBodies[1]).toContain('name="previous_lang"')
+  expect(dialogBodies[1]).toContain('ko')
+  await finishSpeech()
+  await expect(panel.locator('.dialog-turn-ko')).toContainText('안녕하세요')
+  await expect(panel.locator('.dialog-turn-en')).toContainText('Thank you')
+  await audit(page, 'dialog-bubbles-360')
+
+  await activate(page, panel.getByRole('button', { name: '마주 보기' }))
+  const face = panel.getByLabel('마주 보기 대화')
+  await expect(face.getByLabel('한국어 화자 쪽 · 맞은편').locator('.face-translation')).toHaveText('감사합니다')
+  await expect(face.getByLabel('영어 화자 쪽 · 가까운 쪽').locator('.face-translation')).toHaveText('Hello')
+  await expect(face.getByLabel('한국어 화자 쪽 · 맞은편').locator('.face-pane-content')).not.toHaveCSS('transform', 'none')
+  await audit(page, 'dialog-face-to-face-360')
+  await activate(page, panel.getByRole('button', { name: '칸 언어 바꾸기' }))
+  await expect(face.getByLabel('영어 화자 쪽 · 맞은편')).toBeVisible()
+  await activate(page, panel.getByRole('button', { name: '말풍선 보기' }))
+
+  await activate(page, panel.getByRole('button', { name: '이 말의 방향 바꾸기' }))
+  await expect(panel.getByRole('article', { name: '1번째 말 · 번역 완료' })).toContainText('안녕하세요')
+  expect(correctionBody).toContain('name="source_lang"')
+  expect(correctionBody).toContain('en')
+  expect(correctionBody).toContain('name="target_lang"')
+  expect(correctionBody).toContain('ko')
+  expect(deleted).toBe('DELETE')
+  await expect(panel.getByText(/방향을 추정했습니다/)).toHaveCount(0)
+  await expect(panel.getByRole('status')).toContainText('재생 중 · 듣기 멈춤')
+  await finishSpeech()
+  await activate(page, panel.getByRole('button', { name: '두 사람 대화 멈춤' }))
+  await expect(panel.getByRole('status')).toHaveText('멈춤')
+  await audit(page, 'dialog-stopped-360')
+})
+
 test('live subtitles: keyboard start/stop, stable text, final announcement, playback and narrow layout', async ({ page }) => {
   await page.route((url) => url.pathname === '/src/conversation/sileroRuntime.ts', async (route) => {
     await route.fulfill({ contentType: 'application/javascript', body: `

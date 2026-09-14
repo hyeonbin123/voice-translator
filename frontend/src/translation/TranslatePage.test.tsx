@@ -136,6 +136,14 @@ it('uploads audio as multipart without setting its boundary and displays speech 
   expect(form.get('target_lang')).toBe('en')
 })
 
+it('offers two-person dialog without a manual language direction', async () => {
+  render(<TranslatePage api={api} />)
+  await userEvent.click(screen.getByLabelText('두 사람 대화'))
+  expect(screen.getByRole('heading', { name: '두 사람 대화' })).toBeInTheDocument()
+  expect(screen.queryByLabelText('말하거나 입력할 언어')).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: '번역하기' })).not.toBeInTheDocument()
+})
+
 it('announces the selected file, preserves it on cancel, and resets it when direction changes', async () => {
   render(<TranslatePage api={api} />)
   const user = userEvent.setup()

@@ -17,6 +17,10 @@ export interface TranslationResult extends Direction {
   created_at: string
   tts_error: 'Speech synthesis failed' | 'Speech synthesis is not available' | null
 }
+export interface DialogTranslationResult extends TranslationResult {
+  language_confidence: number
+  language_guessed: boolean
+}
 
 export const MAX_AUDIO_BYTES = 10_000_000 // Conservative decimal MB; server validates decoded duration.
 export const characterCount = (text: string) => Array.from(text.trim()).length
@@ -51,6 +55,17 @@ export class TranslationApi {
     body.append('source_lang', direction.source_lang)
     body.append('target_lang', direction.target_lang)
     return (await this.client.request('/api/translate/speech', { method: 'POST', body, signal })).json()
+  }
+
+  async dialog(audio: Blob, previousLang: Language | undefined, signal: AbortSignal): Promise<DialogTranslationResult> {
+    const body = new FormData()
+    body.append('audio', audio, audio instanceof File ? audio.name : 'conversation.wav')
+    if (previousLang) body.append('previous_lang', previousLang)
+    return (await this.client.request('/api/translate/dialog', { method: 'POST', body, signal })).json()
+  }
+
+  async removeHistory(id: string, signal: AbortSignal): Promise<void> {
+    await this.client.request(`/api/history/${encodeURIComponent(id)}`, { method: 'DELETE', signal })
   }
 
   async audio(id: string, signal: AbortSignal): Promise<Blob> {
