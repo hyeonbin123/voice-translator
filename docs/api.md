@@ -393,6 +393,7 @@ backend 폴더에서 `uv sync` 후 `uv run alembic upgrade head`를 실행해 �
 | `LIVE_BEAM_SIZE` | `5` | 동시통역 자막 갱신의 인식 beam 크기. 최종 결과는 늘 음성 번역 API와 같은 설정을 쓴다 |
 | `LIVE_TEMPERATURE_FALLBACK` | `true` | 자막 갱신 인식이 결과가 나쁠 때 temperature를 올려 다시 풀지. 끄면 temperature 0으로 한 번만 푼다 |
 | `LIVE_UPDATE_THREAD` | `false` | 자막 갱신을 모델 스레드 대기열 대신 전용 스레드에서 돌린다. 인식 호출끼리 실제로 동시에 돌려면 `STT_NUM_WORKERS`도 2 이상이어야 한다 (docs/experiments.md 8절 T61) |
+| `DIALOG_LANGUAGE_THRESHOLD` | `0.6` | 두 사람 대화에서 판별한 언어의 확신이 이보다 낮으면 직전 마디의 반대 언어로 처리한다 (docs/experiments.md 10절에서 고름) |
 | `STT_NUM_WORKERS` | `1` | 인식 모델 복제 수(faster-whisper num_workers). 여러 스레드의 인식 호출이 이 수만큼 동시에 돈다. 복제마다 GPU 메모리를 더 쓴다 |
 | `WARM_UP` | `true` | 모델을 올린 뒤 번역·합성·인식을 한 번씩 돌려 첫 요청의 지연을 없앤다 |
 | `TYPO_CORRECTION` | `true` | 글자로 입력한 영어를 번역 전에 Ollama의 작은 LLM으로 오타·띄어쓰기만 고친다 (docs/experiments.md 6절). 한국어 입력과 음성 인식 결과는 고치지 않는다. Ollama가 응답하지 않거나, 정상 종료로 답하지 않았거나(교정문은 `done`이 true이고 `done_reason`이 "stop"일 때만 쓴다), 한글이 섞였거나, 입력과 글자가 절반 넘게 다르면(거절문·설명을 붙인 답 등, docs/experiments.md 6절) 입력한 그대로 번역한다. 글자는 거의 같은데 뜻만 바뀐 교정까지 막지는 못한다. 서버 시작은 Ollama를 기다리지 않는다: 교정 모델은 뒤에서 준비되고(첫 시작의 내려받기 포함, 실패하면 30초마다 다시 시도), 준비되기 전에는 입력 그대로 번역한다. 기록의 `source_text`는 입력한 그대로, `mt_model`에는 교정 모델이 붙고(`... + ollama/...`), `mt_ms`는 교정 시간을 포함한다 |

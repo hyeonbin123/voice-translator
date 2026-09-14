@@ -42,8 +42,8 @@ class Settings(BaseSettings):
     live_update_thread: bool = False
     stt_num_workers: int = Field(default=1, ge=1)
     # Two-person conversation (T35, docs/experiments.md 10): below this confidence in the detected language,
-    # an utterance is taken as the language opposite to the previous one.
-    dialog_language_threshold: float = Field(default=0.8, gt=0.5, le=1.0)
+    # an utterance is taken as the language opposite to the previous one. 0.6 was chosen on validation.
+    dialog_language_threshold: float = Field(default=0.6, gt=0.5, le=1.0)
     # Run every model once after loading, so the first request does not pay for lazy loading (T25).
     warm_up: bool = True
     # Fix typos in typed English before translating it, with a small LLM served by Ollama (T32,

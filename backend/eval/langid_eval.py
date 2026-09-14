@@ -3,10 +3,10 @@
   uv run python -m eval.langid_eval --split validation --tag t35_dev
   uv run python -m eval.langid_eval --split test --tag t35_test --thresholds 0.8
 
-Each FLEURS recording, brought to the same level as in section 7, is cut three ways: the first second of
-speech, the first two, and all of it (200 ms before the first word to 200 ms after the last, from the
-cached Whisper word bounds of section 7). Whisper's language detection keeps the Korean and English
-probabilities only: the larger one decides, and its share of the two is the confidence.
+Each FLEURS recording, brought to the same level as in section 7, is cut as the browser cuts it (Silero,
+section 8: from 192 ms before speech to 192 ms after it), then three ways: its first second of speech,
+its first two, and all of it. Whisper's language detection keeps the Korean and English probabilities
+only: the larger one decides, and its share of the two is the confidence.
 """
 
 from __future__ import annotations
