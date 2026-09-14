@@ -15,10 +15,13 @@ Texts are compared by their letters only (app/services/live.py): Korean spacing 
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import random
+import secrets
 import statistics
 import time
+import uuid
 from datetime import UTC, datetime
 from difflib import SequenceMatcher
 
@@ -88,6 +91,7 @@ def cut(silero: Silero, clip: np.ndarray, seed: int) -> dict | None:
         "audio": quantize(track[begin * S_CHUNK : (end + PAD_FRAMES) * S_CHUNK]),
         "detected_s": (first + S_START_FRAMES - begin) * S_CHUNK / RATE,  # when the browser starts streaming
         "pauses": long_pauses(flags[first:end]),
+        "flags": flags[begin : end + PAD_FRAMES],  # the browser's speech flags, one per frame of the clip
     }
 
 
@@ -160,16 +164,23 @@ def erased(sequence: list[str]) -> int:
 
 
 def dark_changes(shown: list[tuple[str, int]], final: str) -> tuple[int, int]:
-    """(dark letters later taken away, letters that turned dark) over (letters, dark letters) on screen.
-    The final result takes dark letters away too; its own letters are not counted as turning dark."""
+    """(dark letters later changed, letters that turned dark) over (letters, dark letters) on screen.
+
+    A dark letter has changed when the next text no longer has it, by aligning the two texts (the rule
+    fixed after the first validation, docs/experiments.md 8: a word changed early in the dark part no
+    longer counts every dark letter after it). The final result can change dark letters too; its own
+    letters are not counted as turning dark."""
+
+    def lost(before: str, dark: int, after: str) -> int:
+        return int((~covered(after, before)[:dark]).sum())
+
     dropped = became = 0
     for (before, dark_before), (after, dark_after) in zip(shown, shown[1:], strict=False):
-        kept = min(dark_before, common_start(before, after))
-        dropped += dark_before - kept
-        became += max(0, dark_after - kept)
+        changed = lost(before, dark_before, after)
+        dropped += changed
+        became += max(0, dark_after - (dark_before - changed))
     if shown:
-        before, dark_before = shown[-1]
-        dropped += dark_before - min(dark_before, common_start(before, final))
+        dropped += lost(*shown[-1], final)
     return dropped, became
 
 
@@ -342,7 +353,8 @@ def write_report(
         + ", ".join(f"{lang} {value:.1f}" for lang, value in pauses.items()),
         "- 모두 대소문자·띄어쓰기·문장부호를 뺀 글자로 센다. 표시 지연: 최종 단어의 글자가 화면에 모두 "
         "나타나 계속 남게 된 첫 시각 − 소리에서 그 단어가 끝난 시각. 흔들림: 지운 글자 ÷ 최종 글자. "
-        "확정 뒤 바뀜: 진하게 보인 뒤 지워진 글자 ÷ 진하게 된 글자. 모델 사용: 호출 시간 ÷ 소리 길이",
+        "확정 뒤 바뀜: 진하게 보인 뒤 다음 글에서 (글자 정렬로) 찾을 수 없게 된 글자 ÷ 진하게 된 글자. "
+        "모델 사용: 호출 시간 ÷ 소리 길이",
         "",
         "| 갱신 간격 | 인식 | 언어 | 문장 | 표시 지연 p50 | p90 | 원문 흔들림 | 원문 확정 뒤 바뀜 | "
         "번역 흔들림 | 번역 확정 뒤 바뀜 | 모델 사용 | 초당 갱신 | 최종 대기 p50/p90 | 최종 글자까지 p50 |",
@@ -360,20 +372,179 @@ def write_report(
     print(f"written to {base.with_suffix('.md')}")
 
 
+FRAME_S = S_CHUNK / RATE
+QUIET_END_FRAMES = round(SILENCE_MS / (FRAME_S * 1000))  # 31: the browser decides the end here
+
+
+async def stream_one(ws, http, auth: dict, number: int, utterance: dict, final: dict) -> dict:
+    """Send one clip as the browser would, a 32 ms frame at a time in real time, with its pause, resume and
+    end messages, and time what comes back from the clip's start."""
+    loop = asyncio.get_running_loop()
+    pcm = np.round(utterance["audio"] * 32768).astype("<i2")
+    flags = utterance["flags"]
+    detected = round(utterance["detected_s"] / FRAME_S)
+    messages: list[tuple[float, dict]] = []
+    t0 = loop.time()
+
+    async def receive() -> dict:
+        while True:
+            message = json.loads(await ws.recv())
+            messages.append((loop.time() - t0, message))
+            if message.get("id") == number and message["type"] in ("final", "error"):
+                return message
+
+    async def at_frame(count: int) -> None:
+        await asyncio.sleep(max(0.0, t0 + count * FRAME_S - loop.time()))
+
+    receiver = asyncio.create_task(receive())
+    quiet, paused, pauses = 0, False, 0
+    for i, flag in enumerate(flags):
+        await at_frame(i + 1)
+        if i + 1 < detected:
+            continue
+        if i + 1 == detected:  # the second speech frame starts the utterance, with the frames before it
+            await ws.send(json.dumps({"type": "utterance", "id": number}))
+            await ws.send(pcm[: detected * S_CHUNK].tobytes())
+            continue
+        await ws.send(pcm[i * S_CHUNK : (i + 1) * S_CHUNK].tobytes())
+        if flag:
+            if paused:
+                await ws.send(json.dumps({"type": "resume", "id": number}))
+                paused = False
+            quiet = 0
+        else:
+            quiet += 1
+            if quiet == PAD_FRAMES:
+                await ws.send(json.dumps({"type": "pause", "id": number}))
+                paused, pauses = True, pauses + 1
+    for j in range(QUIET_END_FRAMES - PAD_FRAMES):  # quiet frames up to the end decision
+        await at_frame(len(flags) + j + 1)
+        await ws.send(bytes(2 * S_CHUNK))
+    await ws.send(json.dumps({"type": "end", "id": number}))
+    outcome = await asyncio.wait_for(receiver, 120)
+    final_at, audio_at = messages[-1][0], None
+    if outcome["type"] == "final" and outcome["result"]["audio_id"]:
+        (await http.get(f"/api/audio/{outcome['result']['audio_id']}", headers=auth)).raise_for_status()
+        audio_at = loop.time() - t0
+    speech_end = final["spans"][-1][2]
+    lags = None
+    if outcome["type"] == "final" and letters(outcome["result"]["source_text"]) == letters(final["text"]):
+        events = [
+            (at, letters(m["text"])) for at, m in messages if m["type"] == "source" and m["id"] == number
+        ]
+        lags = appearance_lags(events + [(final_at, letters(final["text"]))], final["spans"])
+    return {
+        "outcome": outcome["type"],
+        "lags": lags,
+        "final_s": final_at - speech_end,
+        "audio_s": None if audio_at is None else audio_at - speech_end,
+        "pauses": pauses,
+        "updates": sum(1 for _, m in messages if m["type"] == "source"),
+    }
+
+
+async def stream_all(args: argparse.Namespace, chosen: dict) -> dict:
+    import httpx
+    from websockets.asyncio.client import connect
+
+    base = args.base_url.rstrip("/")
+    results = {}
+    async with httpx.AsyncClient(base_url=base, timeout=60) as http:
+        email, password = f"live-{uuid.uuid4().hex[:8]}@example.com", secrets.token_urlsafe(16)
+        (
+            await http.post("/api/auth/register", json={"email": email, "password": password})
+        ).raise_for_status()
+        login = await http.post("/api/auth/login", data={"username": email, "password": password})
+        token = login.json()["access_token"]
+        auth = {"Authorization": f"Bearer {token}"}
+        for lang, clips in chosen.items():
+            target = "ko" if lang == "en" else "en"
+            async with connect("ws" + base.removeprefix("http") + "/api/translate/live", max_size=None) as ws:
+                start = {"type": "start", "token": token, "source_lang": lang, "target_lang": target}
+                await ws.send(json.dumps(start))
+                assert json.loads(await ws.recv())["type"] == "ready"
+                results[lang] = []
+                for number, (key, utterance, final) in enumerate(clips, 1):
+                    result = await stream_one(ws, http, auth, number, utterance, final)
+                    results[lang].append({"key": key, **result})
+                    await asyncio.sleep(0.5)  # a moment between utterances, like playback would take
+            print(f"{lang}: {len(results[lang])} clips streamed", flush=True)
+    return results
+
+
+def service(args: argparse.Namespace) -> None:
+    """docs/experiments.md 8, real service check: the composed service through nginx, in real time.
+    The clips and their word times come from this machine's models first; they are idle while streaming."""
+    silero = Silero()
+    model, translator = load_models()
+    chosen, skipped = {}, {}
+    for lang in args.langs:
+        chosen[lang], skipped[lang] = utterances(silero, model, translator, lang, args.split, args.count)
+    results = asyncio.run(stream_all(args, chosen))
+    rows = []
+    for lang, items in results.items():
+        lags = [lag for item in items if item["lags"] for lag in item["lags"]]
+        finals = [item["final_s"] for item in items if item["outcome"] == "final"]
+        audio = [item["audio_s"] for item in items if item["audio_s"] is not None]
+        rows.append(
+            {
+                "lang": lang,
+                "utterances": len(items),
+                "errors": sum(1 for item in items if item["outcome"] != "final"),
+                "text_differs": sum(
+                    1 for item in items if item["outcome"] == "final" and item["lags"] is None
+                ),
+                "lag_p50_ms": statistics.median(lags) * 1000,
+                "lag_p90_ms": float(np.percentile(lags, 90)) * 1000,
+                "final_p50_ms": statistics.median(finals) * 1000,
+                "audio_p50_ms": statistics.median(audio) * 1000,
+                "audio_p90_ms": float(np.percentile(audio, 90)) * 1000,
+                "pauses": sum(item["pauses"] for item in items),
+            }
+        )
+    stamp = datetime.now(UTC)
+    base = REPORTS / f"stream_{args.tag}_{stamp:%Y%m%d_%H%M%S}"
+    report = {"skipped": skipped, "rows": rows, "details": results}
+    base.with_suffix(".json").write_text(json.dumps(report, indent=1, ensure_ascii=False), encoding="utf-8")
+    lines = [
+        f"# 동시통역 실제 서비스 측정 ({args.tag})",
+        "",
+        f"- 날짜: {stamp.isoformat()}, FLEURS {args.split}, 언어별 {args.count}문장, {args.base_url}",
+        f"- 뺀 문장: {skipped}",
+        "- 표시 지연: 오프라인과 같은 정의(서버 최종 원문이 이 PC의 최종 인식과 글자가 다른 마디는 뺌). "
+        "말 끝 → 최종·음성: 마지막 단어 끝부터 final 메시지, 번역 음성 받기 완료까지",
+        "",
+        "| 언어 | 문장 | 오류 | 원문 다름 | 표시 지연 p50 | p90 | "
+        "말 끝→final p50 | 말 끝→음성 p50 | p90 | pause 수 |",
+        "|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    for r in rows:
+        lines.append(
+            f"| {r['lang']} | {r['utterances']} | {r['errors']} | {r['text_differs']} | "
+            f"{r['lag_p50_ms']:.0f}ms | {r['lag_p90_ms']:.0f}ms | {r['final_p50_ms']:.0f}ms | "
+            f"{r['audio_p50_ms']:.0f}ms | {r['audio_p90_ms']:.0f}ms | {r['pauses']} |"
+        )
+    base.with_suffix(".md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"written to {base.with_suffix('.md')}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     sub = parser.add_subparsers(dest="command", required=True)
-    command = sub.add_parser("run")
-    command.add_argument("--split", choices=("validation", "test"), default="validation")
-    command.add_argument("--langs", nargs="+", choices=tuple(LANGS), default=list(LANGS))
-    command.add_argument("--tag", required=True)
-    command.add_argument("--count", type=int, default=PER_LANGUAGE)
+    for name in ("run", "service"):
+        command = sub.add_parser(name)
+        command.add_argument("--split", choices=("validation", "test"), default="validation")
+        command.add_argument("--langs", nargs="+", choices=tuple(LANGS), default=list(LANGS))
+        command.add_argument("--tag", required=True)
+        command.add_argument("--count", type=int, default=PER_LANGUAGE)
     # The test split gets only the chosen combination (docs/experiments.md 8).
-    command.add_argument("--intervals", nargs="+", type=int, default=list(INTERVALS_MS))
-    command.add_argument("--partials", nargs="+", choices=tuple(PARTIAL), default=list(PARTIAL))
-    run(parser.parse_args())
+    sub.choices["run"].add_argument("--intervals", nargs="+", type=int, default=list(INTERVALS_MS))
+    sub.choices["run"].add_argument("--partials", nargs="+", choices=tuple(PARTIAL), default=list(PARTIAL))
+    sub.choices["service"].add_argument("--base-url", default="http://localhost:8080")
+    args = parser.parse_args()
+    {"run": run, "service": service}[args.command](args)
 
 
 if __name__ == "__main__":
