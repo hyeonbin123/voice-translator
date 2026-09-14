@@ -28,7 +28,7 @@ from difflib import SequenceMatcher
 import numpy as np
 
 from app.services.live import common_start, letters, stable_length
-from eval.common import MODELS, REPORTS, gpu_memory_mb
+from eval.common import MODELS, PROJECT, REPORTS, gpu_memory_mb
 from eval.eos_eval import (
     LANGS,
     PREROLL_MS,
@@ -494,6 +494,60 @@ async def stream_all(args: argparse.Namespace, chosen: dict) -> dict:
     return results
 
 
+class GpuLog:
+    """GPU use while streaming, sampled twice a second (T63). The server's own work shows in it too: what
+    tells of another program (a game on the same GPU) is use that stays high between utterances."""
+
+    def __enter__(self) -> GpuLog:
+        import threading
+
+        import pynvml
+
+        self.nvml = pynvml
+        pynvml.nvmlInit()
+        self.handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+        self.samples: list[tuple[float, float]] = []
+        self.at_start = set(self.processes())
+        self.programs: list[str] = []
+        self.stopped = threading.Event()
+        self.thread = threading.Thread(target=self.sample, daemon=True)
+        self.thread.start()
+        return self
+
+    def sample(self) -> None:
+        while not self.stopped.wait(0.5):
+            use = self.nvml.nvmlDeviceGetUtilizationRates(self.handle)
+            memory = self.nvml.nvmlDeviceGetMemoryInfo(self.handle)
+            self.samples.append((use.gpu, memory.used / 2**20))
+
+    def processes(self) -> list[str]:
+        import psutil
+
+        names = []
+        for query in ("nvmlDeviceGetGraphicsRunningProcesses", "nvmlDeviceGetComputeRunningProcesses"):
+            for process in getattr(self.nvml, query)(self.handle):
+                try:
+                    names.append(psutil.Process(process.pid).name())
+                except (psutil.Error, OSError):
+                    names.append(f"pid {process.pid}")
+        return names
+
+    def __exit__(self, *exc) -> None:
+        self.stopped.set()
+        self.thread.join()
+        self.programs = sorted(self.at_start | set(self.processes()))
+
+    def summary(self) -> dict:
+        use = [u for u, _ in self.samples] or [0.0]
+        return {
+            "samples": len(self.samples),
+            "mean_util": float(np.mean(use)),
+            "p90_util": float(np.percentile(use, 90)),
+            "max_util": float(max(use)),
+            "max_memory_mb": max((m for _, m in self.samples), default=0.0),
+        }
+
+
 def service(args: argparse.Namespace) -> None:
     """docs/experiments.md 8, real service check: the composed service through nginx, in real time.
     The clips and their word times come from this machine's models first; they are idle while streaming."""
@@ -502,7 +556,10 @@ def service(args: argparse.Namespace) -> None:
     chosen, skipped = {}, {}
     for lang in args.langs:
         chosen[lang], skipped[lang] = utterances(silero, model, translator, lang, args.split, args.count)
-    results = asyncio.run(stream_all(args, chosen))
+    with GpuLog() as gpu:
+        results = asyncio.run(stream_all(args, chosen))
+    # Other programs' names stay out of the published report: work/ is not committed.
+    (PROJECT / "work" / f"gpu_programs_{args.tag}.txt").write_text("\n".join(gpu.programs), encoding="utf-8")
     rows = []
     for lang, items in results.items():
         lags = [lag for item in items if item["lags"] for lag in item["lags"]]
@@ -526,7 +583,7 @@ def service(args: argparse.Namespace) -> None:
         )
     stamp = datetime.now(UTC)
     base = REPORTS / f"stream_{args.tag}_{stamp:%Y%m%d_%H%M%S}"
-    report = {"skipped": skipped, "rows": rows, "details": results}
+    report = {"skipped": skipped, "gpu_use": gpu.summary(), "rows": rows, "details": results}
     base.with_suffix(".json").write_text(json.dumps(report, indent=1, ensure_ascii=False), encoding="utf-8")
     lines = [
         f"# 동시통역 실제 서비스 측정 ({args.tag})",
@@ -534,6 +591,8 @@ def service(args: argparse.Namespace) -> None:
         f"- 날짜: {stamp.isoformat()}, FLEURS {args.split}, 언어별 {args.count}문장, {args.base_url}",
         f"- 미리 처리를 부르는 쉼: {args.pause_frames}조각({args.pause_frames * 32}ms). "
         "서버 설정은 따로 적는다",
+        "- GPU (측정 중 0.5초마다, 이 서버의 사용 포함): 사용률 평균 {mean_util:.0f}%, p90 {p90_util:.0f}%, "
+        "최대 {max_util:.0f}%, 메모리 최대 {max_memory_mb:.0f}MB".format(**gpu.summary()),
         f"- 뺀 문장: {skipped}",
         "- 표시 지연: 오프라인과 같은 정의(서버 최종 원문이 이 PC의 최종 인식과 글자가 다른 마디는 뺌). "
         "말 끝 → 최종·음성: 마지막 단어 끝부터 final 메시지, 번역 음성 받기 완료까지",
