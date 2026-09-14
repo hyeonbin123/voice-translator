@@ -1,7 +1,7 @@
 """T35: which language was spoken, Korean or English (docs/experiments.md 10).
 
   uv run python -m eval.langid_eval --split validation --tag t35_dev
-  uv run python -m eval.langid_eval --split test --tag t35_test --thresholds 0.8
+  uv run python -m eval.langid_eval --split test --tag t35_test --thresholds 0.6
 
 Each FLEURS recording, brought to the same level as in section 7, is cut as the browser cuts it (Silero,
 section 8: from 192 ms before speech to 192 ms after it), then three ways: its first second of speech,
