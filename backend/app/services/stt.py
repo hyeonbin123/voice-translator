@@ -72,10 +72,10 @@ class WhisperSpeechToText:
             self.live_options["temperature"] = 0.0
         self.retry_without_no_speech = retry_without_no_speech
         self.own_decode = own_decode
-        # num_workers: calls from several threads run side by side only with as many replicas (T61).
-        self._model = WhisperModel(
-            model_size, device=device, compute_type=compute_type, num_workers=num_workers
-        )
+        # num_workers: calls from several threads run side by side only with as many replicas (T61). Passed
+        # only when it differs from faster-whisper's own default of 1.
+        replicas = {"num_workers": num_workers} if num_workers != 1 else {}
+        self._model = WhisperModel(model_size, device=device, compute_type=compute_type, **replicas)
 
     def transcribe(self, audio: bytes, language: Language) -> Transcript:
         if not audio:

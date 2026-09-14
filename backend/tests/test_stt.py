@@ -171,3 +171,22 @@ def test_vad_and_threshold_options_reach_faster_whisper(make_whisper):
     FakeWhisperModel.segments = ["hello"]
     make_whisper(vad_filter=True, no_speech_threshold=None).transcribe(silent_wav(1000), "en")
     assert FakeWhisperModel.calls == [{"beam_size": 5, "vad_filter": True, "no_speech_threshold": None}]
+
+
+def test_recognition_replicas_reach_faster_whisper_only_when_asked(monkeypatch):
+    """STT_NUM_WORKERS (T61): the default leaves faster-whisper's own default of one replica."""
+    from app.services import stt as stt_module
+
+    made = []
+
+    class Recording:
+        def __init__(self, model_size, **options):
+            made.append(options)
+
+    monkeypatch.setattr(stt_module, "WhisperModel", Recording)
+    stt_module.WhisperSpeechToText(device="cpu", compute_type="int8")
+    stt_module.WhisperSpeechToText(device="cpu", compute_type="int8", num_workers=2)
+    assert made == [
+        {"device": "cpu", "compute_type": "int8"},
+        {"device": "cpu", "compute_type": "int8", "num_workers": 2},
+    ]
