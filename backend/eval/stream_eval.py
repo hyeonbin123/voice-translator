@@ -376,6 +376,42 @@ FRAME_S = S_CHUNK / RATE
 QUIET_END_FRAMES = round(SILENCE_MS / (FRAME_S * 1000))  # 31: the browser decides the end here
 
 
+def browser_plan(flags, detected: int, pause_frames: int) -> list[tuple[int, str, tuple[int, int] | None]]:
+    """What the browser sends for a clip, in order: (frames heard by then, kind, frames of audio).
+
+    As frontend/src/conversation/silero.ts does: the second speech frame starts the utterance with the
+    frames before it; quiet frames past the six after speech are held back and sent only if speech
+    resumes, so at any pause the server has exactly the clip. The final is asked for after `pause_frames`
+    of quiet (T61 candidate Q, at least six), counting on past the clip's end, and the end comes at 31.
+    """
+    plan: list[tuple[int, str, tuple[int, int] | None]] = []
+    quiet = 0
+    for i, flag in enumerate(flags):
+        heard = i + 1
+        if heard < detected:
+            continue
+        if heard == detected:
+            plan += [(heard, "utterance", None), (heard, "audio", (0, heard))]
+            continue
+        if flag:
+            if quiet >= pause_frames:
+                plan.append((heard, "resume", None))
+            plan.append((heard, "audio", (i - max(0, quiet - PAD_FRAMES), heard)))  # held frames too
+            quiet = 0
+            continue
+        quiet += 1
+        if quiet <= PAD_FRAMES:
+            plan.append((heard, "audio", (i, heard)))
+        if quiet == pause_frames:
+            plan.append((heard, "pause", None))
+    for heard in range(len(flags) + 1, len(flags) - quiet + QUIET_END_FRAMES + 1):  # quiet past the clip
+        quiet += 1
+        if quiet == pause_frames:
+            plan.append((heard, "pause", None))
+    plan.append((len(flags) - PAD_FRAMES + QUIET_END_FRAMES, "end", None))
+    return plan
+
+
 async def stream_one(
     ws, http, auth: dict, number: int, utterance: dict, final: dict, pause_frames: int = PAD_FRAMES
 ) -> dict:
@@ -398,38 +434,15 @@ async def stream_one(
     async def at_frame(count: int) -> None:
         await asyncio.sleep(max(0.0, t0 + count * FRAME_S - loop.time()))
 
-    def frame(index: int) -> bytes:
-        return pcm[index * S_CHUNK : (index + 1) * S_CHUNK].tobytes()
-
-    # As the browser does (frontend/src/conversation/silero.ts): quiet frames past the six after speech are
-    # held back and sent only if speech resumes, so at a pause the server has exactly the clip.
     receiver = asyncio.create_task(receive())
-    quiet, pauses = 0, 0
-    for i, flag in enumerate(flags):
-        await at_frame(i + 1)
-        if i + 1 < detected:
-            continue
-        if i + 1 == detected:  # the second speech frame starts the utterance, with the frames before it
-            await ws.send(json.dumps({"type": "utterance", "id": number}))
-            await ws.send(pcm[: detected * S_CHUNK].tobytes())
-            continue
-        if flag:
-            if quiet >= pause_frames:
-                await ws.send(json.dumps({"type": "resume", "id": number}))
-            for held in range(i - max(0, quiet - PAD_FRAMES), i):
-                await ws.send(frame(held))
-            await ws.send(frame(i))
-            quiet = 0
+    pauses = 0
+    for at, kind, frames in browser_plan(flags, detected, pause_frames):
+        await at_frame(at)
+        if kind == "audio":
+            await ws.send(pcm[frames[0] * S_CHUNK : frames[1] * S_CHUNK].tobytes())
         else:
-            quiet += 1
-            if quiet <= PAD_FRAMES:
-                await ws.send(frame(i))
-            if quiet == pause_frames:  # the final starts here (T61 candidate Q); the clip ends at six
-                await ws.send(json.dumps({"type": "pause", "id": number}))
-                pauses += 1
-    for j in range(QUIET_END_FRAMES - PAD_FRAMES):  # the quiet up to the end decision stays in the browser
-        await at_frame(len(flags) + j + 1)
-    await ws.send(json.dumps({"type": "end", "id": number}))
+            await ws.send(json.dumps({"type": kind, "id": number}))
+            pauses += kind == "pause"
     outcome = await asyncio.wait_for(receiver, 120)
     final_at, audio_at = messages[-1][0], None
     if outcome["type"] == "final" and outcome["result"]["audio_id"]:
