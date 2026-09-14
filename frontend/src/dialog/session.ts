@@ -191,15 +191,19 @@ export class DialogSession {
         target_lang: original.result.source_lang,
       }, signal)
       if (signal.aborted) return
-      await this.api.removeHistory(original.result.id, signal)
-      if (signal.aborted) return
       if (this.lastProcessedTurnId === id) this.previousLang = replacement.source_lang
       this.audioJobs = this.audioJobs.filter((entry) => entry.id !== id)
       this.turn(id, { result: replacement, audioError: undefined, correctionError: undefined })
       this.audioJobs.push({ id, result: replacement })
       void this.drainAudio()
+      try {
+        await this.api.removeHistory(original.result.id, signal)
+      } catch {
+        if (!signal.aborted) this.turn(id, { correctionError: '새 번역은 반영했지만 예전 기록을 지우지 못했습니다. 기록 화면에서 지울 수 있습니다.' })
+        return
+      }
     } catch (error) {
-      if (!signal.aborted) this.turn(id, { correctionError: `방향을 바꾸지 못했습니다. ${errorMessage(error)}` })
+      if (!signal.aborted) this.turn(id, { correctionError: `방향을 바꾸지 못했습니다. ${errorMessage(error)} 원래 말풍선을 유지했습니다.` })
     } finally {
       if (!signal.aborted) this.update({ correctingId: null })
     }

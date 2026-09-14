@@ -20,7 +20,7 @@ function ResultActions({ turn, session, busy }: { turn: DialogTurn; session: Dia
     </div>}
     <button type="button" disabled={busy} onClick={() => session.replay(turn.id)}
       aria-label={`${turn.id}번째 번역 음성 다시 듣기`}>{busy ? '음성 준비·재생 중' : '번역 음성 다시 듣기'}</button>
-    {turn.correctionError && <p role="alert" className="error">{turn.correctionError} 원래 말풍선을 유지했습니다.</p>}
+    {turn.correctionError && <p role="alert" className="error">{turn.correctionError}</p>}
     {turn.audioError && <p className="error">{turn.audioError}</p>}
   </>
 }

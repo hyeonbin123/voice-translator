@@ -112,14 +112,14 @@ it('re-sends a guessed turn in the opposite direction, deletes the wrong record,
   await vi.waitFor(() => expect(s.request).toHaveBeenCalledTimes(3))
   expect(s.request.mock.calls[2][0]).toBe('/api/history/wrong')
   expect(s.request.mock.calls[2][1]?.method).toBe('DELETE')
-  expect(s.session.getSnapshot().turns[0].result).toEqual(original)
+  expect(s.session.getSnapshot().turns[0].result).toEqual(replacement)
   s.requests[2].resolve(new Response(null, { status: 204 }))
   await correcting
   expect(s.session.getSnapshot().turns[0].result).toMatchObject({ id: 'right', source_lang: 'en' })
   await vi.waitFor(() => expect(s.played).toHaveLength(2))
 })
 
-it('keeps the original guessed bubble when retranslation or deletion fails', async () => {
+it('keeps the original guessed bubble when retranslation fails', async () => {
   const s = setup(); await s.session.start(); await s.send(1)
   const original = result('wrong', 'ko', true)
   s.reply(0, original)
@@ -130,12 +130,29 @@ it('keeps the original guessed bubble when retranslation or deletion fails', asy
   const retry = s.session.reverse(1)
   await vi.waitFor(() => expect(s.request).toHaveBeenCalledTimes(2))
   s.requests[1].reject(new Error('retry failed')); await retry
-  expect(s.session.getSnapshot().turns[0]).toMatchObject({ result: original, correctionError: expect.any(String) })
+  expect(s.session.getSnapshot().turns[0]).toMatchObject({
+    result: original,
+    correctionError: expect.stringContaining('원래 말풍선을 유지했습니다.'),
+  })
+})
+
+it('shows the replacement and tells the user when deleting the wrong record fails', async () => {
+  const s = setup(); await s.session.start(); await s.send(1)
+  const original = result('wrong', 'ko', true)
+  s.reply(0, original)
+  await vi.waitFor(() => expect(s.played).toHaveLength(1))
+  s.played[0].begin(); s.played[0].task.resolve()
+  await vi.waitFor(() => expect(s.session.getSnapshot().playingId).toBeNull())
 
   const deleteFailure = s.session.reverse(1)
+  await vi.waitFor(() => expect(s.request).toHaveBeenCalledTimes(2))
+  const replacement = speechResult('right', 'en')
+  s.reply(1, replacement)
   await vi.waitFor(() => expect(s.request).toHaveBeenCalledTimes(3))
-  s.reply(2, speechResult('new', 'en'))
-  await vi.waitFor(() => expect(s.request).toHaveBeenCalledTimes(4))
-  s.requests[3].reject(new Error('delete failed')); await deleteFailure
-  expect(s.session.getSnapshot().turns[0]).toMatchObject({ result: original, correctionError: expect.any(String) })
+  expect(s.session.getSnapshot().turns[0].result).toEqual(replacement)
+  s.requests[2].reject(new Error('delete failed')); await deleteFailure
+  expect(s.session.getSnapshot().turns[0]).toMatchObject({
+    result: replacement,
+    correctionError: '새 번역은 반영했지만 예전 기록을 지우지 못했습니다. 기록 화면에서 지울 수 있습니다.',
+  })
 })
