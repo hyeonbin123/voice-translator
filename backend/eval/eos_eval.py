@@ -26,7 +26,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
-import pyarrow.parquet as pq
 
 from eval.common import DATA, REPORTS
 
@@ -76,6 +75,8 @@ def pink_noise(samples: int, rng: np.random.Generator) -> np.ndarray:
 
 def load_clips(lang: str, split: str) -> list[tuple[str, np.ndarray]]:
     """(key, clip) with the key "<parquet row>-<FLEURS id>": the same sentence is read by several people."""
+    # Imported here: it needs the eval group (pyarrow), the grouping and the metrics don't.
+    import pyarrow.parquet as pq
     from faster_whisper.audio import decode_audio
 
     table = pq.read_table(DATA / "fleurs" / LANGS[lang] / f"{split}.parquet", columns=["id", "audio"])

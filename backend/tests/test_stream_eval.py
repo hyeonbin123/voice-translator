@@ -3,9 +3,7 @@
 import numpy as np
 import pytest
 
-pytest.importorskip("pyarrow")  # eval.eos_eval reads FLEURS parquet files; the eval group installs it
-
-from eval.stream_eval import PAD_FRAMES, QUIET_END_FRAMES, browser_plan  # noqa: E402
+from eval.stream_eval import PAD_FRAMES, QUIET_END_FRAMES, browser_plan
 
 # Six quiet frames, speech, an inner pause of eight quiet frames, speech, and the six quiet frames that end
 # the clip conversation mode would send. Speech starts at frame 6; the browser starts streaming at frame 8.
