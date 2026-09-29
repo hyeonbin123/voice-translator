@@ -68,6 +68,10 @@ export function errorMessage(error: unknown): string {
   return '서버에 연결할 수 없습니다. 연결을 확인하고 다시 시도해 주세요.'
 }
 
+// Only a rejected credential ends the session. A proxy 5xx or a network error keeps the refresh token
+// so a later request or reload can retry (the server cannot revoke tokens, so deleting it gains nothing).
+const authRejected = (error: unknown) => error instanceof ApiError && (error.status === 401 || error.status === 422)
+
 export class ApiClient {
   private accessToken: string | null = null
   private generation = 0
@@ -122,7 +126,7 @@ export class ApiClient {
         this.assertCurrent(generation)
         this.saveTokens(tokens)
       } catch (error) {
-        if (generation === this.generation) this.logout(true)
+        if (generation === this.generation && authRejected(error)) this.logout(true)
         throw error
       }
     })()
@@ -185,8 +189,10 @@ export class ApiClient {
         const user: User = await (await this.request('/api/auth/me')).json()
         this.assertCurrent(generation)
         this.publish({ status: 'authenticated', user, expired: false })
-      } catch {
-        if (generation === this.generation) this.logout(true)
+      } catch (error) {
+        if (generation !== this.generation) return
+        if (authRejected(error)) this.logout(true)
+        else this.publish({ status: 'anonymous', user: null, expired: false })
       }
     })()
     return this.initializing

@@ -117,13 +117,52 @@ describe('API authentication', () => {
     expect(fetchMock.mock.calls.filter(([url]) => url === '/api/auth/refresh')).toHaveLength(1)
   })
 
-  it.each([401, 500])('clears the session when refresh fails with %s', async (status) => {
+  it.each([401, 422])('clears the session when refresh is rejected with %s', async (status) => {
     await login()
     fetchMock.mockResolvedValueOnce(response({}, 401)).mockResolvedValueOnce(response({}, status))
     await expect(client.request('/api/history')).rejects.toBeInstanceOf(ApiError)
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(client.getSnapshot()).toEqual({ status: 'anonymous', user: null, expired: true })
     expect(sessionStorage.getItem(REFRESH_KEY)).toBeNull()
+  })
+
+  it.each([401, 422])('ends a stored session whose refresh is rejected with %s at startup', async (status) => {
+    sessionStorage.setItem(REFRESH_KEY, 'refresh-old')
+    fetchMock.mockResolvedValueOnce(response({}, status))
+    await client.initialize()
+    expect(client.getSnapshot()).toEqual({ status: 'anonymous', user: null, expired: true })
+    expect(sessionStorage.getItem(REFRESH_KEY)).toBeNull()
+  })
+
+  // A proxy 5xx while the API restarts or a dropped connection says nothing about the refresh token.
+  const transient = [
+    ['500', () => Promise.resolve(response({}, 500))],
+    ['502', () => Promise.resolve(new Response('<html>502 Bad Gateway</html>', { status: 502 }))],
+    ['network', () => Promise.reject(new TypeError('Failed to fetch'))],
+  ] as const
+
+  it.each(transient)('keeps the session when refresh fails with %s and refreshes on the next 401', async (_name, reply) => {
+    await login()
+    fetchMock.mockResolvedValueOnce(response({}, 401)).mockImplementationOnce(reply)
+    await expect(client.request('/api/history')).rejects.toThrow()
+    expect(client.getSnapshot()).toEqual({ status: 'authenticated', user, expired: false })
+    expect(sessionStorage.getItem(REFRESH_KEY)).toBe('refresh-1')
+    fetchMock.mockResolvedValueOnce(response({}, 401)).mockResolvedValueOnce(response(tokens('2'))).mockResolvedValueOnce(response({ ok: true }))
+    expect((await client.request('/api/history')).status).toBe(200)
+    expect(sessionStorage.getItem(REFRESH_KEY)).toBe('refresh-2')
+  })
+
+  it.each(transient)('keeps the refresh token when refresh fails with %s at startup', async (_name, reply) => {
+    sessionStorage.setItem(REFRESH_KEY, 'refresh-old')
+    fetchMock.mockImplementationOnce(reply)
+    await client.initialize()
+    expect(client.getSnapshot()).toEqual({ status: 'anonymous', user: null, expired: false })
+    expect(sessionStorage.getItem(REFRESH_KEY)).toBe('refresh-old')
+    fetchMock.mockResolvedValueOnce(response(tokens('2'))).mockResolvedValueOnce(response(user))
+    const reloaded = new ApiClient()
+    await reloaded.initialize()
+    expect(reloaded.getSnapshot()).toEqual({ status: 'authenticated', user, expired: false })
+    expect(sessionStorage.getItem(REFRESH_KEY)).toBe('refresh-2')
   })
 
   it('stops after a retried request also returns 401', async () => {
