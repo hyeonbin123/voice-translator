@@ -36,8 +36,10 @@ jobs:
         with:
           enable-cache: true
 
+      # --locked, as the image build (backend/Dockerfile) uses: fails when uv.lock is out of date with
+      # pyproject.toml instead of testing the old locked versions.
       - name: Install dependencies
-        run: uv sync --frozen
+        run: uv sync --locked
 
       - name: Lint
         run: uv run ruff check .
