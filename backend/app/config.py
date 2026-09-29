@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     # Models (T11, chosen in docs/experiments.md). Off by default so tests and CI need no GPU or model
     # files; the server sets LOAD_MODELS=true. Without them every translation answers 503.
     load_models: bool = False
+    # Threads that run the model calls (app/services/inference.py). 1 was kept by measurement
+    # (docs/experiments.md 4): the models share one GPU.
+    model_threads: int = Field(default=1, ge=1)
     model_device: Literal["cuda", "cpu"] = "cuda"
     stt_model: str = "large-v3-turbo"
     ct2_dir: Path = Path(__file__).resolve().parents[2] / "data" / "models" / "ct2"

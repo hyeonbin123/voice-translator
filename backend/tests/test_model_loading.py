@@ -3,10 +3,11 @@ import threading
 
 import httpx
 import pytest
+from pydantic import ValidationError
 
 from app import main
 from app.config import Settings
-from app.services import correction, models, stt, translation, tts
+from app.services import correction, inference, models, stt, translation, tts
 from app.services.interfaces import ModelError
 from app.services.pipeline import PipelineModels
 from tests.fakes import FakeSpeechToText, FakeTextToSpeech, FakeTranslator
@@ -138,6 +139,26 @@ def test_typo_correction_can_be_disabled(fake_model_classes):
         is None
     )
     assert not any(name == "Ollama" for name, _, _ in fake_model_classes)
+
+
+@pytest.mark.parametrize("value", ["0", "2x"])
+def test_an_invalid_model_thread_count_stops_startup(monkeypatch, value):
+    # Checked with the other settings, not on the first translation: every request would answer 500.
+    monkeypatch.setenv("MODEL_THREADS", value)
+    with pytest.raises(ValidationError, match="model_threads"):
+        Settings()
+
+
+def test_the_model_threads_follow_the_setting(monkeypatch):
+    monkeypatch.setenv("MODEL_THREADS", "2")
+    settings = Settings()
+    assert settings.model_threads == 2
+    monkeypatch.setattr(inference, "get_settings", lambda: settings)
+    pool = inference._model_threads.__wrapped__()  # a new pool, not the one the other tests share
+    try:
+        assert pool._max_workers == 2
+    finally:
+        pool.shutdown()
 
 
 @pytest.fixture

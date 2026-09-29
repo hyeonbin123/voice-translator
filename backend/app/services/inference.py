@@ -5,26 +5,25 @@ async handler, it would stall every other request the server is handling for tha
 (measured in the earlier rag-doc-qa project), so model calls run on a bounded pool of
 worker threads instead.
 
-The pool size comes from MODEL_THREADS and defaults to 1: the models share one GPU, and
-passes running side by side mostly compete for it. The real value is measured with the
-chosen models in task T11.
+The pool size is the MODEL_THREADS setting (app/config.py), 1 by default: the models share
+one GPU, and passes running side by side mostly compete for it. T11 measured 1 and 2 with
+the chosen models and kept 1 (docs/experiments.md 4).
 """
 
 import asyncio
-import os
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache, partial
 from typing import TypeVar
+
+from app.config import get_settings
 
 T = TypeVar("T")
 
 
 @lru_cache
 def _model_threads() -> ThreadPoolExecutor:
-    return ThreadPoolExecutor(
-        max_workers=int(os.environ.get("MODEL_THREADS", "1")), thread_name_prefix="model"
-    )
+    return ThreadPoolExecutor(max_workers=get_settings().model_threads, thread_name_prefix="model")
 
 
 async def _run(executor: ThreadPoolExecutor, fn: Callable[..., T], *args) -> T:
