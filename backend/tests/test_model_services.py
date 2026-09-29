@@ -1,11 +1,14 @@
 import asyncio
+import gc
 import io
+import threading
 import time
 import wave
+import weakref
 
 import pytest
 
-from app.services.inference import run_model
+from app.services.inference import run_live_model, run_model
 from app.services.interfaces import (
     InvalidAudioError,
     ModelError,
@@ -83,3 +86,37 @@ async def test_model_calls_run_off_the_event_loop():
     await beat
 
     assert max(gaps) < 0.15
+
+
+async def test_model_calls_still_return_results_and_raise_errors():
+    for run in (run_model, run_live_model):
+        assert await run(sum, [1, 2, 3]) == 6
+        with pytest.raises(ZeroDivisionError):
+            await run(divmod, 1, 0)
+
+
+class Audio:
+    pass
+
+
+async def test_a_cancelled_waiting_call_lets_go_of_its_arguments():
+    """A live pause queues a whole utterance's audio for the model thread, and the resume that follows
+    cancels it; the audio must not stay in the thread's queue until the thread gets there."""
+    gate = threading.Event()
+    blocker = asyncio.create_task(run_model(gate.wait, 5))  # a model call holds the only thread
+    await asyncio.sleep(0.05)
+    try:
+        audio = Audio()
+        released = weakref.ref(audio)
+        waiting = asyncio.create_task(run_model(id, audio))
+        await asyncio.sleep(0)  # the call now waits in the thread's queue
+        del audio
+        waiting.cancel()
+        await asyncio.sleep(0.05)
+        assert waiting.cancelled()
+        del waiting  # a cancelled task keeps its traceback, and with it the call's arguments
+        gc.collect()
+        assert released() is None
+    finally:
+        gate.set()
+        await blocker
