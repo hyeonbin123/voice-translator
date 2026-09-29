@@ -194,7 +194,7 @@ access 헤더 없이 refresh 토큰을 JSON으로 보낸다.
 {"text": "안녕하세요", "source_lang": "ko", "target_lang": "en"}
 ```
 
-- `text`: 앞뒤 공백을 자른 뒤 1~500자(유니코드 문자 기준). 자른 값을 번역하고 저장한다
+- `text`: 앞뒤 공백을 자른 뒤 1~500자(유니코드 문자 기준). 자른 값을 번역하고 저장한다. NUL(`\u0000`)이 들어 있거나, 공백·제어·서식 문자(폭 없는 공백 U+200B, BOM U+FEFF 등)로만 되어 있으면 번역할 글자가 없는 것으로 보고 422로 거절한다. 문장부호·기호만 있는 글자는 번역한다
 - `source_lang`, `target_lang`: `en` 또는 `ko`, 서로 달라야 한다
 
 응답 `201 Created`, `Location: /api/history/{id}`. 본문은 기록 항목(`GET /api/history/{id}`와 같은 형태)에 `tts_error`를 더한 것:
@@ -239,7 +239,7 @@ access 헤더 없이 refresh 토큰을 JSON으로 보낸다.
 
 | 상황 | 상태 | 본문 `detail` | 기록 |
 |---|---|---|---|
-| 필드 누락, 언어 값 오류, 같은 언어, 글자 수 초과·빈 글자 | 422 | FastAPI 검증 오류 형식 (`[...]`) | 없음 |
+| 필드 누락, 언어 값 오류, 같은 언어, 글자 수 초과·빈 글자, NUL 포함·보이지 않는 문자만 | 422 | FastAPI 검증 오류 형식 (`[...]`) | 없음 |
 | multipart 형식 자체가 잘못됨(경계 없음 등) | 400 | `"Invalid multipart request"` | 없음 |
 | 파일이 10MB(10 × 1024 × 1024바이트) 초과 | 413 | `"Audio file is larger than 10 MB"` | 없음 |
 | 파일을 음성으로 풀 수 없음 | 422 | `"Audio could not be decoded"` | 없음 |
