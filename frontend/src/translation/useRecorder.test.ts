@@ -55,7 +55,20 @@ it('records until stopped, releases the microphone, and returns a typed blob', a
   expect(vi.getTimerCount()).toBe(0)
 })
 
-it('automatically stops at 30 seconds and announces the limit', async () => {
+it('stops early enough that a timer up to a second late stays within the server 30 s limit', () => {
+  // Hidden pages wake timers about once per second, so the stop can come up to 1 s late.
+  expect(MAX_RECORDING_MS + 1000).toBeLessThanOrEqual(30_000)
+})
+
+it('has stopped and delivered the recording 29 seconds after start', async () => {
+  const { result } = renderHook(() => useRecorder(recorded))
+  await act(async () => { await result.current.start() })
+  await act(async () => { await vi.advanceTimersByTimeAsync(29_000) })
+  expect(result.current.state).toBe('idle')
+  expect(recorded).toHaveBeenCalledOnce()
+})
+
+it('automatically stops before the server 30 s limit and announces the limit', async () => {
   const { result } = renderHook(() => useRecorder(recorded))
   await act(async () => { await result.current.start() })
   await act(async () => { await vi.advanceTimersByTimeAsync(MAX_RECORDING_MS - 1) })

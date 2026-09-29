@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { MAX_AUDIO_BYTES } from './api'
 
-export const MAX_RECORDING_MS = 30_000
+// The server rejects more than 30 s of decoded audio. The stop timer only fires late (hidden pages wake
+// timers once per second), so stop a second early, like the conversation modes' 29 s limit.
+export const MAX_RECORDING_MS = 29_000
 type Recording = {
   recorder: MediaRecorder
   stream: MediaStream
