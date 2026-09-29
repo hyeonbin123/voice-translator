@@ -50,7 +50,12 @@ async def user_from_token(token: str, kind: TokenKind, db: AsyncSession) -> User
 
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: DbSession) -> User:
-    return await user_from_token(token, "access", db)
+    user = await user_from_token(token, "access", db)
+    # End the lookup's transaction, so a translation does not hold a pooled connection while it waits for
+    # and runs on the model thread (docs/api.md: other requests are not blocked). expire_on_commit=False
+    # keeps `user` loaded, and the handler's next query (pipeline.save) begins a fresh, short transaction.
+    await db.commit()
+    return user
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]

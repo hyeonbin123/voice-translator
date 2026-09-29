@@ -317,6 +317,26 @@ async def test_synthesis_fallback_keeps_history(
         assert "failed" in caplog.text
 
 
+async def test_a_translation_holds_no_database_connection_during_model_work(
+    client, auth_headers, services, db_engine
+):
+    """Login and history must not wait for translations (docs/api.md): the sign-in lookup's transaction ends
+    before the request queues for the model thread, so no pooled connection sits idle meanwhile."""
+    models, _ = services
+    held = []
+
+    class Watching(FakeTranslator):
+        def translate(self, text, source, target):
+            held.append(db_engine.sync_engine.pool.checkedout())
+            return super().translate(text, source, target)
+
+    app.dependency_overrides[get_models] = lambda: replace(models, translator=Watching())
+    response = await text_request(client, auth_headers)
+    assert response.status_code == 201, response.text
+    assert held == [0]
+    assert (await client.get("/api/history", headers=auth_headers)).json()["total"] == 1
+
+
 async def test_missing_required_models(client, auth_headers, services, db_session):
     app.dependency_overrides.pop(get_models)
     response = await text_request(client, auth_headers)
