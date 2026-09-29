@@ -93,6 +93,11 @@ async def test_translation_round_trip(client, auth_headers, services, db_session
         {},
         {"text": ""},
         {"text": " \n\t "},
+        # Only invisible format characters (zero-width space; BOM and word joiner): nothing to translate.
+        {"text": "\u200b"},
+        {"text": " \ufeff\u2060 "},
+        # PostgreSQL text cannot hold NUL: without the check it failed at the save, after the model work.
+        {"text": "a\u0000b"},
         {"text": "가" * 501},
         {"text": 123},
         {"source_lang": "fr"},
@@ -109,6 +114,12 @@ async def test_invalid_text(client, auth_headers, services, db_session, body):
     assert response.status_code == 422
     assert isinstance(response.json()["detail"], list)
     await assert_no_history(client, auth_headers, db_session)
+
+
+async def test_punctuation_only_text_is_still_translated(client, auth_headers, services):
+    response = await text_request(client, auth_headers, text="?")
+    assert response.status_code == 201
+    assert response.json()["translated_text"] == "[ko->en] ?"
 
 
 async def test_unicode_500_after_trim(client, auth_headers, services):
