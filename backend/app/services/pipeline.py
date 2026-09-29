@@ -96,20 +96,6 @@ def _timed(fn: Callable[..., T], *args) -> tuple[T, int]:
     return result, round((perf_counter() - start) * 1000)
 
 
-def _translate_text(
-    translator: Translator, corrector: TypoCorrector | None, text: str, source: Language, target: Language
-) -> tuple[str, bool]:
-    """Translate, first fixing typos when the corrector handles the source language (T32).
-
-    Also returns whether a correction was used; without one the text is translated as typed.
-    """
-    corrected = (
-        corrector.correct(text, source) if corrector is not None and corrector.corrects(source) else None
-    )
-    translated = translator.translate(corrected if corrected is not None else text, source, target)
-    return translated, corrected is not None
-
-
 async def prepare(
     *,
     models: PipelineModels,
@@ -132,11 +118,18 @@ async def prepare(
     # Typed text only: speech recognition output has no keyboard typos, and spoken replies should not wait
     # for another model. The record keeps the text as typed; mt_ms includes the correction.
     corrector = models.corrector if audio is None else None
-    (translated, corrected), mt_ms = await run_model(
-        _timed, _translate_text, models.translator, corrector, text, source, target
+    # The correction is an HTTP call to Ollama, not a model call in this process: it runs on a plain worker
+    # thread, so a slow Ollama (up to CORRECTION_TIMEOUT_S) does not hold the model thread that speech,
+    # dialog and live requests queue on.
+    corrected, correction_ms = None, 0
+    if corrector is not None and corrector.corrects(source):
+        corrected, correction_ms = await asyncio.to_thread(_timed, corrector.correct, text, source)
+    translated, translate_ms = await run_model(
+        _timed, models.translator.translate, corrected if corrected is not None else text, source, target
     )
+    mt_ms = correction_ms + translate_ms
     mt_model = models.translator.model_name
-    if corrected and corrector is not None:
+    if corrected is not None and corrector is not None:
         mt_model = f"{mt_model} + {corrector.model_name}"
     prepared = Prepared(
         mode="speech" if audio is not None else "text",

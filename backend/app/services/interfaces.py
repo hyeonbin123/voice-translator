@@ -94,7 +94,11 @@ class TextToSpeech(Protocol):
 
 @runtime_checkable
 class TypoCorrector(Protocol):
-    """Fixes typing mistakes in typed text before translation (T32)."""
+    """Fixes typing mistakes in typed text before translation (T32).
+
+    correct() is blocking network I/O, not model work in this process, so the pipeline runs it with
+    asyncio.to_thread instead of run_model.
+    """
 
     model_name: str
 

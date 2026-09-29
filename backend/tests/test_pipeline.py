@@ -91,6 +91,48 @@ async def test_typed_english_is_corrected_before_translation(db_session, user, t
     assert result.mt_model == "fake-mt + fake-corrector"
 
 
+async def test_a_slow_correction_does_not_hold_the_model_thread():
+    """The correction is an HTTP call to Ollama that can take up to CORRECTION_TIMEOUT_S: speech from other
+    requests must not wait behind it on the model thread."""
+
+    class BlockingCorrector(FakeCorrector):
+        def __init__(self) -> None:
+            super().__init__("I have a cat.")
+            self.entered, self.release = threading.Event(), threading.Event()
+
+        def correct(self, text, language):
+            self.entered.set()
+            self.release.wait(5)
+            return super().correct(text, language)
+
+    corrector = BlockingCorrector()
+    typed = asyncio.create_task(
+        pipeline.prepare(
+            models=pipeline.PipelineModels(None, FakeTranslator(), corrector=corrector),
+            source="en",
+            target="ko",
+            text="I hvae a cat.",
+        )
+    )
+    try:
+        assert await asyncio.to_thread(corrector.entered.wait, 5)
+        speech = pipeline.prepare(
+            models=pipeline.PipelineModels(FakeSpeechToText(), FakeTranslator()),
+            source="ko",
+            target="en",
+            audio=silent_wav(100),
+        )
+        spoken = await asyncio.wait_for(speech, timeout=2)
+        assert spoken.mt_model == "fake-mt" and not corrector.release.is_set()
+    finally:
+        corrector.release.set()
+        result = await typed
+    assert result.mt_model == "fake-mt + fake-corrector"
+    assert result.source_text == "I hvae a cat."
+    assert result.translated_text == "[en->ko] I have a cat."
+    assert corrector.calls == [("I hvae a cat.", "en")]
+
+
 async def test_a_failed_correction_translates_the_text_as_typed(db_session, user, tmp_path):
     models = pipeline.PipelineModels(None, FakeTranslator(), corrector=FakeCorrector(None))
     result = await translate_with(models, db_session, user, tmp_path, text="I hvae a cat.")
