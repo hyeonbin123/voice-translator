@@ -134,7 +134,7 @@ it('reports a turn error safely and keeps processing the next utterance', async 
   expect(s.session.getSnapshot().turns[2].state).toBe('done')
 })
 
-it('refreshes after 4401 only once, cancels old turns, resumes on ready and rejects stale socket events', async () => {
+it('refreshes and reconnects on each 4401 after ready, cancels old turns and rejects stale socket events', async () => {
   const s = setup(); await s.start(); await s.emit(onset, audio, end)
   const stale = s.sockets[0].onmessage!
   s.sockets[0].closed(4401)
@@ -148,7 +148,27 @@ it('refreshes after 4401 only once, cancels old turns, resumes on ready and reje
   ws.message({ type: 'ready' })
   await s.emit(onset, audio, end)
   expect(ws.messages().at(-1)).toEqual({ type: 'end', id: 2 })
+  // The next access token expires mid-connection too; the server closes with 4401 each time.
   ws.closed(4401)
+  await vi.waitFor(() => expect(s.sockets).toHaveLength(3))
+  expect(s.liveToken).toHaveBeenCalledTimes(3)
+  expect(s.liveToken).toHaveBeenLastCalledWith('fresh')
+  expect(s.logout).not.toHaveBeenCalled()
+  expect(s.session.getSnapshot().active).toBe(true)
+  const next = s.sockets[2]; next.opened(); next.message({ type: 'ready' })
+  expect(s.session.getSnapshot()).toMatchObject({ active: true, ready: true })
+  await s.emit(onset, audio, end)
+  expect(next.messages().at(-1)).toEqual({ type: 'end', id: 3 })
+})
+
+it('logs out when the refreshed token is rejected again before ready', async () => {
+  const s = setup(); const starting = s.session.start(direction)
+  await vi.waitFor(() => expect(s.sockets).toHaveLength(1))
+  s.sockets[0].opened(); s.sockets[0].closed(4401)
+  await vi.waitFor(() => expect(s.sockets).toHaveLength(2))
+  s.sockets[1].opened(); s.sockets[1].closed(4401)
+  await starting
+  expect(s.sockets).toHaveLength(2)
   expect(s.liveToken).toHaveBeenCalledTimes(2)
   expect(s.logout).toHaveBeenCalledWith(true)
   expect(s.session.getSnapshot()).toMatchObject({ active: false, error: expect.stringContaining('로그인') })

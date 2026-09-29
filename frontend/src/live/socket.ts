@@ -53,6 +53,9 @@ export class LiveTransport {
             if (this.ready) return
             clearTimeout(this.timeout)
             this.ready = true
+            // The server accepted this token, so a later 4401 is the next expiry and gets its own retry.
+            // The one-retry budget only stops a loop when a freshly refreshed token is rejected before ready.
+            this.retried = false
             this.callbacks.ready(true)
             this.resolveReady?.()
           } else if (this.ready) this.callbacks.message(message)
