@@ -134,7 +134,8 @@ async def test_text_the_model_still_receives_is_translated(client, auth_headers,
     ["​", " ﻿⁠ ", "­", "", "͸", "​\n​", "?", "́", "️", "a​b"],
 )
 def test_the_text_rule_matches_what_the_preprocessing_leaves(text):
-    # 422 exactly when OPUS-MT's preprocessing (a space for every C* character) leaves nothing to translate.
+    # 422 exactly when OPUS-MT's preprocessing (a space for every C* character but a newline) leaves only
+    # white space, that is nothing to translate.
     blank = not translation.opus_preprocess(text.strip()).strip()
     try:
         TextRequest(text=text, source_lang="ko", target_lang="en")
