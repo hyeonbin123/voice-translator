@@ -24,9 +24,10 @@ class TextRequest(LanguagePair):
     @field_validator("text")
     @classmethod
     def has_text_to_translate(cls, value: str) -> str:
-        # Runs after the strip and length limits. PostgreSQL text cannot hold NUL, and format or control
-        # characters alone (zero-width space, BOM) leave the model nothing: opus_preprocess turns them into
-        # spaces. Punctuation and symbols alone are still translated.
+        # Runs after the strip and length limits. PostgreSQL text cannot hold NUL, and "other" (C*) characters
+        # alone (control; format such as zero-width space or BOM; private use; unassigned) leave the model
+        # nothing: opus_preprocess turns every one of them into a space. Punctuation, symbols and marks such
+        # as a lone combining accent reach the model and are still translated.
         if "\x00" in value:
             raise ValueError("Text must not contain NUL characters")
         if all(c.isspace() or unicodedata.category(c).startswith("C") for c in value):
