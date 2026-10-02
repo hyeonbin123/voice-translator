@@ -25,7 +25,7 @@ from app.schemas.history import HistoryItem
 from app.schemas.translate import TranslationResponse
 from app.services.audio_store import AudioStore
 from app.services.errors import describe
-from app.services.inference import run_model
+from app.services.inference import run_correction, run_model
 from app.services.interfaces import (
     Language,
     ModelError,
@@ -118,12 +118,12 @@ async def prepare(
     # Typed text only: speech recognition output has no keyboard typos, and spoken replies should not wait
     # for another model. The record keeps the text as typed; mt_ms includes the correction.
     corrector = models.corrector if audio is None else None
-    # The correction is an HTTP call to Ollama, not a model call in this process: it runs on a plain worker
-    # thread, so a slow Ollama (up to CORRECTION_TIMEOUT_S) does not hold the model thread that speech,
-    # dialog and live requests queue on.
+    # The correction is an HTTP call to Ollama, not a model call in this process: it runs on a thread of its
+    # own, one at a time, so a slow Ollama (up to CORRECTION_TIMEOUT_S) does not hold the model thread that
+    # speech, dialog and live requests queue on (T71, T73).
     corrected, correction_ms = None, 0
     if corrector is not None and corrector.corrects(source):
-        corrected, correction_ms = await asyncio.to_thread(_timed, corrector.correct, text, source)
+        corrected, correction_ms = await run_correction(_timed, corrector.correct, text, source)
     translated, translate_ms = await run_model(
         _timed, models.translator.translate, corrected if corrected is not None else text, source, target
     )

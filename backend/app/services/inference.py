@@ -56,3 +56,19 @@ async def run_live_model(fn: Callable[..., T], *args) -> T:
     """Run a live subtitle update on a thread of its own, so it does not queue behind finals and other
     requests (LIVE_UPDATE_THREAD, docs/experiments.md 8, T61)."""
     return await _run(_live_thread(), fn, *args)
+
+
+@lru_cache
+def _correction_thread() -> ThreadPoolExecutor:
+    return ThreadPoolExecutor(max_workers=1, thread_name_prefix="correction")
+
+
+async def run_correction(fn: Callable[..., T], *args) -> T:
+    """Run a typo correction (a blocking HTTP call to Ollama, T32) on a thread of its own.
+
+    Not on a model thread, so a slow Ollama does not hold up speech, dialog and live work, and not on the
+    default executor: one correction at a time, as when it shared the model thread, keeps concurrent typed
+    requests from stacking Ollama's work on the GPU the models use. A request cancelled while its
+    correction runs cannot stop the thread, so the next correction still waits for it to end.
+    """
+    return await _run(_correction_thread(), fn, *args)

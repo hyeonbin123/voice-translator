@@ -133,6 +133,95 @@ async def test_a_slow_correction_does_not_hold_the_model_thread():
     assert corrector.calls == [("I hvae a cat.", "en")]
 
 
+class GatedCorrector(FakeCorrector):
+    """Holds every correction until released and counts how many run at the same time."""
+
+    def __init__(self) -> None:
+        super().__init__("I have a cat.")
+        self.started = threading.Semaphore(0)  # one permit per correction that has begun
+        self.release = threading.Event()
+        self.lock = threading.Lock()
+        self.running = self.most = 0
+
+    def correct(self, text, language):
+        with self.lock:
+            self.running += 1
+            self.most = max(self.most, self.running)
+        self.started.release()
+        try:
+            self.release.wait(5)
+            return super().correct(text, language)
+        finally:
+            with self.lock:
+                self.running -= 1
+
+    async def begins_within(self, seconds: float) -> bool:
+        return await asyncio.to_thread(self.started.acquire, True, seconds)
+
+
+def typed_request(corrector: FakeCorrector) -> asyncio.Task:
+    return asyncio.create_task(
+        pipeline.prepare(
+            models=pipeline.PipelineModels(None, FakeTranslator(), corrector=corrector),
+            source="en",
+            target="ko",
+            text="I hvae a cat.",
+        )
+    )
+
+
+async def test_typed_requests_are_corrected_one_at_a_time():
+    """Each correction is Ollama work on the GPU the models use: one at a time, as when it ran on the model
+    thread, not one per typed request at once (T73)."""
+    corrector = GatedCorrector()
+    first, second = typed_request(corrector), typed_request(corrector)
+    try:
+        assert await corrector.begins_within(5)
+        assert not await corrector.begins_within(0.3), "the second correction did not wait for the first"
+    finally:
+        corrector.release.set()
+        results = await asyncio.gather(first, second)
+    assert corrector.most == 1
+    assert [result.translated_text for result in results] == ["[en->ko] I have a cat."] * 2
+
+
+async def test_the_next_correction_waits_for_a_cancelled_requests_correction():
+    # A thread cannot be stopped: the cancelled request's call to Ollama runs to its end, and the next
+    # correction must not overlap it.
+    corrector = GatedCorrector()
+    first = typed_request(corrector)
+    assert await corrector.begins_within(5)
+    first.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await first
+    second = typed_request(corrector)
+    try:
+        assert not await corrector.begins_within(0.3), "the next correction overlapped the cancelled one"
+    finally:
+        corrector.release.set()
+        result = await second
+    assert corrector.most == 1
+    assert result.translated_text == "[en->ko] I have a cat."
+    assert len(corrector.calls) == 2
+
+
+async def test_a_correction_cancelled_while_waiting_never_runs():
+    corrector = GatedCorrector()
+    first, waiting = typed_request(corrector), None
+    try:
+        assert await corrector.begins_within(5)
+        waiting = typed_request(corrector)
+        await asyncio.sleep(0.1)  # queued behind the first correction
+        waiting.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await waiting
+    finally:
+        corrector.release.set()
+        await first
+    assert not await corrector.begins_within(0.3)
+    assert corrector.calls == [("I hvae a cat.", "en")]
+
+
 async def test_a_failed_correction_translates_the_text_as_typed(db_session, user, tmp_path):
     models = pipeline.PipelineModels(None, FakeTranslator(), corrector=FakeCorrector(None))
     result = await translate_with(models, db_session, user, tmp_path, text="I hvae a cat.")

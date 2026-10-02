@@ -97,7 +97,7 @@ class TypoCorrector(Protocol):
     """Fixes typing mistakes in typed text before translation (T32).
 
     correct() is blocking network I/O, not model work in this process, so the pipeline runs it with
-    asyncio.to_thread instead of run_model.
+    run_correction (a thread of its own, one call at a time) instead of run_model.
     """
 
     model_name: str
