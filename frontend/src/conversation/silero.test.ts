@@ -127,6 +127,20 @@ it('uses only the frames a forced split in a pause left out as the next pre-roll
   expect(second.samples).toEqual(pcm.slice(907 * 512, 936 * 512))
 })
 
+it('drops the silence between clips as a normal end does when a forced split lands in a long pause', async () => {
+  // 25 quiet frames when the limit hits: the forced clip keeps six and leaves out 19. Only the last six
+  // become the next pre-roll, as after a normal end; the 13 quiet frames before them are in neither clip.
+  // No speech frame is dropped or sent twice.
+  const vad = await detector([...Array(10).fill(0), ...Array(875).fill(1), ...Array(25).fill(0),
+    ...Array(20).fill(1), ...Array(31).fill(0)])
+  const pcm = Float32Array.from({ length: 961 * 512 }, (_, i) => i / (961 * 512))
+  const [first, second] = ends(await vad.push(pcm))
+  expect(first).toMatchObject({ forced: true, startSample: 4 * 512, endSample: 891 * 512, detectedAtSample: 910 * 512 })
+  expect(second).toMatchObject({ forced: false, startSample: 904 * 512, endSample: 936 * 512 })
+  expect(first.samples).toEqual(pcm.slice(4 * 512, 891 * 512))
+  expect(second.samples).toEqual(pcm.slice(904 * 512, 936 * 512))
+})
+
 it('serializes concurrent chunks rather than running frames with stale state', async () => {
   const vad = await detector([1, 1])
   const events = await Promise.all([vad.push(samples(1)), vad.push(samples(1))])

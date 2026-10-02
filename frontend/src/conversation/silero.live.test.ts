@@ -19,6 +19,7 @@ it.each([
   ['forced end after padding', sequence([10, 0], [882, 1], [25, 0])],
   ['forced end in speech, then the next clip', sequence([10, 0], [920, 1], [31, 0])],
   ['forced end in a pause, then the next clip', sequence([10, 0], [891, 1], [9, 0], [20, 1], [31, 0])],
+  ['forced end in a long pause, then the next clip', sequence([10, 0], [875, 1], [25, 0], [20, 1], [31, 0])],
 ])('streams the exact conversation WAV PCM: %s', async (_name, probabilities) => {
   const input = Float32Array.from({ length: probabilities.length * 512 }, (_, i) => Math.sin(i / 79) * 1.2)
   const normal = new SileroEndpointer(runner(probabilities))

@@ -119,8 +119,9 @@ export class SileroEndpointer implements SpeechEndpointer {
         events.push({ type: 'end', samples: clip, startSample: this.startSample,
           endSample: this.startSample + clip.length, detectedAtSample: this.cursor, forced })
       } else events.push({ type: 'discard' })
-      // Pre-roll only from frames this clip left out: after a normal end that is the silence past the
-      // tail padding; a forced split in speech leaves none, so the next clip never repeats audio.
+      // Pre-roll only from frames this clip left out, at most six: after a normal end that is the silence
+      // past the tail padding; a forced split in speech leaves none, so the next clip never repeats audio.
+      // A forced split in a long pause drops the quiet frames before those six, as a normal end does.
       this.pre = this.frames.slice(keep).slice(-PAD_FRAMES)
       this.frames = null; this.consecutive = this.speechFrames = this.quietFrames = 0
     }
