@@ -13,6 +13,7 @@ from app.config import get_settings
 from app.dependencies import CurrentUser, DbSession, Models, StoredAudio
 from app.schemas.translate import DialogResponse, LanguagePair, TextRequest, TranslationResponse
 from app.services import pipeline
+from app.services.dialog import OTHER, choose_language
 from app.services.errors import describe
 from app.services.inference import run_model
 from app.services.interfaces import (
@@ -164,9 +165,6 @@ async def read_audio(audio: UploadFile) -> bytes:
     return content
 
 
-OTHER: dict[Language, Language] = {"ko": "en", "en": "ko"}
-
-
 @router.post("/dialog", status_code=201, response_model=DialogResponse)
 async def translate_dialog(
     response: Response,
@@ -184,10 +182,10 @@ async def translate_dialog(
         raise HTTPException(503, "Translation service is unavailable")
     with failures_as_http():
         await run_model(pipeline.validate_audio, content)
-        language, confidence = await run_model(models.stt.detect_language, content)
-    guessed = previous_lang is not None and confidence < get_settings().dialog_language_threshold
-    if guessed:
-        language = OTHER[previous_lang]
+        detected, confidence = await run_model(models.stt.detect_language, content)
+    language, guessed = choose_language(
+        detected, confidence, previous_lang, get_settings().dialog_language_threshold
+    )
     result = await execute(
         response,
         models=models,

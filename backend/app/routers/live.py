@@ -4,6 +4,10 @@ While a person speaks, the browser streams the utterance's audio. Now and then t
 it again, translates the result and sends both, with the start that two results in a row agree on marked
 stable. When the speaker pauses, the clip conversation mode would upload is complete: the server prepares
 the final translation right then, and saves and sends it once the browser confirms the utterance ended.
+
+Conversation and dialog modes (T77) use the same connection without the subtitles: only the prepare at a
+pause and the save at the end, so their result is the HTTP speech or dialog API's for the same clip. Dialog
+turns are saved in the order they ended, since an unsure turn's language depends on the turn before.
 """
 
 import asyncio
@@ -12,6 +16,7 @@ import logging
 from collections.abc import Coroutine
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Literal
 from uuid import UUID
 
 import jwt
@@ -23,13 +28,15 @@ from app.config import get_settings
 from app.core.security import decode_token_with_expiry
 from app.dependencies import Models, Sessions, StoredAudio
 from app.models import User
-from app.schemas.translate import LanguagePair
+from app.schemas.translate import DialogResponse, LanguagePair
 from app.services import pipeline
 from app.services.audio_store import AudioStore
+from app.services.dialog import OTHER, choose_language
 from app.services.errors import describe
 from app.services.inference import run_live_model, run_model
 from app.services.interfaces import (
     Language,
+    LanguageDetector,
     LiveSpeechToText,
     ModelError,
     NoSpeechError,
@@ -46,6 +53,8 @@ MAX_UTTERANCE_BYTES = 30 * 16_000 * 2  # the HTTP API's 30 s limit, in 16 kHz 16
 # audio is there when an utterance starts.
 PREROLL_S = 0.256
 UNAUTHORIZED, INVALID, UNAVAILABLE = 4401, 4422, 4503
+Mode = Literal["live", "conversation", "dialog"]
+LANGUAGES: tuple[Language, ...] = ("ko", "en")
 
 
 @dataclass(frozen=True)
@@ -75,6 +84,18 @@ class Utterance:
     shown: tuple[str, int] | None = None  # the text and stable length last sent
 
 
+@dataclass(frozen=True)
+class DialogFinal:
+    """A dialog turn prepared with the language of the turn before as it was known then (T77)."""
+
+    prepared: pipeline.Prepared
+    wav: bytes
+    detected: Language
+    confidence: float
+    previous: Language | None
+    guessed: bool
+
+
 def failure(exc: BaseException) -> str:
     """The HTTP API's detail for a translation that failed; logs it without any message (T49)."""
     if isinstance(exc, UndecodableAudioError):
@@ -99,9 +120,12 @@ class LiveConnection:
         store: AudioStore,
         sessions: async_sessionmaker[AsyncSession],
         user_id: UUID,
-        pair: LanguagePair,
+        pair: LanguagePair | None,
         expires_at: datetime,
         options: LiveOptions,
+        mode: Mode = "live",
+        previous: Language | None = None,
+        previous_id: int | None = None,
     ) -> None:
         self.websocket = websocket
         self.models = models
@@ -110,10 +134,15 @@ class LiveConnection:
         self.store = store
         self.sessions = sessions
         self.user_id = user_id
-        self.source: Language = pair.source_lang
-        self.target: Language = pair.target_lang
+        # A dialog connection has no fixed direction: each turn's language is detected.
+        self.source: Language = pair.source_lang if pair else "ko"
+        self.target: Language = pair.target_lang if pair else "en"
         self.expires_at = expires_at
         self.options = options
+        self.mode = mode
+        # Dialog: the language of the last turn saved (or turned around on the screen) and its id.
+        self.previous, self.previous_id = previous, previous_id
+        self.saving: asyncio.Task | None = None  # dialog: the last turn's save, which the next one waits for
         self.run_update = run_live_model if options.update_thread else run_model
         self.current: Utterance | None = None
         self.tasks: set[asyncio.Task] = set()
@@ -161,12 +190,22 @@ class LiveConnection:
             kind, number = message["type"], message["id"]
         except (ValueError, TypeError, KeyError):
             return False
-        if type(number) is not int or kind not in ("utterance", "pause", "resume", "end", "cancel"):
+        kinds = ("utterance", "pause", "resume", "end", "cancel")
+        if type(number) is not int or kind not in (*kinds, *(("previous",) if self.mode == "dialog" else ())):
             return False
+        if kind == "previous":
+            # The screen turned a turn around (HTTP speech API, other direction). As in the HTTP dialog,
+            # that counts only while it is the last turn saved.
+            if message.get("lang") not in LANGUAGES:
+                return False
+            if number == self.previous_id:
+                self.previous = message["lang"]
+            return True
         if kind == "utterance":
             self.drop(self.current)
             self.current = Utterance(number, started_at=asyncio.get_running_loop().time())
-            self.current.updater = self.spawn(self.update(self.current))
+            if self.mode == "live":
+                self.current.updater = self.spawn(self.update(self.current))
             return True
         utterance = self.current
         if utterance is None or utterance.id != number:
@@ -202,7 +241,7 @@ class LiveConnection:
         if utterance.paused or utterance.too_long:
             return
         utterance.paused = True
-        utterance.final = self.spawn(self.prepare(bytes(utterance.pcm)))
+        utterance.final = self.spawn(self.prepare(bytes(utterance.pcm), self.previous))
 
     def resume(self, utterance: Utterance) -> None:
         if not utterance.paused:
@@ -222,8 +261,11 @@ class LiveConnection:
                 self.send({"type": "error", "id": utterance.id, "detail": "Audio is longer than 30 seconds"})
             )
             return
-        final = utterance.final or self.spawn(self.prepare(bytes(utterance.pcm)))  # no pause: all audio
-        self.spawn(self.finish(utterance.id, final))
+        final = utterance.final or self.spawn(self.prepare(bytes(utterance.pcm), self.previous))  # all audio
+        if self.mode == "dialog":
+            self.saving = self.spawn(self.finish(utterance.id, final, after=self.saving))
+        else:
+            self.spawn(self.finish(utterance.id, final))
 
     def drop(self, utterance: Utterance | None) -> None:
         if utterance is None:
@@ -234,28 +276,61 @@ class LiveConnection:
             if task is not None:
                 task.cancel()
 
-    async def prepare(self, pcm: bytes) -> pipeline.Prepared:
+    async def prepare(self, pcm: bytes, previous: Language | None) -> pipeline.Prepared | DialogFinal:
         # The same WAV file and pipeline as conversation mode's upload, so the same result.
-        return await pipeline.prepare(
-            models=self.models, source=self.source, target=self.target, audio=wav_from_pcm(pcm)
-        )
+        wav = wav_from_pcm(pcm)
+        if self.mode == "dialog":
+            return await self.prepare_dialog(wav, previous)
+        return await pipeline.prepare(models=self.models, source=self.source, target=self.target, audio=wav)
 
-    async def finish(self, number: int, final: asyncio.Task) -> None:
+    async def prepare_dialog(
+        self, wav: bytes, previous: Language | None, detection: tuple[Language, float] | None = None
+    ) -> DialogFinal:
+        """As POST /api/translate/dialog answers it: check the audio, detect its language, translate."""
+        if detection is None:
+            await run_model(pipeline.validate_audio, wav)
+            detection = await run_model(self.models.stt.detect_language, wav)
+        detected, confidence = detection
+        threshold = get_settings().dialog_language_threshold
+        language, guessed = choose_language(detected, confidence, previous, threshold)
+        prepared = await pipeline.prepare(
+            models=self.models, source=language, target=OTHER[language], audio=wav
+        )
+        return DialogFinal(prepared, wav, detected, confidence, previous, guessed)
+
+    async def finish(self, number: int, final: asyncio.Task, after: asyncio.Task | None = None) -> None:
+        if after is not None:
+            await asyncio.wait({after})  # dialog: the turn before is saved (or has failed) first
         try:
             prepared = await final
+            turn = prepared if isinstance(prepared, DialogFinal) else None
+            threshold = get_settings().dialog_language_threshold
+            if turn is not None and turn.previous != self.previous and turn.confidence < threshold:
+                # Prepared before the turn ahead was saved or turned around: an unsure turn's guess depends
+                # on that turn's language, so it is redone with it (the detection stays).
+                turn = await self.prepare_dialog(turn.wav, self.previous, (turn.detected, turn.confidence))
         except asyncio.CancelledError:
             raise
         except Exception as exc:  # noqa: BLE001 - one utterance failed; the connection goes on
             await self.send({"type": "error", "id": number, "detail": failure(exc)})
             return
         try:
+            ready = turn.prepared if turn is not None else prepared
             async with self.sessions() as db:
-                result = await pipeline.save(db=db, store=self.store, user_id=self.user_id, prepared=prepared)
+                result = await pipeline.save(db=db, store=self.store, user_id=self.user_id, prepared=ready)
         except Exception as exc:  # noqa: BLE001
             logger.error("Saving a live translation failed: %s", describe(exc))
             await self.send({"type": "error", "id": number, "detail": "The translation could not be saved"})
             return
-        await self.send({"type": "final", "id": number, "result": result.model_dump(mode="json")})
+        payload = result.model_dump(mode="json")
+        if turn is not None:
+            self.previous, self.previous_id = result.source_lang, number
+            payload = DialogResponse(
+                **result.model_dump(),
+                language_confidence=round(turn.confidence, 3),
+                language_guessed=turn.guessed,
+            ).model_dump(mode="json")
+        await self.send({"type": "final", "id": number, "result": payload})
 
     async def update(self, utterance: Utterance) -> None:
         """Recognize the utterance so far again and again, one update at a time (docs/experiments.md 8)."""
@@ -315,9 +390,9 @@ async def live(
     # comes in the first message.
     try:
         start = json.loads(await asyncio.wait_for(websocket.receive_text(), options.start_timeout_s))
-        if start["type"] != "start" or not isinstance(start["token"], str):
+        if not isinstance(start, dict) or start["type"] != "start" or not isinstance(start["token"], str):
             raise ValueError("not a start message")
-        pair = LanguagePair(source_lang=start["source_lang"], target_lang=start["target_lang"])
+        mode, pair, previous, previous_id = parse_mode(start)
     except WebSocketDisconnect:
         return
     except (TimeoutError, ValueError, TypeError, KeyError, ValidationError):
@@ -332,10 +407,47 @@ async def live(
         if await db.get(User, user_id) is None:
             await websocket.close(UNAUTHORIZED)
             return
-    if not isinstance(models.stt, LiveSpeechToText) or models.translator is None:
+    recognizes = {
+        "live": isinstance(models.stt, LiveSpeechToText),
+        "conversation": models.stt is not None,
+        "dialog": isinstance(models.stt, LanguageDetector),
+    }
+    if not recognizes[mode] or models.translator is None:
         await websocket.close(UNAVAILABLE)
         return
     await websocket.send_json({"type": "ready"})
     await LiveConnection(
-        websocket, models, models.stt, models.translator, store, sessions, user_id, pair, expires_at, options
+        websocket,
+        models,
+        models.stt,
+        models.translator,
+        store,
+        sessions,
+        user_id,
+        pair,
+        expires_at,
+        options,
+        mode=mode,
+        previous=previous,
+        previous_id=previous_id,
     ).run()
+
+
+def parse_mode(start: dict) -> tuple[Mode, LanguagePair | None, Language | None, int | None]:
+    """The start message's mode (live when left out), with its languages, or ValueError (T77).
+
+    Live and conversation connections translate one fixed direction. A dialog connection detects each turn's
+    language; when it replaces one that ended (a new token), the browser gives the last turn's language and
+    id so that an unsure next turn and a later turnaround work as they did."""
+    mode = start.get("mode", "live")
+    if mode in ("live", "conversation"):
+        pair = LanguagePair(source_lang=start["source_lang"], target_lang=start["target_lang"])
+        return mode, pair, None, None
+    if mode != "dialog":
+        raise ValueError("unknown mode")
+    previous, previous_id = start.get("previous_lang"), start.get("previous_id")
+    if (previous is None) != (previous_id is None):
+        raise ValueError("previous_lang and previous_id go together")
+    if previous is not None and (previous not in LANGUAGES or type(previous_id) is not int):
+        raise ValueError("bad previous turn")
+    return mode, None, previous, previous_id

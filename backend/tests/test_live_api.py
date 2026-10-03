@@ -20,12 +20,13 @@ from starlette.websockets import WebSocketDisconnect
 from app.config import get_settings
 from app.core.security import create_token
 from app.db.session import ENGINE_OPTIONS
-from app.dependencies import get_audio_store, get_models, get_sessions
+from app.dependencies import get_audio_store, get_db, get_models, get_sessions
 from app.main import app
 from app.models import Translation
 from app.routers.live import LiveOptions, get_live_options
 from app.services.audio_store import AudioStore
 from app.services.interfaces import ModelError
+from app.services.live import wav_from_pcm
 from app.services.pipeline import PipelineModels
 from tests.fakes import FakeLiveSpeechToText, FakeSpeechToText, FakeTextToSpeech, FakeTranslator
 
@@ -435,3 +436,212 @@ async def test_updates_can_run_on_a_thread_of_their_own(live):
     finals = [name for kind, name in calls if kind == "final"]
     assert updates and all(name.startswith("live") for name in updates)
     assert finals and all(name.startswith("model") for name in finals)
+
+
+# Conversation and dialog modes (T77, docs/experiments.md 11): the same prepare at a pause and save at the
+# end, without live subtitles, for the clips those modes used to upload over HTTP after the end.
+
+
+def http_db():
+    """The HTTP routes' database session on the test database, for comparing them with the WebSocket."""
+    sessions = app.dependency_overrides[get_sessions]()
+
+    async def db():
+        async with sessions() as session:
+            yield session
+
+    return db
+
+
+class Turns(FakeLiveSpeechToText):
+    """Detects each dialog turn's language from a list, in order, and can hold the first final recognition in
+    the model thread until released."""
+
+    def __init__(self, detections: list[tuple[str, float]], hold: bool = False) -> None:
+        super().__init__()
+        self.detections = list(detections)
+        self.hold = hold
+        self.entered, self.release = threading.Event(), threading.Event()
+
+    def detect_language(self, audio):
+        return self.detections.pop(0)
+
+    def transcribe(self, audio, language):
+        if self.hold:
+            self.hold = False
+            self.entered.set()
+            assert self.release.wait(5)
+        return super().transcribe(audio, language)
+
+
+def turn(ws, number, audio=SECOND):
+    ws.send_json({"type": "utterance", "id": number})
+    ws.send_bytes(audio)
+    ws.send_json({"type": "pause", "id": number})
+    ws.send_json({"type": "end", "id": number})
+    return until(ws, "final")[-1]
+
+
+def start_dialog(ws, token, **fields):
+    ws.send_json({"type": "start", "token": token, "mode": "dialog", **fields})
+    assert ws.receive_json() == {"type": "ready"}
+
+
+SAME = ("mode", "source_lang", "target_lang", "source_text", "translated_text", "stt_model", "mt_model")
+
+
+async def test_conversation_mode_sends_no_updates_and_answers_as_the_speech_api(live, db_session):
+    app.dependency_overrides[get_db] = http_db()
+    with live.client.websocket_connect("/api/translate/live") as ws:
+        start(ws, live.token, mode="conversation")
+        ws.send_json({"type": "utterance", "id": 1})
+        ws.send_bytes(SECOND)
+        ws.send_bytes(SECOND)
+        ws.send_json({"type": "pause", "id": 1})
+        ws.send_json({"type": "end", "id": 1})
+        messages = until(ws, "final")
+    assert [message["type"] for message in messages] == ["final"]
+    spoken = messages[-1]["result"]
+    uploaded = live.client.post(
+        "/api/translate/speech",
+        headers={"Authorization": f"Bearer {live.token}"},
+        files={"audio": ("conversation.wav", wav_from_pcm(2 * SECOND), "audio/wav")},
+        data={"source_lang": "ko", "target_lang": "en"},
+    )
+    assert uploaded.status_code == 201
+    assert {key: spoken[key] for key in SAME} == {key: uploaded.json()[key] for key in SAME}
+    assert spoken["audio_id"] is not None and spoken["tts_model"] == uploaded.json()["tts_model"]
+    assert await records(db_session) == 2
+
+
+async def test_conversation_mode_drops_a_prepared_final_when_speech_resumes(live, db_session):
+    stt = HeldFinal()
+    app.dependency_overrides[get_models] = lambda: replace(live.models, stt=stt)
+    with live.client.websocket_connect("/api/translate/live") as ws:
+        start(ws, live.token, mode="conversation")
+        ws.send_json({"type": "utterance", "id": 1})
+        ws.send_bytes(SECOND)
+        ws.send_json({"type": "pause", "id": 1})
+        assert stt.entered.wait(5)
+        ws.send_json({"type": "resume", "id": 1})
+        ws.send_bytes(SECOND)
+        stt.release.set()
+        ws.send_json({"type": "pause", "id": 1})
+        ws.send_json({"type": "end", "id": 1})
+        messages = until(ws, "final")
+    assert [message["type"] for message in messages] == ["final"]
+    assert messages[-1]["result"]["source_text"] == words(2 * len(SECOND))
+    assert await records(db_session) == 1
+    assert not stt.update_starts  # no live recognition at all
+
+
+async def test_conversation_mode_needs_no_live_recognition(live):
+    app.dependency_overrides[get_models] = lambda: replace(live.models, stt=FakeSpeechToText(text="said"))
+    with live.client.websocket_connect("/api/translate/live") as ws:
+        start(ws, live.token, mode="conversation")
+        final = turn(ws, 1)
+    assert final["result"]["translated_text"] == "[ko->en] said"
+
+
+async def test_dialog_mode_detects_each_turn_and_takes_an_unsure_one_as_the_other_person(live, db_session):
+    stt = Turns([("ko", 1.0), ("ko", 0.55), ("ko", 0.55)])
+    app.dependency_overrides[get_models] = lambda: replace(live.models, stt=stt)
+    with live.client.websocket_connect("/api/translate/live") as ws:
+        start_dialog(ws, live.token)
+        first = turn(ws, 1)
+        second = turn(ws, 2)
+        # Turn 2 was turned around on the screen (the HTTP speech API redid it as Korean): the next unsure
+        # turn is taken as English. A note about an older turn changes nothing, as on the screen.
+        ws.send_json({"type": "previous", "id": 2, "lang": "ko"})
+        ws.send_json({"type": "previous", "id": 1, "lang": "en"})
+        third = turn(ws, 3)
+    assert [message["type"] for message in (first, second, third)] == ["final"] * 3
+    first, second, third = first["result"], second["result"], third["result"]
+    assert (first["source_lang"], first["target_lang"]) == ("ko", "en")
+    assert (first["language_confidence"], first["language_guessed"]) == (1.0, False)
+    assert first["translated_text"] == f"[ko->en] {words(len(SECOND))}"
+    assert (second["source_lang"], second["target_lang"], second["language_guessed"]) == ("en", "ko", True)
+    assert second["language_confidence"] == 0.55
+    assert (third["source_lang"], third["language_guessed"]) == ("en", True)
+    assert await records(db_session) == 3
+
+
+async def test_a_dialog_turn_prepared_before_the_turn_ahead_was_saved_is_redone_if_its_guess_changes(
+    live, db_session
+):
+    stt = Turns([("ko", 1.0), ("ko", 0.55)], hold=True)
+    app.dependency_overrides[get_models] = lambda: replace(live.models, stt=stt)
+    with live.client.websocket_connect("/api/translate/live") as ws:
+        start_dialog(ws, live.token)
+        ws.send_json({"type": "utterance", "id": 1})
+        ws.send_bytes(SECOND)
+        ws.send_json({"type": "pause", "id": 1})
+        ws.send_json({"type": "end", "id": 1})
+        assert stt.entered.wait(5)  # turn 1 is still being recognized when turn 2 pauses
+        ws.send_json({"type": "utterance", "id": 2})
+        ws.send_bytes(SECOND)
+        ws.send_json({"type": "pause", "id": 2})
+        ws.send_json({"type": "end", "id": 2})
+        stt.release.set()
+        messages = until(ws, "final")
+        messages += until(ws, "final")
+    # Saved in order. Turn 2 was prepared before turn 1 was saved as Korean; it is unsure, so it is English,
+    # as the HTTP dialog API answers it with previous_lang=ko.
+    saved = [(message["id"], message["result"]["source_lang"]) for message in messages]
+    assert saved == [(1, "ko"), (2, "en")]
+    assert messages[1]["result"]["language_guessed"] is True
+    assert await records(db_session) == 2
+
+
+async def test_a_reconnected_dialog_keeps_the_previous_turn_it_is_given(live):
+    stt = Turns([("ko", 0.55)])
+    app.dependency_overrides[get_models] = lambda: replace(live.models, stt=stt)
+    with live.client.websocket_connect("/api/translate/live") as ws:
+        start_dialog(ws, live.token, previous_lang="en", previous_id=5)
+        ws.send_json({"type": "previous", "id": 5, "lang": "ko"})
+        final = turn(ws, 6)["result"]
+    assert (final["source_lang"], final["language_guessed"]) == ("en", True)
+
+
+@pytest.mark.parametrize(
+    "first",
+    [
+        {"mode": "chat", "source_lang": "ko", "target_lang": "en"},
+        {"mode": "conversation", "source_lang": "ko", "target_lang": "ko"},
+        {"mode": "dialog", "previous_lang": "ja", "previous_id": 1},
+        {"mode": "dialog", "previous_lang": "ko"},
+        {"mode": "dialog", "previous_lang": "ko", "previous_id": "1"},
+    ],
+)
+async def test_a_bad_mode_start_closes_the_connection(live, first):
+    with live.client.websocket_connect("/api/translate/live") as ws:
+        ws.send_json({"type": "start", "token": live.token, **first})
+        assert closed_with(ws) == 4422
+
+
+@pytest.mark.parametrize(
+    ("mode", "message"),
+    [
+        ("live", {"type": "previous", "id": 1, "lang": "ko"}),
+        ("conversation", {"type": "previous", "id": 1, "lang": "ko"}),
+        ("dialog", {"type": "previous", "id": 1, "lang": "ja"}),
+    ],
+)
+async def test_a_bad_previous_message_closes_the_connection(live, mode, message):
+    with live.client.websocket_connect("/api/translate/live") as ws:
+        start(ws, live.token, mode=mode)
+        ws.send_json(message)
+        assert closed_with(ws) == 4422
+
+
+async def test_dialog_mode_without_language_detection_is_unavailable(live):
+    class NoDetection:
+        model_name = "plain-stt"
+
+        def transcribe(self, audio, language):
+            raise AssertionError("not reached")
+
+    app.dependency_overrides[get_models] = lambda: replace(live.models, stt=NoDetection())
+    with live.client.websocket_connect("/api/translate/live") as ws:
+        ws.send_json({"type": "start", "token": live.token, "mode": "dialog"})
+        assert closed_with(ws) == 4503

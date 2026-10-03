@@ -321,6 +321,17 @@ access 헤더 없이 refresh 토큰을 JSON으로 보낸다.
 - 한 마디 소리가 30초를 넘으면 그 마디는 `end`에서 `"Audio is longer than 30 seconds"` 오류가 된다
 - 연결이 끊기면 진행 중인 마디와 아직 저장하지 않은 최종 결과는 버린다
 
+**대화 모드와 두 사람 대화 (`mode`, T77)**: 로그인한 화면의 대화 모드와 두 사람 대화도 이 웹소켓을 쓴다. 첫 메시지에 `mode`를 넣는다(없으면 `"live"`, 위의 동시통역).
+
+| `mode` | 첫 메시지 | 하는 일 |
+|---|---|---|
+| `"conversation"` | `{"type": "start", "token": "...", "mode": "conversation", "source_lang": "ko", "target_lang": "en"}` | 자막(`source`·`translation`)을 보내지 않는다. `pause`에서 최종 인식·번역·합성을 미리 시작하고 `resume`이면 버리며, `end`에서 저장하고 `final`을 보낸다. 결과는 같은 소리를 `POST /api/translate/speech`에 올렸을 때와 같다 |
+| `"dialog"` | `{"type": "start", "token": "...", "mode": "dialog"}` (다시 연결할 때는 `"previous_lang": "ko", "previous_id": 7`을 함께) | 자막 없이 `pause`에서 언어 판별과 최종 처리를 미리 시작한다. `final`의 `result`는 `POST /api/translate/dialog`의 201 응답과 같은 필드(`language_confidence`·`language_guessed` 포함) |
+
+- 언어·필드 규칙은 위와 같고, 틀리면 `4422`. 두 사람 대화의 `previous_lang`과 `previous_id`는 함께 보내거나 함께 뺀다. 서버에 언어 판별 모델이 없으면 `4503`, 대화 모드는 자막용 인식이 없어도 된다
+- 두 사람 대화의 직전 마디 언어: 서버가 연결마다 마지막으로 저장한 마디의 언어(처음에는 `previous_lang`)를 기억해 `POST /api/translate/dialog`의 `previous_lang`처럼 쓴다. 그래서 마디는 끝난 순서대로 저장한다. 앞 마디가 저장되기 전에 미리 처리했고 확신이 기준보다 낮으면, 저장할 때 앞 마디의 언어로 다시 처리한다(판별은 다시 하지 않는다)
+- 화면이 방향을 바꾼 마디(`POST /api/translate/speech`로 다시 번역)가 마지막으로 저장한 마디면 `{"type": "previous", "id": 7, "lang": "en"}`을 보낸다. 서버는 `id`가 마지막으로 저장한 마디일 때만 따르고, 아니면 무시한다(HTTP 두 사람 대화에서 화면이 하던 것과 같다). 다른 `mode`에서 이 메시지는 `4422`
+
 ## 상태 확인
 
 ### GET /api/health
