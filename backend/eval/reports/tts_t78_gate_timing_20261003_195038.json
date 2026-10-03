@@ -1,0 +1,30 @@
+[
+ {
+  "candidate": "supertonic-fast",
+  "load": null,
+  "languages": {
+   "ko": {
+    "model_name": "supertonic-3/F1/2-step",
+    "speed_p50": 0.08,
+    "speed_p95": 0.09059999999999999,
+    "synth_s_p50": 0.703,
+    "failures": 0,
+    "count": 129
+   }
+  }
+ },
+ {
+  "candidate": "supertonic",
+  "load": null,
+  "languages": {
+   "ko": {
+    "model_name": "supertonic-3/F1/8-step",
+    "speed_p50": 0.226,
+    "speed_p95": 0.25434999999999997,
+    "synth_s_p50": 1.916,
+    "failures": 0,
+    "count": 129
+   }
+  }
+ }
+]

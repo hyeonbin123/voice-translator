@@ -159,7 +159,7 @@ uv run python -m eval.supertonic_download    # 한국어 합성 시험용 Supert
 | 〃 | bert-base-spanish-wwm-uncased (BETO) | dccuchile | 모델 카드에 표기 없음 (원 저장소 [dccuchile/beto](https://github.com/dccuchile/beto)는 CC-BY-4.0) | [dccuchile/bert-base-spanish-wwm-uncased](https://huggingface.co/dccuchile/bert-base-spanish-wwm-uncased) |
 | 〃 | bert-base-japanese-v3 | Tohoku NLP | Apache-2.0 | [tohoku-nlp/bert-base-japanese-v3](https://huggingface.co/tohoku-nlp/bert-base-japanese-v3) |
 | 음성 합성 영어 | Kokoro-82M | hexgrad | Apache-2.0 | [hexgrad/Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) |
-| 음성 합성 한국어 (시험 중인 설정 `KO_TTS=supertonic`, 기본은 MeloTTS) | Supertonic 3 | Supertone Inc. | 모델 BigScience OpenRAIL-M (아래 고지), 옮겨 쓴 추론 코드 MIT | [supertone-oss-archive/supertonic-3](https://huggingface.co/supertone-oss-archive/supertonic-3) (리비전 `aafc6e3`), [supertone-oss-archive/supertonic](https://github.com/supertone-oss-archive/supertonic) |
+| 음성 합성 한국어 (비교용 설정 `KO_TTS=supertonic`. 시험에서 채택되지 않아 기본은 MeloTTS) | Supertonic 3 | Supertone Inc. | 모델 BigScience OpenRAIL-M (아래 고지), 옮겨 쓴 추론 코드 MIT | [supertone-oss-archive/supertonic-3](https://huggingface.co/supertone-oss-archive/supertonic-3) (리비전 `aafc6e3`), [supertone-oss-archive/supertonic](https://github.com/supertone-oss-archive/supertonic) |
 | 평가 데이터 | FLEURS | Google | CC-BY-4.0 | [google/fleurs](https://huggingface.co/datasets/google/fleurs) |
 
 라이선스는 2026-09-13~14에(Supertonic 3는 2026-10-04에) 각 모델 카드와 저장소에서 확인했다. 저장소에 들어 있는 모델 가중치는 대화 모드용 Silero VAD v6 ONNX 파일(1.2MB) 하나이고, 나머지는 실행할 때 원본에서 받는다.

@@ -1,0 +1,790 @@
+{
+ "tag": "t78_gate",
+ "candidate": "supertonic",
+ "split": "validation",
+ "cpu_count": 12,
+ "stt_load": false,
+ "languages": {
+  "ko": {
+   "model_name": "supertonic-3/F1/8-step",
+   "vram_mb": null,
+   "failures": 0,
+   "items": [
+    {
+     "id": 1510,
+     "synth_s": 1.91,
+     "audio_s": 8.66,
+     "per_audio_second": 0.2206
+    },
+    {
+     "id": 1511,
+     "synth_s": 1.832,
+     "audio_s": 8.66,
+     "per_audio_second": 0.2115
+    },
+    {
+     "id": 1513,
+     "synth_s": 1.408,
+     "audio_s": 5.83,
+     "per_audio_second": 0.2417
+    },
+    {
+     "id": 1514,
+     "synth_s": 2.328,
+     "audio_s": 10.83,
+     "per_audio_second": 0.2149
+    },
+    {
+     "id": 1515,
+     "synth_s": 1.026,
+     "audio_s": 3.8,
+     "per_audio_second": 0.2701
+    },
+    {
+     "id": 1516,
+     "synth_s": 1.834,
+     "audio_s": 8.85,
+     "per_audio_second": 0.2073
+    },
+    {
+     "id": 1517,
+     "synth_s": 1.509,
+     "audio_s": 6.42,
+     "per_audio_second": 0.2352
+    },
+    {
+     "id": 1518,
+     "synth_s": 1.781,
+     "audio_s": 8.34,
+     "per_audio_second": 0.2135
+    },
+    {
+     "id": 1519,
+     "synth_s": 2.143,
+     "audio_s": 9.51,
+     "per_audio_second": 0.2252
+    },
+    {
+     "id": 1521,
+     "synth_s": 1.382,
+     "audio_s": 6.02,
+     "per_audio_second": 0.2296
+    },
+    {
+     "id": 1522,
+     "synth_s": 3.079,
+     "audio_s": 13.68,
+     "per_audio_second": 0.225
+    },
+    {
+     "id": 1523,
+     "synth_s": 1.859,
+     "audio_s": 8.29,
+     "per_audio_second": 0.2242
+    },
+    {
+     "id": 1524,
+     "synth_s": 3.266,
+     "audio_s": 14.97,
+     "per_audio_second": 0.2181
+    },
+    {
+     "id": 1525,
+     "synth_s": 4.249,
+     "audio_s": 19.27,
+     "per_audio_second": 0.2205
+    },
+    {
+     "id": 1527,
+     "synth_s": 4.511,
+     "audio_s": 19.94,
+     "per_audio_second": 0.2262
+    },
+    {
+     "id": 1528,
+     "synth_s": 1.407,
+     "audio_s": 6.66,
+     "per_audio_second": 0.2113
+    },
+    {
+     "id": 1529,
+     "synth_s": 2.463,
+     "audio_s": 10.62,
+     "per_audio_second": 0.2319
+    },
+    {
+     "id": 1530,
+     "synth_s": 1.261,
+     "audio_s": 5.57,
+     "per_audio_second": 0.2263
+    },
+    {
+     "id": 1531,
+     "synth_s": 1.437,
+     "audio_s": 6.06,
+     "per_audio_second": 0.2371
+    },
+    {
+     "id": 1532,
+     "synth_s": 2.628,
+     "audio_s": 12.12,
+     "per_audio_second": 0.2168
+    },
+    {
+     "id": 1533,
+     "synth_s": 1.685,
+     "audio_s": 7.78,
+     "per_audio_second": 0.2167
+    },
+    {
+     "id": 1534,
+     "synth_s": 1.888,
+     "audio_s": 8.64,
+     "per_audio_second": 0.2184
+    },
+    {
+     "id": 1535,
+     "synth_s": 3.36,
+     "audio_s": 15.24,
+     "per_audio_second": 0.2204
+    },
+    {
+     "id": 1536,
+     "synth_s": 1.986,
+     "audio_s": 8.79,
+     "per_audio_second": 0.226
+    },
+    {
+     "id": 1537,
+     "synth_s": 1.679,
+     "audio_s": 7.37,
+     "per_audio_second": 0.2279
+    },
+    {
+     "id": 1538,
+     "synth_s": 2.3,
+     "audio_s": 10.86,
+     "per_audio_second": 0.2118
+    },
+    {
+     "id": 1539,
+     "synth_s": 2.288,
+     "audio_s": 10.45,
+     "per_audio_second": 0.2189
+    },
+    {
+     "id": 1540,
+     "synth_s": 2.067,
+     "audio_s": 9.38,
+     "per_audio_second": 0.2203
+    },
+    {
+     "id": 1541,
+     "synth_s": 2.789,
+     "audio_s": 12.54,
+     "per_audio_second": 0.2225
+    },
+    {
+     "id": 1542,
+     "synth_s": 2.1,
+     "audio_s": 9.29,
+     "per_audio_second": 0.226
+    },
+    {
+     "id": 1543,
+     "synth_s": 1.494,
+     "audio_s": 6.1,
+     "per_audio_second": 0.245
+    },
+    {
+     "id": 1544,
+     "synth_s": 2.682,
+     "audio_s": 12.18,
+     "per_audio_second": 0.2202
+    },
+    {
+     "id": 1545,
+     "synth_s": 1.312,
+     "audio_s": 5.13,
+     "per_audio_second": 0.2555
+    },
+    {
+     "id": 1546,
+     "synth_s": 3.331,
+     "audio_s": 15.31,
+     "per_audio_second": 0.2177
+    },
+    {
+     "id": 1548,
+     "synth_s": 1.448,
+     "audio_s": 5.89,
+     "per_audio_second": 0.2458
+    },
+    {
+     "id": 1550,
+     "synth_s": 2.949,
+     "audio_s": 13.43,
+     "per_audio_second": 0.2196
+    },
+    {
+     "id": 1551,
+     "synth_s": 1.444,
+     "audio_s": 6.53,
+     "per_audio_second": 0.2211
+    },
+    {
+     "id": 1552,
+     "synth_s": 1.295,
+     "audio_s": 4.84,
+     "per_audio_second": 0.2679
+    },
+    {
+     "id": 1553,
+     "synth_s": 1.797,
+     "audio_s": 7.41,
+     "per_audio_second": 0.2424
+    },
+    {
+     "id": 1555,
+     "synth_s": 1.368,
+     "audio_s": 5.62,
+     "per_audio_second": 0.2434
+    },
+    {
+     "id": 1556,
+     "synth_s": 2.988,
+     "audio_s": 12.71,
+     "per_audio_second": 0.2351
+    },
+    {
+     "id": 1557,
+     "synth_s": 2.018,
+     "audio_s": 9.39,
+     "per_audio_second": 0.2148
+    },
+    {
+     "id": 1558,
+     "synth_s": 2.039,
+     "audio_s": 8.72,
+     "per_audio_second": 0.2338
+    },
+    {
+     "id": 1559,
+     "synth_s": 1.695,
+     "audio_s": 7.05,
+     "per_audio_second": 0.2405
+    },
+    {
+     "id": 1560,
+     "synth_s": 1.503,
+     "audio_s": 6.37,
+     "per_audio_second": 0.2359
+    },
+    {
+     "id": 1561,
+     "synth_s": 1.47,
+     "audio_s": 5.93,
+     "per_audio_second": 0.2481
+    },
+    {
+     "id": 1562,
+     "synth_s": 1.615,
+     "audio_s": 7.24,
+     "per_audio_second": 0.223
+    },
+    {
+     "id": 1563,
+     "synth_s": 2.25,
+     "audio_s": 10.04,
+     "per_audio_second": 0.2242
+    },
+    {
+     "id": 1564,
+     "synth_s": 2.387,
+     "audio_s": 10.96,
+     "per_audio_second": 0.2179
+    },
+    {
+     "id": 1565,
+     "synth_s": 2.475,
+     "audio_s": 11.26,
+     "per_audio_second": 0.2198
+    },
+    {
+     "id": 1566,
+     "synth_s": 2.079,
+     "audio_s": 9.38,
+     "per_audio_second": 0.2217
+    },
+    {
+     "id": 1567,
+     "synth_s": 1.746,
+     "audio_s": 7.44,
+     "per_audio_second": 0.2346
+    },
+    {
+     "id": 1568,
+     "synth_s": 2.813,
+     "audio_s": 12.57,
+     "per_audio_second": 0.2238
+    },
+    {
+     "id": 1569,
+     "synth_s": 1.749,
+     "audio_s": 7.54,
+     "per_audio_second": 0.2319
+    },
+    {
+     "id": 1570,
+     "synth_s": 1.287,
+     "audio_s": 5.51,
+     "per_audio_second": 0.2336
+    },
+    {
+     "id": 1571,
+     "synth_s": 1.709,
+     "audio_s": 7.8,
+     "per_audio_second": 0.2191
+    },
+    {
+     "id": 1572,
+     "synth_s": 1.308,
+     "audio_s": 5.48,
+     "per_audio_second": 0.2386
+    },
+    {
+     "id": 1573,
+     "synth_s": 2.135,
+     "audio_s": 9.56,
+     "per_audio_second": 0.2234
+    },
+    {
+     "id": 1574,
+     "synth_s": 2.645,
+     "audio_s": 11.44,
+     "per_audio_second": 0.2311
+    },
+    {
+     "id": 1575,
+     "synth_s": 2.309,
+     "audio_s": 10.43,
+     "per_audio_second": 0.2213
+    },
+    {
+     "id": 1576,
+     "synth_s": 1.929,
+     "audio_s": 8.81,
+     "per_audio_second": 0.219
+    },
+    {
+     "id": 1577,
+     "synth_s": 1.241,
+     "audio_s": 5.52,
+     "per_audio_second": 0.2248
+    },
+    {
+     "id": 1578,
+     "synth_s": 1.023,
+     "audio_s": 4.31,
+     "per_audio_second": 0.2375
+    },
+    {
+     "id": 1579,
+     "synth_s": 2.19,
+     "audio_s": 9.94,
+     "per_audio_second": 0.2204
+    },
+    {
+     "id": 1581,
+     "synth_s": 1.509,
+     "audio_s": 6.63,
+     "per_audio_second": 0.2276
+    },
+    {
+     "id": 1582,
+     "synth_s": 1.017,
+     "audio_s": 4.06,
+     "per_audio_second": 0.2504
+    },
+    {
+     "id": 1583,
+     "synth_s": 2.65,
+     "audio_s": 12.05,
+     "per_audio_second": 0.22
+    },
+    {
+     "id": 1584,
+     "synth_s": 1.916,
+     "audio_s": 8.12,
+     "per_audio_second": 0.2361
+    },
+    {
+     "id": 1586,
+     "synth_s": 2.76,
+     "audio_s": 12.8,
+     "per_audio_second": 0.2156
+    },
+    {
+     "id": 1587,
+     "synth_s": 1.205,
+     "audio_s": 4.57,
+     "per_audio_second": 0.2637
+    },
+    {
+     "id": 1588,
+     "synth_s": 1.671,
+     "audio_s": 6.7,
+     "per_audio_second": 0.2495
+    },
+    {
+     "id": 1589,
+     "synth_s": 2.445,
+     "audio_s": 10.62,
+     "per_audio_second": 0.2302
+    },
+    {
+     "id": 1590,
+     "synth_s": 2.58,
+     "audio_s": 11.22,
+     "per_audio_second": 0.2298
+    },
+    {
+     "id": 1591,
+     "synth_s": 2.087,
+     "audio_s": 9.29,
+     "per_audio_second": 0.2245
+    },
+    {
+     "id": 1593,
+     "synth_s": 2.105,
+     "audio_s": 9.34,
+     "per_audio_second": 0.2255
+    },
+    {
+     "id": 1594,
+     "synth_s": 2.139,
+     "audio_s": 9.4,
+     "per_audio_second": 0.2275
+    },
+    {
+     "id": 1595,
+     "synth_s": 2.325,
+     "audio_s": 10.31,
+     "per_audio_second": 0.2254
+    },
+    {
+     "id": 1596,
+     "synth_s": 1.498,
+     "audio_s": 6.67,
+     "per_audio_second": 0.2247
+    },
+    {
+     "id": 1598,
+     "synth_s": 1.444,
+     "audio_s": 6.37,
+     "per_audio_second": 0.2268
+    },
+    {
+     "id": 1599,
+     "synth_s": 1.435,
+     "audio_s": 5.83,
+     "per_audio_second": 0.2462
+    },
+    {
+     "id": 1600,
+     "synth_s": 1.653,
+     "audio_s": 7.77,
+     "per_audio_second": 0.2127
+    },
+    {
+     "id": 1601,
+     "synth_s": 2.602,
+     "audio_s": 11.57,
+     "per_audio_second": 0.2249
+    },
+    {
+     "id": 1604,
+     "synth_s": 4.888,
+     "audio_s": 22.05,
+     "per_audio_second": 0.2217
+    },
+    {
+     "id": 1605,
+     "synth_s": 1.958,
+     "audio_s": 8.88,
+     "per_audio_second": 0.2205
+    },
+    {
+     "id": 1606,
+     "synth_s": 2.367,
+     "audio_s": 10.22,
+     "per_audio_second": 0.2315
+    },
+    {
+     "id": 1607,
+     "synth_s": 1.33,
+     "audio_s": 4.74,
+     "per_audio_second": 0.2808
+    },
+    {
+     "id": 1609,
+     "synth_s": 2.59,
+     "audio_s": 11.93,
+     "per_audio_second": 0.217
+    },
+    {
+     "id": 1611,
+     "synth_s": 1.595,
+     "audio_s": 7.75,
+     "per_audio_second": 0.2057
+    },
+    {
+     "id": 1612,
+     "synth_s": 0.991,
+     "audio_s": 4.04,
+     "per_audio_second": 0.245
+    },
+    {
+     "id": 1613,
+     "synth_s": 2.532,
+     "audio_s": 10.23,
+     "per_audio_second": 0.2476
+    },
+    {
+     "id": 1615,
+     "synth_s": 1.694,
+     "audio_s": 6.87,
+     "per_audio_second": 0.2467
+    },
+    {
+     "id": 1616,
+     "synth_s": 2.712,
+     "audio_s": 11.91,
+     "per_audio_second": 0.2277
+    },
+    {
+     "id": 1617,
+     "synth_s": 3.285,
+     "audio_s": 14.6,
+     "per_audio_second": 0.2251
+    },
+    {
+     "id": 1618,
+     "synth_s": 2.608,
+     "audio_s": 11.65,
+     "per_audio_second": 0.2239
+    },
+    {
+     "id": 1619,
+     "synth_s": 1.715,
+     "audio_s": 7.5,
+     "per_audio_second": 0.2287
+    },
+    {
+     "id": 1620,
+     "synth_s": 3.272,
+     "audio_s": 14.92,
+     "per_audio_second": 0.2192
+    },
+    {
+     "id": 1621,
+     "synth_s": 1.282,
+     "audio_s": 5.28,
+     "per_audio_second": 0.2427
+    },
+    {
+     "id": 1622,
+     "synth_s": 1.144,
+     "audio_s": 4.95,
+     "per_audio_second": 0.2312
+    },
+    {
+     "id": 1623,
+     "synth_s": 2.464,
+     "audio_s": 10.76,
+     "per_audio_second": 0.2289
+    },
+    {
+     "id": 1624,
+     "synth_s": 1.204,
+     "audio_s": 4.76,
+     "per_audio_second": 0.2532
+    },
+    {
+     "id": 1627,
+     "synth_s": 1.802,
+     "audio_s": 7.96,
+     "per_audio_second": 0.2265
+    },
+    {
+     "id": 1628,
+     "synth_s": 1.877,
+     "audio_s": 8.38,
+     "per_audio_second": 0.2239
+    },
+    {
+     "id": 1629,
+     "synth_s": 2.834,
+     "audio_s": 13.04,
+     "per_audio_second": 0.2173
+    },
+    {
+     "id": 1630,
+     "synth_s": 2.838,
+     "audio_s": 12.83,
+     "per_audio_second": 0.2212
+    },
+    {
+     "id": 1631,
+     "synth_s": 2.466,
+     "audio_s": 10.74,
+     "per_audio_second": 0.2296
+    },
+    {
+     "id": 1632,
+     "synth_s": 2.368,
+     "audio_s": 10.43,
+     "per_audio_second": 0.2269
+    },
+    {
+     "id": 1633,
+     "synth_s": 2.246,
+     "audio_s": 9.87,
+     "per_audio_second": 0.2275
+    },
+    {
+     "id": 1635,
+     "synth_s": 2.909,
+     "audio_s": 12.9,
+     "per_audio_second": 0.2256
+    },
+    {
+     "id": 1636,
+     "synth_s": 1.228,
+     "audio_s": 5.01,
+     "per_audio_second": 0.2452
+    },
+    {
+     "id": 1637,
+     "synth_s": 4.597,
+     "audio_s": 21.07,
+     "per_audio_second": 0.2182
+    },
+    {
+     "id": 1638,
+     "synth_s": 1.915,
+     "audio_s": 7.85,
+     "per_audio_second": 0.2439
+    },
+    {
+     "id": 1639,
+     "synth_s": 2.238,
+     "audio_s": 9.8,
+     "per_audio_second": 0.2283
+    },
+    {
+     "id": 1640,
+     "synth_s": 2.333,
+     "audio_s": 10.48,
+     "per_audio_second": 0.2225
+    },
+    {
+     "id": 1642,
+     "synth_s": 1.587,
+     "audio_s": 7.09,
+     "per_audio_second": 0.2239
+    },
+    {
+     "id": 1644,
+     "synth_s": 2.839,
+     "audio_s": 12.71,
+     "per_audio_second": 0.2234
+    },
+    {
+     "id": 1645,
+     "synth_s": 1.455,
+     "audio_s": 6.15,
+     "per_audio_second": 0.2365
+    },
+    {
+     "id": 1646,
+     "synth_s": 1.959,
+     "audio_s": 8.86,
+     "per_audio_second": 0.2211
+    },
+    {
+     "id": 1647,
+     "synth_s": 2.212,
+     "audio_s": 9.95,
+     "per_audio_second": 0.2223
+    },
+    {
+     "id": 1648,
+     "synth_s": 1.226,
+     "audio_s": 4.58,
+     "per_audio_second": 0.2678
+    },
+    {
+     "id": 1649,
+     "synth_s": 2.307,
+     "audio_s": 10.51,
+     "per_audio_second": 0.2195
+    },
+    {
+     "id": 1650,
+     "synth_s": 1.469,
+     "audio_s": 6.38,
+     "per_audio_second": 0.2304
+    },
+    {
+     "id": 1651,
+     "synth_s": 1.273,
+     "audio_s": 5.47,
+     "per_audio_second": 0.233
+    },
+    {
+     "id": 1652,
+     "synth_s": 0.806,
+     "audio_s": 3.22,
+     "per_audio_second": 0.2503
+    },
+    {
+     "id": 1653,
+     "synth_s": 2.282,
+     "audio_s": 9.76,
+     "per_audio_second": 0.2339
+    },
+    {
+     "id": 1654,
+     "synth_s": 1.664,
+     "audio_s": 7.54,
+     "per_audio_second": 0.2208
+    },
+    {
+     "id": 1656,
+     "synth_s": 1.207,
+     "audio_s": 4.8,
+     "per_audio_second": 0.2513
+    },
+    {
+     "id": 1657,
+     "synth_s": 1.895,
+     "audio_s": 8.72,
+     "per_audio_second": 0.2173
+    },
+    {
+     "id": 1658,
+     "synth_s": 1.685,
+     "audio_s": 7.44,
+     "per_audio_second": 0.2265
+    },
+    {
+     "id": 1659,
+     "synth_s": 1.046,
+     "audio_s": 4.25,
+     "per_audio_second": 0.2459
+    }
+   ]
+  }
+ }
+}

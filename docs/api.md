@@ -399,7 +399,7 @@ backend 폴더에서 `uv sync` 후 `uv run alembic upgrade head`를 실행해 �
 | `STT_MODEL` | `large-v3-turbo` | faster-whisper 모델 이름 |
 | `CT2_DIR` | `<프로젝트>/data/models/ct2` | 변환한 번역 모델 폴더 (`eval.mt_convert`) |
 | `TTS_ENABLED` | `true` | 끄면 음성 합성 없이 뜨고 응답에 `tts_error`가 들어간다 |
-| `KO_TTS` | `melo` | 한국어 음성 합성 모델. `melo`(MeloTTS, GPU) 또는 `supertonic`(Supertonic 3, CPU만 씀, 시험 중인 설정: docs/experiments.md 12절). `supertonic`이면 한국어 합성이 모델 스레드가 아니라 합성 전용 스레드에서 한 번에 하나씩 돈다. 모델은 OpenRAIL-M이라 README의 이용 제한 고지를 따른다 |
+| `KO_TTS` | `melo` | 한국어 음성 합성 모델. `melo`(MeloTTS, GPU) 또는 `supertonic`(Supertonic 3, CPU만 씀. 이 PC의 CPU에서는 GPU의 MeloTTS보다 빠르지 않아 채택하지 않은 비교용 설정: docs/experiments.md 12절). `supertonic`이면 한국어 합성이 모델 스레드가 아니라 합성 전용 스레드에서 한 번에 하나씩 돈다. 모델은 OpenRAIL-M이라 README의 이용 제한 고지를 따른다 |
 | `SUPERTONIC_DIR` | `<프로젝트>/data/models/supertonic-3` | Supertonic 3 파일 폴더(`eval.supertonic_download`로 받음). 올릴 때 파일마다 고정한 SHA-256을 확인하고, 다르면 합성을 끈 채 뜬다 |
 | `SUPERTONIC_STEPS` | `8` | Supertonic의 흐름 정합 단계 수(1~100). 적을수록 빠르고 음질이 낮아진다 |
 | `SUPERTONIC_THREADS` | `2` | Supertonic이 쓰는 ONNX Runtime intra-op 스레드 수 |
