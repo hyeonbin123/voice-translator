@@ -1,5 +1,5 @@
-"""Speech synthesis candidates for eval.tts_eval (task T4). Each loader imports only its own libraries,
-because the candidates run in different environments (docs/experiments.md)."""
+"""Speech synthesis candidates for eval.tts_eval (tasks T4 and T78). Each loader imports only its own
+libraries, because the candidates run in different environments (docs/experiments.md)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,14 @@ from collections.abc import Callable
 from pathlib import Path
 
 from app.services.interfaces import Language, TextToSpeech
-from app.services.tts import KokoroTextToSpeech, MeloTextToSpeech, MmsTextToSpeech
+from app.services.tts import KokoroTextToSpeech, MeloTextToSpeech, MmsTextToSpeech, SupertonicTextToSpeech
+from eval.common import MODELS
+
+# T78 (docs/experiments.md 12), fixed before any FLEURS run: ONNX Runtime on the CPU with 2 intra-op threads
+# (the fastest of 2, 4, 6 and 12 in a smoke on made-up sentences in the API container, and it leaves 4 of the
+# 6 cores to the server's other work), the reference code's speed 1.05 and voice F1.
+SUPERTONIC_DIR = MODELS / "supertonic-3"
+SUPERTONIC_THREADS = 2
 
 
 def _kokoro(language: Language) -> TextToSpeech:
@@ -23,9 +30,22 @@ def _kokoro(language: Language) -> TextToSpeech:
     return KokoroTextToSpeech()
 
 
+def _supertonic(steps: int) -> Callable[[Language], TextToSpeech]:
+    def load(language: Language) -> TextToSpeech:
+        return SupertonicTextToSpeech(
+            SUPERTONIC_DIR, steps=steps, threads=SUPERTONIC_THREADS, languages=(language,)
+        )
+
+    return load
+
+
 # name: (how to load the model for one language, languages it speaks)
 CANDIDATES: dict[str, tuple[Callable[[Language], TextToSpeech], list[Language]]] = {
     "mms": (MmsTextToSpeech, ["ko", "en"]),
     "melo": (MeloTextToSpeech, ["ko", "en"]),
     "kokoro": (_kokoro, ["en"]),
+    # Supertonic 3 speaks English too, but the trial replaces only the Korean model (Kokoro keeps English).
+    # S: the reference code's default 8 steps. S-fast: 2 steps, the fastest setting its documentation lists.
+    "supertonic": (_supertonic(8), ["ko"]),
+    "supertonic-fast": (_supertonic(2), ["ko"]),
 }
