@@ -233,13 +233,20 @@ def synth_records(tag: str) -> list[dict]:
 
 
 def speed_stats(items: list[dict]) -> dict:
+    """Speed over the sentences that were synthesized. A candidate whose synthesis failed for all of them
+    has no speed (None), and with one success that one is its p50 and p95 (T79): its report still shows
+    the failures."""
     speeds = [item["per_audio_second"] for item in items if item.get("per_audio_second")]
     synth_times = [item["synth_s"] for item in items if "synth_s" in item]
     return {
-        "speed_p50": statistics.median(speeds),
-        "speed_p95": statistics.quantiles(speeds, n=20)[18],
-        "synth_s_p50": statistics.median(synth_times),
+        "speed_p50": statistics.median(speeds) if speeds else None,
+        "speed_p95": statistics.quantiles(speeds, n=20)[18] if len(speeds) > 1 else next(iter(speeds), None),
+        "synth_s_p50": statistics.median(synth_times) if synth_times else None,
     }
+
+
+def _number(value: float | None, unit: str = "") -> str:
+    return "-" if value is None else f"{value:.3f}{unit}"
 
 
 def score_language(
@@ -336,9 +343,9 @@ def timing(args: argparse.Namespace) -> None:
         for language, values in result["languages"].items():
             load = (result["load"] or {}).get(language, {})
             lines.append(
-                f"| {result['candidate']} | {language} | {values['speed_p50']:.3f} "
-                f"| {values['speed_p95']:.3f} "
-                f"| {values['synth_s_p50']:.3f}초 | {values['failures']} | {load.get('calls', '-')} "
+                f"| {result['candidate']} | {language} | {_number(values['speed_p50'])} "
+                f"| {_number(values['speed_p95'])} "
+                f"| {_number(values['synth_s_p50'], '초')} | {values['failures']} | {load.get('calls', '-')} "
                 f"| {load.get('call_s_p50', '-')} |"
             )
     base.with_suffix(".md").write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -369,8 +376,9 @@ def write_report(results: list[dict], args: argparse.Namespace) -> None:
                 digit_text = f"{digits:.2%} ({values.get('count_digits')}문장)" if digits is not None else "-"
                 lines.append(
                     f"| {result['candidate']} | {values['error']:.2%} | {digit_text} "
-                    f"| {values['speed_p50']:.3f} "
-                    f"| {values['speed_p95']:.3f} | {values['synth_s_p50']:.3f}초 | {values['vram_mb']} "
+                    f"| {_number(values['speed_p50'])} "
+                    f"| {_number(values['speed_p95'])} | {_number(values['synth_s_p50'], '초')} "
+                    f"| {values['vram_mb']} "
                     f"| {values['failures']} |"
                 )
     for result in results:

@@ -204,6 +204,59 @@ def test_timing_summarizes_speed_and_load_without_recognition(tmp_path, monkeypa
     assert "| supertonic | ko | 0.100 |" in report.with_suffix(".md").read_text(encoding="utf-8")
 
 
+FAILED = {"failure": "ModelError: the model returned no audio"}
+
+
+def speeds(values: dict) -> tuple:
+    return values["speed_p50"], values["speed_p95"], values["synth_s_p50"]
+
+
+def test_timing_reports_a_candidate_whose_synthesis_mostly_failed(tmp_path, monkeypatch):
+    """The failures are what the report must show: no success leaves the speed empty, one success is it
+    (T79)."""
+    monkeypatch.setattr(tts_eval, "REPORTS", tmp_path)
+    done = {"id": 2, "synth_s": 0.6, "audio_s": 3.0, "per_audio_second": 0.2}
+    for candidate, items in (
+        ("none", [{"id": 1} | FAILED, {"id": 2} | FAILED]),
+        ("one", [{"id": 1} | FAILED, done]),
+    ):
+        failures = sum("failure" in item for item in items)
+        language = {"model_name": candidate, "vram_mb": None, "failures": failures, "items": items}
+        record = {
+            "tag": "t_fail",
+            "candidate": candidate,
+            "split": "validation",
+            "languages": {"ko": language},
+        }
+        (tmp_path / f"tts_t_fail_{candidate}_synth.json").write_text(json.dumps(record), encoding="utf-8")
+    tts_eval.timing(Namespace(tag="t_fail"))
+    (report,) = tmp_path.glob("tts_t_fail_timing_*.json")
+    summary = {
+        result["candidate"]: result["languages"]["ko"] for result in json.loads(report.read_text("utf-8"))
+    }
+    assert speeds(summary["none"]) == (None, None, None)
+    assert (summary["none"]["failures"], summary["none"]["count"]) == (2, 2)
+    assert speeds(summary["one"]) == (pytest.approx(0.2), pytest.approx(0.2), pytest.approx(0.6))
+    assert (summary["one"]["failures"], summary["one"]["count"]) == (1, 2)
+    table = report.with_suffix(".md").read_text(encoding="utf-8")
+    assert "| none | ko | - | - | - | 2 |" in table
+    assert "| one | ko | 0.200 | 0.200 | 0.600초 | 1 |" in table
+
+
+def test_score_reports_a_candidate_with_no_successful_synthesis(tmp_path, monkeypatch):
+    rows = {1: {"id": 1, "raw_transcription": "가나다.", "transcription": "가나다"}}
+    values = {"model_name": "fake", "vram_mb": None, "failures": 1, "items": [{"id": 1} | FAILED]}
+    result = tts_eval.score_language(
+        "ko", values, rows, lambda item: pytest.fail("nothing to hear"), error_rate=corpus_cer
+    )
+    assert result["error"] == pytest.approx(1.0) and result["failures"] == 1
+    assert speeds(result) == (None, None, None)
+    monkeypatch.setattr(tts_eval, "REPORTS", tmp_path)
+    tts_eval.write_report([{"candidate": "fake", "languages": {"ko": result}}], Namespace(tag="t_fail"))
+    (report,) = tmp_path.glob("tts_t_fail_*.md")
+    assert "| fake | 100.00% | - | - | - | - | None | 1 |" in report.read_text(encoding="utf-8")
+
+
 def tone(seconds: float, amplitude: float, rate: int = 1000, lead: float = 0.5) -> np.ndarray:
     t = np.arange(int(seconds * rate)) / rate
     body = amplitude * np.sin(2 * np.pi * 50 * t)
