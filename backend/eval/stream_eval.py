@@ -1,6 +1,7 @@
 """T34: offline check of live subtitles while speaking (docs/experiments.md 8).
 
   uv run python -m eval.stream_eval run --split validation --tag t34_dev
+  uv run python -m eval.stream_eval modes --split validation --tag t77_dev   (T77, docs/experiments.md 11)
 
 Each FLEURS clip is cut as conversation mode cuts it in the browser (Silero VAD, 1000 ms of quiet, T33),
 then streamed through a simulated clock. While the person speaks, the server recognizes all of the
@@ -16,6 +17,10 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
+import gc
+import hashlib
+import itertools
 import json
 import random
 import secrets
@@ -24,11 +29,12 @@ import time
 import uuid
 from datetime import UTC, datetime
 from difflib import SequenceMatcher
+from pathlib import Path
 
 import numpy as np
 
-from app.services.live import common_start, letters, stable_length
-from eval.common import MODELS, PROJECT, REPORTS, gpu_memory_mb
+from app.services.live import common_start, letters, stable_length, wav_from_pcm
+from eval.common import DATA, MODELS, PROJECT, REPORTS, gpu_memory_mb
 from eval.eos_eval import (
     LANGS,
     PREROLL_MS,
@@ -435,7 +441,7 @@ async def stream_one(
         await asyncio.sleep(max(0.0, t0 + count * FRAME_S - loop.time()))
 
     receiver = asyncio.create_task(receive())
-    pauses = 0
+    pauses = resumes = 0
     for at, kind, frames in browser_plan(flags, detected, pause_frames):
         await at_frame(at)
         if kind == "audio":
@@ -443,11 +449,14 @@ async def stream_one(
         else:
             await ws.send(json.dumps({"type": kind, "id": number}))
             pauses += kind == "pause"
+            resumes += kind == "resume"  # each drops the final prepared at the pause before (T77)
     outcome = await asyncio.wait_for(receiver, 120)
-    final_at, audio_at = messages[-1][0], None
+    final_at, audio_at, audio_sha256 = messages[-1][0], None, None
     if outcome["type"] == "final" and outcome["result"]["audio_id"]:
-        (await http.get(f"/api/audio/{outcome['result']['audio_id']}", headers=auth)).raise_for_status()
+        audio = await http.get(f"/api/audio/{outcome['result']['audio_id']}", headers=auth)
+        audio.raise_for_status()
         audio_at = loop.time() - t0
+        audio_sha256 = hashlib.sha256(audio.content).hexdigest()
     speech_end = final["spans"][-1][2]
     lags = None
     if outcome["type"] == "final" and letters(outcome["result"]["source_text"]) == letters(final["text"]):
@@ -462,6 +471,10 @@ async def stream_one(
         "audio_s": None if audio_at is None else audio_at - speech_end,
         "pauses": pauses,
         "updates": sum(1 for _, m in messages if m["type"] == "source"),
+        "resumes": resumes,
+        "result": outcome.get("result"),
+        "detail": outcome.get("detail"),
+        "audio_sha256": audio_sha256,
     }
 
 
@@ -501,9 +514,13 @@ class GpuLog:
     def __enter__(self) -> GpuLog:
         import threading
 
+        import psutil
         import pynvml
 
         self.nvml = pynvml
+        self.psutil = psutil
+        self.cpu: list[float] = []
+        psutil.cpu_percent(None)  # the first call only starts the count
         pynvml.nvmlInit()
         self.handle = pynvml.nvmlDeviceGetHandleByIndex(0)
         self.samples: list[tuple[float, float]] = []
@@ -519,6 +536,7 @@ class GpuLog:
             use = self.nvml.nvmlDeviceGetUtilizationRates(self.handle)
             memory = self.nvml.nvmlDeviceGetMemoryInfo(self.handle)
             self.samples.append((use.gpu, memory.used / 2**20))
+            self.cpu.append(self.psutil.cpu_percent(None))  # the whole machine, since the last sample
 
     def processes(self) -> list[str]:
         import psutil
@@ -545,6 +563,7 @@ class GpuLog:
             "p90_util": float(np.percentile(use, 90)),
             "max_util": float(max(use)),
             "max_memory_mb": max((m for _, m in self.samples), default=0.0),
+            "mean_cpu": float(np.mean(self.cpu)) if self.cpu else 0.0,
         }
 
 
@@ -611,12 +630,463 @@ def service(args: argparse.Namespace) -> None:
     print(f"written to {base.with_suffix('.md')}")
 
 
+# T77 (docs/experiments.md 11): conversation and dialog modes, each clip once over the old path (the browser
+# uploads the WAV over HTTP after the 1000 ms end) and once over the new one (streamed over the live
+# WebSocket without subtitles, prepared at the 192 ms pause, committed at the end), back to back.
+
+MODES = ("conversation", "dialog")
+OTHER = {"ko": "en", "en": "ko"}
+SAVING_MS = 300  # the rule: both directions' p50 at least this much sooner
+UNDECIDABLE_LIMIT = 2  # clips per direction whose HTTP result itself changes from call to call
+SECOND_USER_EVERY_S = 5.0
+# What a clip's result must share over both paths. The synthesized audio itself cannot be compared:
+# MeloTTS samples noise (and durations) at every call, so the same text gives different WAV bytes.
+SAME_FIELDS = (
+    "source_lang",
+    "target_lang",
+    "source_text",
+    "translated_text",
+    "stt_model",
+    "mt_model",
+    "tts_model",
+    "tts_error",
+    "language_guessed",
+)
+
+
+def clip_wav(audio: np.ndarray) -> bytes:
+    """The WAV the browser uploads for a clip (frontend pcm.ts encodeWav): the same file the server builds
+    from the streamed PCM (app/services/live.py)."""
+    return wav_from_pcm(np.round(audio * 32768).astype("<i2").tobytes())
+
+
+def end_frame(utterance: dict) -> int:
+    """Frames heard when the browser decides the end (1000 ms of quiet), as browser_plan sends it."""
+    detected = round(utterance["detected_s"] / FRAME_S)
+    return browser_plan(utterance["flags"], detected, PAD_FRAMES)[-1][0]
+
+
+def comparable(outcome: dict) -> dict:
+    """What must be the same over both paths: the error, or the result's texts, languages and models."""
+    if outcome["outcome"] != "final":
+        return {"outcome": outcome["outcome"], "detail": outcome.get("detail")}
+    result = outcome["result"]
+    return {
+        "outcome": "final",
+        "has_audio": result.get("audio_id") is not None,
+        **{key: result.get(key) for key in SAME_FIELDS},
+    }
+
+
+def same(a: dict, b: dict) -> bool:
+    return comparable(a) == comparable(b)
+
+
+def classify(upload: dict, prepared: dict, rechecks: list[dict]) -> str:
+    """'same', or for a clip whose paths differ: 'different' when two more uploads of its WAV give the
+    first upload's result again (the prepared path changed it), else 'undecidable' (the HTTP path itself
+    gives other results for the same WAV: model nondeterminism, not the prepare)."""
+    if same(upload, prepared):
+        return "same"
+    if len(rechecks) == 2 and all(same(upload, again) for again in rechecks):
+        return "different"
+    return "undecidable"
+
+
+def paired_ci(differences: list[float], seed: int = 77, rounds: int = 10_000) -> tuple[float, float, float]:
+    """The median of per-clip differences and its 95% percentile bootstrap interval."""
+    values = np.asarray(differences, dtype=float)
+    draws = np.random.default_rng(seed).choice(values, size=(rounds, len(values)), replace=True)
+    medians = np.median(draws, axis=1)
+    return float(np.median(values)), float(np.percentile(medians, 2.5)), float(np.percentile(medians, 97.5))
+
+
+def quantile_ms(values: list[float], q: float) -> float:
+    """A percentile in ms, or NaN when a path produced no audio at all (it then fails the rule)."""
+    return float(np.percentile(values, q)) * 1000 if values else float("nan")
+
+
+def summarize_modes(rows: list[dict]) -> list[dict]:
+    """One row per mode and source language."""
+    out = []
+    for mode in MODES:
+        for lang in LANGS:
+            items = [r for r in rows if r["mode"] == mode and r["lang"] == lang]
+            if not items:
+                continue
+            upload = [r["upload"]["audio_s"] for r in items if r["upload"]["audio_s"] is not None]
+            prepared = [r["prepared"]["audio_s"] for r in items if r["prepared"]["audio_s"] is not None]
+            pairs = [
+                r["upload"]["audio_s"] - r["prepared"]["audio_s"]
+                for r in items
+                if r["upload"]["audio_s"] is not None and r["prepared"]["audio_s"] is not None
+            ]
+            median, low, high = paired_ci(pairs) if pairs else (float("nan"),) * 3
+            classes = [r["identity"] for r in items]
+            out.append(
+                {
+                    "mode": mode,
+                    "lang": lang,
+                    "clips": len(items),
+                    "upload_p50_ms": quantile_ms(upload, 50),
+                    "upload_p90_ms": quantile_ms(upload, 90),
+                    "prepared_p50_ms": quantile_ms(prepared, 50),
+                    "prepared_p90_ms": quantile_ms(prepared, 90),
+                    "saving_ms": quantile_ms(upload, 50) - quantile_ms(prepared, 50),
+                    "paired_median_ms": median * 1000,
+                    "paired_ci_ms": (low * 1000, high * 1000),
+                    "upload_final_p50_ms": quantile_ms([r["upload"]["final_s"] for r in items], 50),
+                    "prepared_final_p50_ms": quantile_ms([r["prepared"]["final_s"] for r in items], 50),
+                    "same": classes.count("same"),
+                    "different": classes.count("different"),
+                    "undecidable": classes.count("undecidable"),
+                    "audio_bytes_same": sum(
+                        1
+                        for r in items
+                        if r["upload"].get("audio_sha256")
+                        and r["upload"].get("audio_sha256") == r["prepared"].get("audio_sha256")
+                    ),
+                    "errors_upload": sum(1 for r in items if r["upload"]["outcome"] != "final"),
+                    "errors_prepared": sum(1 for r in items if r["prepared"]["outcome"] != "final"),
+                    "prepares": sum(r["prepared"]["pauses"] for r in items),
+                    "dropped": sum(r["prepared"]["resumes"] for r in items),
+                }
+            )
+    return out
+
+
+def decide(rows: list[dict]) -> dict[str, dict]:
+    """The rule written before measuring (docs/experiments.md 11), for the parts this tool measures: per
+    mode, adopt when in both directions the upload path's end-to-audio p50 is at least 300 ms later than
+    the prepared path's, no clip is 'different' and at most two are 'undecidable'. The e2e_eval regression
+    check is the rule's third part and is judged from its own report."""
+    verdict = {}
+    for mode in MODES:
+        mine = [r for r in rows if r["mode"] == mode]
+        if not mine:
+            continue
+        reasons = []
+        if {r["lang"] for r in mine} != set(LANGS):
+            reasons.append("not both directions")
+        for r in mine:
+            if not r["saving_ms"] >= SAVING_MS:
+                reasons.append(f"{r['lang']}: p50 {r['saving_ms']:.0f}ms sooner, under {SAVING_MS}ms")
+            if r["different"]:
+                reasons.append(f"{r['lang']}: {r['different']} clips differ")
+            if r["undecidable"] > UNDECIDABLE_LIMIT:
+                reasons.append(f"{r['lang']}: {r['undecidable']} undecidable clips, over {UNDECIDABLE_LIMIT}")
+        verdict[mode] = {"adopt": not reasons, "reasons": reasons}
+    return verdict
+
+
+async def upload_one(http, auth: dict, mode: str, lang: str, utterance: dict, final: dict, previous) -> dict:
+    """The old path for one clip: nothing is sent until the browser decides the end, then the WAV goes to
+    the HTTP API and the translated speech is fetched. Times from the clip's start, as stream_one's."""
+    loop = asyncio.get_running_loop()
+    wav = clip_wav(utterance["audio"])
+    t0 = loop.time()
+    await asyncio.sleep(max(0.0, t0 + end_frame(utterance) * FRAME_S - loop.time()))
+    sent_at = loop.time() - t0
+    files = {"audio": ("conversation.wav", wav, "audio/wav")}
+    if mode == "conversation":
+        path, data = "/api/translate/speech", {"source_lang": lang, "target_lang": OTHER[lang]}
+    else:
+        path, data = "/api/translate/dialog", ({"previous_lang": previous} if previous else {})
+    reply = await http.post(path, headers=auth, files=files, data=data)
+    final_at = loop.time() - t0
+    speech_end = final["spans"][-1][2]
+    out: dict = {"sent_s": sent_at - speech_end, "final_s": final_at - speech_end, "audio_s": None}
+    if reply.status_code != 201:
+        try:
+            detail = reply.json().get("detail")
+        except ValueError:
+            detail = None
+        return out | {"outcome": "error", "status": reply.status_code, "detail": detail}
+    result = reply.json()
+    out |= {"outcome": "final", "result": result}
+    if result["audio_id"]:
+        audio = await http.get(f"/api/audio/{result['audio_id']}", headers=auth)
+        audio.raise_for_status()
+        out["audio_s"] = loop.time() - t0 - speech_end
+        out["audio_sha256"] = hashlib.sha256(audio.content).hexdigest()
+    return out
+
+
+async def reupload(http, auth: dict, mode: str, lang: str, utterance: dict, previous) -> dict:
+    """The same clip over HTTP once more, at once, for the identity check of a clip whose paths differ."""
+    files = {"audio": ("conversation.wav", clip_wav(utterance["audio"]), "audio/wav")}
+    if mode == "conversation":
+        path, data = "/api/translate/speech", {"source_lang": lang, "target_lang": OTHER[lang]}
+    else:
+        path, data = "/api/translate/dialog", ({"previous_lang": previous} if previous else {})
+    reply = await http.post(path, headers=auth, files=files, data=data)
+    if reply.status_code != 201:
+        return {"outcome": "error", "detail": reply.json().get("detail")}
+    return {"outcome": "final", "result": reply.json()}
+
+
+async def account(http, prefix: str) -> tuple[str, dict]:
+    email, password = f"{prefix}-{uuid.uuid4().hex[:8]}@example.com", secrets.token_urlsafe(16)
+    (await http.post("/api/auth/register", json={"email": email, "password": password})).raise_for_status()
+    login = await http.post("/api/auth/login", data={"username": email, "password": password})
+    token = login.raise_for_status().json()["access_token"]
+    return token, {"Authorization": f"Bearer {token}"}
+
+
+async def watch_health(http, phase: list[str], out: list[tuple[str, float]], done: asyncio.Event) -> None:
+    """GET /api/health every 0.2 s (T23's check that model work does not hold other requests)."""
+    while not done.is_set():
+        label, began = phase[0], time.perf_counter()
+        try:
+            reply = await http.get("/api/health")
+            took = time.perf_counter() - began if reply.status_code == 200 else float("inf")
+        except Exception:  # noqa: BLE001 - a failed check counts as an endless one
+            took = float("inf")
+        out.append((label, took))
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(done.wait(), 0.2)
+
+
+async def second_user(http, auth: dict, split: str, phase: list[str], out: list[dict], done: asyncio.Event):
+    """Another person on the same server: an 8-12 s recording to the HTTP speech API every 5 s."""
+    folder = DATA / "e2e" / split
+    manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
+    loop = asyncio.get_running_loop()
+    number = 0
+    while not done.is_set():
+        item = manifest[number % len(manifest)]
+        number += 1
+        label, began = phase[0], loop.time()
+        files = {"audio": (item["file"], (folder / item["file"]).read_bytes(), "audio/wav")}
+        data = {"source_lang": item["language"], "target_lang": OTHER[item["language"]]}
+        reply = await http.post("/api/translate/speech", headers=auth, files=files, data=data)
+        took = loop.time() - began
+        body = reply.json() if reply.status_code == 201 else {}
+        out.append({"phase": label, "elapsed_s": took, "status": reply.status_code, "id": body.get("id")})
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(done.wait(), max(0.0, SECOND_USER_EVERY_S - took))
+
+
+def turns(mode: str, chosen: dict) -> list[tuple[str, list]]:
+    """Connections and their clips: conversation mode one per direction, dialog one with the two languages
+    taking turns, as two people would."""
+    if mode == "conversation":
+        return [(lang, [(key, lang, u, f) for key, u, f in chosen[lang]]) for lang in chosen]
+    lists = [[(key, lang, u, f) for key, u, f in chosen[lang]] for lang in chosen]
+    mixed = [item for group in itertools.zip_longest(*lists) for item in group if item is not None]
+    return [("dialog", mixed)]
+
+
+async def run_modes(args: argparse.Namespace, chosen: dict) -> tuple[list[dict], dict]:
+    import httpx
+    from websockets.asyncio.client import connect
+
+    base = args.base_url.rstrip("/")
+    phase = ["idle"]
+    health: list[tuple[str, float]] = []
+    others: list[dict] = []
+    rows: list[dict] = []
+    async with httpx.AsyncClient(base_url=base, timeout=120) as http:
+        token, auth = await account(http, "modes")
+        other = auth  # the second user's account, when there is one
+        done = asyncio.Event()
+        watchers = [asyncio.create_task(watch_health(http, phase, health, done))]
+        if args.second_user:
+            _, other = await account(http, "second")
+            watchers.append(asyncio.create_task(second_user(http, other, args.split, phase, others, done)))
+        for mode in args.modes:
+            for name, items in turns(mode, chosen):
+                start = {"type": "start", "token": token, "mode": mode}
+                if mode == "conversation":
+                    start |= {"source_lang": name, "target_lang": OTHER[name]}
+                async with connect(
+                    "ws" + base.removeprefix("http") + "/api/translate/live", max_size=None
+                ) as ws:
+                    await ws.send(json.dumps(start))
+                    assert json.loads(await ws.recv())["type"] == "ready"
+                    previous = None  # dialog over HTTP: the browser's last answered language
+                    for number, (key, lang, utterance, final) in enumerate(items, 1):
+                        row = {"mode": mode, "lang": lang, "key": key, "number": number, "previous": previous}
+                        # Alternate which path goes first, so a slow stretch of time hits both alike.
+                        for path in ("upload", "prepared") if number % 2 else ("prepared", "upload"):
+                            phase[0] = f"{mode}:{path}"
+                            if path == "upload":
+                                row[path] = await upload_one(
+                                    http, auth, mode, lang, utterance, final, previous
+                                )
+                            else:
+                                row[path] = await stream_one(ws, http, auth, number, utterance, final)
+                            phase[0] = "idle"
+                            await asyncio.sleep(0.5)  # a moment between utterances, like playback would take
+                        if mode == "dialog" and row["upload"]["outcome"] == "final":
+                            previous = row["upload"]["result"]["source_lang"]
+                        rows.append(row)
+                        print(f"  {mode} {lang} {number}/{len(items)}", flush=True)  # a hang shows here
+                print(f"{mode} {name}: {len(items)} clips", flush=True)
+        done.set()
+        await asyncio.gather(*watchers)
+        # Clips whose paths differ: the same WAV over HTTP twice more (the identity check's rule).
+        clips = {(lang, key): utterance for lang in chosen for key, utterance, _ in chosen[lang]}
+        for row in rows:
+            row["rechecks"] = []
+            if not same(row["upload"], row["prepared"]):
+                for _ in range(2):
+                    clip = clips[(row["lang"], row["key"])]
+                    row["rechecks"].append(
+                        await reupload(http, auth, row["mode"], row["lang"], clip, row["previous"])
+                    )
+            row["identity"] = classify(row["upload"], row["prepared"], row["rechecks"])
+        # The two throwaway accounts' records go; the accounts stay in the database (as T58's do).
+        ids = [
+            o["result"]["id"]
+            for r in rows
+            for o in (r["upload"], r["prepared"], *r["rechecks"])
+            if o.get("result")
+        ]
+        for record in ids:
+            await http.delete(f"/api/history/{record}", headers=auth)
+        for item in others:
+            if item["id"]:
+                await http.delete(f"/api/history/{item['id']}", headers=other)
+    return rows, {"health": health, "second_user": others}
+
+
+def phase_stats(samples: list[tuple[str, float]]) -> dict[str, dict]:
+    stats = {}
+    for label in sorted({label for label, _ in samples} - {"idle"}):
+        values = [value for name, value in samples if name == label]
+        stats[label] = {
+            "count": len(values),
+            "p95_s": float(np.percentile(values, 95)),
+            "max_s": float(max(values)),
+        }
+    return stats
+
+
+def modes(args: argparse.Namespace) -> None:
+    """docs/experiments.md 11: the composed service through nginx, in real time, both paths per clip."""
+    silero = Silero()
+    model, translator = load_models()
+    chosen, skipped = {}, {}
+    for lang in args.langs:
+        chosen[lang], skipped[lang] = utterances(silero, model, translator, lang, args.split, args.count)
+    # The clips and their word times are ready: free this process's GPU memory before the service runs.
+    del model, translator
+    gc.collect()
+    with GpuLog() as gpu:
+        rows, watched = asyncio.run(run_modes(args, chosen))
+    (PROJECT / "work" / f"gpu_programs_{args.tag}.txt").write_text("\n".join(gpu.programs), encoding="utf-8")
+    write_modes_report(args, skipped, gpu.summary(), rows, watched, REPORTS)
+
+
+def write_modes_report(
+    args: argparse.Namespace, skipped: dict, gpu_use: dict, rows: list[dict], watched: dict, folder: Path
+) -> Path:
+    table = summarize_modes(rows)
+    verdict = decide(table)
+    health = phase_stats(watched["health"])
+    others = {}
+    for label in sorted({o["phase"] for o in watched["second_user"]} - {"idle"}):
+        values = [
+            o["elapsed_s"] for o in watched["second_user"] if o["phase"] == label and o["status"] == 201
+        ]
+        if values:
+            others[label] = {
+                "count": len(values),
+                "p50_s": statistics.median(values),
+                "p90_s": float(np.percentile(values, 90)),
+            }
+    stamp = datetime.now(UTC)
+    base = folder / f"stream_{args.tag}_{stamp:%Y%m%d_%H%M%S}"
+    report = {
+        "split": args.split,
+        "skipped": skipped,
+        "gpu_use": gpu_use,
+        "rows": table,
+        "verdict": verdict,
+        "health": health,
+        "second_user": others,
+        "details": rows,
+        "watched": watched,
+    }
+    base.with_suffix(".json").write_text(json.dumps(report, indent=1, ensure_ascii=False), encoding="utf-8")
+    lines = [
+        f"# 대화 모드·두 사람 대화 미리 처리 측정 ({args.tag})",
+        "",
+        f"- 날짜: {stamp.isoformat()}, FLEURS {args.split}, 언어별 {args.count}문장, {args.base_url}, "
+        f"두 번째 사용자 {'있음' if args.second_user else '없음'}",
+        "- 경로: 업로드 = 1초 판정 뒤 HTTP로 WAV(지금까지의 화면), "
+        "미리 처리 = 웹소켓으로 흘리고 192ms 쉼에서 미리 처리, 1초에서 확정. 문장마다 두 경로를 번갈아 먼저",
+        "- GPU (0.5초마다, 서버 포함): 사용률 평균 {mean_util:.0f}%, p90 {p90_util:.0f}%, "
+        "최대 {max_util:.0f}%, 메모리 최대 {max_memory_mb:.0f}MB, CPU 평균 {mean_cpu:.0f}%".format(**gpu_use),
+        f"- 뺀 문장: {skipped}",
+        "- 말 끝 → 음성: 마지막 단어 끝부터 번역 음성 받기 완료까지. "
+        "차이 중앙값은 문장별 (업로드 − 미리 처리)의 중앙값과 95% 붓스트랩 구간",
+        "- 같음: 원문·번역문·언어·모델·합성 오류·추정 여부·음성 유무가 같음. "
+        "다르면 같은 WAV를 HTTP로 두 번 더 보내 업로드 결과가 되풀이되면 '다름', "
+        "아니면 '판단 불가'(모델 비결정성)",
+        "",
+        "| 모드 | 원문 | 문장 | 업로드 p50 | p90 | 미리 처리 p50 | p90 | p50 차이 | "
+        "차이 중앙값 (95% 구간) | 같음/다름/판단 불가 | 음성 바이트 같음 | 오류 (업/미) | "
+        "미리 처리 / 버림 |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+    ]
+
+    def ms(value: float) -> str:
+        return f"{value:.0f}ms"
+
+    for r in table:
+        low, high = r["paired_ci_ms"]
+        cells = [
+            r["mode"],
+            r["lang"],
+            r["clips"],
+            ms(r["upload_p50_ms"]),
+            ms(r["upload_p90_ms"]),
+            ms(r["prepared_p50_ms"]),
+            ms(r["prepared_p90_ms"]),
+            ms(r["saving_ms"]),
+            f"{ms(r['paired_median_ms'])} ({low:.0f}~{high:.0f})",
+            f"{r['same']}/{r['different']}/{r['undecidable']}",
+            r["audio_bytes_same"],
+            f"{r['errors_upload']}/{r['errors_prepared']}",
+            f"{r['prepares']} / {r['dropped']}",
+        ]
+        lines.append("| " + " | ".join(str(cell) for cell in cells) + " |")
+    lines += [
+        "",
+        "| 구간 | health 수 | p95 | 최대 | 두 번째 사용자 p50 | p90 | 수 |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    nan = float("nan")
+    for label in sorted(set(health) | set(others)):
+        h, o = health.get(label, {}), others.get(label, {})
+        cells = [
+            label,
+            h.get("count", 0),
+            f"{h.get('p95_s', nan):.3f}s",
+            f"{h.get('max_s', nan):.3f}s",
+            f"{o.get('p50_s', nan):.2f}s",
+            f"{o.get('p90_s', nan):.2f}s",
+            o.get("count", 0),
+        ]
+        lines.append("| " + " | ".join(str(cell) for cell in cells) + " |")
+    lines += ["", "규칙의 시간·동일성 부분 (e2e 회귀는 e2e_eval 보고서로 따로 본다):"]
+    for mode, v in verdict.items():
+        lines.append(
+            f"- {mode}: " + ("채택 조건 충족" if v["adopt"] else "불충족: " + "; ".join(v["reasons"]))
+        )
+    base.with_suffix(".md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"written to {base.with_suffix('.md')}")
+    return base.with_suffix(".md")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("run", "service"):
+    for name in ("run", "service", "modes"):
         command = sub.add_parser(name)
         command.add_argument("--split", choices=("validation", "test"), default="validation")
         command.add_argument("--langs", nargs="+", choices=tuple(LANGS), default=list(LANGS))
@@ -628,8 +1098,12 @@ def main() -> None:
     sub.choices["service"].add_argument("--base-url", default="http://localhost:8080")
     # T61 candidate Q: quiet frames before the browser asks for the final (6 = 192 ms, the clip's end).
     sub.choices["service"].add_argument("--pause-frames", type=int, default=PAD_FRAMES)
+    sub.choices["modes"].add_argument("--base-url", default="http://localhost:8080")
+    sub.choices["modes"].add_argument("--modes", nargs="+", choices=MODES, default=list(MODES))
+    # T23's interference check: another person's HTTP requests during both paths (report only).
+    sub.choices["modes"].add_argument("--second-user", action="store_true")
     args = parser.parse_args()
-    {"run": run, "service": service}[args.command](args)
+    {"run": run, "service": service, "modes": modes}[args.command](args)
 
 
 if __name__ == "__main__":
