@@ -113,6 +113,7 @@ npm run dev
 cd backend
 uv sync --group gpu --group eval
 uv run python -m eval.fleurs_download        # FLEURS 한국어·영어 validation·test (약 1GB)
+uv run python -m eval.supertonic_download    # 한국어 합성 시험용 Supertonic 3 (약 400MB, OpenRAIL-M: 아래 고지)
 ```
 
 단계별 명령과 판단 규칙은 [docs/experiments.md](docs/experiments.md)에 있다 (`eval.stt_eval`, `eval.mt_eval`, `eval.tts_eval`, `eval.e2e_eval`). 리포트는 `backend/eval/reports/`에 남긴다. 음성 합성 모델은 transformers 버전이 달라 `tts` 그룹과 `eval` 그룹을 함께 설치할 수 없다. 서버를 다시 돌릴 때는 `uv sync --group gpu --group tts`로 되돌린다.
@@ -158,9 +159,12 @@ uv run python -m eval.fleurs_download        # FLEURS 한국어·영어 validati
 | 〃 | bert-base-spanish-wwm-uncased (BETO) | dccuchile | 모델 카드에 표기 없음 (원 저장소 [dccuchile/beto](https://github.com/dccuchile/beto)는 CC-BY-4.0) | [dccuchile/bert-base-spanish-wwm-uncased](https://huggingface.co/dccuchile/bert-base-spanish-wwm-uncased) |
 | 〃 | bert-base-japanese-v3 | Tohoku NLP | Apache-2.0 | [tohoku-nlp/bert-base-japanese-v3](https://huggingface.co/tohoku-nlp/bert-base-japanese-v3) |
 | 음성 합성 영어 | Kokoro-82M | hexgrad | Apache-2.0 | [hexgrad/Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) |
+| 음성 합성 한국어 (시험 중인 설정 `KO_TTS=supertonic`, 기본은 MeloTTS) | Supertonic 3 | Supertone Inc. | 모델 BigScience OpenRAIL-M (아래 고지), 옮겨 쓴 추론 코드 MIT | [supertone-oss-archive/supertonic-3](https://huggingface.co/supertone-oss-archive/supertonic-3) (리비전 `aafc6e3`), [supertone-oss-archive/supertonic](https://github.com/supertone-oss-archive/supertonic) |
 | 평가 데이터 | FLEURS | Google | CC-BY-4.0 | [google/fleurs](https://huggingface.co/datasets/google/fleurs) |
 
-라이선스는 2026-09-13~14에 각 모델 카드와 저장소에서 확인했다. 저장소에 들어 있는 모델 가중치는 대화 모드용 Silero VAD v6 ONNX 파일(1.2MB) 하나이고, 나머지는 실행할 때 원본에서 받는다.
+라이선스는 2026-09-13~14에(Supertonic 3는 2026-10-04에) 각 모델 카드와 저장소에서 확인했다. 저장소에 들어 있는 모델 가중치는 대화 모드용 Silero VAD v6 ONNX 파일(1.2MB) 하나이고, 나머지는 실행할 때 원본에서 받는다.
+
+**Supertonic 3 이용 제한 고지**: `KO_TTS=supertonic`으로 쓰는 Supertonic 3 모델은 BigScience OpenRAIL-M 라이선스다. 이 설정으로 서버를 돌리는 사람과 그 서버의 사용자는 라이선스 Attachment A의 이용 제한을 지켜야 한다. 법을 어기는 일, 미성년자를 해치는 일, 남을 해칠 목적으로 거짓 정보나 개인 식별 정보를 만들거나 퍼뜨리는 일, 기계가 만든 것임을 밝히지 않고 퍼뜨리는 일, 남을 비방·괴롭히거나 동의 없이 사칭하는 일(딥페이크 등), 개인의 법적 권리에 불리한 완전 자동 결정, 사회적 행동·성격이나 법으로 보호되는 특성에 따른 차별, 나이·사회적·신체적·정신적 특성을 노린 해로운 조작, 의료 조언과 진단 해석, 사법·법 집행·이민 절차를 위한 정보 생성에 쓸 수 없다. 서비스로 제공하면 이 제한을 이용 조건에 넣어 사용자에게 알려야 한다(라이선스 4.a·5조). 전문은 받은 파일 `data/models/supertonic-3/LICENSE`에 있다. 만든 곳(Supertone)은 2026-09-09에 저장소를 보관 처리해 더는 수정이나 지원을 하지 않는다. 그래서 이 저장소는 보관처의 리비전과 파일별 SHA-256을 고정해 받고(`uv run python -m eval.supertonic_download`, 약 400MB), 올릴 때마다 해시를 확인한다.
 
 ## 문서
 

@@ -399,6 +399,10 @@ backend 폴더에서 `uv sync` 후 `uv run alembic upgrade head`를 실행해 �
 | `STT_MODEL` | `large-v3-turbo` | faster-whisper 모델 이름 |
 | `CT2_DIR` | `<프로젝트>/data/models/ct2` | 변환한 번역 모델 폴더 (`eval.mt_convert`) |
 | `TTS_ENABLED` | `true` | 끄면 음성 합성 없이 뜨고 응답에 `tts_error`가 들어간다 |
+| `KO_TTS` | `melo` | 한국어 음성 합성 모델. `melo`(MeloTTS, GPU) 또는 `supertonic`(Supertonic 3, CPU만 씀, 시험 중인 설정: docs/experiments.md 12절). `supertonic`이면 한국어 합성이 모델 스레드가 아니라 합성 전용 스레드에서 한 번에 하나씩 돈다. 모델은 OpenRAIL-M이라 README의 이용 제한 고지를 따른다 |
+| `SUPERTONIC_DIR` | `<프로젝트>/data/models/supertonic-3` | Supertonic 3 파일 폴더(`eval.supertonic_download`로 받음). 올릴 때 파일마다 고정한 SHA-256을 확인하고, 다르면 합성을 끈 채 뜬다 |
+| `SUPERTONIC_STEPS` | `8` | Supertonic의 흐름 정합 단계 수(1~100). 적을수록 빠르고 음질이 낮아진다 |
+| `SUPERTONIC_THREADS` | `2` | Supertonic이 쓰는 ONNX Runtime intra-op 스레드 수 |
 | `STT_VAD_FILTER` | `true` | 말소리 구간만 인식 모델에 넘긴다 (docs/experiments.md 1-1) |
 | `STT_OWN_DECODE` | `false` | 업로드를 faster-whisper 대신 앱에서 디코딩한다. 비교용으로만 남긴 설정 (5절 후보 C) |
 | `LIVE_UPDATE_MS` | `1000` | 동시통역 자막 갱신 사이의 최소 간격(밀리초). 한 마디의 두 갱신 시작이 이만큼 떨어진다. 측정으로 고름: 짧을수록 빨리 보이지만 더 흔들린다 (docs/experiments.md 8절) |
