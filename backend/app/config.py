@@ -27,6 +27,13 @@ class Settings(BaseSettings):
     stt_model: str = "large-v3-turbo"
     ct2_dir: Path = Path(__file__).resolve().parents[2] / "data" / "models" / "ct2"
     tts_enabled: bool = True
+    # Korean speech synthesis: MeloTTS on the GPU (chosen in T4) or Supertonic 3 on the CPU, a trial that is
+    # adopted only by its measurement and a blind listening test (T78, docs/experiments.md 12). Supertonic
+    # runs on a synthesis thread of its own, beside the model thread; eval.supertonic_download gets its files.
+    ko_tts: Literal["melo", "supertonic"] = "melo"
+    supertonic_dir: Path = Path(__file__).resolve().parents[2] / "data" / "models" / "supertonic-3"
+    supertonic_steps: int = Field(default=8, ge=1, le=100)
+    supertonic_threads: int = Field(default=2, ge=1)
     # Freeze the loaded models out of the garbage collector's reach (T23). Off only to measure without it.
     gc_freeze: bool = True
     # Pass only the speech parts to Whisper (T14, docs/experiments.md 1-1): no empty results on speech, and

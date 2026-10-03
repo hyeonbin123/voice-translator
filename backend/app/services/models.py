@@ -42,9 +42,19 @@ def load_models(settings: Settings) -> PipelineModels:
             ),
         }
     )
-    tts = load_speech_synthesis(device) if settings.tts_enabled else None
+    tts = load_speech_synthesis(settings) if settings.tts_enabled else None
     corrector = load_typo_correction(settings) if settings.typo_correction else None
-    return PipelineModels(stt=stt, translator=translator, tts=tts, corrector=corrector)
+    # Supertonic runs on the CPU: off the model thread, which the GPU models queue on (T78).
+    off_model_thread = (
+        frozenset({"ko"}) if tts is not None and settings.ko_tts == "supertonic" else frozenset()
+    )
+    return PipelineModels(
+        stt=stt,
+        translator=translator,
+        tts=tts,
+        corrector=corrector,
+        synthesis_off_model_thread=off_model_thread,
+    )
 
 
 def warm_up(models: PipelineModels) -> None:
@@ -97,13 +107,18 @@ def load_typo_correction(settings: Settings) -> TypoCorrector:
     return corrector
 
 
-def load_speech_synthesis(device: str) -> TextToSpeech | None:
+def load_speech_synthesis(settings: Settings) -> TextToSpeech | None:
+    device = settings.model_device
     try:
-        from app.services.tts import KokoroTextToSpeech, LanguageTextToSpeech, MeloTextToSpeech
+        from app.services import tts
 
-        return LanguageTextToSpeech(
-            {"ko": MeloTextToSpeech("ko", device=device), "en": KokoroTextToSpeech(device=device)}
-        )
+        if settings.ko_tts == "supertonic":
+            korean = tts.SupertonicTextToSpeech(
+                settings.supertonic_dir, steps=settings.supertonic_steps, threads=settings.supertonic_threads
+            )
+        else:
+            korean = tts.MeloTextToSpeech("ko", device=device)
+        return tts.LanguageTextToSpeech({"ko": korean, "en": tts.KokoroTextToSpeech(device=device)})
     except Exception:  # noqa: BLE001 - a missing tts group or a load failure turns synthesis off, not the server
         logger.exception("Speech synthesis could not be loaded; translations will carry tts_error")
         return None

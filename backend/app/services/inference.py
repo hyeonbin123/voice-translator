@@ -59,6 +59,20 @@ async def run_live_model(fn: Callable[..., T], *args) -> T:
 
 
 @lru_cache
+def _synthesis_thread() -> ThreadPoolExecutor:
+    return ThreadPoolExecutor(max_workers=1, thread_name_prefix="synthesis")
+
+
+async def run_synthesis(fn: Callable[..., T], *args) -> T:
+    """Run a speech synthesis that uses the CPU only (Supertonic, T78) on a thread of its own.
+
+    Not on the model thread: the GPU models need not wait for it, nor it for them. One synthesis at a time,
+    since one call already spreads over SUPERTONIC_THREADS cores.
+    """
+    return await _run(_synthesis_thread(), fn, *args)
+
+
+@lru_cache
 def _correction_thread() -> ThreadPoolExecutor:
     return ThreadPoolExecutor(max_workers=1, thread_name_prefix="correction")
 

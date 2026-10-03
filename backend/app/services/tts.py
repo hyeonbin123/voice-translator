@@ -183,6 +183,43 @@ class KokoroTextToSpeech:
         return wav_bytes(_guarded(run), 24_000)
 
 
+class SupertonicTextToSpeech:
+    """Supertonic 3 (Supertone) on ONNX Runtime's CPU provider: no GPU memory (T78, docs/experiments.md 12).
+
+    The model is under OpenRAIL-M, whose use restrictions bind the service and its users (README). The
+    upstream project is archived, so the files are pinned by revision and SHA-256 and read from a local copy
+    (app/services/supertonic.py, eval/supertonic_download.py). It speaks Korean here; Kokoro keeps English.
+    """
+
+    def __init__(
+        self,
+        model_dir: Path | None = None,
+        *,
+        steps: int = 8,
+        threads: int = 2,
+        voice: str | None = None,
+        languages: tuple[Language, ...] = ("ko",),
+        verify: bool = True,
+        engine=None,
+    ) -> None:
+        from app.services import supertonic
+
+        voice = voice or supertonic.DEFAULT_VOICE
+        self.languages = languages
+        self.steps = steps
+        self.model_name = f"supertonic-3/{voice}/{steps}-step"
+        if engine is None:
+            if model_dir is None:
+                raise ValueError("model_dir is needed to load Supertonic")
+            engine = supertonic.SupertonicEngine.load(model_dir, voice=voice, threads=threads, verify=verify)
+        self._engine = engine
+
+    def synthesize(self, text: str, language: Language) -> SynthesizedAudio:
+        _check_text(text, language, self.languages)
+        audio = _guarded(lambda: self._engine.synthesize(text, language, self.steps))
+        return wav_bytes(audio, self._engine.sample_rate)
+
+
 class LanguageTextToSpeech:
     """Routes each language to its own model, since the best model may differ by language."""
 

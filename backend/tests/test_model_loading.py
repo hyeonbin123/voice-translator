@@ -316,3 +316,44 @@ def test_app_info_logs_reach_a_handler_under_uvicorn():
     assert any(type(handler) is logging.StreamHandler for handler in app_logger.handlers)
     assert logging.getLogger("app.services.models").isEnabledFor(logging.INFO)
     assert app_logger.propagate
+
+
+def test_korean_synthesis_can_be_supertonic_on_a_thread_of_its_own(fake_model_classes, monkeypatch, tmp_path):
+    # T78 (docs/experiments.md 12): a trial setting, MeloTTS stays the default until the trial is decided.
+    monkeypatch.setattr(tts, "SupertonicTextToSpeech", recording("Supertonic"))
+    bundle = models.load_models(
+        Settings(
+            model_device="cpu",
+            ko_tts="supertonic",
+            supertonic_dir=tmp_path,
+            supertonic_steps=2,
+            supertonic_threads=3,
+        )
+    )
+    built = {name: (args, kwargs) for name, args, kwargs in fake_model_classes}
+    assert "Melo" not in built
+    assert built["Supertonic"] == ((tmp_path,), {"steps": 2, "threads": 3})
+    assert bundle.tts.model_name == "ko: Supertonic, en: Kokoro"
+    # It runs on the CPU, off the model thread the GPU models queue on.
+    assert bundle.synthesis_off_model_thread == frozenset({"ko"})
+
+
+def test_melo_stays_the_default_on_the_model_thread(fake_model_classes):
+    bundle = models.load_models(Settings(model_device="cpu"))
+    assert "ko: Melo" in bundle.tts.model_name
+    assert bundle.synthesis_off_model_thread == frozenset()
+    assert models.load_models(Settings(model_device="cpu", tts_enabled=False)).synthesis_off_model_thread == (
+        frozenset()
+    )
+
+
+def test_supertonic_settings_are_checked():
+    with pytest.raises(ValidationError):
+        Settings(ko_tts="vits")
+    with pytest.raises(ValidationError):
+        Settings(supertonic_steps=0)
+    with pytest.raises(ValidationError):
+        Settings(supertonic_threads=0)
+    defaults = Settings()
+    assert (defaults.ko_tts, defaults.supertonic_steps, defaults.supertonic_threads) == ("melo", 8, 2)
+    assert defaults.supertonic_dir.parts[-3:] == ("data", "models", "supertonic-3")

@@ -13,7 +13,7 @@ from app.models import AudioFile, Translation
 from app.services import pipeline
 from app.services.audio_store import AudioStore
 from app.services.correction import OllamaCorrector
-from app.services.inference import run_model
+from app.services.inference import run_model, run_synthesis
 from app.services.interfaces import SynthesizedAudio
 from tests.fakes import FakeCorrector, FakeSpeechToText, FakeTextToSpeech, FakeTranslator, silent_wav
 
@@ -440,3 +440,51 @@ async def test_a_save_cancelled_while_writing_leaves_neither_record_nor_file(db_
         await saving
     assert not list((tmp_path / "audio").glob("*"))
     assert await db_session.scalar(select(func.count()).select_from(Translation)) == 0
+
+
+class ThreadRecordingTTS(FakeTextToSpeech):
+    def __init__(self) -> None:
+        super().__init__()
+        self.threads: list[tuple[str, str]] = []
+
+    def synthesize(self, text, language):
+        self.threads.append((language, threading.current_thread().name))
+        return super().synthesize(text, language)
+
+
+async def test_cpu_synthesis_runs_on_the_synthesis_thread_and_the_rest_on_the_model_thread():
+    """Korean synthesis on the CPU (Supertonic, T78) leaves the model thread to the GPU models; English
+    synthesis (Kokoro on the GPU) stays on it."""
+    tts = ThreadRecordingTTS()
+    bundle = pipeline.PipelineModels(
+        FakeSpeechToText(), FakeTranslator(), tts=tts, synthesis_off_model_thread=frozenset({"ko"})
+    )
+    await pipeline.prepare(models=bundle, source="en", target="ko", text="Hello.")
+    await pipeline.prepare(models=bundle, source="ko", target="en", text="안녕하세요.")
+    assert [language for language, _ in tts.threads] == ["ko", "en"]
+    assert tts.threads[0][1].startswith("synthesis") and tts.threads[1][1].startswith("model")
+
+
+async def test_synthesis_stays_on_the_model_thread_by_default():
+    tts = ThreadRecordingTTS()
+    bundle = pipeline.PipelineModels(FakeSpeechToText(), FakeTranslator(), tts=tts)
+    prepared = await pipeline.prepare(models=bundle, source="en", target="ko", text="Hello.")
+    assert prepared.tts_error is None and prepared.tts_ms is not None
+    assert tts.threads[0][1].startswith("model")
+
+
+async def test_the_synthesis_thread_does_not_wait_for_a_busy_model_thread():
+    entered, release = threading.Event(), threading.Event()
+
+    def hold() -> None:
+        entered.set()
+        release.wait(5)
+
+    held = asyncio.create_task(run_model(hold))
+    try:
+        assert await asyncio.to_thread(entered.wait, 5)
+        name = await asyncio.wait_for(run_synthesis(lambda: threading.current_thread().name), timeout=2)
+        assert name.startswith("synthesis") and not release.is_set()
+    finally:
+        release.set()
+        await held

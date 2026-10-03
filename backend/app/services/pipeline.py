@@ -25,7 +25,7 @@ from app.schemas.history import HistoryItem
 from app.schemas.translate import TranslationResponse
 from app.services.audio_store import AudioStore
 from app.services.errors import describe
-from app.services.inference import run_correction, run_model
+from app.services.inference import run_correction, run_model, run_synthesis
 from app.services.interfaces import (
     Language,
     ModelError,
@@ -52,6 +52,8 @@ class PipelineModels:
     translator: Translator | None
     tts: TextToSpeech | None = None
     corrector: TypoCorrector | None = None
+    # Target languages whose synthesis runs on the CPU: on the synthesis thread, not the model thread (T78).
+    synthesis_off_model_thread: frozenset[Language] = frozenset()
 
 
 @dataclass
@@ -144,9 +146,8 @@ async def prepare(
     )
     if models.tts is not None:
         try:
-            prepared.speech, prepared.tts_ms = await run_model(
-                _timed, models.tts.synthesize, translated, target
-            )
+            run = run_synthesis if target in models.synthesis_off_model_thread else run_model
+            prepared.speech, prepared.tts_ms = await run(_timed, models.tts.synthesize, translated, target)
             prepared.tts_model = models.tts.model_name
             prepared.tts_error = None
         except (ModelError, OSError) as exc:
