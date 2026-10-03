@@ -3,7 +3,7 @@ import { openMicrophone, type Microphone, type OpenMicrophone } from '../convers
 import { createLiveEndpointer, type CreateEndpointer, type SpeechEndpointer, type LiveEndpointEvent } from '../conversation/silero'
 import { encodePcm16 } from '../conversation/pcm'
 import { PLAYBACK_ERROR, translationPlayer, type PlayTranslation } from '../conversation/player'
-import { LiveTransport, type OpenSocket } from './socket'
+import { isTranslationResult, LiveTransport, utteranceError, type OpenSocket } from './socket'
 
 export interface Caption { text: string; stable: number }
 export interface LiveTurn {
@@ -20,14 +20,6 @@ export interface LiveState {
   active: boolean; permission: boolean; ready: boolean; speaking: boolean; playing: boolean
   playingId: number | null; turns: LiveTurn[]; error: string; notice: string; announcement: string
 }
-const errors: Record<string, string> = {
-  'Audio could not be decoded': '음성을 읽을 수 없습니다. 다시 말해 주세요.',
-  'Audio is longer than 30 seconds': '음성은 30초 이하로 말해 주세요.',
-  'No speech was recognized': '말소리를 찾지 못했습니다. 마이크를 확인해 주세요.',
-  'Translation service is unavailable': '번역 서비스를 사용할 수 없습니다. 잠시 후 다시 말해 주세요.',
-  'The translation could not be saved': '번역 결과를 저장하지 못했습니다. 다시 말해 주세요.',
-}
-
 export class LiveSession {
   private state: LiveState = { active: false, permission: false, ready: false, speaking: false,
     playing: false, playingId: null, turns: [], error: '', notice: '', announcement: '' }
@@ -66,7 +58,7 @@ export class LiveSession {
     this.direction = { ...direction }
     const signal = this.controller.signal
     this.update({ active: true, permission: true, error: '', notice: '' })
-    const transport = new LiveTransport(this.api, { ...direction }, {
+    const transport = new LiveTransport(this.api, () => ({ ...direction }), {
       ready: (ready) => {
         if (signal.aborted) return
         if (!ready) {
@@ -154,9 +146,8 @@ export class LiveSession {
       const length = Array.from(value.text).length // server counts Unicode code points, not UTF-16 units
       this.turn(turn.id, { [value.type]: { text: value.text, stable: Math.max(0, Math.min(length, value.stable)) } })
     } else if (value.type === 'error') {
-      const detail = 'detail' in value && typeof value.detail === 'string' ? value.detail : ''
-      this.turn(turn.id, { state: 'error', error: errors[detail] ?? '이 말을 번역하지 못했습니다. 다시 말해 주세요.' })
-    } else if (value.type === 'final' && 'result' in value && isResult(value.result)) {
+      this.turn(turn.id, { state: 'error', error: utteranceError('detail' in value ? value.detail : undefined) })
+    } else if (value.type === 'final' && 'result' in value && isTranslationResult(value.result)) {
       const result = value.result
       this.turn(turn.id, { state: 'done', result, source: { text: result.source_text, stable: Array.from(result.source_text).length },
         translation: { text: result.translated_text, stable: Array.from(result.translated_text).length } })
@@ -228,12 +219,4 @@ export class LiveSession {
     }
     if (!signal.aborted) this.playbackPending = false
   }
-}
-
-function isResult(value: unknown): value is TranslationResult {
-  if (!value || typeof value !== 'object') return false
-  const result = value as Partial<TranslationResult>
-  return typeof result.id === 'string' && result.mode === 'speech' && typeof result.source_text === 'string'
-    && typeof result.translated_text === 'string' && ['ko', 'en'].includes(result.source_lang ?? '')
-    && ['ko', 'en'].includes(result.target_lang ?? '') && (result.audio_id === null || typeof result.audio_id === 'string')
 }

@@ -1,9 +1,10 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { TranslationApi, type DialogTranslationResult, type TranslationResult } from '../translation/api'
-import { SileroEndpointer, type CreateEndpointer } from '../conversation/silero'
+import { SileroEndpointer, type CreateEndpointer, type LiveEndpointEvent } from '../conversation/silero'
 import type { OpenMicrophone } from '../conversation/microphone'
 import type { PlayTranslation } from '../conversation/player'
 import { DialogSession } from './session'
+import { FakeSocket } from '../test/fakeSocket'
 
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -43,7 +44,8 @@ function setup(create?: CreateEndpointer) {
     const task = deferred<void>(); played.push({ result: translation, begin, task, signal }); return task.promise
   })
   const run = vi.fn(async (input: Float32Array) => ({ probability: input[64], h: new Float32Array(128), c: new Float32Array(128) }))
-  const session = new DialogSession(new TranslationApi({ request }), open, play,
+  // Example mode (no login, VITE_TRANSLATION_MOCK) uploads each turn over HTTP after its end.
+  const session = new DialogSession(new TranslationApi({ request }, true), open, play,
     create ?? (async () => new SileroEndpointer(run)))
   sessions.push(session)
   const send = async (count: number) => {
@@ -155,4 +157,88 @@ it('shows the replacement and tells the user when deleting the wrong record fail
     result: replacement,
     correctionError: '새 번역은 반영했지만 예전 기록을 지우지 못했습니다. 기록 화면에서 지울 수 있습니다.',
   })
+})
+
+// Signed in, each turn streams over the live connection in dialog mode: the server detects its language and
+// prepares it at a 192 ms pause, and keeps the last turn's language itself (T77, docs/experiments.md 11).
+function streaming() {
+  let capture!: (samples: Float32Array) => void
+  const microphone = { stop: vi.fn(), setPaused: vi.fn() }
+  const open = vi.fn<OpenMicrophone>(async (handler) => { capture = handler; return microphone })
+  let events: LiveEndpointEvent[] = []
+  const detector = { interrupt: vi.fn(() => true), push: vi.fn(async () => events) }
+  const sockets: FakeSocket[] = []
+  const requests: ReturnType<typeof deferred<Response>>[] = []
+  const request = vi.fn<(path: string, init?: RequestInit) => Promise<Response>>(() => {
+    const task = deferred<Response>(); requests.push(task); return task.promise
+  })
+  const liveToken = vi.fn(async (rejected?: string): Promise<string> => rejected ? 'fresh' : 'access')
+  const api = new TranslationApi({ request, liveToken, logout: vi.fn() })
+  const played: { result: TranslationResult; begin: () => void; task: ReturnType<typeof deferred<void>> }[] = []
+  const play = vi.fn<PlayTranslation>((translation, _signal, begin) => {
+    const task = deferred<void>(); played.push({ result: translation, begin, task }); return task.promise
+  })
+  const session = new DialogSession(api, open, play, async () => detector, () => {
+    const socket = new FakeSocket(); sockets.push(socket); return socket
+  })
+  sessions.push(session)
+  const start = async () => {
+    const starting = session.start()
+    await vi.waitFor(() => expect(sockets).toHaveLength(1))
+    sockets[0].opened(); sockets[0].message({ type: 'ready' }); await starting
+  }
+  const emit = async (...next: LiveEndpointEvent[]) => {
+    events = next; capture(new Float32Array(512)); await Promise.resolve(); await Promise.resolve()
+  }
+  return { session, sockets, request, requests, played, start, emit }
+}
+const onset: LiveEndpointEvent = { type: 'start', startSample: 0 }
+const audio: LiveEndpointEvent = { type: 'audio', samples: new Float32Array([-1, 0, 1]) }
+const end: LiveEndpointEvent = { type: 'end', samples: new Float32Array(512), startSample: 0, endSample: 512, detectedAtSample: 0, forced: false }
+
+it('streams turns in dialog mode and starts a new connection from the last turn it knows', async () => {
+  const s = streaming(); await s.start()
+  expect(s.sockets[0].messages()[0]).toEqual({ type: 'start', token: 'access', mode: 'dialog' })
+  await s.emit(onset, audio, { type: 'pause' }, end)
+  expect(s.sockets[0].messages().slice(1)).toEqual([{ type: 'utterance', id: 1 }, 'audio', { type: 'pause', id: 1 }, { type: 'end', id: 1 }])
+  s.sockets[0].message({ type: 'final', id: 1, result: speechResult('plain', 'ko') }) // no language fields: not a dialog answer
+  s.sockets[0].message({ type: 'final', id: 1, result: result('one', 'ko') })
+  await vi.waitFor(() => expect(s.session.getSnapshot().turns[0]).toMatchObject({ state: 'done', result: { id: 'one' } }))
+  expect(s.request).not.toHaveBeenCalled()
+  s.sockets[0].closed(4401)
+  await vi.waitFor(() => expect(s.sockets).toHaveLength(2))
+  s.sockets[1].opened()
+  expect(s.sockets[1].messages()[0]).toEqual({ type: 'start', token: 'fresh', mode: 'dialog', previous_lang: 'ko', previous_id: 1 })
+})
+
+it('tells the server when the last turn is turned around, and not for an older one', async () => {
+  const s = streaming(); await s.start()
+  const previous = () => s.sockets[0].messages().filter((m) => (m as { type?: string }).type === 'previous')
+  const listen = async (count: number) => {
+    await vi.waitFor(() => expect(s.played).toHaveLength(count))
+    s.played[count - 1].begin(); s.played[count - 1].task.resolve()
+    await vi.waitFor(() => expect(s.session.getSnapshot().playingId).toBeNull())
+  }
+  await s.emit(onset, audio, end)
+  s.sockets[0].message({ type: 'final', id: 1, result: result('first', 'ko', true) })
+  await listen(1)
+  await s.emit(onset, audio, end)
+  s.sockets[0].message({ type: 'final', id: 2, result: result('second', 'en', true) })
+  await listen(2)
+
+  const older = s.session.reverse(1)
+  await vi.waitFor(() => expect(s.request).toHaveBeenCalledTimes(1))
+  expect(s.request.mock.calls[0][0]).toBe('/api/translate/speech')
+  s.requests[0].resolve(new Response(JSON.stringify(speechResult('first-fixed', 'en')), { status: 201 }))
+  await vi.waitFor(() => expect(s.request).toHaveBeenCalledTimes(2))
+  s.requests[1].resolve(new Response(null, { status: 204 })); await older
+  await listen(3)
+  expect(previous()).toEqual([])
+
+  const last = s.session.reverse(2)
+  await vi.waitFor(() => expect(s.request).toHaveBeenCalledTimes(3))
+  s.requests[2].resolve(new Response(JSON.stringify(speechResult('second-fixed', 'ko')), { status: 201 }))
+  await vi.waitFor(() => expect(s.request).toHaveBeenCalledTimes(4))
+  s.requests[3].resolve(new Response(null, { status: 204 })); await last
+  expect(previous()).toEqual([{ type: 'previous', id: 2, lang: 'ko' }])
 })

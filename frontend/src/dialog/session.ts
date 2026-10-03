@@ -3,7 +3,10 @@ import type { DialogTranslationResult, Language, TranslationApi, TranslationResu
 import { openMicrophone, type Microphone, type OpenMicrophone } from '../conversation/microphone'
 import { encodeWav } from '../conversation/pcm'
 import { PLAYBACK_ERROR, translationPlayer, type PlayTranslation } from '../conversation/player'
-import { createSileroEndpointer, type CreateEndpointer, type SpeechEndpointer } from '../conversation/silero'
+import { createLiveEndpointer, createSileroEndpointer, type CreateEndpointer, type LiveEndpointEvent,
+  type SpeechEndpointer } from '../conversation/silero'
+import { CanceledUtterance, RECONNECTING, SpeculativeChannel, type Commit } from '../conversation/speculative'
+import { isTranslationResult, type OpenSocket } from '../live/socket'
 
 export interface DialogTurn {
   id: number
@@ -25,9 +28,14 @@ export interface DialogState {
   error: string
   notice: string
 }
-type Job = { id: number; audio: File }
+type Job = { id: number; utterance?: number; run: (signal: AbortSignal) => Promise<DialogTranslationResult> }
 type AudioJob = { id: number; result: TranslationResult }
 const RECORDING_LIMIT = 5
+
+function isDialogResult(value: unknown): value is DialogTranslationResult {
+  return isTranslationResult(value) && typeof (value as DialogTranslationResult).language_confidence === 'number'
+    && typeof (value as DialogTranslationResult).language_guessed === 'boolean'
+}
 
 export function wasLanguageGuessed(result: TranslationResult | DialogTranslationResult): result is DialogTranslationResult {
   return 'language_guessed' in result && result.language_guessed
@@ -40,6 +48,8 @@ export class DialogSession {
   private controller = new AbortController()
   private microphone?: Microphone
   private endpointer?: SpeechEndpointer
+  // Signed in: the live connection that detects and prepares each turn at a pause (T77). Example mode uploads.
+  private channel?: SpeculativeChannel<DialogTranslationResult>
   private captureEpoch = 0
   private jobs: Job[] = []
   private audioJobs: AudioJob[] = []
@@ -48,15 +58,20 @@ export class DialogSession {
   private playbackPending = false
   private previousLang?: Language
   private lastProcessedTurnId?: number
+  private lastProcessedUtterance?: number // its id on the live connection, which keeps the language too
   private nextId = 1
-  private readonly api: Pick<TranslationApi, 'dialog' | 'speech' | 'removeHistory'>
+  private readonly api: Pick<TranslationApi, 'dialog' | 'speech' | 'removeHistory' | 'liveToken' | 'expireLiveAuthentication'>
   private readonly open: OpenMicrophone
   private readonly play: PlayTranslation
   private readonly create: CreateEndpointer
+  private readonly speculative: boolean
+  private readonly socket?: OpenSocket
 
   constructor(api: TranslationApi, open: OpenMicrophone = openMicrophone, play: PlayTranslation = translationPlayer(api),
-    create: CreateEndpointer = createSileroEndpointer) {
-    this.api = api; this.open = open; this.play = play; this.create = create
+    create?: CreateEndpointer, socket?: OpenSocket) {
+    this.api = api; this.open = open; this.play = play; this.socket = socket
+    this.speculative = !api.demo
+    this.create = create ?? (this.speculative ? createLiveEndpointer : createSileroEndpointer)
   }
   getSnapshot = () => this.state
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener) } }
@@ -72,12 +87,21 @@ export class DialogSession {
     this.stop()
     const signal = this.controller.signal
     this.update({ active: true, permission: true, error: '', notice: '' })
+    // A new connection (a new token) starts from the last turn so an unsure next turn is guessed as before.
+    const channel = this.speculative ? new SpeculativeChannel(this.api, () => ({ mode: 'dialog',
+      ...(this.previousLang && this.lastProcessedUtterance !== undefined
+        ? { previous_lang: this.previousLang, previous_id: this.lastProcessedUtterance } : {}) }), {
+      ready: (ready) => { if (!signal.aborted) this.connected(ready) },
+      error: (text) => { if (!signal.aborted) { this.stop(); this.update({ error: text }) } },
+    }, '두 사람 대화', isDialogResult, this.socket) : undefined
+    this.channel = channel
     let pendingSamples = 0
     let openingMicrophone = true
     try {
       const preparing = this.create()
       const opening = this.open((samples) => {
-        if (signal.aborted || !this.state.active || this.state.playing || this.state.permission || !this.endpointer) return
+        if (signal.aborted || !this.state.active || this.state.playing || this.state.permission || !this.endpointer
+          || (channel && !channel.ready)) return
         const epoch = this.captureEpoch
         pendingSamples += samples.length
         if (pendingSamples > 16_000 * 3) {
@@ -86,14 +110,9 @@ export class DialogSession {
           return
         }
         void this.endpointer.push(samples).then((events) => {
-          if (signal.aborted || epoch !== this.captureEpoch) return
           for (const event of events) {
-            if (event.type === 'start') this.update({ speaking: true, notice: '' })
-            else if (event.type === 'end' || event.type === 'discard') {
-              this.update({ speaking: false })
-              if (event.type === 'end') this.enqueue(event.samples)
-              else this.update({ notice: '짧은 소리는 건너뛰었습니다. 계속 말해 주세요.' })
-            }
+            if (signal.aborted || epoch !== this.captureEpoch) return
+            this.event(event)
           }
         }).catch(() => {
           if (signal.aborted || epoch !== this.captureEpoch) return
@@ -106,13 +125,14 @@ export class DialogSession {
         this.update({ error: '마이크 연결이 끊겼습니다. 연결을 확인하고 두 사람 대화를 다시 시작해 주세요.' })
       }).then((microphone) => {
         if (signal.aborted) microphone.stop()
-        else this.microphone = microphone
+        else { this.microphone = microphone; if (channel) microphone.setPaused(true) }
         openingMicrophone = false
       })
-      const [endpointer] = await Promise.all([preparing, opening])
+      const [endpointer] = await Promise.all([preparing, opening, channel?.start(signal)])
       if (signal.aborted) { endpointer.interrupt(); return }
       this.endpointer = endpointer
       this.update({ permission: false })
+      if (channel) this.microphone?.setPaused(!channel.ready || this.state.playing)
     } catch {
       if (signal.aborted) return
       this.stop()
@@ -125,25 +145,53 @@ export class DialogSession {
   stop = () => {
     this.controller.abort()
     this.controller = new AbortController()
+    this.channel?.stop(); this.channel = undefined
     this.microphone?.stop(); this.microphone = undefined
     this.captureEpoch++
     this.endpointer?.interrupt(); this.endpointer = undefined
     this.jobs = []; this.audioJobs = []
     this.recordings.clear()
     this.requesting = this.playbackPending = false
-    this.previousLang = undefined; this.lastProcessedTurnId = undefined
+    this.previousLang = undefined; this.lastProcessedTurnId = undefined; this.lastProcessedUtterance = undefined
     this.update({ active: false, permission: false, speaking: false, translating: false, playing: false,
       playingId: null, correctingId: null, notice: '', turns: this.state.turns.map((turn) =>
         turn.state === 'queued' || turn.state === 'translating' ? { ...turn, state: 'canceled' } : turn) })
   }
 
-  private enqueue(samples: Float32Array) {
+  private event(event: LiveEndpointEvent) {
+    if (event.type === 'start') { this.channel?.event(event); this.update({ speaking: true, notice: '' }) }
+    else if (event.type === 'end') {
+      this.update({ speaking: false })
+      if (!this.channel) this.enqueue(event.samples)
+      else {
+        const commit = this.channel.event(event)
+        if (commit) this.enqueue(event.samples, commit)
+      }
+    } else if (event.type === 'discard') {
+      this.channel?.event(event)
+      this.update({ speaking: false, notice: '짧은 소리는 건너뛰었습니다. 계속 말해 주세요.' })
+    } else this.channel?.event(event)
+  }
+
+  /** The live connection is ready again, or reconnecting with a new token (it dropped what it held). */
+  private connected(ready: boolean) {
+    if (!ready) {
+      this.captureEpoch++
+      this.endpointer?.interrupt()
+      this.update({ speaking: false, notice: RECONNECTING })
+    }
+    this.microphone?.setPaused(!ready || this.state.playing || this.state.permission)
+  }
+
+  private enqueue(samples: Float32Array, commit?: Commit<DialogTranslationResult>) {
     const id = this.nextId++
     const audio = encodeWav(samples)
     this.recordings.set(id, audio)
     while (this.recordings.size > RECORDING_LIMIT) this.recordings.delete(this.recordings.keys().next().value!)
     this.update({ turns: [...this.state.turns, { id, state: 'queued' }] })
-    this.jobs.push({ id, audio })
+    // Over HTTP the last turn's language is read when the request goes out, after the turn before is done.
+    this.jobs.push(commit ? { id, utterance: commit.utterance, run: () => commit.result }
+      : { id, run: (signal) => this.api.dialog(audio, this.previousLang, signal) })
     void this.drainRequests()
   }
 
@@ -156,16 +204,17 @@ export class DialogSession {
       this.turn(job.id, { state: 'translating' })
       this.update({ translating: true })
       try {
-        const result = await this.api.dialog(job.audio, this.previousLang, signal)
+        const result = await job.run(signal)
         if (signal.aborted) return
         this.previousLang = result.source_lang
         this.lastProcessedTurnId = job.id
+        this.lastProcessedUtterance = job.utterance
         this.turn(job.id, { state: 'done', result })
         this.audioJobs.push({ id: job.id, result })
         void this.drainAudio()
       } catch (error) {
         if (signal.aborted) return
-        this.turn(job.id, { state: 'error', error: errorMessage(error) })
+        this.turn(job.id, error instanceof CanceledUtterance ? { state: 'canceled' } : { state: 'error', error: errorMessage(error) })
       }
     }
     if (!signal.aborted) { this.requesting = false; this.update({ translating: false }) }
@@ -191,7 +240,13 @@ export class DialogSession {
         target_lang: original.result.source_lang,
       }, signal)
       if (signal.aborted) return
-      if (this.lastProcessedTurnId === id) this.previousLang = replacement.source_lang
+      if (this.lastProcessedTurnId === id) {
+        this.previousLang = replacement.source_lang
+        // The live connection keeps the last turn's language itself; it takes this only for that turn.
+        if (this.lastProcessedUtterance !== undefined) {
+          this.channel?.send({ type: 'previous', id: this.lastProcessedUtterance, lang: replacement.source_lang })
+        }
+      }
       this.audioJobs = this.audioJobs.filter((entry) => entry.id !== id)
       this.turn(id, { result: replacement, audioError: undefined, correctionError: undefined })
       this.audioJobs.push({ id, result: replacement })
@@ -224,6 +279,7 @@ export class DialogSession {
           if (signal.aborted) return
           this.captureEpoch++
           const discarded = this.endpointer?.interrupt()
+          this.channel?.interrupt()
           this.microphone?.setPaused(true)
           this.update({ playing: true, speaking: false,
             ...(discarded ? { notice: '음성 재생으로 아직 끝나지 않은 말은 보내지 않았습니다. 재생 후 다시 말해 주세요.' } : {}) })
@@ -232,7 +288,7 @@ export class DialogSession {
         if (!signal.aborted) this.turn(job.id, { audioError: PLAYBACK_ERROR })
       } finally {
         if (!signal.aborted) {
-          this.microphone?.setPaused(false)
+          this.microphone?.setPaused(Boolean(this.channel && !this.channel.ready))
           this.update({ playing: false, playingId: null })
         }
       }
