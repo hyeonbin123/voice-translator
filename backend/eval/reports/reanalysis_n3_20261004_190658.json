@@ -1,0 +1,1216 @@
+{
+ "created": "2026-10-04T19:06:58+00:00",
+ "rounds": 10000,
+ "trials": 10000,
+ "seed": 12345,
+ "sacrebleu": "2.6.0",
+ "signatures": {
+  "chrf": "nrefs:1|case:mixed|eff:yes|nc:6|nw:0|space:no|version:2.6.0",
+  "bleu": "nrefs:1|case:mixed|eff:no|tok:flores200|smooth:exp|version:2.6.0"
+ },
+ "comet": {
+  "model": "Unbabel/wmt22-comet-da",
+  "revision": "2760a223ac957f30acfb18c8aa649b01cf1d75f2",
+  "checkpoint_sha256": "e213091cde220f97b89f8bdfa750c458cfea741ad62affb455b59900210ff2af",
+  "encoder": "FacebookAI/xlm-roberta-large",
+  "encoder_revision": "c23d21b0620b635a76227c604d44e43a9f0ee389",
+  "device": "cuda",
+  "gpu": "NVIDIA GeForce RTX 2080 Ti",
+  "precision": "fp16",
+  "batch_size": 32,
+  "segments": 3876,
+  "load_s": 8.0,
+  "score_s": 11.0,
+  "versions": {
+   "unbabel-comet": "2.2.7",
+   "torch": "2.11.0+cu128",
+   "transformers": "4.57.6",
+   "python": "3.11.16"
+  },
+  "input": "../work/vt-n3/comet_input.jsonl",
+  "created": "2026-10-04T19:05:20+00:00"
+ },
+ "mt": [
+  {
+   "key": "t3-ko-en-nllb",
+   "stage": "T3",
+   "split": "validation",
+   "direction": "ko-en",
+   "label": "tc-big − nllb",
+   "groups": 1,
+   "sentences": 129,
+   "threshold": -1.0,
+   "rule": "1점 이내면 빠른 쪽: 상대가 1점 넘게 높지 않아야 결정 유지",
+   "chrf": {
+    "point": 0.5226349600380047,
+    "low": -1.0703448646065867,
+    "high": 2.1222372614927694,
+    "contains_zero": true,
+    "classification": "straddles",
+    "score_a": 56.446845007422475,
+    "score_b": 55.92421004738447,
+    "mean_a": 56.445838928222656,
+    "ci_a": 1.9427547454833984,
+    "mean_b": 55.928443908691406,
+    "ci_b": 2.1641159057617188,
+    "p_bootstrap": 0.18088191180881913,
+    "p_randomization": 0.5164483551644835
+   },
+   "bleu": {
+    "point": -0.03897498409420663,
+    "low": -2.364297347080991,
+    "high": 2.2971042723726764,
+    "contains_zero": true,
+    "classification": null,
+    "score_a": 30.860595592378452,
+    "score_b": 30.89957057647266,
+    "mean_a": 30.86261477626817,
+    "ci_a": 2.53119177349072,
+    "mean_b": 30.908127939692406,
+    "ci_b": 2.7867253837853294,
+    "p_bootstrap": 0.40655934406559346,
+    "p_randomization": 0.9731026897310269
+   },
+   "comet": {
+    "point": 0.6813226744186096,
+    "low": -0.15178355135658914,
+    "high": 1.4773630541424414,
+    "contains_zero": true,
+    "classification": null,
+    "score_a": 87.07000968992247,
+    "score_b": 86.38868701550388,
+    "same_sign_as_chrf": true
+   }
+  },
+  {
+   "key": "t3-ko-en-qwen2.5-7b",
+   "stage": "T3",
+   "split": "validation",
+   "direction": "ko-en",
+   "label": "tc-big − qwen2.5-7b",
+   "groups": 1,
+   "sentences": 129,
+   "threshold": -1.0,
+   "rule": "1점 이내면 빠른 쪽: 상대가 1점 넘게 높지 않아야 결정 유지",
+   "chrf": {
+    "point": 1.5922123090025977,
+    "low": -0.2652083331231145,
+    "high": 3.4642709190928005,
+    "contains_zero": true,
+    "classification": "robust",
+    "score_a": 56.446845007422475,
+    "score_b": 54.85463269841988,
+    "mean_a": 56.445838928222656,
+    "ci_a": 1.9427547454833984,
+    "mean_b": 54.85276412963867,
+    "ci_b": 1.87750244140625,
+    "p_bootstrap": 0.0433956604339566,
+    "p_randomization": 0.0913908609139086
+   },
+   "bleu": {
+    "point": 4.467865699485209,
+    "low": 1.7287310975609351,
+    "high": 7.356155405080137,
+    "contains_zero": false,
+    "classification": null,
+    "score_a": 30.860595592378452,
+    "score_b": 26.392729892893243,
+    "mean_a": 30.86261477626817,
+    "ci_a": 2.53119177349072,
+    "mean_b": 26.3852656135742,
+    "ci_b": 2.6009990770967715,
+    "p_bootstrap": 0.0012998700129987,
+    "p_randomization": 0.000999900009999
+   },
+   "comet": {
+    "point": -0.567011870155028,
+    "low": -1.5413316830184107,
+    "high": 0.4406075884205424,
+    "contains_zero": true,
+    "classification": null,
+    "score_a": 87.07000968992247,
+    "score_b": 87.63702156007753,
+    "same_sign_as_chrf": false
+   }
+  },
+  {
+   "key": "t3-ko-en-opus-mt-ko-en",
+   "stage": "T3",
+   "split": "validation",
+   "direction": "ko-en",
+   "label": "tc-big − opus-mt-ko-en",
+   "groups": 1,
+   "sentences": 129,
+   "threshold": -1.0,
+   "rule": "1점 이내면 빠른 쪽: 상대가 1점 넘게 높지 않아야 결정 유지",
+   "chrf": {
+    "point": 5.338345835210276,
+    "low": 3.6646826304075626,
+    "high": 7.018867834248639,
+    "contains_zero": false,
+    "classification": "robust",
+    "score_a": 56.446845007422475,
+    "score_b": 51.1084991722122,
+    "mean_a": 56.445838928222656,
+    "ci_a": 1.9427547454833984,
+    "mean_b": 51.112762451171875,
+    "ci_b": 2.006032943725586,
+    "p_bootstrap": 9.999000099990002e-05,
+    "p_randomization": 9.999000099990002e-05
+   },
+   "bleu": {
+    "point": 6.794160890644072,
+    "low": 4.403985432424707,
+    "high": 9.208866514632726,
+    "contains_zero": false,
+    "classification": null,
+    "score_a": 30.860595592378452,
+    "score_b": 24.06643470173438,
+    "mean_a": 30.86261477626817,
+    "ci_a": 2.53119177349072,
+    "mean_b": 24.067906745323274,
+    "ci_b": 2.4964286396243764,
+    "p_bootstrap": 9.999000099990002e-05,
+    "p_randomization": 9.999000099990002e-05
+   },
+   "comet": {
+    "point": 3.245745518410857,
+    "low": 2.2941459241763567,
+    "high": 4.230720460876937,
+    "contains_zero": false,
+    "classification": null,
+    "score_a": 87.07000968992247,
+    "score_b": 83.82426417151163,
+    "same_sign_as_chrf": true
+   }
+  },
+  {
+   "key": "t3-en-ko-nllb",
+   "stage": "T3",
+   "split": "validation",
+   "direction": "en-ko",
+   "label": "tc-big − nllb",
+   "groups": 1,
+   "sentences": 129,
+   "threshold": -1.0,
+   "rule": "1점 이내면 빠른 쪽: 상대가 1점 넘게 높지 않아야 결정 유지",
+   "chrf": {
+    "point": 2.611879321159172,
+    "low": 0.32106211649660693,
+    "high": 4.880427489977062,
+    "contains_zero": false,
+    "classification": "robust",
+    "score_a": 35.3410808842087,
+    "score_b": 32.72920156304953,
+    "mean_a": 35.35306930541992,
+    "ci_a": 2.425506591796875,
+    "mean_b": 32.74971389770508,
+    "ci_b": 2.1168460845947266,
+    "p_bootstrap": 0.0115988401159884,
+    "p_randomization": 0.026797320267973202
+   },
+   "bleu": {
+    "point": 2.537834074974178,
+    "low": 0.14517154835672752,
+    "high": 4.888906715289416,
+    "contains_zero": false,
+    "classification": null,
+    "score_a": 23.333619112147172,
+    "score_b": 20.795785037172994,
+    "mean_a": 23.32118265517977,
+    "ci_a": 2.717947101525562,
+    "mean_b": 20.804006689642506,
+    "ci_b": 2.4876836621730245,
+    "p_bootstrap": 0.018698130186981302,
+    "p_randomization": 0.0367963203679632
+   },
+   "comet": {
+    "point": -0.8433260658914605,
+    "low": -2.273791409278101,
+    "high": 0.5363618126211238,
+    "contains_zero": true,
+    "classification": null,
+    "score_a": 86.61693011143412,
+    "score_b": 87.46025617732558,
+    "same_sign_as_chrf": false
+   }
+  },
+  {
+   "key": "t3-en-ko-qwen2.5-7b",
+   "stage": "T3",
+   "split": "validation",
+   "direction": "en-ko",
+   "label": "tc-big − qwen2.5-7b",
+   "groups": 1,
+   "sentences": 129,
+   "threshold": -1.0,
+   "rule": "1점 이내면 빠른 쪽: 상대가 1점 넘게 높지 않아야 결정 유지",
+   "chrf": {
+    "point": 7.864419641862483,
+    "low": 5.1012532368619095,
+    "high": 10.7061489621486,
+    "contains_zero": false,
+    "classification": "robust",
+    "score_a": 35.3410808842087,
+    "score_b": 27.476661242346218,
+    "mean_a": 35.35306930541992,
+    "ci_a": 2.425506591796875,
+    "mean_b": 27.48245620727539,
+    "ci_b": 2.6708030700683594,
+    "p_bootstrap": 9.999000099990002e-05,
+    "p_randomization": 9.999000099990002e-05
+   },
+   "bleu": {
+    "point": 7.394214156949825,
+    "low": 3.362942466990071,
+    "high": 11.476110659116443,
+    "contains_zero": false,
+    "classification": null,
+    "score_a": 23.333619112147172,
+    "score_b": 15.939404955197347,
+    "mean_a": 23.32118265517977,
+    "ci_a": 2.717947101525562,
+    "mean_b": 16.048147892789263,
+    "ci_b": 3.6978789278237603,
+    "p_bootstrap": 0.00029997000299970003,
+    "p_randomization": 9.999000099990002e-05
+   },
+   "comet": {
+    "point": 6.8234465843023315,
+    "low": 3.9412340267684107,
+    "high": 9.745393501695737,
+    "contains_zero": false,
+    "classification": null,
+    "score_a": 86.61693011143412,
+    "score_b": 79.79348352713178,
+    "same_sign_as_chrf": true
+   }
+  },
+  {
+   "key": "t17-ko-en",
+   "stage": "T17",
+   "split": "validation",
+   "direction": "ko-en",
+   "label": "B 문장 단위 − A 통째로",
+   "groups": 1,
+   "sentences": 129,
+   "threshold": -0.3,
+   "rule": "B 채택 조건 chrF가 A보다 0.3점 넘게 떨어지지 않음 (A 유지는 누락 신호가 줄지 않아서)",
+   "chrf": {
+    "point": -0.24629900239337132,
+    "low": -0.7485330997069694,
+    "high": 0.26384128505819754,
+    "contains_zero": true,
+    "classification": "straddles",
+    "score_a": 56.2005460050291,
+    "score_b": 56.446845007422475,
+    "mean_a": 56.207794189453125,
+    "ci_a": 1.9521865844726562,
+    "mean_b": 56.445838928222656,
+    "ci_b": 1.9427547454833984,
+    "p_bootstrap": 0.12358764123587641,
+    "p_randomization": 0.36066393360663934
+   },
+   "bleu": {
+    "point": -0.21458266666904535,
+    "low": -0.9920006009179534,
+    "high": 0.5760183254456362,
+    "contains_zero": true,
+    "classification": null,
+    "score_a": 30.646012925709407,
+    "score_b": 30.860595592378452,
+    "mean_a": 30.65670340858589,
+    "ci_a": 2.6357469590569416,
+    "mean_b": 30.86261477626817,
+    "ci_b": 2.53119177349072,
+    "p_bootstrap": 0.20367963203679632,
+    "p_randomization": 0.6124387561243876
+   },
+   "comet": {
+    "point": -0.0673752422480618,
+    "low": -0.26306625484496127,
+    "high": 0.14120412427325554,
+    "contains_zero": true,
+    "classification": null,
+    "score_a": 87.00263444767442,
+    "score_b": 87.07000968992247,
+    "same_sign_as_chrf": true
+   }
+  },
+  {
+   "key": "t17-en-ko",
+   "stage": "T17",
+   "split": "validation",
+   "direction": "en-ko",
+   "label": "B 문장 단위 − A 통째로",
+   "groups": 1,
+   "sentences": 129,
+   "threshold": -0.3,
+   "rule": "B 채택 조건 chrF가 A보다 0.3점 넘게 떨어지지 않음",
+   "chrf": {
+    "point": 0.8056964659945152,
+    "low": 0.047022929439102336,
+    "high": 1.8280351158400747,
+    "contains_zero": false,
+    "classification": "robust",
+    "score_a": 36.146777350203216,
+    "score_b": 35.3410808842087,
+    "mean_a": 36.156707763671875,
+    "ci_a": 2.3489456176757812,
+    "mean_b": 35.35306930541992,
+    "ci_b": 2.425506591796875,
+    "p_bootstrap": 0.05549445055494451,
+    "p_randomization": 0.06769323067693231
+   },
+   "bleu": {
+    "point": 0.7770952683127561,
+    "low": 0.05098987132848497,
+    "high": 1.8039333929514807,
+    "contains_zero": false,
+    "classification": null,
+    "score_a": 24.110714380459928,
+    "score_b": 23.333619112147172,
+    "mean_a": 24.094596018436157,
+    "ci_a": 2.741099628029165,
+    "mean_b": 23.32118265517977,
+    "ci_b": 2.717947101525562,
+    "p_bootstrap": 0.061993800619938005,
+    "p_randomization": 0.06159384061593841
+   },
+   "comet": {
+    "point": 0.5003936531007724,
+    "low": -0.11355377906976744,
+    "high": 1.3917908187984496,
+    "contains_zero": true,
+    "classification": null,
+    "score_a": 87.11732376453489,
+    "score_b": 86.61693011143412,
+    "same_sign_as_chrf": true
+   }
+  },
+  {
+   "key": "t17-en-ko-test",
+   "stage": "T17",
+   "split": "test",
+   "direction": "en-ko",
+   "label": "B 문장 단위 − A 통째로(T3 test)",
+   "groups": 1,
+   "sentences": 270,
+   "threshold": -0.3,
+   "rule": "B 채택 조건 chrF가 A보다 0.3점 넘게 떨어지지 않음 (test 확인, 결정을 바꾸지 않음)",
+   "chrf": {
+    "point": 0.047476724521288816,
+    "low": -0.4494863166093472,
+    "high": 0.5553033292192234,
+    "contains_zero": true,
+    "classification": "straddles",
+    "score_a": 36.09349452245858,
+    "score_b": 36.04601779793729,
+    "mean_a": 36.125,
+    "ci_a": 1.8184051513671875,
+    "mean_b": 36.07758331298828,
+    "ci_b": 1.8811874389648438,
+    "p_bootstrap": 0.32526747325267474,
+    "p_randomization": 0.8608139186081392
+   },
+   "bleu": {
+    "point": 0.08581473641478254,
+    "low": -0.5153814007669011,
+    "high": 0.6938579888966966,
+    "contains_zero": true,
+    "classification": null,
+    "score_a": 24.644707383015874,
+    "score_b": 24.55889264660109,
+    "mean_a": 24.665386669182933,
+    "ci_a": 1.9205473042531516,
+    "mean_b": 24.578422826288914,
+    "ci_b": 2.0281719189281926,
+    "p_bootstrap": 0.2860713928607139,
+    "p_randomization": 0.7835216478352165
+   },
+   "comet": {
+    "point": 0.16592520254630472,
+    "low": -0.11167173032407407,
+    "high": 0.471024124710648,
+    "contains_zero": true,
+    "classification": null,
+    "score_a": 86.17531105324075,
+    "score_b": 86.00938585069444,
+    "same_sign_as_chrf": true
+   }
+  },
+  {
+   "key": "t32-ko-en-B-clean",
+   "stage": "T32",
+   "split": "validation",
+   "direction": "ko-en",
+   "label": "B − A 깨끗",
+   "groups": 1,
+   "sentences": 129,
+   "threshold": -0.5,
+   "rule": "깨끗한 입력 chrF가 A보다 0.5점 넘게 떨어지지 않아야 함",
+   "chrf": {
+    "point": -4.719045218677252,
+    "low": -7.5067074854452915,
+    "high": -2.2150351673377355,
+    "contains_zero": false,
+    "classification": "robust",
+    "score_a": 51.72779978874522,
+    "score_b": 56.446845007422475,
+    "mean_a": 51.72555160522461,
+    "ci_a": 2.7163448333740234,
+    "mean_b": 56.445838928222656,
+    "ci_b": 1.9427547454833984,
+    "p_bootstrap": 0.0011998800119988001,
+    "p_randomization": 0.00039996000399960006
+   },
+   "bleu": {
+    "point": -5.2083636823905906,
+    "low": -7.936254642907336,
+    "high": -2.7075921136702896,
+    "contains_zero": false,
+    "classification": null,
+    "score_a": 25.65223190998786,
+    "score_b": 30.860595592378452,
+    "mean_a": 25.646361834742656,
+    "ci_a": 2.7451579560312265,
+    "mean_b": 30.86261477626817,
+    "ci_b": 2.53119177349072,
+    "p_bootstrap": 0.00029997000299970003,
+    "p_randomization": 9.999000099990002e-05
+   },
+   "comet": {
+    "point": -2.694820433624031,
+    "low": -4.161821705426356,
+    "high": -1.4596533960150206,
+    "contains_zero": false,
+    "classification": null,
+    "score_a": 84.37518925629846,
+    "score_b": 87.07000968992247,
+    "same_sign_as_chrf": true
+   }
+  },
+  {
+   "key": "t32-ko-en-B-typo",
+   "stage": "T32",
+   "split": "validation",
+   "direction": "ko-en",
+   "label": "B − A 오타 평균",
+   "groups": 2,
+   "sentences": 129,
+   "threshold": 1.0,
+   "rule": "오타 평균이 A보다 1.0점 넘게 높을 때만 채택",
+   "chrf": {
+    "point": -6.313080490660859,
+    "low": -8.84647628861764,
+    "high": -3.8993852170822882,
+    "contains_zero": false,
+    "classification": "robust"
+   },
+   "bleu": {
+    "point": -6.299425562456086,
+    "low": -8.599351888638562,
+    "high": -4.099518086130203,
+    "contains_zero": false,
+    "classification": null
+   },
+   "comet": {
+    "point": -3.8478644319282935,
+    "low": -5.483911795209544,
+    "high": -2.342751673025679,
+    "contains_zero": false,
+    "classification": null,
+    "score_a": 79.08254224200581,
+    "score_b": 82.93040667393412,
+    "same_sign_as_chrf": true
+   }
+  },
+  {
+   "key": "t32-ko-en-C-clean",
+   "stage": "T32",
+   "split": "validation",
+   "direction": "ko-en",
+   "label": "C − A 깨끗",
+   "groups": 1,
+   "sentences": 129,
+   "threshold": -0.5,
+   "rule": "깨끗한 입력 chrF가 A보다 0.5점 넘게 떨어지지 않아야 함",
+   "chrf": {
+    "point": -1.2162728808022578,
+    "low": -2.1774006468948164,
+    "high": -0.3157462061405753,
+    "contains_zero": false,
+    "classification": "straddles",
+    "score_a": 55.23057212662022,
+    "score_b": 56.446845007422475,
+    "mean_a": 55.222862243652344,
+    "ci_a": 2.043001174926758,
+    "mean_b": 56.445838928222656,
+    "ci_b": 1.9427547454833984,
+    "p_bootstrap": 0.006799320067993201,
+    "p_randomization": 0.007099290070992901
+   },
+   "bleu": {
+    "point": -1.67882892261823,
+    "low": -2.944641431551106,
+    "high": -0.5264351670826692,
+    "contains_zero": false,
+    "classification": null,
+    "score_a": 29.181766669760222,
+    "score_b": 30.860595592378452,
+    "mean_a": 29.173971518014696,
+    "ci_a": 2.5626286710073742,
+    "mean_b": 30.86261477626817,
+    "ci_b": 2.53119177349072,
+    "p_bootstrap": 0.0045995400459954,
+    "p_randomization": 0.0045995400459954
+   },
+   "comet": {
+    "point": -0.8599806201550422,
+    "low": -1.5019663729408914,
+    "high": -0.30848776647286824,
+    "contains_zero": false,
+    "classification": null,
+    "score_a": 86.21002906976744,
+    "score_b": 87.07000968992247,
+    "same_sign_as_chrf": true
+   }
+  },
+  {
+   "key": "t32-ko-en-C-typo",
+   "stage": "T32",
+   "split": "validation",
+   "direction": "ko-en",
+   "label": "C − A 오타 평균",
+   "groups": 2,
+   "sentences": 129,
+   "threshold": 1.0,
+   "rule": "오타 평균이 A보다 1.0점 넘게 높을 때만 채택",
+   "chrf": {
+    "point": -0.6500993677730378,
+    "low": -1.6057706087923664,
+    "high": 0.2944083178057573,
+    "contains_zero": true,
+    "classification": "robust"
+   },
+   "bleu": {
+    "point": -0.9672829170915662,
+    "low": -2.267566528389198,
+    "high": 0.35550246255345597,
+    "contains_zero": true,
+    "classification": null
+   },
+   "comet": {
+    "point": 0.4385068435077528,
+    "low": -0.403896597928779,
+    "high": 1.3028640155644375,
+    "contains_zero": true,
+    "classification": null,
+    "score_a": 83.36891351744185,
+    "score_b": 82.93040667393412,
+    "same_sign_as_chrf": false
+   }
+  },
+  {
+   "key": "t32-en-ko-B-clean",
+   "stage": "T32",
+   "split": "validation",
+   "direction": "en-ko",
+   "label": "B − A 깨끗",
+   "groups": 1,
+   "sentences": 129,
+   "threshold": -0.5,
+   "rule": "깨끗한 입력 chrF가 A보다 0.5점 넘게 떨어지지 않아야 함",
+   "chrf": {
+    "point": -0.8056860338647098,
+    "low": -1.5281268566220887,
+    "high": -0.09077752783025879,
+    "contains_zero": false,
+    "classification": "straddles",
+    "score_a": 35.341091316338506,
+    "score_b": 36.146777350203216,
+    "mean_a": 35.35382080078125,
+    "ci_a": 2.303640365600586,
+    "mean_b": 36.156707763671875,
+    "ci_b": 2.3489456176757812,
+    "p_bootstrap": 0.014598540145985401,
+    "p_randomization": 0.032296770322967704
+   },
+   "bleu": {
+    "point": -0.9264633487811622,
+    "low": -1.9699859917730773,
+    "high": 0.0749866965550887,
+    "contains_zero": true,
+    "classification": null,
+    "score_a": 23.184251031678766,
+    "score_b": 24.110714380459928,
+    "mean_a": 23.177882087017313,
+    "ci_a": 2.722547131725646,
+    "mean_b": 24.094596018436157,
+    "ci_b": 2.741099628029165,
+    "p_bootstrap": 0.0403959604039596,
+    "p_randomization": 0.08199180081991801
+   },
+   "comet": {
+    "point": -0.8270500242248033,
+    "low": -1.626866067102713,
+    "high": -0.18206455910852712,
+    "contains_zero": false,
+    "classification": null,
+    "score_a": 86.29027374031007,
+    "score_b": 87.11732376453489,
+    "same_sign_as_chrf": true
+   }
+  },
+  {
+   "key": "t32-en-ko-B-typo",
+   "stage": "T32",
+   "split": "validation",
+   "direction": "en-ko",
+   "label": "B − A 오타 평균",
+   "groups": 2,
+   "sentences": 129,
+   "threshold": 1.0,
+   "rule": "오타 평균이 A보다 1.0점 넘게 높을 때만 채택",
+   "chrf": {
+    "point": 6.611889842509502,
+    "low": 4.905767480690871,
+    "high": 8.35162712423284,
+    "contains_zero": false,
+    "classification": "robust"
+   },
+   "bleu": {
+    "point": 6.084294821844578,
+    "low": 4.154268490678083,
+    "high": 8.171806245673606,
+    "contains_zero": false,
+    "classification": null
+   },
+   "comet": {
+    "point": 13.790727955426355,
+    "low": 11.583240124606347,
+    "high": 15.957998822825822,
+    "contains_zero": false,
+    "classification": null,
+    "score_a": 84.44748516230621,
+    "score_b": 70.65675720687985,
+    "same_sign_as_chrf": true
+   }
+  },
+  {
+   "key": "t32-en-ko-C-clean",
+   "stage": "T32",
+   "split": "validation",
+   "direction": "en-ko",
+   "label": "C − A 깨끗",
+   "groups": 1,
+   "sentences": 129,
+   "threshold": -0.5,
+   "rule": "깨끗한 입력 chrF가 A보다 0.5점 넘게 떨어지지 않아야 함",
+   "chrf": {
+    "point": -0.36773112444885925,
+    "low": -1.2061139207824332,
+    "high": 0.4716543131679385,
+    "contains_zero": true,
+    "classification": "straddles",
+    "score_a": 35.77904622575436,
+    "score_b": 36.146777350203216,
+    "mean_a": 35.78901672363281,
+    "ci_a": 2.3766422271728516,
+    "mean_b": 36.156707763671875,
+    "ci_b": 2.3489456176757812,
+    "p_bootstrap": 0.14188581141885812,
+    "p_randomization": 0.39286071392860716
+   },
+   "bleu": {
+    "point": -0.3048336631353301,
+    "low": -1.1983881879490292,
+    "high": 0.49506659128381086,
+    "contains_zero": true,
+    "classification": null,
+    "score_a": 23.805880717324598,
+    "score_b": 24.110714380459928,
+    "mean_a": 23.78639906007834,
+    "ci_a": 2.7587403553362826,
+    "mean_b": 24.094596018436157,
+    "ci_b": 2.741099628029165,
+    "p_bootstrap": 0.1658834116588341,
+    "p_randomization": 0.4771522847715228
+   },
+   "comet": {
+    "point": -0.3510704336240309,
+    "low": -0.968254148498062,
+    "high": 0.24340252543604624,
+    "contains_zero": true,
+    "classification": null,
+    "score_a": 86.76625333091084,
+    "score_b": 87.11732376453489,
+    "same_sign_as_chrf": true
+   }
+  },
+  {
+   "key": "t32-en-ko-C-typo",
+   "stage": "T32",
+   "split": "validation",
+   "direction": "en-ko",
+   "label": "C − A 오타 평균",
+   "groups": 2,
+   "sentences": 129,
+   "threshold": 1.0,
+   "rule": "오타 평균이 A보다 1.0점 넘게 높을 때만 채택",
+   "chrf": {
+    "point": 7.606297529459869,
+    "low": 6.159883963673021,
+    "high": 9.142413234449178,
+    "contains_zero": false,
+    "classification": "robust"
+   },
+   "bleu": {
+    "point": 7.187818649959402,
+    "low": 5.379713566698133,
+    "high": 9.203239332011348,
+    "contains_zero": false,
+    "classification": null
+   },
+   "comet": {
+    "point": 15.387010204699614,
+    "low": 13.309756729953975,
+    "high": 17.465094041454698,
+    "contains_zero": false,
+    "classification": null,
+    "score_a": 86.04376741157947,
+    "score_b": 70.65675720687985,
+    "same_sign_as_chrf": true
+   }
+  },
+  {
+   "key": "t32-en-ko-D-C-typo",
+   "stage": "T32",
+   "split": "validation",
+   "direction": "en-ko",
+   "label": "D(7B 참고) − C 오타 평균",
+   "groups": 2,
+   "sentences": 129,
+   "threshold": null,
+   "rule": "참고: 작은 모델의 한계로 본 1.6점",
+   "chrf": {
+    "point": 1.6323721977916819,
+    "low": 0.8007237364736464,
+    "high": 2.5497165279184846,
+    "contains_zero": false,
+    "classification": null
+   },
+   "bleu": {
+    "point": 1.5412911224229067,
+    "low": 0.5223177641279182,
+    "high": 2.7374993650586,
+    "contains_zero": false,
+    "classification": null
+   },
+   "comet": {
+    "point": 0.7701785065406952,
+    "low": 0.19549465918725784,
+    "high": 1.383281382479409,
+    "contains_zero": false,
+    "classification": null,
+    "score_a": 86.81394591812015,
+    "score_b": 86.04376741157947,
+    "same_sign_as_chrf": true
+   }
+  },
+  {
+   "key": "t32-en-ko-C-clean-test",
+   "stage": "T32",
+   "split": "test",
+   "direction": "en-ko",
+   "label": "C − A 깨끗",
+   "groups": 1,
+   "sentences": 270,
+   "threshold": -0.5,
+   "rule": "깨끗한 입력 chrF가 A보다 0.5점 넘게 떨어지지 않아야 함 (test 확인, 결정을 바꾸지 않음)",
+   "chrf": {
+    "point": 0.5297832989298641,
+    "low": -0.10796284619205901,
+    "high": 1.2183754860889322,
+    "contains_zero": true,
+    "classification": "robust",
+    "score_a": 36.62327782138844,
+    "score_b": 36.09349452245858,
+    "mean_a": 36.654388427734375,
+    "ci_a": 1.8235492706298828,
+    "mean_b": 36.125,
+    "ci_b": 1.8184051513671875,
+    "p_bootstrap": 0.057694230576942306,
+    "p_randomization": 0.12168783121687832
+   },
+   "bleu": {
+    "point": 0.2869418486882438,
+    "low": -0.39468726624860845,
+    "high": 1.033055207458505,
+    "contains_zero": true,
+    "classification": null,
+    "score_a": 24.931649231704117,
+    "score_b": 24.644707383015874,
+    "mean_a": 24.950943688966596,
+    "ci_a": 1.941964551298522,
+    "mean_b": 24.665386669182933,
+    "ci_b": 1.9205473042531516,
+    "p_bootstrap": 0.15358464153584642,
+    "p_randomization": 0.4423557644235576
+   },
+   "comet": {
+    "point": 0.4237196180555429,
+    "low": 0.07251428674768519,
+    "high": 0.7903193721064811,
+    "contains_zero": false,
+    "classification": null,
+    "score_a": 86.59903067129629,
+    "score_b": 86.17531105324075,
+    "same_sign_as_chrf": true
+   }
+  },
+  {
+   "key": "t32-en-ko-C-typo-test",
+   "stage": "T32",
+   "split": "test",
+   "direction": "en-ko",
+   "label": "C − A 오타 평균",
+   "groups": 2,
+   "sentences": 270,
+   "threshold": 1.0,
+   "rule": "오타 평균이 A보다 1.0점 넘게 높을 때만 채택 (test 확인, 결정을 바꾸지 않음)",
+   "chrf": {
+    "point": 7.330453773529243,
+    "low": 6.321887362352815,
+    "high": 8.359049970178926,
+    "contains_zero": false,
+    "classification": "robust"
+   },
+   "bleu": {
+    "point": 6.4370826170717725,
+    "low": 5.414195116717391,
+    "high": 7.548291221436608,
+    "contains_zero": false,
+    "classification": null
+   },
+   "comet": {
+    "point": 15.439724392361107,
+    "low": 14.074153758861401,
+    "high": 16.812450267650462,
+    "contains_zero": false,
+    "classification": null,
+    "score_a": 85.1165771484375,
+    "score_b": 69.67685275607639,
+    "same_sign_as_chrf": true
+   }
+  },
+  {
+   "key": "t65-ko-en",
+   "stage": "T65",
+   "split": "test",
+   "direction": "ko-en",
+   "label": "음성 경로 − 전사 경로",
+   "groups": 1,
+   "sentences": 270,
+   "threshold": null,
+   "rule": "확인 측정, 판단 규칙 없음",
+   "chrf": {
+    "point": -2.0860050185024193,
+    "low": -2.8154965536269048,
+    "high": -1.368624147088154,
+    "contains_zero": false,
+    "classification": null,
+    "score_a": 53.62769751861522,
+    "score_b": 55.71370253711764,
+    "mean_a": 53.638938903808594,
+    "ci_a": 1.5398483276367188,
+    "mean_b": 55.72589874267578,
+    "ci_b": 1.5209369659423828,
+    "p_bootstrap": 9.999000099990002e-05,
+    "p_randomization": 9.999000099990002e-05
+   },
+   "bleu": {
+    "point": -3.9714840318916558,
+    "low": -5.05079723615888,
+    "high": -2.9512382360647775,
+    "contains_zero": false,
+    "classification": null,
+    "score_a": 26.796170197519828,
+    "score_b": 30.767654229411484,
+    "mean_a": 26.799711188282426,
+    "ci_a": 1.9436161534560732,
+    "mean_b": 30.77614602305427,
+    "ci_b": 1.9537956988100884,
+    "p_bootstrap": 9.999000099990002e-05,
+    "p_randomization": 9.999000099990002e-05
+   },
+   "comet": {
+    "point": -1.7836733217592666,
+    "low": -2.343754521122685,
+    "high": -1.2592185691550926,
+    "contains_zero": false,
+    "classification": null,
+    "score_a": 84.46596498842592,
+    "score_b": 86.24963831018519,
+    "same_sign_as_chrf": true
+   }
+  },
+  {
+   "key": "t65-en-ko",
+   "stage": "T65",
+   "split": "test",
+   "direction": "en-ko",
+   "label": "음성 경로 − 전사 경로",
+   "groups": 1,
+   "sentences": 270,
+   "threshold": null,
+   "rule": "확인 측정, 판단 규칙 없음",
+   "chrf": {
+    "point": -1.4902910412946895,
+    "low": -2.4981113382164617,
+    "high": -0.46718073261123666,
+    "contains_zero": false,
+    "classification": null,
+    "score_a": 34.60320348116389,
+    "score_b": 36.09349452245858,
+    "mean_a": 34.62771224975586,
+    "ci_a": 1.7983875274658203,
+    "mean_b": 36.125,
+    "ci_b": 1.8184051513671875,
+    "p_bootstrap": 0.001999800019998,
+    "p_randomization": 0.0033996600339966003
+   },
+   "bleu": {
+    "point": -1.7306567723087554,
+    "low": -2.8216543950669934,
+    "high": -0.6463564977794732,
+    "contains_zero": false,
+    "classification": null,
+    "score_a": 22.91405061070712,
+    "score_b": 24.644707383015874,
+    "mean_a": 22.929566883607283,
+    "ci_a": 1.8456221725270137,
+    "mean_b": 24.665386669182933,
+    "ci_b": 1.9205473042531516,
+    "p_bootstrap": 0.0008999100089991,
+    "p_randomization": 0.0018998100189981002
+   },
+   "comet": {
+    "point": -1.829246238425938,
+    "low": -2.615596064814815,
+    "high": -1.0897488064236114,
+    "contains_zero": false,
+    "classification": null,
+    "score_a": 84.34606481481481,
+    "score_b": 86.17531105324075,
+    "same_sign_as_chrf": true
+   }
+  }
+ ],
+ "stt": [
+  {
+   "key": "t2-turbo-large",
+   "stage": "T2",
+   "split": "validation",
+   "label": "large-v3-turbo − large-v3 (평균)",
+   "languages": {
+    "ko": 226,
+    "en": 394
+   },
+   "sentences": {
+    "ko": 129,
+    "en": 150
+   },
+   "threshold": 1.0,
+   "rule": "가장 낮은 평균과 1%p 이내면 가장 빠른 모델: turbo가 1%p 이내라 더 빠른 turbo",
+   "utterance": {
+    "point": 0.27672694654584484,
+    "low": -0.5911261429968762,
+    "high": 1.2509284267518985,
+    "contains_zero": true,
+    "classification": "straddles"
+   },
+   "sentence": {
+    "point": 0.27672694654584484,
+    "low": -0.6323181060542801,
+    "high": 1.2664146409459236,
+    "contains_zero": true,
+    "classification": "straddles"
+   },
+   "classification": "straddles",
+   "by_language": {
+    "ko": 0.20155485171321624,
+    "en": 0.3518990413784735
+   }
+  },
+  {
+   "key": "t2-small-large",
+   "stage": "T2",
+   "split": "validation",
+   "label": "small − large-v3 (평균)",
+   "languages": {
+    "ko": 226,
+    "en": 394
+   },
+   "sentences": {
+    "ko": 129,
+    "en": 150
+   },
+   "threshold": 1.0,
+   "rule": "가장 낮은 평균과 1%p 이내면 가장 빠른 모델: small은 1%p 밖",
+   "utterance": {
+    "point": 2.1152655325410965,
+    "low": 1.4527149133772992,
+    "high": 2.699204158182166,
+    "contains_zero": false,
+    "classification": "robust"
+   },
+   "sentence": {
+    "point": 2.1152655325410965,
+    "low": 1.3865810003321724,
+    "high": 2.752002293006515,
+    "contains_zero": false,
+    "classification": "robust"
+   },
+   "classification": "robust",
+   "by_language": {
+    "ko": 2.0827334677032345,
+    "en": 2.147797597378959
+   }
+  },
+  {
+   "key": "t14-b-a",
+   "stage": "T14",
+   "split": "validation",
+   "label": "B VAD − A 기본값 (평균)",
+   "languages": {
+    "ko": 226,
+    "en": 394
+   },
+   "sentences": {
+    "ko": 129,
+    "en": 150
+   },
+   "threshold": 0.2,
+   "rule": "평균 오류율이 A보다 0.2%p 넘게 나빠지지 않아야 함",
+   "utterance": {
+    "point": -0.4969970818273146,
+    "low": -1.326573616541276,
+    "high": 0.07781579596822144,
+    "contains_zero": true,
+    "classification": "robust"
+   },
+   "sentence": {
+    "point": -0.4969970818273146,
+    "low": -1.3034191247523093,
+    "high": 0.08206164066121453,
+    "contains_zero": true,
+    "classification": "robust"
+   },
+   "classification": "robust",
+   "by_language": {
+    "ko": -1.151742009789807,
+    "en": 0.15774784613517778
+   }
+  },
+  {
+   "key": "t14-b-a-ko",
+   "stage": "T14",
+   "split": "validation",
+   "label": "B VAD − A 기본값 (한국어 CER)",
+   "languages": {
+    "ko": 226
+   },
+   "sentences": {
+    "ko": 129
+   },
+   "threshold": null,
+   "rule": "참고",
+   "utterance": {
+    "point": -1.151742009789807,
+    "low": -2.7840025313579644,
+    "high": -0.04800320375729226,
+    "contains_zero": false,
+    "classification": null
+   },
+   "sentence": {
+    "point": -1.151742009789807,
+    "low": -2.7647446123639523,
+    "high": -0.03991913126933419,
+    "contains_zero": false,
+    "classification": null
+   },
+   "classification": null,
+   "by_language": {
+    "ko": -1.151742009789807
+   }
+  },
+  {
+   "key": "t14-b-a-en",
+   "stage": "T14",
+   "split": "validation",
+   "label": "B VAD − A 기본값 (영어 WER)",
+   "languages": {
+    "en": 394
+   },
+   "sentences": {
+    "en": 150
+   },
+   "threshold": null,
+   "rule": "참고: 영어만 0.16%p 나빠짐",
+   "utterance": {
+    "point": 0.15774784613517778,
+    "low": -0.07273895945472308,
+    "high": 0.38797754802481627,
+    "contains_zero": true,
+    "classification": null
+   },
+   "sentence": {
+    "point": 0.15774784613517778,
+    "low": -0.06962785433127211,
+    "high": 0.39612184335469575,
+    "contains_zero": true,
+    "classification": null
+   },
+   "classification": null,
+   "by_language": {
+    "en": 0.15774784613517778
+   }
+  },
+  {
+   "key": "t14-b-default-test",
+   "stage": "T14",
+   "split": "test",
+   "label": "B VAD − 기본값(T2 test, T15 보정) (평균)",
+   "languages": {
+    "ko": 382,
+    "en": 647
+   },
+   "sentences": {
+    "ko": 270,
+    "en": 350
+   },
+   "threshold": 0.2,
+   "rule": "평균 오류율이 A보다 0.2%p 넘게 나빠지지 않아야 함 (test 확인, 결정을 바꾸지 않음)",
+   "utterance": {
+    "point": -0.14737359486856244,
+    "low": -0.29463474953306384,
+    "high": -0.011905270891006459,
+    "contains_zero": false,
+    "classification": "robust"
+   },
+   "sentence": {
+    "point": -0.14737359486856244,
+    "low": -0.29973530511684565,
+    "high": -0.00957058515172359,
+    "contains_zero": false,
+    "classification": "robust"
+   },
+   "classification": "robust",
+   "by_language": {
+    "ko": -0.26018099547511314,
+    "en": -0.034566194262011754
+   }
+  }
+ ]
+}
