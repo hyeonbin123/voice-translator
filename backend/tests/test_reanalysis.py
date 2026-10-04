@@ -110,6 +110,14 @@ def test_comet_agreement_applies_the_registered_limits():
         comet_agreement(first, {key: 0.8 for key in keys[1:]})
 
 
+def test_comet_agreement_prints_as_json():
+    # The comet-agreement command prints the result with json.dumps; a numpy bool there crashed it.
+    keys = [row["key"] for row in comet_segments(subset="precision")]
+    first = {key: 0.8 for key in keys}
+    for second, expected in [({key: 0.8005 for key in keys}, True), ({key: 0.802 for key in keys}, False)]:
+        assert json.loads(json.dumps(comet_agreement(first, second)))["passes"] is expected
+
+
 REFS = ("The cat sat on the mat.", "It is raining today.", "We meet at noon.", "Prices rose last year.")
 
 

@@ -533,7 +533,8 @@ def comet_agreement(first: dict[str, float], second: dict[str, float], reports: 
         "segments": len(keys),
         "max_segment_gap": float(segment_gap),
         "mean_gaps": {direction: float(gap) for direction, gap in mean_gaps.items()},
-        "passes": segment_gap <= COMET_MAX_SEGMENT_GAP and worst_mean <= COMET_MAX_MEAN_GAP,
+        # bool(): worst_mean is a numpy float, so the comparison is a numpy bool that json cannot print.
+        "passes": bool(segment_gap <= COMET_MAX_SEGMENT_GAP and worst_mean <= COMET_MAX_MEAN_GAP),
     }
 
 
