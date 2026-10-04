@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     supertonic_dir: Path = Path(__file__).resolve().parents[2] / "data" / "models" / "supertonic-3"
     supertonic_steps: int = Field(default=8, ge=1, le=100)
     supertonic_threads: int = Field(default=2, ge=1)
+    # ONNX Runtime provider for Supertonic: the CPU (T78), or the GPU's CUDA provider, a trial that needs the
+    # onnxruntime-gpu package in place of onnxruntime (T82, docs/experiments.md 14).
+    supertonic_provider: Literal["cpu", "cuda"] = "cpu"
     # Freeze the loaded models out of the garbage collector's reach (T23). Off only to measure without it.
     gc_freeze: bool = True
     # Pass only the speech parts to Whisper (T14, docs/experiments.md 1-1): no empty results on speech, and

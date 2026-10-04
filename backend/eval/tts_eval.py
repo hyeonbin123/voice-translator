@@ -1,4 +1,4 @@
-"""Speech synthesis evaluation on FLEURS sentences (tasks T4 and T78).
+"""Speech synthesis evaluation on FLEURS sentences (tasks T4, T78 and T82).
 
 Two phases, so that candidates with conflicting dependencies (MeloTTS pins transformers 4.27) run in their
 own environments but are scored by the same speech recognition model. From backend/:
@@ -178,10 +178,15 @@ def synth(args: argparse.Namespace) -> None:
     recognizer = load_recognizer(args.stt_load_device) if args.stt_load else None
     for language in languages:
         before = gpu_memory_mb()
+        start = time.perf_counter()
         model = load(language)
+        load_s = time.perf_counter() - start
         after = gpu_memory_mb()
         rows = sentences(language, args.split, args.limit, args.sentences_dir)
-        model.synthesize(rows[0]["raw_transcription"], language)  # warm-up, not timed
+        # Warm-up: not in the sentence statistics, but timed on its own (T82: first-call cost on the GPU).
+        start = time.perf_counter()
+        model.synthesize(rows[0]["raw_transcription"], language)
+        first_call_s = time.perf_counter() - start
         stt_load = None
         if recognizer is not None:
             stt_load = SttLoad(recognizer, load_clips(args.stt_load))
@@ -210,9 +215,17 @@ def synth(args: argparse.Namespace) -> None:
             )
         if stt_load is not None:
             record.setdefault("load", {})[language] = stt_load.stop()
+        # Device memory after the last sentence: ONNX Runtime's arena keeps its high-water mark (T82).
+        after_run = gpu_memory_mb()
         record["languages"][language] = {
             "model_name": model.model_name,
+            "providers": getattr(model, "providers", None),
+            "load_s": round(load_s, 3),
+            "first_call_s": round(first_call_s, 3),
             "vram_mb": round(after - before) if before is not None and after is not None else None,
+            "vram_after_run_mb": (
+                round(after_run - before) if before is not None and after_run is not None else None
+            ),
             "failures": failures,
             "items": items,
         }
@@ -245,8 +258,22 @@ def speed_stats(items: list[dict]) -> dict:
     }
 
 
+# Recorded per language by synth since T82; older records lack them and show "-".
+RUN_FIELDS = ("providers", "load_s", "first_call_s", "vram_mb", "vram_after_run_mb")
+
+
 def _number(value: float | None, unit: str = "") -> str:
     return "-" if value is None else f"{value:.3f}{unit}"
+
+
+def _value(value) -> str:
+    return "-" if value is None else str(value)
+
+
+def first_providers(providers: dict[str, list[str]] | None) -> str:
+    """The provider each session runs on first, each name once ("-" when not recorded)."""
+    names = sorted({found[0] for found in (providers or {}).values() if found})
+    return ", ".join(names) if names else "-"
 
 
 def score_language(
@@ -325,6 +352,7 @@ def timing(args: argparse.Namespace) -> None:
                 **speed_stats(values["items"]),
                 "failures": values["failures"],
                 "count": len(values["items"]),
+                **{key: values.get(key) for key in RUN_FIELDS},
             }
         results.append(result)
     stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
@@ -335,9 +363,12 @@ def timing(args: argparse.Namespace) -> None:
         "",
         f"- 날짜: {datetime.now(UTC).isoformat()}",
         "- 속도: 생성 음성 1초당 합성 시간(초). 언어별 첫 호출 제외",
+        "- 적재·첫 호출: 모델 적재와 첫 합성(통계에서 뺀 준비 문장)에 걸린 시간. VRAM: 장치 전체 메모리의"
+        " 적재 전 대비 차이(적재 뒤, 마지막 문장 뒤). 제공자: 세션마다 ONNX Runtime이 알린 첫 제공자",
         "",
-        "| 후보 | 언어 | 속도 p50 | 속도 p95 | 문장당 합성 p50 | 실패 | 동시 인식 호출 수 | 인식 호출 p50 |",
-        "|---|---|---|---|---|---|---|---|",
+        "| 후보 | 언어 | 속도 p50 | 속도 p95 | 문장당 합성 p50 | 실패 | 동시 인식 호출 수 | 인식 호출 p50 "
+        "| 적재 | 첫 호출 | VRAM 적재 뒤 (MB) | VRAM 실행 뒤 (MB) | 제공자 |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for result in results:
         for language, values in result["languages"].items():
@@ -346,7 +377,9 @@ def timing(args: argparse.Namespace) -> None:
                 f"| {result['candidate']} | {language} | {_number(values['speed_p50'])} "
                 f"| {_number(values['speed_p95'])} "
                 f"| {_number(values['synth_s_p50'], '초')} | {values['failures']} | {load.get('calls', '-')} "
-                f"| {load.get('call_s_p50', '-')} |"
+                f"| {load.get('call_s_p50', '-')} | {_number(values['load_s'], '초')} "
+                f"| {_number(values['first_call_s'], '초')} | {_value(values['vram_mb'])} "
+                f"| {_value(values['vram_after_run_mb'])} | {first_providers(values['providers'])} |"
             )
     base.with_suffix(".md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"written to {base.with_suffix('.md')}")

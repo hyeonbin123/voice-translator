@@ -1,4 +1,5 @@
-"""Supertonic 3 speech synthesis with ONNX Runtime on the CPU (T78, docs/experiments.md 12).
+"""Supertonic 3 speech synthesis with ONNX Runtime on the CPU (T78, docs/experiments.md 12) or, as a trial,
+on the GPU through ONNX Runtime's CUDA provider (T82, docs/experiments.md 14).
 
 Supertonic 3 (Supertone Inc., released 2026-04-29) is four ONNX graphs: a duration predictor, a text encoder,
 a vector estimator that turns noise into a speech latent in N flow-matching steps, and a vocoder. The model
@@ -31,7 +32,9 @@ license:
 
 Changes from the reference: characters the model has no index for are dropped (the reference would pass -1
 to the model), each chunk is trimmed to its own predicted length before chunks are joined, the noise comes
-from a generator per engine, and one engine synthesizes one text at a time.
+from a generator per engine, and one engine synthesizes one text at a time. The reference refuses the GPU
+("GPU mode is not fully tested"); here the CUDA provider gets options fixed before any measurement and a load
+fails unless every session really runs on it.
 """
 
 from __future__ import annotations
@@ -72,6 +75,17 @@ SPEED = 1.05
 SILENCE_S = 0.3
 MAX_CHUNK_CHARS = {"ko": 120, "ja": 120}
 OTHER_MAX_CHUNK_CHARS = 300
+PROVIDERS = ("cpu", "cuda")
+# T82 (docs/experiments.md 14), fixed before any GPU run. ONNX Runtime's default convolution search
+# (EXHAUSTIVE) searches again for every new input shape, and speech changes shape with every sentence; the
+# default arena grows by powers of two; gpu_mem_limit caps the arena (weights about 400 MB in fp32 plus the
+# activations), not the CUDA context or the cuBLAS and cuDNN handles.
+CUDA_PROVIDER_OPTIONS: dict[str, Any] = {
+    "device_id": 0,
+    "cudnn_conv_algo_search": "HEURISTIC",
+    "arena_extend_strategy": "kSameAsRequested",
+    "gpu_mem_limit": 1 << 30,
+}
 LANGUAGES = frozenset(
     "en ko ja ar bg cs da de el es et fi fr hi hr hu id it lt lv nl pl pt ro ru sk sl sv tr uk vi na".split()
 )
@@ -204,7 +218,8 @@ def load_voice(path: Path) -> Voice:
 
 
 class SupertonicEngine:
-    """Speech for one text at a time. ONNX Runtime releases the GIL while a graph runs."""
+    """Speech for one text at a time. ONNX Runtime releases the GIL while a graph runs. The graphs' inputs and
+    outputs are numpy arrays on either provider, so on the GPU each run copies them to and from the device."""
 
     def __init__(
         self,
@@ -213,8 +228,11 @@ class SupertonicEngine:
         sessions: Mapping[str, Session],
         voice: Voice,
         rng: Any = None,
+        providers: Mapping[str, list[str]] | None = None,
     ) -> None:
         self.sample_rate: int = config["ae"]["sample_rate"]
+        # What each session reports it runs on (ONNX Runtime's get_providers), for the measurement records.
+        self.providers = dict(providers or {})
         compress = config["ttl"]["chunk_compress_factor"]
         self._samples_per_frame = config["ae"]["base_chunk_size"] * compress
         self._latent_channels = config["ttl"]["latent_dim"] * compress
@@ -226,30 +244,62 @@ class SupertonicEngine:
 
     @classmethod
     def load(
-        cls, model_dir: Path, *, voice: str = DEFAULT_VOICE, threads: int = 2, verify: bool = True
+        cls,
+        model_dir: Path,
+        *,
+        voice: str = DEFAULT_VOICE,
+        threads: int = 2,
+        verify: bool = True,
+        provider: str = "cpu",
     ) -> SupertonicEngine:
+        """provider "cpu" (T78) or "cuda" (T82): the CUDA provider needs the onnxruntime-gpu package, and the
+        load fails unless every session runs on it (ONNX Runtime would only warn and use the CPU)."""
         model_dir = Path(model_dir)
+        if provider not in PROVIDERS:
+            raise ValueError(f"the ONNX Runtime provider must be one of {PROVIDERS}, not {provider}")
         if f"voice_styles/{voice}.json" not in PINNED_FILES:
             raise ValueError(f"the voice {voice} is not pinned")
         if verify:
             verify_files(model_dir, PINNED_FILES)
         import onnxruntime
 
+        if provider == "cuda":
+            if "CUDAExecutionProvider" not in onnxruntime.get_available_providers():
+                raise RuntimeError(
+                    "this ONNX Runtime has no CUDAExecutionProvider: the GPU needs onnxruntime-gpu"
+                )
+            # The CUDA and cuDNN libraries of the nvidia pip packages, which the image already carries.
+            onnxruntime.preload_dlls()
+            providers: list[Any] = [
+                ("CUDAExecutionProvider", dict(CUDA_PROVIDER_OPTIONS)),
+                "CPUExecutionProvider",
+            ]
+        else:
+            providers = ["CPUExecutionProvider"]
         options = onnxruntime.SessionOptions()
         options.intra_op_num_threads = threads
         options.inter_op_num_threads = 1
         sessions = {
             part: onnxruntime.InferenceSession(
-                str(model_dir / "onnx" / f"{part}.onnx"),
-                sess_options=options,
-                providers=["CPUExecutionProvider"],
+                str(model_dir / "onnx" / f"{part}.onnx"), sess_options=options, providers=providers
             )
             for part in ONNX_PARTS
         }
+        active = {part: list(session.get_providers()) for part, session in sessions.items()}
+        if provider == "cuda":
+            off = sorted(part for part, names in active.items() if names[:1] != ["CUDAExecutionProvider"])
+            if off:
+                raise RuntimeError(
+                    f"the Supertonic sessions {off} do not run on CUDAExecutionProvider: {active[off[0]]}"
+                )
         config = json.loads((model_dir / "onnx" / "tts.json").read_text(encoding="utf-8"))
         indexer = json.loads((model_dir / "onnx" / "unicode_indexer.json").read_text(encoding="utf-8"))
         return cls(
-            config, TextProcessor(indexer), sessions, load_voice(model_dir / "voice_styles" / f"{voice}.json")
+            config,
+            TextProcessor(indexer),
+            sessions,
+            load_voice(model_dir / "voice_styles" / f"{voice}.json"),
+            providers=active,
         )
 
     def _run(self, part: str, **feeds: np.ndarray) -> np.ndarray:

@@ -1,4 +1,4 @@
-"""Speech synthesis candidates for eval.tts_eval (tasks T4 and T78). Each loader imports only its own
+"""Speech synthesis candidates for eval.tts_eval (tasks T4, T78 and T82). Each loader imports only its own
 libraries, because the candidates run in different environments (docs/experiments.md)."""
 
 from __future__ import annotations
@@ -30,10 +30,10 @@ def _kokoro(language: Language) -> TextToSpeech:
     return KokoroTextToSpeech()
 
 
-def _supertonic(steps: int) -> Callable[[Language], TextToSpeech]:
+def _supertonic(steps: int, provider: str = "cpu") -> Callable[[Language], TextToSpeech]:
     def load(language: Language) -> TextToSpeech:
         return SupertonicTextToSpeech(
-            SUPERTONIC_DIR, steps=steps, threads=SUPERTONIC_THREADS, languages=(language,)
+            SUPERTONIC_DIR, steps=steps, threads=SUPERTONIC_THREADS, languages=(language,), provider=provider
         )
 
     return load
@@ -48,4 +48,8 @@ CANDIDATES: dict[str, tuple[Callable[[Language], TextToSpeech], list[Language]]]
     # S: the reference code's default 8 steps. S-fast: 2 steps, the fastest setting its documentation lists.
     "supertonic": (_supertonic(8), ["ko"]),
     "supertonic-fast": (_supertonic(2), ["ko"]),
+    # T82 (docs/experiments.md 14): the same two on ONNX Runtime's CUDA provider, with the provider options
+    # fixed in app/services/supertonic.py. Needs onnxruntime-gpu (the trial image, not the lock file).
+    "supertonic-cuda": (_supertonic(8, "cuda"), ["ko"]),
+    "supertonic-fast-cuda": (_supertonic(2, "cuda"), ["ko"]),
 }

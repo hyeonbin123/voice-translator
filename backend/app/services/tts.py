@@ -184,7 +184,8 @@ class KokoroTextToSpeech:
 
 
 class SupertonicTextToSpeech:
-    """Supertonic 3 (Supertone) on ONNX Runtime's CPU provider: no GPU memory (T78, docs/experiments.md 12).
+    """Supertonic 3 (Supertone) on ONNX Runtime: the CPU provider uses no GPU memory (T78, docs/experiments.md
+    12); the CUDA provider is a trial that needs the onnxruntime-gpu package (T82, docs/experiments.md 14).
 
     The model is under OpenRAIL-M, whose use restrictions bind the service and its users (README). The
     upstream project is archived, so the files are pinned by revision and SHA-256 and read from a local copy
@@ -200,6 +201,7 @@ class SupertonicTextToSpeech:
         voice: str | None = None,
         languages: tuple[Language, ...] = ("ko",),
         verify: bool = True,
+        provider: str = "cpu",
         engine=None,
     ) -> None:
         from app.services import supertonic
@@ -207,12 +209,16 @@ class SupertonicTextToSpeech:
         voice = voice or supertonic.DEFAULT_VOICE
         self.languages = languages
         self.steps = steps
-        self.model_name = f"supertonic-3/{voice}/{steps}-step"
+        # The CPU name stays what T78 recorded; the GPU says so (it shows in /api/health).
+        self.model_name = f"supertonic-3/{voice}/{steps}-step" + ("/cuda" if provider == "cuda" else "")
         if engine is None:
             if model_dir is None:
                 raise ValueError("model_dir is needed to load Supertonic")
-            engine = supertonic.SupertonicEngine.load(model_dir, voice=voice, threads=threads, verify=verify)
+            engine = supertonic.SupertonicEngine.load(
+                model_dir, voice=voice, threads=threads, verify=verify, provider=provider
+            )
         self._engine = engine
+        self.providers: dict[str, list[str]] = dict(getattr(engine, "providers", {}))
 
     def synthesize(self, text: str, language: Language) -> SynthesizedAudio:
         _check_text(text, language, self.languages)

@@ -204,6 +204,61 @@ def test_timing_summarizes_speed_and_load_without_recognition(tmp_path, monkeypa
     assert "| supertonic | ko | 0.100 |" in report.with_suffix(".md").read_text(encoding="utf-8")
 
 
+class FakeSpeech:
+    model_name = "fake/2-step/cuda"
+    providers = {"vocoder": ["CUDAExecutionProvider", "CPUExecutionProvider"]}
+
+    def __init__(self, language) -> None:
+        self.texts: list[str] = []
+
+    def synthesize(self, text, language):
+        self.texts.append(text)
+        return Namespace(wav=wav(np.full(500, 0.1, np.float32)))
+
+
+def test_synth_reports_load_and_first_call_times_providers_and_memory_after_the_run(tmp_path, monkeypatch):
+    """T82 (docs/experiments.md 14): the first call and the load are timed apart from the sentences, the
+    sessions' providers are kept, and GPU memory is read after the run too (ONNX Runtime's arena keeps its
+    high-water mark, so that is the peak)."""
+    from eval import tts_candidates
+
+    rows = [{"id": i, "raw_transcription": f"문장 {i}.", "transcription": f"문장 {i}"} for i in (1, 2, 3)]
+    (tmp_path / "validation_ko.json").write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setattr(tts_candidates, "CANDIDATES", {"fake": (FakeSpeech, ["ko"])})
+    monkeypatch.setattr(tts_eval, "AUDIO", tmp_path / "audio")
+    monkeypatch.setattr(tts_eval, "REPORTS", tmp_path)
+    readings = iter([1000.0, 1500.0, 1700.0])  # before the load, after it, after the last sentence
+    monkeypatch.setattr(tts_eval, "gpu_memory_mb", lambda: next(readings))
+    args = Namespace(
+        candidate="fake",
+        languages=["ko"],
+        tag="t_gpu",
+        split="validation",
+        limit=None,
+        sentences_dir=tmp_path,
+        stt_load=None,
+        stt_load_device="cuda",
+    )
+    tts_eval.synth(args)
+    record = json.loads((tmp_path / "tts_t_gpu_fake_synth.json").read_text(encoding="utf-8"))
+    ko = record["languages"]["ko"]
+    assert (ko["vram_mb"], ko["vram_after_run_mb"]) == (500, 700)
+    assert ko["providers"] == FakeSpeech.providers
+    assert ko["load_s"] >= 0 and ko["first_call_s"] >= 0
+    assert [item["id"] for item in ko["items"]] == [1, 2, 3] and ko["failures"] == 0
+    assert (tmp_path / "audio" / "t_gpu" / "fake" / "ko" / "3.wav").exists()
+
+    tts_eval.timing(Namespace(tag="t_gpu"))
+    (report,) = tmp_path.glob("tts_t_gpu_timing_*.json")
+    (summary,) = json.loads(report.read_text(encoding="utf-8"))
+    values = summary["languages"]["ko"]
+    assert (values["vram_mb"], values["vram_after_run_mb"]) == (500, 700)
+    assert values["providers"] == FakeSpeech.providers
+    assert values["first_call_s"] == ko["first_call_s"] and values["load_s"] == ko["load_s"]
+    table = report.with_suffix(".md").read_text(encoding="utf-8")
+    assert "| 500 | 700 | CUDAExecutionProvider |" in table
+
+
 FAILED = {"failure": "ModelError: the model returned no audio"}
 
 

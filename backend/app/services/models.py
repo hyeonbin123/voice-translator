@@ -44,7 +44,8 @@ def load_models(settings: Settings) -> PipelineModels:
     )
     tts = load_speech_synthesis(settings) if settings.tts_enabled else None
     corrector = load_typo_correction(settings) if settings.typo_correction else None
-    # Supertonic runs on the CPU: off the model thread, which the GPU models queue on (T78).
+    # Supertonic runs off the model thread, which the other models queue on: on the CPU (T78), and on the GPU
+    # beside speech recognition (T82, where the measurement shows what that sharing costs).
     off_model_thread = (
         frozenset({"ko"}) if tts is not None and settings.ko_tts == "supertonic" else frozenset()
     )
@@ -114,7 +115,10 @@ def load_speech_synthesis(settings: Settings) -> TextToSpeech | None:
 
         if settings.ko_tts == "supertonic":
             korean = tts.SupertonicTextToSpeech(
-                settings.supertonic_dir, steps=settings.supertonic_steps, threads=settings.supertonic_threads
+                settings.supertonic_dir,
+                steps=settings.supertonic_steps,
+                threads=settings.supertonic_threads,
+                provider=settings.supertonic_provider,
             )
         else:
             korean = tts.MeloTextToSpeech("ko", device=device)

@@ -332,9 +332,20 @@ def test_korean_synthesis_can_be_supertonic_on_a_thread_of_its_own(fake_model_cl
     )
     built = {name: (args, kwargs) for name, args, kwargs in fake_model_classes}
     assert "Melo" not in built
-    assert built["Supertonic"] == ((tmp_path,), {"steps": 2, "threads": 3})
+    assert built["Supertonic"] == ((tmp_path,), {"steps": 2, "threads": 3, "provider": "cpu"})
     assert bundle.tts.model_name == "ko: Supertonic, en: Kokoro"
     # It runs on the CPU, off the model thread the GPU models queue on.
+    assert bundle.synthesis_off_model_thread == frozenset({"ko"})
+
+
+def test_supertonic_can_run_on_the_gpu_through_onnx_runtime(fake_model_classes, monkeypatch, tmp_path):
+    # T82 (docs/experiments.md 14): the CUDA provider is a trial setting too; it stays off the model thread.
+    monkeypatch.setattr(tts, "SupertonicTextToSpeech", recording("Supertonic"))
+    bundle = models.load_models(
+        Settings(model_device="cpu", ko_tts="supertonic", supertonic_dir=tmp_path, supertonic_provider="cuda")
+    )
+    built = {name: (args, kwargs) for name, args, kwargs in fake_model_classes}
+    assert built["Supertonic"] == ((tmp_path,), {"steps": 8, "threads": 2, "provider": "cuda"})
     assert bundle.synthesis_off_model_thread == frozenset({"ko"})
 
 
@@ -354,6 +365,9 @@ def test_supertonic_settings_are_checked():
         Settings(supertonic_steps=0)
     with pytest.raises(ValidationError):
         Settings(supertonic_threads=0)
+    with pytest.raises(ValidationError):
+        Settings(supertonic_provider="tensorrt")
     defaults = Settings()
     assert (defaults.ko_tts, defaults.supertonic_steps, defaults.supertonic_threads) == ("melo", 8, 2)
+    assert defaults.supertonic_provider == "cpu"
     assert defaults.supertonic_dir.parts[-3:] == ("data", "models", "supertonic-3")

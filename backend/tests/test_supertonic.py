@@ -163,17 +163,33 @@ def write_model_dir(path):
     (path / "voice_styles" / "F1.json").write_text(json.dumps(style), encoding="utf-8")
 
 
-def test_sessions_run_on_the_cpu_with_a_fixed_number_of_threads(tmp_path, monkeypatch):
+def recording_runtime(monkeypatch, available=("CUDAExecutionProvider", "CPUExecutionProvider"), active=None):
+    """Stands in for ONNX Runtime's sessions: records what each session was asked for and reports `active`
+    as the providers it got (by default the ones it was asked for)."""
     import onnxruntime
 
-    write_model_dir(tmp_path)
-    built = []
+    built, preloaded = [], []
 
     class RecordingSession:
         def __init__(self, path, sess_options=None, providers=None):
             built.append((path, sess_options, providers))
+            asked = [provider[0] if isinstance(provider, tuple) else provider for provider in providers]
+            self._active = list(active) if active is not None else asked
+
+        def get_providers(self):
+            return self._active
 
     monkeypatch.setattr(onnxruntime, "InferenceSession", RecordingSession)
+    monkeypatch.setattr(onnxruntime, "get_available_providers", lambda: list(available))
+    monkeypatch.setattr(
+        onnxruntime, "preload_dlls", lambda *args, **kwargs: preloaded.append(kwargs), raising=False
+    )
+    return built, preloaded
+
+
+def test_sessions_run_on_the_cpu_with_a_fixed_number_of_threads(tmp_path, monkeypatch):
+    write_model_dir(tmp_path)
+    built, preloaded = recording_runtime(monkeypatch, available=("CPUExecutionProvider",))
     loaded = SupertonicEngine.load(tmp_path, threads=3, verify=False)
     assert sorted(path.rsplit("/", 1)[-1].rsplit("\\", 1)[-1] for path, _, _ in built) == sorted(
         f"{part}.onnx" for part in supertonic.ONNX_PARTS
@@ -183,6 +199,51 @@ def test_sessions_run_on_the_cpu_with_a_fixed_number_of_threads(tmp_path, monkey
         options.intra_op_num_threads == 3 and options.inter_op_num_threads == 1 for _, options, _ in built
     )
     assert loaded.sample_rate == 1000
+    assert loaded.providers == {part: ["CPUExecutionProvider"] for part in supertonic.ONNX_PARTS}
+    assert preloaded == []  # the CPU needs no CUDA libraries
+
+
+def test_cuda_sessions_get_the_provider_options_fixed_before_measuring(tmp_path, monkeypatch):
+    # T82 (docs/experiments.md 14): ORT's default EXHAUSTIVE convolution search would search again for every
+    # new input shape, and speech changes shape with every sentence.
+    write_model_dir(tmp_path)
+    built, preloaded = recording_runtime(monkeypatch)
+    loaded = SupertonicEngine.load(tmp_path, threads=3, verify=False, provider="cuda")
+    options = {
+        "device_id": 0,
+        "cudnn_conv_algo_search": "HEURISTIC",
+        "arena_extend_strategy": "kSameAsRequested",
+        "gpu_mem_limit": 1 << 30,
+    }
+    assert len(built) == len(supertonic.ONNX_PARTS)
+    assert all(
+        providers == [("CUDAExecutionProvider", options), "CPUExecutionProvider"] for _, _, providers in built
+    )
+    assert len(preloaded) == 1  # the CUDA and cuDNN libraries of the pip packages, before any session
+    assert loaded.providers == {
+        part: ["CUDAExecutionProvider", "CPUExecutionProvider"] for part in supertonic.ONNX_PARTS
+    }
+
+
+def test_a_session_that_fell_back_to_the_cpu_stops_the_cuda_load(tmp_path, monkeypatch):
+    # ONNX Runtime only warns when the CUDA provider cannot start and runs the graph on the CPU instead.
+    write_model_dir(tmp_path)
+    recording_runtime(monkeypatch, active=["CPUExecutionProvider"])
+    with pytest.raises(RuntimeError, match="CUDAExecutionProvider"):
+        SupertonicEngine.load(tmp_path, verify=False, provider="cuda")
+
+
+def test_the_cuda_provider_needs_the_gpu_build_of_onnxruntime(tmp_path, monkeypatch):
+    write_model_dir(tmp_path)
+    built, _ = recording_runtime(monkeypatch, available=("AzureExecutionProvider", "CPUExecutionProvider"))
+    with pytest.raises(RuntimeError, match="onnxruntime-gpu"):
+        SupertonicEngine.load(tmp_path, verify=False, provider="cuda")
+    assert built == []
+
+
+def test_an_unknown_provider_is_refused(tmp_path):
+    with pytest.raises(ValueError, match="provider"):
+        SupertonicEngine.load(tmp_path, verify=False, provider="tensorrt")
 
 
 def test_a_voice_outside_the_pin_is_refused(tmp_path):
@@ -206,3 +267,13 @@ def test_the_service_wrapper_speaks_korean_as_a_wav_and_reports_failures_as_mode
         SupertonicTextToSpeech(steps=2, engine=engine(broken)).synthesize("안녕하세요.", "ko")
     with pytest.raises(ModelError):
         SupertonicTextToSpeech(steps=2, engine=engine()).synthesize(UNSUPPORTED, "ko")
+
+
+def test_the_service_wrapper_names_the_gpu_and_reports_the_session_providers(tmp_path, monkeypatch):
+    write_model_dir(tmp_path)
+    recording_runtime(monkeypatch)
+    on_gpu = SupertonicTextToSpeech(tmp_path, steps=2, verify=False, provider="cuda")
+    assert on_gpu.model_name == "supertonic-3/F1/2-step/cuda"
+    assert on_gpu.providers["vocoder"][0] == "CUDAExecutionProvider"
+    # The CPU name stays what T78 recorded.
+    assert SupertonicTextToSpeech(tmp_path, steps=2, verify=False).model_name == "supertonic-3/F1/2-step"
