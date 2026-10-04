@@ -11,8 +11,8 @@ so ruff and the backend tests can read it. From backend/:
     %PY% eval/comet_score.py score --input IN.jsonl --output OUT.json --device cuda --precision fp16
 
 The input is what `python -m eval.reanalysis comet-input` writes: one JSON object per line with `key`, `src`,
-`mt` and `ref`. The output maps each key to its score and records the model revision, checkpoint hash,
-device, precision and package versions.
+`mt` and `ref`. The output maps each key to its score and records the model revision, the SHA-256 of the
+checkpoint as hashed when it was loaded for scoring, device, precision and package versions.
 """
 
 from __future__ import annotations
@@ -66,11 +66,17 @@ def snapshots(offline: bool) -> tuple[Path, Path]:
     return model, encoder
 
 
-def download() -> None:
-    model, encoder = snapshots(offline=False)
-    actual = sha256(model / CHECKPOINT)
+def check_checkpoint(model_dir: Path) -> str:
+    """SHA-256 of the checkpoint file in `model_dir`; stops unless it is the pinned one."""
+    actual = sha256(model_dir / CHECKPOINT)
     if actual != CHECKPOINT_SHA256:
         raise SystemExit(f"{CHECKPOINT} SHA-256 {actual} is not the pinned {CHECKPOINT_SHA256}")
+    return actual
+
+
+def download() -> None:
+    model, encoder = snapshots(offline=False)
+    check_checkpoint(model)
     missing = [name for name in ENCODER_FILES if not (encoder / name).is_file()]
     if missing:
         raise SystemExit(f"encoder files missing: {missing}")
@@ -78,12 +84,15 @@ def download() -> None:
 
 
 def load(device: str, precision: str):
-    """The pinned COMET-22 model in eval mode on `device`, loaded from local files only."""
+    """The pinned COMET-22 model in eval mode on `device`, loaded from local files only, and the SHA-256 of
+    the checkpoint file it was loaded from. The file is hashed here, before the model is built, so a cache
+    that changed since `download` is refused and the scores' metadata records what was actually read."""
     import torch
     import yaml
     from comet.models import str2model
 
     model_dir, encoder_dir = snapshots(offline=True)
+    checkpoint_sha256 = check_checkpoint(model_dir)
     hparams = yaml.safe_load((model_dir / "hparams.yaml").read_text(encoding="utf-8"))
     if (
         hparams.get("layer_transformation") == "sparsemax_patch"
@@ -101,7 +110,7 @@ def load(device: str, precision: str):
     model.to(device)
     if precision == "fp16":
         model.half()
-    return model
+    return model, checkpoint_sha256
 
 
 def score(model, samples: list[dict], device: str, batch_size: int = BATCH_SIZE) -> list[float]:
@@ -140,7 +149,7 @@ def run(args: argparse.Namespace) -> None:
         samples = samples[: args.limit]
 
     started = time.perf_counter()
-    model = load(args.device, args.precision)
+    model, checkpoint_sha256 = load(args.device, args.precision)  # load_s includes hashing the checkpoint
     loaded = time.perf_counter()
     values = score(model, samples, args.device, args.batch_size)
     finished = time.perf_counter()
@@ -153,7 +162,7 @@ def run(args: argparse.Namespace) -> None:
     meta = {
         "model": MODEL,
         "revision": REVISION,
-        "checkpoint_sha256": CHECKPOINT_SHA256,
+        "checkpoint_sha256": checkpoint_sha256,
         "encoder": ENCODER,
         "encoder_revision": ENCODER_REVISION,
         "device": args.device,
