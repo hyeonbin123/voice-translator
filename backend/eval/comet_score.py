@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import platform
 import time
@@ -143,6 +144,11 @@ def run(args: argparse.Namespace) -> None:
     loaded = time.perf_counter()
     values = score(model, samples, args.device, args.batch_size)
     finished = time.perf_counter()
+    broken = [
+        sample["key"] for sample, value in zip(samples, values, strict=True) if not math.isfinite(value)
+    ]
+    if broken:
+        raise SystemExit(f"{len(broken)} scores are not finite numbers (first {broken[0]}); nothing written")
 
     meta = {
         "model": MODEL,

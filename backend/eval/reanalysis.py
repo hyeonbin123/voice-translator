@@ -514,6 +514,8 @@ def comet_agreement(first: dict[str, float], second: dict[str, float], reports: 
     keys = sorted(first.keys() & second.keys())
     if not keys or len(keys) != len(first) or len(keys) != len(second):
         raise ValueError("the two score files must hold the same segments")
+    if not all(math.isfinite(scores[key]) for scores in (first, second) for key in keys):
+        raise ValueError("a COMET score is not a finite number")
     segment_gap = max(abs(first[key] - second[key]) for key in keys)
     mean_gaps = {}
     for comparison in MT_COMPARISONS:
@@ -636,6 +638,8 @@ def run(args: argparse.Namespace, reports: Reports = stored) -> Path:
     if args.comet:
         data = json.loads(Path(args.comet).read_text(encoding="utf-8"))
         comet, meta = data["scores"], data["meta"]
+        if not all(math.isfinite(value) for value in comet.values()):
+            raise SystemExit("a COMET score is not a finite number")
         missing = [s["key"] for s in comet_segments(reports) if s["key"] not in comet]
         if missing:
             raise SystemExit(f"{len(missing)} segments have no COMET score")

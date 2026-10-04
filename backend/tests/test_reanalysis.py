@@ -236,3 +236,27 @@ def test_run_refuses_missing_comet_scores(tmp_path, monkeypatch):
     comet_file.write_text(json.dumps({"meta": {}, "scores": {}}))
     with pytest.raises(SystemExit):
         reanalysis.run(argparse.Namespace(comet=str(comet_file), tag="u", rounds=10, trials=10), reports=None)
+
+
+def test_comet_agreement_rejects_scores_that_are_not_numbers():
+    # max() skips a NaN that is not first, so a NaN segment could otherwise pass the precision check.
+    keys = [row["key"] for row in comet_segments(subset="precision")]
+    first = {key: 0.8 for key in keys}
+    second = dict(first)
+    second[keys[5]] = float("nan")
+    with pytest.raises(ValueError):
+        comet_agreement(first, second)
+
+
+def test_run_refuses_comet_scores_that_are_not_numbers(tmp_path, monkeypatch):
+    a = _segments(["x"] * 4)
+    comparison = MtComparison("x", "T3", "validation", "ko-en", "a − b", (a,), (a,), None, "rule")
+    monkeypatch.setattr(reanalysis, "MT_COMPARISONS", (comparison,))
+    monkeypatch.setattr(reanalysis, "STT_COMPARISONS", ())
+    monkeypatch.setattr(reanalysis, "check", lambda reports: [])
+    monkeypatch.setattr(reanalysis, "REPORTS", tmp_path)
+    scores = {row["key"]: float("nan") for row in comet_segments(None)}
+    comet_file = tmp_path / "scores.json"
+    comet_file.write_text(json.dumps({"meta": {}, "scores": scores}))
+    with pytest.raises(SystemExit):
+        reanalysis.run(argparse.Namespace(comet=str(comet_file), tag="u", rounds=10, trials=10), reports=None)
