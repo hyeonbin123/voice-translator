@@ -1,0 +1,163 @@
+{
+ "created": "2026-10-08T16:34:06+00:00",
+ "rounds": 10000,
+ "seed": 12345,
+ "directions": {
+  "ko-en": {
+   "baseline": "opus-mt-tc-big-ko-en",
+   "arms": {
+    "hy-mt2-q8": {
+     "chrf": {
+      "point": -0.8653049095191747,
+      "low": -2.390138883598634,
+      "high": 0.6326043565640401,
+      "contains_zero": true,
+      "arm": 55.5815400979033,
+      "baseline": 56.446845007422475
+     },
+     "comet": {
+      "point": 1.1786882267441854,
+      "low": 0.46178536821705424,
+      "high": 2.0186171420784884,
+      "contains_zero": false,
+      "arm": 88.24794089147287,
+      "baseline": 87.06925266472868
+     },
+     "flagged": 0,
+     "empty": 0,
+     "cut_at_cap": 0,
+     "latency_p50": 0.2669434000272304,
+     "latency_p95": 0.476825799967628,
+     "baseline_latency_p50": 0.09717069996986538,
+     "rules": {
+      "a": false,
+      "b": true,
+      "c": true
+     },
+     "passes": false,
+     "latency_only_miss": false,
+     "vram_mb": 2161,
+     "ollama": {
+      "ollama": "0.35.1",
+      "model": "hy-mt2:1.8b-q8_0",
+      "digest": "4d64c0ffabe302bcc4151c9c1a6e93e032fbc32ba1b8cb67d5713985035f1fab",
+      "size_vram_mb": 1993,
+      "context_length": 2048
+     }
+    }
+   },
+   "pick": null,
+   "fallback_needed": []
+  },
+  "en-ko": {
+   "baseline": "opus-mt-tc-big-en-ko/split",
+   "arms": {
+    "hy-mt2-q8": {
+     "chrf": {
+      "point": -0.7404958387731071,
+      "low": -2.988891994654322,
+      "high": 1.4856964917035256,
+      "contains_zero": true,
+      "arm": 35.40628151143011,
+      "baseline": 36.146777350203216
+     },
+     "comet": {
+      "point": 3.759008599806208,
+      "low": 2.7162063953488373,
+      "high": 4.904804081879845,
+      "contains_zero": false,
+      "arm": 90.88087451550388,
+      "baseline": 87.12186591569767
+     },
+     "flagged": 1,
+     "empty": 0,
+     "cut_at_cap": 0,
+     "latency_p50": 0.43235659995116293,
+     "latency_p95": 0.7415499999769963,
+     "baseline_latency_p50": 0.09147539990954101,
+     "rules": {
+      "a": false,
+      "b": true,
+      "c": false
+     },
+     "passes": false,
+     "latency_only_miss": false,
+     "vram_mb": 2161,
+     "ollama": {
+      "ollama": "0.35.1",
+      "model": "hy-mt2:1.8b-q8_0",
+      "digest": "4d64c0ffabe302bcc4151c9c1a6e93e032fbc32ba1b8cb67d5713985035f1fab",
+      "size_vram_mb": 1993,
+      "context_length": 2048
+     }
+    },
+    "hy-mt2-q8/split": {
+     "chrf": {
+      "point": -0.7751083325321915,
+      "low": -3.0965329596683353,
+      "high": 1.460402609773185,
+      "contains_zero": true,
+      "arm": 35.371669017671024,
+      "baseline": 36.146777350203216
+     },
+     "comet": {
+      "point": 3.725699491279073,
+      "low": 2.688187000363372,
+      "high": 4.860896620639534,
+      "contains_zero": false,
+      "arm": 90.84756540697674,
+      "baseline": 87.12186591569767
+     },
+     "flagged": 2,
+     "empty": 0,
+     "cut_at_cap": 0,
+     "latency_p50": 0.42649899993557483,
+     "latency_p95": 0.7744243500055745,
+     "baseline_latency_p50": 0.09147539990954101,
+     "rules": {
+      "a": false,
+      "b": false,
+      "c": false
+     },
+     "passes": false,
+     "latency_only_miss": false,
+     "vram_mb": 2159,
+     "ollama": {
+      "ollama": "0.35.1",
+      "model": "hy-mt2:1.8b-q8_0",
+      "digest": "4d64c0ffabe302bcc4151c9c1a6e93e032fbc32ba1b8cb67d5713985035f1fab",
+      "size_vram_mb": 1993,
+      "context_length": 2048
+     }
+    }
+   },
+   "pick": null,
+   "fallback_needed": []
+  }
+ },
+ "reports": [
+  "eval\\reports\\mt_t83_dev_20261008_163151.json"
+ ],
+ "comet_meta": {
+  "model": "Unbabel/wmt22-comet-da",
+  "revision": "2760a223ac957f30acfb18c8aa649b01cf1d75f2",
+  "checkpoint_sha256": "e213091cde220f97b89f8bdfa750c458cfea741ad62affb455b59900210ff2af",
+  "encoder": "FacebookAI/xlm-roberta-large",
+  "encoder_revision": "c23d21b0620b635a76227c604d44e43a9f0ee389",
+  "device": "cuda",
+  "gpu": "NVIDIA GeForce RTX 2080 Ti",
+  "precision": "fp16",
+  "batch_size": 32,
+  "segments": 530,
+  "load_s": 27.6,
+  "score_s": 5.0,
+  "versions": {
+   "unbabel-comet": "2.2.7",
+   "torch": "2.11.0+cu128",
+   "transformers": "4.57.6",
+   "python": "3.11.16"
+  },
+  "input": "../work/vt-n1/comet_dev_input.jsonl",
+  "created": "2026-10-08T16:33:59+00:00"
+ }
+}

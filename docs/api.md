@@ -398,7 +398,7 @@ backend 폴더에서 `uv sync` 후 `uv run alembic upgrade head`를 실행해 �
 | `MODEL_DEVICE` | `cuda` | `cuda` 또는 `cpu`. GPU는 float16, CPU는 int8 |
 | `STT_MODEL` | `large-v3-turbo` | faster-whisper 모델 이름 |
 | `CT2_DIR` | `<프로젝트>/data/models/ct2` | 변환한 번역 모델 폴더 (`eval.mt_convert`) |
-| `EN_KO_TRANSLATION` | `opus` | 영→한 번역. `opus`(opus-mt-tc-big, 문장 단위, 2·2-1절에서 고름), `hy-mt2`(Hy-MT2-1.8B, 입력 통째로) 또는 `hy-mt2-split`(Hy-MT2, 문장 단위). Hy-MT2는 측정 중인 시험 설정이다(docs/experiments.md 15절): `OLLAMA_URL`의 Ollama에 `eval.hymt_setup`으로 만든 모델이 있어야 하고, 서버가 시작할 때 그 모델을 기다렸다가(`HYMT_PREPARE_TIMEOUT_S`) 올린다. 번역은 필수라 끝내 준비되지 않으면 서버가 뜨지 않는다. 번역 호출은 opus처럼 모델 스레드에서 돈다 |
+| `EN_KO_TRANSLATION` | `opus` | 영→한 번역. `opus`(opus-mt-tc-big, 문장 단위, 2·2-1절에서 고름), `hy-mt2`(Hy-MT2-1.8B, 입력 통째로) 또는 `hy-mt2-split`(Hy-MT2, 문장 단위). Hy-MT2는 시험에서 채택하지 않은 비교용 설정이다(docs/experiments.md 15절: validation에서 COMET-22는 opus보다 높았지만 chrF 차이가 유의하지 않았고, 영→한은 번역 시간 기준도 넘었다): `OLLAMA_URL`의 Ollama에 `eval.hymt_setup`으로 만든 모델이 있어야 하고, 서버가 시작할 때 그 모델을 기다렸다가(`HYMT_PREPARE_TIMEOUT_S`) 올린다. 번역은 필수라 끝내 준비되지 않으면 서버가 뜨지 않는다. 번역 호출은 opus처럼 모델 스레드에서 돈다 |
 | `KO_EN_TRANSLATION` | `opus` | 한→영 번역. `opus`(입력 통째로) 또는 `hy-mt2`(시험 설정, 위와 같음) |
 | `HYMT_MODEL` | `hy-mt2:1.8b-q8_0` | Hy-MT2의 Ollama 모델 이름 |
 | `HYMT_DIGEST` | 없음 | 기대하는 모델 빌드(Ollama `/api/tags`의 digest). 주면 다른 빌드일 때 서버가 바로 멈춘다. 측정한 빌드는 docs/experiments.md 15절에 적는다 |
