@@ -1,0 +1,74 @@
+[
+ {
+  "candidate": "supertonic-cuda",
+  "load": null,
+  "languages": {
+   "ko": {
+    "model_name": "supertonic-3/F1/8-step/cuda",
+    "speed_p50": 0.0466,
+    "speed_p95": 0.08995,
+    "synth_s_p50": 0.406,
+    "failures": 0,
+    "count": 129,
+    "providers": {
+     "duration_predictor": [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+     ],
+     "text_encoder": [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+     ],
+     "vector_estimator": [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+     ],
+     "vocoder": [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+     ]
+    },
+    "load_s": 15.949,
+    "first_call_s": 4.138,
+    "vram_mb": 450,
+    "vram_after_run_mb": 771
+   }
+  }
+ },
+ {
+  "candidate": "supertonic-fast-cuda",
+  "load": null,
+  "languages": {
+   "ko": {
+    "model_name": "supertonic-3/F1/2-step/cuda",
+    "speed_p50": 0.0228,
+    "speed_p95": 0.050249999999999996,
+    "synth_s_p50": 0.204,
+    "failures": 0,
+    "count": 129,
+    "providers": {
+     "duration_predictor": [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+     ],
+     "text_encoder": [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+     ],
+     "vector_estimator": [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+     ],
+     "vocoder": [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+     ]
+    },
+    "load_s": 7.919,
+    "first_call_s": 0.712,
+    "vram_mb": 517,
+    "vram_after_run_mb": 67
+   }
+  }
+ }
+]

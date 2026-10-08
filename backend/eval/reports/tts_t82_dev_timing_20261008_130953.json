@@ -1,0 +1,57 @@
+[
+ {
+  "candidate": "melo",
+  "load": null,
+  "languages": {
+   "ko": {
+    "model_name": "melotts/KR/KR",
+    "speed_p50": 0.0707,
+    "speed_p95": 0.09025,
+    "synth_s_p50": 0.657,
+    "failures": 0,
+    "count": 129,
+    "providers": null,
+    "load_s": 137.298,
+    "first_call_s": 21.71,
+    "vram_mb": 569,
+    "vram_after_run_mb": 987
+   }
+  }
+ },
+ {
+  "candidate": "supertonic-fast-cuda",
+  "load": null,
+  "languages": {
+   "ko": {
+    "model_name": "supertonic-3/F1/2-step/cuda",
+    "speed_p50": 0.0199,
+    "speed_p95": 0.03805,
+    "synth_s_p50": 0.176,
+    "failures": 0,
+    "count": 129,
+    "providers": {
+     "duration_predictor": [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+     ],
+     "text_encoder": [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+     ],
+     "vector_estimator": [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+     ],
+     "vocoder": [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+     ]
+    },
+    "load_s": 8.51,
+    "first_call_s": 1.978,
+    "vram_mb": 579,
+    "vram_after_run_mb": 853
+   }
+  }
+ }
+]

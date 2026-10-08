@@ -1,0 +1,44 @@
+[
+ {
+  "candidate": "supertonic-fast-cuda",
+  "load": {
+   "ko": {
+    "calls": 114,
+    "errors": 0,
+    "call_s_p50": 0.541
+   }
+  },
+  "languages": {
+   "ko": {
+    "model_name": "supertonic-3/F1/2-step/cuda",
+    "speed_p50": 0.0444,
+    "speed_p95": 0.0874,
+    "synth_s_p50": 0.401,
+    "failures": 0,
+    "count": 129,
+    "providers": {
+     "duration_predictor": [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+     ],
+     "text_encoder": [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+     ],
+     "vector_estimator": [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+     ],
+     "vocoder": [
+      "CUDAExecutionProvider",
+      "CPUExecutionProvider"
+     ]
+    },
+    "load_s": 6.806,
+    "first_call_s": 0.701,
+    "vram_mb": 424,
+    "vram_after_run_mb": 846
+   }
+  }
+ }
+]
