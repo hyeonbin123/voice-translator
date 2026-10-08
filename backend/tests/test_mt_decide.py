@@ -125,6 +125,57 @@ def test_validation_picks_per_direction_and_asks_for_q4_only_after_a_latency_onl
     assert result["directions"]["ko-en"]["fallback_needed"] == []
 
 
+def test_a_q4_arm_measured_after_a_latency_only_miss_competes_with_the_passing_q8_arms():
+    # Section 15: the pick is the passing arm with the higher chrF, and a Q8 arm that missed only (c) is
+    # judged again as its Q4_K_M under the same rules. A passing Q8 arm must not shut the Q4 arm out (T85).
+    refs = sentences(40)
+    base = direction_values(degraded(refs), refs)
+    one_word_short = [" ".join(r.split()[:-1]) for r in refs]
+    q8_whole = direction_values(refs, refs, p50=0.5)  # best quality, too slow
+    q8_split = direction_values(one_word_short, refs, p50=0.3)  # passes, lower chrF
+    q4_whole = direction_values(refs, refs, p50=0.3)  # the Q4 of the slow arm: same quality, fast enough
+    base_ko = direction_values(degraded(refs), refs)
+    ko = direction_values(degraded(refs), refs)  # no better than opus
+    results = [
+        report("opus-mt-tc-big-en-ko/split", "en-ko", base, 512),
+        report("opus-mt-tc-big-ko-en", "ko-en", base_ko, 514),
+        {"model": "hy-mt2-q8", "vram_mb": 2400, "directions": {"en-ko": q8_whole, "ko-en": ko}},
+        report("hy-mt2-q8/split", "en-ko", q8_split),
+        {"model": "hy-mt2-q4", "vram_mb": 1400, "directions": {"en-ko": q4_whole, "ko-en": ko}},
+    ]
+    comet = {}
+    for values, score in ((base, 0.7), (base_ko, 0.7), (ko, 0.7), (q8_whole, 0.9), (q8_split, 0.9)):
+        comet.update(comet_for(values, score))
+    comet.update(comet_for(q4_whole, 0.9))
+    decision = validation(results, comet, ROUNDS)["directions"]
+    result = decision["en-ko"]
+    assert result["arms"]["hy-mt2-q8/split"]["passes"] and result["arms"]["hy-mt2-q4"]["passes"]
+    assert result["arms"]["hy-mt2-q8/split"]["chrf"]["arm"] < result["arms"]["hy-mt2-q4"]["chrf"]["arm"]
+    assert result["pick"] == "hy-mt2-q4"
+    # ko->en: its Q8 arm did not miss on latency only, so the Q4 run there is not a candidate.
+    assert decision["ko-en"]["pick"] is None
+
+
+def test_a_q4_arm_measured_for_one_direction_leaves_the_other_alone():
+    # Q4_K_M is measured only where a Q8 arm missed on latency only, so its report may hold one direction.
+    refs = sentences(40)
+    base, base_ko = direction_values(degraded(refs), refs), direction_values(degraded(refs), refs)
+    slow, ko = direction_values(refs, refs, p50=0.5), direction_values(degraded(refs), refs)
+    q4 = direction_values(refs, refs, p50=0.3)
+    results = [
+        report("opus-mt-tc-big-en-ko/split", "en-ko", base, 512),
+        report("opus-mt-tc-big-ko-en", "ko-en", base_ko, 514),
+        {"model": "hy-mt2-q8", "vram_mb": 2400, "directions": {"en-ko": slow, "ko-en": ko}},
+        report("hy-mt2-q4", "en-ko", q4, 1400),
+    ]
+    comet = {}
+    for values, score in ((base, 0.7), (base_ko, 0.7), (ko, 0.7), (slow, 0.9), (q4, 0.9)):
+        comet.update(comet_for(values, score))
+    decision = validation(results, comet, ROUNDS)["directions"]
+    assert decision["en-ko"]["pick"] == "hy-mt2-q4" and decision["en-ko"]["fallback_needed"] == []
+    assert decision["ko-en"]["pick"] is None and "hy-mt2-q4" not in decision["ko-en"]["arms"]
+
+
 def test_pick_prefers_higher_chrf_then_the_faster_arm():
     def arm(chrf, p50, passes=True):
         return {"passes": passes, "chrf": {"arm": chrf}, "latency_p50": p50}
@@ -155,6 +206,27 @@ def test_vram_counts_what_the_pick_replaces():
     }
     # One Ollama model serves both directions: its memory counts once.
     assert vram(both, None)["net_mb"] == 2400 - 512 - 514
+    whole_and_split = {
+        "directions": {
+            "en-ko": {"pick": "hy-mt2-q8/split", "arms": {"hy-mt2-q8/split": {"vram_mb": 2400}}},
+            "ko-en": {"pick": "hy-mt2-q8", "arms": {"hy-mt2-q8": {"vram_mb": 2380}}},
+        }
+    }
+    # The whole and sentence-by-sentence arms are the same build: still once (the larger reading).
+    assert vram(whole_and_split, None)["net_mb"] == 2400 - 512 - 514
+
+
+def test_vram_adds_two_different_builds():
+    # Q4_K_M one way and Q8_0 the other are two Ollama models, both loaded: both count (T85).
+    decision = {
+        "directions": {
+            "en-ko": {"pick": "hy-mt2-q4", "arms": {"hy-mt2-q4": {"vram_mb": 1200}}},
+            "ko-en": {"pick": "hy-mt2-q8", "arms": {"hy-mt2-q8": {"vram_mb": 2000}}},
+        }
+    }
+    result = vram(decision, {"retire_corrector": True, "corrector_vram_mb": 1000})
+    assert result["hymt_vram_mb"] == 1200 + 2000
+    assert result["net_mb"] == 1200 + 2000 - 512 - 514 - 1000 and result["passes"] is False
 
 
 def typo_result(candidate, translator, hypotheses, refs, vram_mb=0):

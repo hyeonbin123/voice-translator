@@ -170,7 +170,12 @@ def validation(results: list[dict], comet: dict[str, float], rounds: int = ROUND
     out: dict = {"directions": {}}
     for direction, base_name in BASELINE.items():
         base = by_name[base_name]["directions"][direction]
-        arm_names = [n for n in ARMS[direction] + [FALLBACK[a] for a in ARMS[direction]] if n in by_name]
+
+        def measured(name: str, direction: str = direction) -> bool:
+            # A Q4_K_M run may hold only the direction whose Q8_0 arm needed it.
+            return name in by_name and direction in by_name[name]["directions"]
+
+        arm_names = [n for n in ARMS[direction] + [FALLBACK[a] for a in ARMS[direction]] if measured(n)]
         arms = {
             name: compare(by_name[name]["directions"][direction], base, comet, rounds) for name in arm_names
         }
@@ -180,13 +185,15 @@ def validation(results: list[dict], comet: dict[str, float], rounds: int = ROUND
         q8 = {name: arm for name, arm in arms.items() if "-q8" in name}
         fallback = sorted(FALLBACK[name] for name, arm in q8.items() if arm["latency_only_miss"])
         q4 = {name: arm for name, arm in arms.items() if name in fallback}
-        chosen = pick(q8) or (pick(q4) if q4 else None)
+        # One pick over the Q8_0 arms and the Q4_K_M arms that stand in for a Q8_0 arm that missed only on
+        # latency (section 15: the passing arm with the higher chrF; T85). Other Q4_K_M runs are not arms.
+        chosen = pick({**q8, **q4})
         out["directions"][direction] = {
             "baseline": base_name,
             "arms": arms,
             "pick": chosen,
             # Q4_K_M is measured only for Q8_0 arms that passed (a) and (b) and missed only (c).
-            "fallback_needed": [name for name in fallback if name not in by_name],
+            "fallback_needed": [name for name in fallback if not measured(name)],
         }
     return out
 
@@ -260,12 +267,17 @@ def typo(opus: dict, hymt: dict, rows: dict[int, dict], comet: dict[str, float] 
 
 
 def vram(decision: dict, typo_decision: dict | None) -> dict:
-    """(d): what the picked Hy-MT2 build takes against what it replaces. One Ollama model serves both."""
+    """(d): what the picked Hy-MT2 builds take against what they replace. A build (hy-mt2-q8, hy-mt2-q4; the
+    whole and sentence-by-sentence arms are one Ollama model) counts once even when it serves both
+    directions, at the larger of its readings; two different builds are both loaded and both count (T85)."""
     picks = {d: v["pick"] for d, v in decision["directions"].items() if v["pick"]}
     if not picks:
         return {"picks": {}, "passes": None}
-    builds = {decision["directions"][d]["arms"][name]["vram_mb"] for d, name in picks.items()}
-    hymt_mb = max(builds)
+    builds: dict[str, int] = {}
+    for d, name in picks.items():
+        build = name.split("/", 1)[0]
+        builds[build] = max(builds.get(build, 0), decision["directions"][d]["arms"][name]["vram_mb"])
+    hymt_mb = sum(builds.values())
     replaced = {f"opus {d}": OPUS_VRAM_MB[d] for d in picks}
     retire = bool(typo_decision and typo_decision["retire_corrector"] and "en-ko" in picks)
     if retire:
@@ -273,6 +285,7 @@ def vram(decision: dict, typo_decision: dict | None) -> dict:
     net = hymt_mb - sum(replaced.values())
     return {
         "picks": picks,
+        "builds_mb": builds,
         "hymt_vram_mb": hymt_mb,
         "replaced_mb": replaced,
         "corrector_retired": retire,
