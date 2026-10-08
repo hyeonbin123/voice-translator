@@ -8,6 +8,7 @@ from app.services import translation
 from app.services.interfaces import ModelError
 from app.services.translation import (
     DirectionalTranslator,
+    HyMtTranslator,
     OllamaTranslator,
     marian_source_tokens,
     nllb_source_tokens,
@@ -205,3 +206,164 @@ def test_ollama_connection_error_becomes_model_error():
     translator, _ = ollama_with(refuse)
     with pytest.raises(ModelError):
         translator.translate("hello", "en", "ko")
+
+
+# Hy-MT2 served by Ollama (T83, docs/experiments.md 15)
+
+HY_MT_ENGLISH_PROMPT = (
+    "Translate the following text into Korean. Note that you should only output the translated result "
+    "without any additional explanation:\n\n"
+)
+
+
+def hymt_with(handler, **kwargs) -> tuple[HyMtTranslator, list[tuple[str, dict | None]]]:
+    sent: list[tuple[str, dict | None]] = []
+
+    def record(request: httpx.Request) -> httpx.Response:
+        sent.append((request.url.path, json.loads(request.content) if request.content else None))
+        return handler(request)
+
+    translator = HyMtTranslator("hy-mt2:1.8b-q8_0", base_url="http://ollama.test", **kwargs)
+    translator._client = httpx.Client(base_url="http://ollama.test", transport=httpx.MockTransport(record))
+    return translator, sent
+
+
+def chat_reply(content, done_reason="stop", **extra) -> httpx.Response:
+    body = {
+        "message": {"role": "assistant", "content": content},
+        "done": True,
+        "done_reason": done_reason,
+        "prompt_eval_count": 40,
+        "eval_count": 7,
+        **extra,
+    }
+    return httpx.Response(200, json=body)
+
+
+def test_hymt_sends_the_model_card_prompt_as_the_only_message():
+    translator, sent = hymt_with(lambda _: chat_reply(" 안녕하세요. \n"))
+    assert translator.translate("Hello.", "en", "ko") == "안녕하세요."
+    path, payload = sent[0]
+    assert path == "/api/chat"
+    # The model card's "Default Translation" English prompt, no system prompt (the model has no default one).
+    assert payload["messages"] == [{"role": "user", "content": HY_MT_ENGLISH_PROMPT + "Hello."}]
+    assert payload["model"] == "hy-mt2:1.8b-q8_0"
+    assert payload["stream"] is False
+    assert payload["keep_alive"] == -1
+    # Greedy, the card's repetition penalty, the opus output cap of 256 tokens, a fixed context size.
+    assert payload["options"] == {
+        "temperature": 0,
+        "repeat_penalty": 1.05,
+        "num_predict": 256,
+        "num_ctx": 2048,
+    }
+    assert translator.model_name == "ollama/hy-mt2:1.8b-q8_0"
+
+
+def test_hymt_names_the_target_language_in_english():
+    translator, sent = hymt_with(lambda _: chat_reply("Hello."))
+    translator.translate("안녕하세요.", "ko", "en")
+    assert sent[0][1]["messages"][0]["content"].startswith("Translate the following text into English. ")
+    assert sent[0][1]["messages"][0]["content"].endswith(":\n\n안녕하세요.")
+
+
+def test_hymt_by_sentence_translates_each_sentence_on_its_own():
+    replies = iter(["안녕.", "잘 지내?"])
+    translator, sent = hymt_with(lambda _: chat_reply(next(replies)), by_sentence=True)
+    assert translator.translate("Hi there. How are you?", "en", "ko") == "안녕. 잘 지내?"
+    assert [payload["messages"][0]["content"] for _, payload in sent] == [
+        HY_MT_ENGLISH_PROMPT + "Hi there.",
+        HY_MT_ENGLISH_PROMPT + "How are you?",
+    ]
+    assert translator.model_name == "ollama/hy-mt2:1.8b-q8_0/split"
+
+
+def test_hymt_keeps_the_details_of_the_last_translation_for_evaluation():
+    translator, _ = hymt_with(lambda _: chat_reply("안녕.", eval_count=3), by_sentence=True)
+    translator.translate("Hi. Bye.", "en", "ko")
+    translator.translate("Hi.", "en", "ko")
+    assert translator.calls == [{"done_reason": "stop", "prompt_eval_count": 40, "eval_count": 3}]
+
+
+def test_hymt_keeps_a_reply_cut_at_the_output_cap():
+    # Like opus at max_decoding_length 256: a cut translation is still the translation.
+    translator, _ = hymt_with(lambda _: chat_reply("아주 긴 번역", done_reason="length"))
+    assert translator.translate("A very long text.", "en", "ko") == "아주 긴 번역"
+    assert translator.calls[0]["done_reason"] == "length"
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [
+        httpx.Response(500, json={"error": "model crashed"}),
+        httpx.Response(404, json={"error": "model not found"}),
+        chat_reply("   "),
+        chat_reply(None),
+        chat_reply(123),
+        httpx.Response(200, json={"message": None}),
+        httpx.Response(200, text="not json"),
+    ],
+)
+def test_hymt_failures_become_model_errors(reply):
+    translator, _ = hymt_with(lambda _: reply)
+    with pytest.raises(ModelError):
+        translator.translate("hello", "en", "ko")
+
+
+def test_hymt_connection_error_becomes_model_error():
+    def refuse(request):
+        raise httpx.ConnectError("connection refused", request=request)
+
+    translator, _ = hymt_with(refuse)
+    with pytest.raises(ModelError):
+        translator.translate("hello", "en", "ko")
+
+
+def ollama_server(tags_digest="sha256-of-the-build", show_status=200):
+    def handle(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/show":
+            return httpx.Response(show_status, json={"template": "..."})
+        if request.url.path == "/api/tags":
+            models = [
+                {"name": "other:1b", "digest": "other"},
+                {"name": "hy-mt2:1.8b-q8_0", "digest": tags_digest},
+            ]
+            return httpx.Response(200, json={"models": models})
+        if request.url.path == "/api/generate":
+            return httpx.Response(200, json={"done": True})
+        return httpx.Response(404)
+
+    return handle
+
+
+def test_hymt_prepare_loads_the_model_to_stay_and_reports_its_build():
+    translator, sent = hymt_with(ollama_server())
+    assert translator.prepare() == "sha256-of-the-build"
+    assert translator.digest == "sha256-of-the-build"
+    generate = [payload for path, payload in sent if path == "/api/generate"]
+    assert generate == [{"model": "hy-mt2:1.8b-q8_0", "keep_alive": -1}]
+
+
+def test_hymt_prepare_fails_when_ollama_lacks_the_model():
+    translator, sent = hymt_with(ollama_server(show_status=404))
+    with pytest.raises(ModelError, match="hymt_setup"):
+        translator.prepare()
+    assert not any(path == "/api/generate" for path, _ in sent)
+
+
+def test_hymt_prepare_fails_while_ollama_is_down():
+    def refuse(request):
+        raise httpx.ConnectError("connection refused", request=request)
+
+    translator, _ = hymt_with(refuse)
+    with pytest.raises(ModelError):
+        translator.prepare()
+
+
+def test_hymt_prepare_refuses_another_build_of_the_model():
+    translator, sent = hymt_with(
+        ollama_server(tags_digest="another-build"), expected_digest="the-measured-build"
+    )
+    with pytest.raises(RuntimeError, match="another-build"):
+        translator.prepare()
+    assert not any(path == "/api/generate" for path, _ in sent)

@@ -6,10 +6,12 @@ from collections.abc import Callable
 from typing import Any
 
 from app.config import Settings
-from app.services.interfaces import Language, TextToSpeech, TypoCorrector
+from app.services.interfaces import Language, ModelError, TextToSpeech, Translator, TypoCorrector
 from app.services.pipeline import PipelineModels
 
 logger = logging.getLogger(__name__)
+
+HYMT_RETRY_S = 2.0  # seconds between tries while Ollama starts (T83)
 
 WARM_UP_TEXT: dict[Language, str] = {"ko": "안녕하세요.", "en": "Hello."}
 
@@ -20,7 +22,6 @@ def load_models(settings: Settings) -> PipelineModels:
     not available" and the browser reads the translation aloud instead (docs/api.md).
     """
     from app.services.stt import WhisperSpeechToText
-    from app.services.translation import DirectionalTranslator, MarianTranslator
 
     device = settings.model_device
     engine = {"device": device, "compute_type": "float16" if device == "cuda" else "int8"}
@@ -33,15 +34,7 @@ def load_models(settings: Settings) -> PipelineModels:
         num_workers=settings.stt_num_workers,
         **engine,
     )
-    translator = DirectionalTranslator(
-        {
-            ("ko", "en"): MarianTranslator(settings.ct2_dir / "opus-mt-tc-big-ko-en", "ko", "en", **engine),
-            # One sentence at a time for en->ko only (T17, docs/experiments.md 2-1).
-            ("en", "ko"): MarianTranslator(
-                settings.ct2_dir / "opus-mt-tc-big-en-ko", "en", "ko", by_sentence=True, **engine
-            ),
-        }
-    )
+    translator = load_translation(settings, engine)
     tts = load_speech_synthesis(settings) if settings.tts_enabled else None
     corrector = load_typo_correction(settings) if settings.typo_correction else None
     # Supertonic runs off the model thread, which the other models queue on: on the CPU (T78), and on the GPU
@@ -56,6 +49,54 @@ def load_models(settings: Settings) -> PipelineModels:
         corrector=corrector,
         synthesis_off_model_thread=off_model_thread,
     )
+
+
+def load_translation(settings: Settings, engine: dict) -> Translator:
+    """opus-mt-tc-big both ways by default; Hy-MT2 on Ollama for a direction when its setting says so (T83).
+
+    Startup waits up to HYMT_PREPARE_TIMEOUT_S for Ollama to answer with the model (compose starts the two
+    containers together), and stops at once when Ollama has another build of it than HYMT_DIGEST.
+    """
+    from app.services.translation import DirectionalTranslator, HyMtTranslator, MarianTranslator
+
+    def hymt(by_sentence: bool) -> Translator:
+        model = HyMtTranslator(
+            settings.hymt_model,
+            base_url=settings.ollama_url,
+            timeout_s=settings.hymt_timeout_s,
+            by_sentence=by_sentence,
+            expected_digest=settings.hymt_digest,
+        )
+        _wait_until_ready(model, settings.hymt_prepare_timeout_s)
+        return model
+
+    if settings.ko_en_translation == "hy-mt2":
+        ko_en = hymt(by_sentence=False)
+    else:
+        ko_en = MarianTranslator(settings.ct2_dir / "opus-mt-tc-big-ko-en", "ko", "en", **engine)
+    if settings.en_ko_translation == "opus":
+        # One sentence at a time for en->ko only (T17, docs/experiments.md 2-1).
+        en_ko = MarianTranslator(
+            settings.ct2_dir / "opus-mt-tc-big-en-ko", "en", "ko", by_sentence=True, **engine
+        )
+    else:
+        en_ko = hymt(by_sentence=settings.en_ko_translation == "hy-mt2-split")
+    return DirectionalTranslator({("ko", "en"): ko_en, ("en", "ko"): en_ko})
+
+
+def _wait_until_ready(model, timeout_s: float) -> None:
+    deadline = time.monotonic() + timeout_s
+    while True:
+        try:
+            digest = model.prepare()
+        except ModelError as exc:
+            if time.monotonic() >= deadline:
+                raise
+            logger.info("Waiting for the translation model on Ollama: %s", exc)
+            time.sleep(HYMT_RETRY_S)
+            continue
+        logger.info("Translation model %s is ready (build %s)", model.model_name, digest)
+        return
 
 
 def warm_up(models: PipelineModels) -> None:

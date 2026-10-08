@@ -28,10 +28,14 @@ services:
 
   # Typo correction for typed English (T32): the API pulls its small LLM into the ollama volume on the
   # first start (about 1 GB, in the background) and keeps it loaded on the GPU (about 1.3 GB).
+  # The Hy-MT2 translation trial (T83, docs/experiments.md 15) is created in here from the official GGUF:
+  #   docker compose exec ollama ollama create hy-mt2:1.8b-q8_0 -f /models/hy-mt2/Modelfile.q8_0
+  # (files from `python -m eval.hymt_setup download` and `modelfile`). Ollama is pinned like the host's.
   ollama:
-    image: ollama/ollama:0.34.0
+    image: ollama/ollama:0.35.1
     volumes:
       - ollama:/root/.ollama
+      - ./data/models/hy-mt2:/models/hy-mt2:ro
     deploy:
       resources:
         reservations:
@@ -57,6 +61,11 @@ services:
       # Live subtitles (docs/experiments.md 8, T61): a thread of their own and two recognition replicas.
       LIVE_UPDATE_THREAD: ${LIVE_UPDATE_THREAD:-false}
       STT_NUM_WORKERS: ${STT_NUM_WORKERS:-1}
+      # Translation per direction (T83): opus by default; the Hy-MT2 trial needs its Ollama model and digest.
+      EN_KO_TRANSLATION: ${EN_KO_TRANSLATION:-opus}
+      KO_EN_TRANSLATION: ${KO_EN_TRANSLATION:-opus}
+      HYMT_MODEL: ${HYMT_MODEL:-hy-mt2:1.8b-q8_0}
+      HYMT_DIGEST: ${HYMT_DIGEST:-}
     volumes:
       - ./data/models/ct2:/models/ct2:ro
       - hfcache:/models/hf

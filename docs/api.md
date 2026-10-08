@@ -398,6 +398,12 @@ backend 폴더에서 `uv sync` 후 `uv run alembic upgrade head`를 실행해 �
 | `MODEL_DEVICE` | `cuda` | `cuda` 또는 `cpu`. GPU는 float16, CPU는 int8 |
 | `STT_MODEL` | `large-v3-turbo` | faster-whisper 모델 이름 |
 | `CT2_DIR` | `<프로젝트>/data/models/ct2` | 변환한 번역 모델 폴더 (`eval.mt_convert`) |
+| `EN_KO_TRANSLATION` | `opus` | 영→한 번역. `opus`(opus-mt-tc-big, 문장 단위, 2·2-1절에서 고름), `hy-mt2`(Hy-MT2-1.8B, 입력 통째로) 또는 `hy-mt2-split`(Hy-MT2, 문장 단위). Hy-MT2는 측정 중인 시험 설정이다(docs/experiments.md 15절): `OLLAMA_URL`의 Ollama에 `eval.hymt_setup`으로 만든 모델이 있어야 하고, 서버가 시작할 때 그 모델을 기다렸다가(`HYMT_PREPARE_TIMEOUT_S`) 올린다. 번역은 필수라 끝내 준비되지 않으면 서버가 뜨지 않는다. 번역 호출은 opus처럼 모델 스레드에서 돈다 |
+| `KO_EN_TRANSLATION` | `opus` | 한→영 번역. `opus`(입력 통째로) 또는 `hy-mt2`(시험 설정, 위와 같음) |
+| `HYMT_MODEL` | `hy-mt2:1.8b-q8_0` | Hy-MT2의 Ollama 모델 이름 |
+| `HYMT_DIGEST` | 없음 | 기대하는 모델 빌드(Ollama `/api/tags`의 digest). 주면 다른 빌드일 때 서버가 바로 멈춘다. 측정한 빌드는 docs/experiments.md 15절에 적는다 |
+| `HYMT_TIMEOUT_S` | `30` | Hy-MT2 번역 요청 하나의 제한 시간(초). 넘으면 그 번역은 실패(503)한다 |
+| `HYMT_PREPARE_TIMEOUT_S` | `300` | 시작할 때 Ollama와 모델을 기다리는 최대 시간(초) |
 | `TTS_ENABLED` | `true` | 끄면 음성 합성 없이 뜨고 응답에 `tts_error`가 들어간다 |
 | `KO_TTS` | `melo` | 한국어 음성 합성 모델. `melo`(MeloTTS, GPU) 또는 `supertonic`(Supertonic 3, 기본은 CPU이고 `SUPERTONIC_PROVIDER=cuda`면 GPU. 두 시험 모두 채택하지 않은 비교용 설정: 이 PC의 CPU에서는 GPU의 MeloTTS보다 빠르지 않았고(docs/experiments.md 12절), GPU에서는 2단계 설정(`SUPERTONIC_STEPS=2`)이 빨랐지만 재인식 오류율이 MeloTTS보다 크게 높았고(GPU 탓인지 2단계 탓인지는 가리지 못함), 기본 8단계는 문장당 합성 속도 관문(0.3초)에서 떨어져 오류율을 재지 않았다(14절)). `supertonic`이면 한국어 합성이 모델 스레드가 아니라 합성 전용 스레드에서 한 번에 하나씩 돈다. 모델은 OpenRAIL-M이라 README의 이용 제한 고지를 따른다 |
 | `SUPERTONIC_DIR` | `<프로젝트>/data/models/supertonic-3` | Supertonic 3 파일 폴더(`eval.supertonic_download`로 받음). 올릴 때 파일마다 고정한 SHA-256을 확인하고, 다르면 합성을 끈 채 뜬다 |
@@ -414,7 +420,7 @@ backend 폴더에서 `uv sync` 후 `uv run alembic upgrade head`를 실행해 �
 | `STT_NUM_WORKERS` | `1` | 인식 모델 복제 수(faster-whisper num_workers). 여러 스레드의 인식 호출이 이 수만큼 동시에 돈다. 복제마다 GPU 메모리를 더 쓴다 |
 | `WARM_UP` | `true` | 모델을 올린 뒤 번역·합성·인식을 한 번씩 돌려 첫 요청의 지연을 없앤다 |
 | `TYPO_CORRECTION` | `true` | 글자로 입력한 영어를 번역 전에 Ollama의 작은 LLM으로 오타·띄어쓰기만 고친다 (docs/experiments.md 6절). 한국어 입력과 음성 인식 결과는 고치지 않는다. Ollama가 응답하지 않거나, 정상 종료로 답하지 않았거나(교정문은 `done`이 true이고 `done_reason`이 "stop"일 때만 쓴다), 한글이 섞였거나, 입력과 글자가 절반 넘게 다르면(거절문·설명을 붙인 답 등, docs/experiments.md 6절) 입력한 그대로 번역한다. 글자는 거의 같은데 뜻만 바뀐 교정까지 막지는 못한다. 서버 시작은 Ollama를 기다리지 않는다: 교정 모델은 뒤에서 준비되고(첫 시작의 내려받기 포함, 실패하면 30초마다 다시 시도), 준비되기 전에는 입력 그대로 번역한다. 기록의 `source_text`는 입력한 그대로, `mt_model`에는 교정 모델이 붙고(`... + ollama/...`), `mt_ms`는 교정 시간을 포함한다 |
-| `OLLAMA_URL` | `http://localhost:11434` | 교정 모델을 돌리는 Ollama 주소. Docker compose는 `http://ollama:11434` |
+| `OLLAMA_URL` | `http://localhost:11434` | 교정 모델(그리고 시험 설정의 Hy-MT2)을 돌리는 Ollama 주소. Docker compose는 `http://ollama:11434`(이미지 0.35.1) |
 | `CORRECTION_MODEL` | `qwen2.5:1.5b-instruct` | 교정 모델. Ollama에 없으면 시작할 때 받는다(약 1GB). 올린 뒤 계속 올려 둔다(`ollama stop <모델>`로 내림) |
 | `CORRECTION_TIMEOUT_S` | `10` | 교정 요청 제한 시간(초). 넘으면 입력한 그대로 번역한다 |
 | `CORRECTION_PREPARE_TIMEOUT_S` | `600` | 교정 모델 준비(내려받기·적재·첫 교정) 요청마다의 제한 시간(초). 넘거나 실패하면 30초 뒤 다시 시도한다 |

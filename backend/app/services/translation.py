@@ -212,6 +212,113 @@ class OllamaTranslator:
         return _nonempty(content)
 
 
+# Hy-MT2 (T83, docs/experiments.md 15): the model card's "Default Translation" English prompt, as the only
+# message (the model has no default system prompt), with the target language's English name.
+HY_MT_PROMPT = (
+    "Translate the following text into {target}. Note that you should only output the translated result "
+    "without any additional explanation:\n\n{text}"
+)
+# Greedy (the card samples at 0.7; the service needs the same output for the same input), the card's
+# repetition penalty, opus's output cap of 256 tokens, and a fixed context size: the longest request (500
+# characters, docs/api.md) with the prompt and the cap fits well inside 2048 tokens.
+HY_MT_OPTIONS = {"temperature": 0, "repeat_penalty": 1.05, "num_predict": 256, "num_ctx": 2048}
+
+
+class HyMtTranslator:
+    """Tencent's Hy-MT2 (Apache-2.0), a translation model served by Ollama, a trial (T83).
+
+    Ollama runs the official GGUF through a Modelfile with the model's own chat template and its end-of-turn
+    token as the stop (eval/hymt_setup.py). With by_sentence the input is split as for opus en->ko (T17).
+    `calls` keeps what Ollama reported for each call of the last translation, for the evaluation tools.
+    """
+
+    def __init__(
+        self,
+        model: str,
+        base_url: str = "http://localhost:11434",
+        timeout_s: float = 30,
+        by_sentence: bool = False,
+        expected_digest: str | None = None,
+        prepare_timeout_s: float = 300,
+    ) -> None:
+        self.model_name = f"ollama/{model}" + ("/split" if by_sentence else "")
+        self.by_sentence = by_sentence
+        self.digest: str | None = None
+        self.calls: list[dict] = []
+        self._model = model
+        self._expected_digest = expected_digest
+        self._prepare_timeout_s = prepare_timeout_s
+        self._client = httpx.Client(base_url=base_url, timeout=timeout_s)
+
+    def translate(self, text: str, source: Language, target: Language) -> str:
+        _check_text(text, source, target)
+        self.calls = []
+        sentences = split_sentences(text) if self.by_sentence else [text]
+        return " ".join(self._translate_one(sentence, target) for sentence in sentences)
+
+    def _translate_one(self, text: str, target: Language) -> str:
+        payload = {
+            "model": self._model,
+            "messages": [
+                {"role": "user", "content": HY_MT_PROMPT.format(target=LANGUAGE_NAMES[target], text=text)}
+            ],
+            "stream": False,
+            "keep_alive": -1,
+            "options": dict(HY_MT_OPTIONS),
+        }
+        try:
+            response = self._client.post("/api/chat", json=payload)
+            response.raise_for_status()
+            body = response.json()
+            content = body["message"]["content"]
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
+            raise ModelError(f"the translation model is unavailable: {type(exc).__name__}") from exc
+        self.calls.append({key: body.get(key) for key in ("done_reason", "prompt_eval_count", "eval_count")})
+        # A reply cut at the output cap ("length") is kept, as opus keeps one cut at 256 tokens.
+        return _nonempty(content)
+
+    def prepare(self) -> str:
+        """Check that Ollama has the model, and the expected build of it; load it to stay; return its digest.
+
+        Raises ModelError while Ollama or the model is not there (worth waiting for), and RuntimeError for
+        another build (not worth waiting for).
+        """
+        try:
+            shown = self._client.post("/api/show", json={"model": self._model})
+            if shown.status_code == 404:
+                raise ModelError(
+                    f"Ollama has no model {self._model}: create it with eval.hymt_setup "
+                    "(docs/experiments.md 15)"
+                )
+            shown.raise_for_status()
+            tags = self._client.get("/api/tags")
+            tags.raise_for_status()
+            digests = [
+                m.get("digest")
+                for m in tags.json()["models"]
+                if self._model in (m.get("name"), m.get("model"))
+            ]
+        except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
+            raise ModelError(f"Ollama is not available: {type(exc).__name__}") from exc
+        if not digests or not digests[0]:
+            raise ModelError(f"Ollama does not list {self._model}")
+        digest = digests[0]
+        if self._expected_digest and digest != self._expected_digest:
+            raise RuntimeError(f"{self._model} is build {digest}, not the measured {self._expected_digest}")
+        try:
+            # A request without messages only loads the model; keep_alive -1 keeps it until Ollama stops.
+            loaded = self._client.post(
+                "/api/generate",
+                json={"model": self._model, "keep_alive": -1},
+                timeout=self._prepare_timeout_s,
+            )
+            loaded.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise ModelError(f"Ollama could not load {self._model}: {type(exc).__name__}") from exc
+        self.digest = digest
+        return digest
+
+
 class DirectionalTranslator:
     """Routes each direction to its own model, since the best model may differ by direction."""
 

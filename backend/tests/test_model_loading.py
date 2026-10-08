@@ -32,6 +32,9 @@ def fake_model_classes(monkeypatch):
     Recorder.built = []
     monkeypatch.setattr(stt, "WhisperSpeechToText", recording("Whisper"))
     monkeypatch.setattr(translation, "MarianTranslator", recording("Marian"))
+    monkeypatch.setattr(
+        translation, "HyMtTranslator", type("HyMt", (Recorder,), {"prepare": lambda self: "the-build"})
+    )
     monkeypatch.setattr(tts, "MeloTextToSpeech", recording("Melo"))
     monkeypatch.setattr(tts, "KokoroTextToSpeech", recording("Kokoro"))
     # Tests must never reach a real Ollama on the machine.
@@ -371,3 +374,112 @@ def test_supertonic_settings_are_checked():
     assert (defaults.ko_tts, defaults.supertonic_steps, defaults.supertonic_threads) == ("melo", 8, 2)
     assert defaults.supertonic_provider == "cpu"
     assert defaults.supertonic_dir.parts[-3:] == ("data", "models", "supertonic-3")
+
+
+# Hy-MT2 trial translation (T83, docs/experiments.md 15)
+
+
+def test_hy_mt2_can_translate_english_to_korean_one_sentence_at_a_time(fake_model_classes, tmp_path):
+    bundle = models.load_models(
+        Settings(
+            model_device="cpu",
+            ct2_dir=tmp_path,
+            tts_enabled=False,
+            en_ko_translation="hy-mt2-split",
+            ollama_url="http://ollama:11434",
+            hymt_model="hy-mt2:1.8b-q8_0",
+            hymt_digest="the-build",
+        )
+    )
+    hymt = [(args, kwargs) for name, args, kwargs in fake_model_classes if name == "HyMt"]
+    expected = {
+        "base_url": "http://ollama:11434",
+        "timeout_s": 30,
+        "by_sentence": True,
+        "expected_digest": "the-build",
+    }
+    assert hymt == [(("hy-mt2:1.8b-q8_0",), expected)]
+    marian = [args[0].name for name, args, _ in fake_model_classes if name == "Marian"]
+    assert marian == ["opus-mt-tc-big-ko-en"]
+    assert "en->ko: HyMt" in bundle.translator.model_name
+    assert "ko->en: Marian" in bundle.translator.model_name
+
+
+@pytest.mark.parametrize("en_ko", ["opus", "hy-mt2"])
+def test_hy_mt2_can_translate_korean_to_english_whole(fake_model_classes, tmp_path, en_ko):
+    bundle = models.load_models(
+        Settings(
+            model_device="cpu",
+            ct2_dir=tmp_path,
+            tts_enabled=False,
+            ko_en_translation="hy-mt2",
+            en_ko_translation=en_ko,
+        )
+    )
+    hymt = [kwargs["by_sentence"] for name, _, kwargs in fake_model_classes if name == "HyMt"]
+    assert hymt == ([False] if en_ko == "opus" else [False, False])
+    assert "ko->en: HyMt" in bundle.translator.model_name
+
+
+def test_translation_defaults_to_opus_both_ways(fake_model_classes, tmp_path):
+    models.load_models(Settings(model_device="cpu", ct2_dir=tmp_path, tts_enabled=False))
+    assert not any(name == "HyMt" for name, _, _ in fake_model_classes)
+
+
+@pytest.mark.parametrize("field", ["en_ko_translation", "ko_en_translation"])
+def test_an_unknown_translation_setting_stops_startup(field):
+    with pytest.raises(ValidationError):
+        Settings(**{field: "nllb"})
+
+
+def test_ko_en_has_no_sentence_split_hy_mt2_setting():
+    # T17 kept whole input for ko->en; the trial registers only the whole input there.
+    with pytest.raises(ValidationError):
+        Settings(ko_en_translation="hy-mt2-split")
+
+
+def flaky_hymt(failures: int, error: Exception):
+    calls = []
+
+    class HyMt:
+        model_name = "HyMt"
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def prepare(self):
+            calls.append(1)
+            if len(calls) <= failures:
+                raise error
+            return "the-build"
+
+    return HyMt, calls
+
+
+def test_hy_mt2_startup_waits_for_ollama(fake_model_classes, monkeypatch):
+    cls, calls = flaky_hymt(2, ModelError("Ollama is not available"))
+    monkeypatch.setattr(translation, "HyMtTranslator", cls)
+    monkeypatch.setattr(models, "HYMT_RETRY_S", 0)
+    models.load_models(Settings(model_device="cpu", tts_enabled=False, en_ko_translation="hy-mt2"))
+    assert len(calls) == 3
+
+
+def test_hy_mt2_that_never_gets_ready_stops_startup(fake_model_classes, monkeypatch):
+    cls, calls = flaky_hymt(10**6, ModelError("Ollama is not available"))
+    monkeypatch.setattr(translation, "HyMtTranslator", cls)
+    monkeypatch.setattr(models, "HYMT_RETRY_S", 0.01)
+    settings = Settings(
+        model_device="cpu", tts_enabled=False, en_ko_translation="hy-mt2", hymt_prepare_timeout_s=0.05
+    )
+    with pytest.raises(ModelError, match="not available"):
+        models.load_models(settings)
+    assert len(calls) >= 2
+
+
+def test_hy_mt2_of_another_build_stops_startup_at_once(fake_model_classes, monkeypatch):
+    cls, calls = flaky_hymt(10**6, RuntimeError("hy-mt2:1.8b-q8_0 is build another-build"))
+    monkeypatch.setattr(translation, "HyMtTranslator", cls)
+    monkeypatch.setattr(models, "HYMT_RETRY_S", 0)
+    with pytest.raises(RuntimeError, match="another-build"):
+        models.load_models(Settings(model_device="cpu", tts_enabled=False, en_ko_translation="hy-mt2"))
+    assert len(calls) == 1

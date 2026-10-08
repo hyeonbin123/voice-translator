@@ -26,6 +26,16 @@ class Settings(BaseSettings):
     model_device: Literal["cuda", "cpu"] = "cuda"
     stt_model: str = "large-v3-turbo"
     ct2_dir: Path = Path(__file__).resolve().parents[2] / "data" / "models" / "ct2"
+    # Translation per direction: opus-mt-tc-big (chosen in T3; en->ko one sentence at a time, T17) or
+    # Hy-MT2-1.8B served by Ollama, a trial adopted only by its measurement (T83, docs/experiments.md 15). The
+    # Ollama model is created from the official GGUF with eval.hymt_setup; startup waits for it (translation
+    # must load) and stops when it is not the expected build (HYMT_DIGEST, the digest in /api/tags).
+    en_ko_translation: Literal["opus", "hy-mt2", "hy-mt2-split"] = "opus"
+    ko_en_translation: Literal["opus", "hy-mt2"] = "opus"
+    hymt_model: str = "hy-mt2:1.8b-q8_0"
+    hymt_digest: str | None = None
+    hymt_timeout_s: float = Field(default=30, gt=0)
+    hymt_prepare_timeout_s: float = Field(default=300, gt=0)
     tts_enabled: bool = True
     # Korean speech synthesis: MeloTTS on the GPU (chosen in T4) or Supertonic 3 on the CPU, a trial that is
     # adopted only by its measurement and a blind listening test (T78, docs/experiments.md 12). Supertonic
