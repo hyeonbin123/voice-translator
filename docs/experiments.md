@@ -1162,3 +1162,63 @@
 - **판정 (규칙대로)**: 0단계를 넘은 S-fast-GPU가 1단계 ②(재인식 CER)에서 떨어져 통과한 후보가 없다. **MeloTTS를 유지하고 이 팔을 끝낸다.** test 확인, 2단계(서버 e2e·VRAM·동시통역 참고), 3단계(사용자 블라인드 청취)는 하지 않는다. 기본 설정(`KO_TTS=melo`, `SUPERTONIC_PROVIDER=cpu`)과 `pyproject.toml`·`uv.lock`은 그대로다. 합성 음성은 아무도 듣지 않았다
 - 읽은 것 (판정에 쓰지 않음): 속도로는 기대한 만큼 빨랐다(문장당 0.176초, MeloTTS보다 0.48초 빠름). 그러나 오류율 차이는 외국어 낱말 탓만이 아니다: 라틴 문자와 숫자가 없는 90문장에서 MeloTTS 2.42% 대 12.24%, 라틴 문자가 든 21문장에서 18.46% 대 35.09%, 문장 CER 20%를 넘는 문장 9개 대 38개. CPU 제공자의 2단계 설정은 채점한 적이 없어(12절 0단계는 속도만 봄) 이 차이가 GPU 계산 때문인지 2단계 설정 때문인지 이 측정으로는 가릴 수 없다. 8단계 GPU 음성(0단계)은 규칙대로 0단계 판정에만 쓰고 채점하지 않았다. 등록된 다음 단계가 없으므로 Supertonic을 다시 보려면 새 사전 등록이 필요하다
 - 남기는 것: `SUPERTONIC_PROVIDER=cuda` 설정과 측정 도구는 꺼 둔 채 남긴다(12절과 같은 비교용). 시험 이미지 `t82`·`t82-base`와 합성 음성(`data/tts_audio/t82_*`)은 커밋하지 않는 로컬 산출물이다
+
+## 15. 번역 모델 Hy-MT2-1.8B 시험: 영→한 먼저, 영어 오타 교정기 은퇴 여부 (T83)
+
+**측정 전에 정한 절차** (2026-10-08. 계획은 2026-10-04 개선 항목 VT-N1의 심판 계획과 스켑틱 정정이고, 그 전제를 오늘 다시 확인했다. 아래 '계획에서 바꾼 것'은 측정 전에 바꾼 것이다)
+- **배경**: 영→한이 가장 약한 단계다(validation chrF 36.1, 2-1절. 음성 경로 test 34.6, 9절). 2절(T3)의 일반 LLM(qwen2.5-7b)은 영→한에서 한자가 섞여(28/129) 떨어졌다. Hy-MT2(Tencent, 2026-05-21 공개)는 번역 전용으로 학습한 모델이고, 이전에 Tencent 번역 모델을 못 쓰게 했던 라이선스의 한국 제외 조항이 없으며(아래 '라이선스'), 1.8B Q8_0이 1.91GB라 GPU 메모리에 들어갈 수 있다. 공급사 보고(arXiv 2605.22064)는 FLORES-200 전체 평균 XCOMET-XXL 79.77을 내지만 한국어만의 수치, opus-mt와의 비교, GPU 지연은 없다. 그래서 근거가 약하고, 아래 규칙으로 채택 여부만 정한다
+- **앞선 단계에서 이어 받는 것**: 13절(T80)의 짝지은 구간 도구(`eval/significance.py`)와 COMET-22 채점(`eval/comet_score.py`, fp16 관문 통과)을 그대로 쓴다. 14절(T82)은 MeloTTS 유지로 끝나 한국어 합성이 빨라지지 않았다. 스켑틱은 Hy-MT2가 더하는 번역 시간이 한국어 합성이 빨라진 뒤에야 말 끝 확정(약 1.2초) 아래로 숨는다고 봤으므로, 이번에는 영어 원문의 말 끝 → 번역 음성 시간이 Hy-MT2의 번역 시간만큼 그대로 늘 것으로 본다(추정). 그래서 아래 '사용자 결정' 조건이 걸릴 가능성이 크다
+- **오늘 다시 확인한 전제** (2026-10-08, GPU 없이)
+  - 모델 저장소: `tencent/Hy-MT2-1.8B` 리비전 `9a341cd1b679d3efd23b46e847b01745a71ed792`(2026-05-26 수정), `tencent/Hy-MT2-1.8B-GGUF` 리비전 `a0c709d9fac510f2c807aa3af52872340dc37a4a`(2026-09-08 수정, 브리프와 같음), 둘 다 게이트 없음
+  - 내려받은 GGUF: `Hy-MT2-1.8B-Q8_0.gguf` 1,908,528,192바이트 SHA-256 `5c3fe0b1408a5ceb0143184ef247b11b579c525f4b02b060e6c851bb76fef1a4`, `Hy-MT2-1.8B-Q4_K_M.gguf` 1,133,080,448바이트 SHA-256 `dc5f44fcf1fa496ee7ad725982c0c8c553a4de00259b53af84c4b89fb0c06699`(Hugging Face API의 LFS 값과 같음, `eval.hymt_setup download`, 커밋하지 않는 `data/models/hy-mt2`). GGUF 메타데이터: 구조 `hunyuan-dense`, 32층, KV 머리 4개 × 128, 채팅 틀(`tokenizer.chat_template`)은 base 저장소의 `chat_template.jinja`와 같다. 기본 시스템 프롬프트는 없다(모델 카드)
+  - Ollama: 호스트 0.35.1(자동 업데이트 끔). compose의 ollama 이미지는 0.34.0이었다 → 이 단계에서 0.35.1(`sha256:292ee7945dfc3d5840a181f3ab86fedb1e66703e02c8af98b50f4da56b7e278c`)로 맞춘다. 0.35.1은 이 모델을 llama.cpp의 llama-server로 돌린다(로그 'using llama-server for model')
+- **서빙 방식** (`app/services/translation.py`의 `HyMtTranslator`, `eval/hymt_setup.py`)
+  - Ollama 모델은 공식 GGUF에서 직접 만든다(커뮤니티 패키지 쓰지 않음). Modelfile은 `eval.hymt_setup modelfile`이 쓴다: GGUF의 채팅 틀을 사용자 한 턴에 맞춰 Go 틀로 옮긴 것(`<｜hy_begin▁of▁sentence｜><｜hy_User｜>{내용}<｜hy_Assistant｜>`), 멈춤 토큰은 턴 끝 `<｜hy_place▁holder▁no▁2｜>`(GGUF의 eos 120020)와 `<｜hy_User｜>`, 시스템 프롬프트 없음
+  - 요청: 모델 카드의 'Default Translation' 영어 프롬프트(`Translate the following text into {Korean|English}. Note that you should only output the translated result without any additional explanation:\n\n{원문}`)를 사용자 메시지 하나로. 옵션 temperature 0(카드는 0.7로 뽑지만 서비스는 같은 입력에 같은 답이 필요), repeat_penalty 1.05(카드 값), num_predict 256(opus의 최대 256토큰과 같음), num_ctx 2048(500자 입력 + 프롬프트 + 256토큰이 넉넉히 들어감, KV 크기를 고정). 출력은 앞뒤 공백만 지운다. 256토큰에서 잘린 답(`done_reason` "length")도 opus처럼 그대로 번역으로 쓰고 수를 센다. 빈 답은 실패(503)
+  - 측정한 빌드(Ollama 0.35.1이 위 Modelfile로 만든 모델의 digest): `hy-mt2:1.8b-q8_0` = `4d64c0ffabe302bcc4151c9c1a6e93e032fbc32ba1b8cb67d5713985035f1fab`, `hy-mt2:1.8b-q4_k_m` = `e8d0f9b58e637743acc6a95c3b51a15385041ee183baf38c101b4d6f6d6aca3e`. 측정 도구는 다른 빌드면 돌지 않는다(`HYMT_DIGEST`와 같은 확인). FROM 경로가 달라도 digest는 같다(GPU 없는 컨테이너에서 두 경로로 만들어 확인)
+  - 서버 설정(기본은 그대로 opus): `EN_KO_TRANSLATION=opus|hy-mt2|hy-mt2-split`, `KO_EN_TRANSLATION=opus|hy-mt2`, `HYMT_MODEL`, `HYMT_DIGEST`(docs/api.md). Hy-MT2 호출은 opus처럼 모델 스레드에서 돈다(동시통역 자막 갱신도 같은 대기열)
+- **GPU 없는 점검 (이 규칙을 커밋하기 전에 함, 2026-10-08 22:48~23:19)**: GPU를 주지 않은 Ollama 0.35.1 컨테이너(CPU만)에서 Q8_0이 올라가고, FLEURS가 아닌 지어낸 문장 6개(영→한 3, 한→영 3, 두 문장짜리와 짧은 조각 포함)가 모두 `done_reason` "stop"으로 끝났고 설명·다른 문자가 없었다. Ollama가 센 프롬프트 토큰 수가 Hugging Face 토크나이저로 센 채팅 틀 결과와 6개 모두 같았다(예: 39 = 39, 시작 토큰이 두 번 붙지 않음). llama-server의 표본 추출 사슬에 penalties가 들어 있고 repeat_penalty 1.050, temp 0.000으로 기록됐다(Ollama의 Go 엔진은 penalty를 무시한다는 이슈 #14493과 달리 이 경로에서는 적용됨). `HyMtTranslator`가 그 컨테이너에 대해 빌드 확인·문장 단위 번역을 하고, 다른 digest를 기대하면 멈추는 것을 확인했다. 번역 품질은 보지 않았다
+- **후보**
+  - 기준: 서버 설정 그대로 opus-mt-tc-big(영→한 문장 단위 `opus-mt-tc-big-en-ko/split`, 한→영 통째로 `opus-mt-tc-big-ko-en`). 같은 실행에서 다시 잰다
+  - **H8 통째로** `hy-mt2-q8`(두 방향), **H8 문장 단위** `hy-mt2-q8/split`(영→한만, 2-1절과 같은 문장 나누기)
+  - H4(`hy-mt2-q4`, `hy-mt2-q4/split`)는 대체 팔: 어떤 H8 팔이 아래 (a)·(b)를 통과하고 (c) 지연에서만 떨어졌을 때 그 팔의 Q4_K_M만 같은 규칙으로 잰다
+- **데이터**: 고르기는 FLEURS validation 129쌍(2절과 같은 문장), 확인은 test 270쌍에 고른 설정 한 번. 오타는 6절(T32)의 validation 가벼움·심함 세트(`data/typo/validation.jsonl`). 음성 경로는 9절(T65) test. 오염 점검은 아래 고정 세트
+- **지표**
+  - chrF(2절과 같은 sacrebleu 2.6.0 기본), COMET-22(13절과 같은 모델·리비전, GPU fp16. 원문은 깨끗한 원문, 6절 오타 세트도 깨끗한 원문과 참조로), 두 차이의 95% 짝지은 붓스트랩 구간(10,000번, 시드 12345, 13절과 같은 함수: chrF는 문장 통계를 다시 더하는 corpus 점수, COMET은 문장 점수 평균). 차이는 후보 − 기준
+  - 출력 점검(`eval/mt_checks.py`, 이 절의 규칙으로 고정): **다른 문자** = 결과에 대상 언어가 쓰지 않는 문자(영→한은 한글·라틴 말고, 한→영은 라틴 말고)의 글자가 있고 그 글자가 원문에 없음(한→영 결과의 한글은 늘 셈) / **설명형** = 원문보다 줄이 많음, 'Translation:'·'번역:' 같은 꼬리표로 시작, 'Note:'·'참고:'·'※'·'역주' 같은 덧붙임(원문에 없는 것), 원문에 없던 따옴표로 감쌈, 공백을 뺀 글자 수가 참조의 2배 초과 중 하나라도 / **빈 출력** = 번역 실패. 측정 전에 저장된 2절 validation 결과로만 점검했다: opus·NLLB는 0/129, qwen2.5-7b 영→한은 32/129(2절에 적은 한자 섞임 28개와 반복 포함)로, 2절의 관찰과 맞는다(후보의 출력은 보지 않음)
+  - 지연: 입력 하나의 번역 시간(문장 단위면 문장들의 합) p50·p95, 방향마다 첫 호출 제외(`eval.mt_eval`, Ollama HTTP 포함)
+  - GPU 메모리: 장치 전체 사용량의 적재 전후 차이(2절과 같은 방법. Ollama 모델은 내린 상태에서 시작해 첫 호출 뒤 읽음, Ollama가 모델마다 띄우는 llama-server 프로세스의 CUDA 문맥 포함)와 참고로 Ollama `/api/ps`의 `size_vram`
+- **판단 규칙 (validation, 방향마다 따로, `eval.mt_decide validation`)**
+  - **(a) 품질**: chrF 차이의 95% 구간 하한 > 0 **그리고** COMET-22 차이의 95% 구간 하한 > 0
+  - **(b) 출력**: 다른 문자·설명형 출력 ≤ 1/129, 빈 출력 0
+  - **(c) 지연**: p50 ≤ 0.35초, p95 ≤ 0.8초
+  - 영→한은 (a)~(c)를 모두 통과한 팔 중 chrF가 높은 팔(0.1점 안이면 p50이 짧은 팔)을 고른다. 한→영은 H8 통째로가 (a)~(c)를 통과할 때만 고른다. 두 방향이 다른 모델이어도 된다. H8 팔이 (c)에서만 떨어졌으면 그 팔의 Q4_K_M을 재고 같은 (a)~(c)로 본다
+  - **오타 (영→한을 고른 경우만, `eval.mt_decide typo`)**: 6절 validation 세트에서, 같은 세션(호스트 Ollama 0.35.1)에서 다시 잰 지금 설정(교정기 qwen2.5:1.5b-instruct + opus 문장 단위, 6절 후보 C)과 고른 Hy-MT2 팔을 교정기 없이(후보 A) 견준다. Hy-MT2의 오타 평균 chrF(가벼움·심함 평균) ≥ 교정기 + opus의 오타 평균 − 0.5이면 **영어 오타 교정기를 은퇴**시킨다(채택할 때 `TYPO_CORRECTION=false`). 아니면 교정기를 앞에 둔 Hy-MT2(후보 C + Hy-MT2)를 재서 적기만 한다. 차이의 구간·COMET-22·깨끗한 입력 chrF도 적는다(판정은 위 점 추정 규칙)
+  - **(d) GPU 메모리 (`eval.mt_decide vram`)**: 고른 Hy-MT2 빌드의 메모리 − 그것이 대신하는 것 ≤ +512MB(0.5GB, 이 문서의 MB는 MiB). 대신하는 것: 영→한을 바꾸면 opus 영→한 512MB, 한→영을 바꾸면 opus 한→영 514MB(둘 다 2절 validation 표의 값: 같은 파일·같은 엔진이고, CUDA 문맥이 이미 있을 때 잰 모델만의 값. api 프로세스는 Whisper 때문에 CUDA 문맥을 그대로 가진다), 교정기를 은퇴시키면 같은 세션에서 다시 잰 교정기의 메모리(자기 llama-server 프로세스의 CUDA 문맥 포함, Hy-MT2와 같은 방법). 두 방향이 같은 Hy-MT2 모델이면 한 번만 센다
+  - **(e) 동시통역 자막 (서버, 위를 통과한 방향만)**: `eval.stream_eval service` validation 언어별 40문장을 같은 세션에서 opus 설정과 Hy-MT2 설정으로 잰다. 바뀐 방향의 원문 언어(영→한이면 영어 원문, 한→영이면 한국어 원문)의 자막 표시 지연 p50 ≤ 1000ms **그리고** ≤ 같은 세션 opus의 값 + 100ms
+  - **서버 회귀 (유효성)**: `eval.e2e_eval run` validation 동시 1·2를 두 설정으로: 서버 오류 0, 번역 중 health p95 ≤ 0.2초, 합성 실패 0(11·14절과 같은 기준). 전체 지연 p50은 적는다
+  - **오염 거부권 (`eval.mt_decide contam`)**: 아래 고정 세트를 고른 Hy-MT2 설정과 opus 설정으로 번역하고, MetricX-24-Hybrid-Large의 참조 없는 점수(QE, 오류 점수라 낮을수록 좋음)를 문장마다 매겨 Hy-MT2 − opus 평균 차이의 95% 짝지은 구간을 낸다(영어 문장 → 영→한, 한국어 문장 → 한→영). 바꾸려는 방향에서 구간 하한 > 0(opus가 뚜렷이 나음)이면 'FLORES 오염 가능성'으로 적고 그 방향은 채택하지 않는다. 이 점검은 거부만 할 수 있고 채택의 근거가 되지 않는다(참조 없는 점수는 매끄러운 LLM 출력을 좋게 볼 수 있다)
+  - **사용자 결정**: 같은 세션의 `stream_eval service`에서 바뀐 방향의 원문 언어의 말 끝 → 번역 음성 p50이 opus 설정보다 100ms 넘게 늘면, 품질과 지연의 절충은 D9처럼 사용자가 정한다(그 전에는 채택하지 않음)
+  - **채택**: 방향마다 (a)·(b)·(c)·(d)·(e)·서버 회귀를 통과하고, 오염 거부권이 걸리지 않고, 사용자 결정이 필요하면 사용자가 받아들였을 때만. 아니면 opus(와 교정기)를 유지하고 결과를 이 절에 적는다
+- **확인 (채택 결정을 커밋한 뒤)**: test 270쌍에 고른 설정 한 번(`mt_eval`, 같은 실행에서 기준 opus도 다시 잼: 기준선이라 선택에 쓰지 않음), 오타는 test 세트(6절, 시드 29)에 고른 설정 한 번, 9절 음성 경로(`quality_eval --split test`)에 고른 설정 한 번. 결정을 바꾸지 않는다
+- **채택하면 (새 커밋)**: 기본값(`EN_KO_TRANSLATION`·`KO_EN_TRANSLATION`, 교정기 은퇴면 `TYPO_CORRECTION`), compose가 처음 뜰 때 Ollama에 모델을 만드는 단계(지금은 `docker compose exec ollama ollama create ...`를 손으로), README 결과·한계·라이선스 고지(Apache-2.0, Tencent 저작권 표기). 그 이미지로 서버 회귀를 한 번 더 확인한다
+- **오염 점검 세트 (측정 전에 고정)**: `data/contam/v1.jsonl`(커밋하지 않음), SHA-256 `8bee72c55bede416772608c5ce0d3ee9f8a9d9c0e7a153ed39f3137a56dec9ca`, 200문장(`eval.contam_set build`, 2026-10-08 23:17에 만듦). 한국어 100: 정책브리핑(korea.kr) 정책뉴스 중 본문에 '텍스트에 한하여 공공누리 제1유형' 표시가 있는 기사 100건(게시 2026-09-23~10-08), 기사마다 본문의 첫 '평범한 문장' 하나(20~200자, 한글 비율 80% 이상, 마침표로 끝남, 사진·출처·괄호 표·링크·기호 줄 제외). 영어 100: Global Voices 영어판(CC BY 3.0) 글 100건(게시 2026-07-24~10-07), 다른 매체에서 옮겨 실은 글(다른 조건)은 뺐고, 같은 방법으로 첫 평범한 문장 하나(40~300자, 사진 설명·서명·후원 안내·편집자 주 제외). 모두 모델 공개일(2026-05-21) 뒤의 글이다
+- **MetricX-24**: `google/metricx-24-hybrid-large-v2p6`(Apache-2.0) 리비전 `51e875ba5c525c81627cfd135ee10f43c87dce00`, `pytorch_model.bin` SHA-256 `f584e231b25a20d7766f03fa464d0b990e235b8514a3de2034002132c04a2878`(4.9GB, pickle이라 `torch.load(weights_only=True)`로 읽음), 토크나이저 `google/mt5-large`(Apache-2.0) 리비전 `50b7223e98fcd124b0cabb1ec81bc6324c7df107`의 `spiece.model`(SHA-256 `ef78f86560d809067d12bac6c09f19a462cb3af3f54d2b8acbba26e1433125d6`, git blob 해시가 Hugging Face의 ETag와 같음). 입력·계산은 공식 코드(google-research/metricx `fc4978e`의 metricx24 predict·models)와 같게 옮겼다(`eval/metricx_score.py`): QE 입력 `source: … candidate: …`, 최대 1536토큰, 끝 토큰 제거, 디코더 한 걸음(토큰 0)의 250089번 logit을 0~25로 자름, 문장마다 한 번(배치 1), fp32(mT5는 fp16에서 넘침). CPU에서 지어낸 문장 5개로 점검: 맞는 번역 0.42·1.78, 틀린 번역 11.58·15.29, 원문 언어 그대로 21.63(5문장 4.3초, 적재 146초)
+- **계획에서 바꾼 것 (측정 전)**
+  - ① 영어 오염 점검 문장: 계획의 영어 Wikinews는 2026-05-03에 닫혀(Wikimedia Foundation 공지 기사가 마지막 게시) 공개일 뒤의 글이 없다 → CC BY 3.0인 Global Voices 영어판으로. 한국어는 계획대로 정책브리핑이지만 RSS가 2026-07-01에 끝나 목록 쪽을 읽고, 글마다 공공누리 제1유형 표시를 확인했다
+  - ② MetricX 환경: 공식 코드는 transformers 4.30.2·datasets를 요구한다. 새 환경을 만드는 대신 13절의 `work/comet-venv`(transformers 4.57.6, torch 2.11.0+cu128, 해시 고정, backend 환경과 분리)에서 같은 계산을 직접 짠 스크립트로 돌린다(MetricX의 MT5ForRegression은 transformers의 MT5ForConditionalGeneration과 층이 같아 가중치가 그대로 맞고, 없는 키는 공유 임베딩 두 개뿐임을 적재 때 확인). fp32는 계획대로이고, 400문장이 CPU로 약 7분이라 CPU에서 채점한다(GPU를 쓰지 않음)
+  - ③ (d)의 opus 메모리는 같은 세션에서 다시 재지 않고 2절 기록값(512·514MB)을 쓴다. 같은 실행의 첫 모델에는 측정 프로세스의 CUDA 문맥이 섞이기 때문이다(2절 '결과를 읽을 때 본 것')
+  - ④ (e)는 바뀐 방향의 원문 언어에만 건다(바뀌지 않은 방향의 자막은 같은 설정이라 약 0.1초의 측정 흔들림만 있다, 8절 T61). 기준선은 같은 세션의 opus 설정
+  - ⑤ 출력 점검의 '다른 문자·설명형'을 위 정의로 고정하고, 계획에 없던 '참조의 2배 초과 길이'를 설명형에 넣었다(2절에서 qwen2.5-7b의 반복을 보여 준 신호)
+  - ⑥ num_ctx 2048을 고정했다(계획에 없음): 기본값은 GPU 메모리에 따라 달라져 KV 크기와 메모리 측정이 흔들린다
+  - ⑦ 계획은 'T80 규칙'이라 불렀지만 T80은 13절이 써서 작업 번호는 T83이다
+  - ⑧ 쉬는 상태 대기는 최대 10분(2026-10-04 사용자 지시, 아래 '측정 환경')
+- **측정 환경**: 지연을 재는 실행((c)의 `mt_eval` validation과 test, 서버의 e2e·동시통역)은 PC가 쉬는 상태(CPU 1분 평균 15% 미만·GPU 10% 미만)를 **최대 10분** 기다린 뒤 잰다. 그래도 바쁘면 그대로 재고 GPU·CPU 사용률을 수치 옆에 '부하 조건'으로 적는다(돌던 프로그램 이름은 커밋하지 않는 work/에만). 품질만 재는 실행(오타, COMET, 음성 경로, 오염 점검)은 기다리지 않는다. GPU 작업끼리는 겹치지 않고, 11GB를 넘지 않으며, Windows 공유 GPU 메모리로 넘치는지 단계 전후에 본다. Ollama 작업 뒤에는 `ollama stop <모델>`
+- **예상 비용**: GPU 약 3시간(기다림 제외): validation 번역 약 15분(Q4 대체 팔이 필요하면 +10분), COMET-22 채점 수 분, 오타 3~4번 약 15분, 오염 점검 번역 약 5분, 서버 두 설정 각각 띄우기 약 5분·e2e 2번 약 5분·동시통역 약 25분, test 번역·오타·음성 경로 약 30분. CPU: MetricX 약 10분(적재 포함). 내려받기는 끝남(GGUF 3.0GB, MetricX 4.9GB, Ollama 이미지 3.8GB)
+- **한계 (측정 전에 적어 둠)**
+  - 근거는 공급사 보고뿐이고 한국어만의 수치·opus 비교가 없다. FLEURS는 FLORES 문장이라 Hy-MT2가 학습 때 봤을 수 있다(보고서에 걸러 냈다는 말이 없다). 오염 점검은 다른 분야(정부 보도·시민 언론)의 새 글로 보는 간접 점검이고 거부만 한다
+  - COMET-22는 한국어 대상에서 덜 검증된 지표다(13절). 참조는 하나이고 FLEURS는 위키 문체다(2절)
+  - 오타 세트는 합성 오타다(6절)
+  - Hy-MT2는 api와 다른 프로세스(Ollama)에서 같은 GPU를 쓴다. 동시통역은 자막이 바뀔 때마다 다시 번역하므로 GPU 부하가 는다((e)와 서버 회귀가 그 비용을 잰다)
+  - (d)는 결정적일 수 있다(추정): Q8_0 가중치 1.91GB에 KV(2048 × 32층 × 4머리 × 128 × 2 × 2바이트 = 128MB)와 llama-server의 CUDA 문맥을 더하면 약 2.3~2.6GB로 보는데, 영→한만 바꾸고 교정기를 은퇴시키면 대신하는 것이 약 1.8GB(512 + 1,297, 6절)라 +0.5GB를 넘을 수 있다. 계획대로 Q4는 지연에서만 떨어졌을 때 쓰고, 메모리에서 떨어졌다고 Q4를 쓰지는 않는다
+- **라이선스**: Hy-MT2-1.8B와 -GGUF 모두 저장소의 LICENSE.txt가 표준 Apache License 2.0이다(2026-10-08에 두 파일 원문을 읽음: 모델 이름 줄만 다르고, 저작권·특허 허여(2·3조)는 '전 세계(worldwide)' 그대로, 지역 제외 조항·추가 조건·NOTICE 파일 없음). COMET-22·MetricX-24·mT5 토크나이저는 Apache-2.0(평가에만 씀). 오염 점검 문장은 공공누리 제1유형(텍스트)·CC BY 3.0이고 내려받은 사본만 로컬에 두며 커밋하지 않는다
