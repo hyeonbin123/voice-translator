@@ -5,9 +5,12 @@ the translation models (eval.mt_convert) and the typo sets (eval.typo_noise) in 
     uv run python -m eval.typo_eval convert                      # the correction models to CTranslate2
     uv run python -m eval.typo_eval run --split validation --tag t32_dev
     uv run python -m eval.typo_eval run --split test --directions ko-en --candidates B --tag t32_test
+    uv run python -m eval.typo_eval run --split validation --directions en-ko --candidates A \
+        --translator hy-mt2-q8/split --tag t83_typo_dev                  (T83, docs/experiments.md 15)
 
 The candidates and the selection rule are in docs/experiments.md 6, written before any run. The
-translation side is the server's setting: opus-mt-tc-big, English to Korean one sentence at a time.
+translation side is the server's setting by default: opus-mt-tc-big, English to Korean one sentence at a time.
+With --translator it is one of eval.mt_eval's Hy-MT2 candidates instead (T83, docs/experiments.md 15).
 """
 
 from __future__ import annotations
@@ -23,8 +26,8 @@ from datetime import UTC, datetime
 import httpx
 import sacrebleu
 
-from app.services.interfaces import Language, ModelError
-from app.services.translation import MarianTranslator
+from app.services.interfaces import Language, ModelError, Translator
+from app.services.translation import HyMtTranslator, MarianTranslator
 from eval.common import DATA, MODELS, REPORTS, gpu_memory_mb
 
 CT2 = MODELS / "ct2"
@@ -108,13 +111,24 @@ def load_rows(split: str, limit: int | None) -> list[dict]:
     return rows[:limit] if limit else rows
 
 
-def translator_for(direction: str) -> MarianTranslator:
+def translator_for(direction: str, name: str = "opus") -> Translator:
+    """The server's opus setting, or a Hy-MT2 candidate of eval.mt_eval (T83), prepared and checked."""
     source, target = DIRECTIONS[direction]
-    folder = CT2 / f"opus-mt-tc-big-{source}-{target}"
-    return MarianTranslator(folder, source, target, by_sentence=direction == "en-ko")
+    if name == "opus":
+        folder = CT2 / f"opus-mt-tc-big-{source}-{target}"
+        return MarianTranslator(folder, source, target, by_sentence=direction == "en-ko")
+    from eval.mt_eval import CANDIDATES
+
+    factory, directions = CANDIDATES[name]
+    if (source, target) not in directions:
+        raise SystemExit(f"{name} does not translate {direction}")
+    translator = factory()
+    if isinstance(translator, HyMtTranslator):
+        translator.prepare()  # refuses another build than the recorded one
+    return translator
 
 
-def evaluate(direction: str, candidate: str, rows: list[dict], translator: MarianTranslator) -> dict:
+def evaluate(direction: str, candidate: str, rows: list[dict], translator: Translator) -> dict:
     source, target = DIRECTIONS[direction]
     factory = CANDIDATES[candidate]
     references = [row[target] for row in rows]
@@ -129,6 +143,7 @@ def evaluate(direction: str, candidate: str, rows: list[dict], translator: Maria
         "direction": direction,
         "candidate": candidate,
         "corrector": corrector.name if corrector else None,
+        "translator": translator.model_name,
         "vram_mb": round(after - before),
         "levels": {},
     }
@@ -169,6 +184,10 @@ def evaluate(direction: str, candidate: str, rows: list[dict], translator: Maria
             "failures": failures,
             "items": items,
         }
+    if isinstance(corrector, OllamaCorrector):
+        from eval.mt_eval import ollama_state
+
+        result["ollama"] = ollama_state(corrector.model)  # read while the corrector is still loaded
     if corrector is not None:
         corrector.close()
     gc.collect()
@@ -185,7 +204,8 @@ def write_report(results: list[dict], args: argparse.Namespace, gpu_name: str, c
         "",
         f"- 날짜: {datetime.now(UTC).isoformat()}",
         f"- 데이터: FLEURS {args.split} 병렬 문장 {count}쌍, 오타 세트 `data/typo/{args.split}.jsonl`",
-        f"- GPU: {gpu_name}. 번역은 서버 설정(opus-mt-tc-big, 영→한 문장 단위)",
+        f"- GPU: {gpu_name}. 번역: "
+        + ("서버 설정(opus-mt-tc-big, 영→한 문장 단위)" if args.translator == "opus" else args.translator),
         "- chrF: sacrebleu 기본, 전체 합산. 지연: 문장당 초(교정 포함), 후보마다 첫 호출 제외",
         "- 입력 chrF: 교정 결과를 깨끗한 원문과 비교한 값 (참고용, 규칙에 없음)",
     ]
@@ -242,6 +262,12 @@ def main() -> None:
     run_parser.add_argument("--candidates", nargs="+", choices=list(CANDIDATES), default=list(CANDIDATES))
     run_parser.add_argument("--limit", type=int, default=None, help="first N sentence pairs")
     run_parser.add_argument("--tag", default="run")
+    run_parser.add_argument(
+        "--translator",
+        default="opus",
+        choices=["opus", "hy-mt2-q8", "hy-mt2-q8/split", "hy-mt2-q4", "hy-mt2-q4/split"],
+        help="the server's opus setting, or a Hy-MT2 candidate of eval.mt_eval (T83)",
+    )
     args = parser.parse_args()
 
     if args.command == "convert":
@@ -251,7 +277,7 @@ def main() -> None:
     rows = load_rows(args.split, args.limit)
     results = []
     for direction in args.directions:
-        translator = translator_for(direction)
+        translator = translator_for(direction, args.translator)
         source, target = DIRECTIONS[direction]
         translator.translate(rows[0][source], source, target)  # warm-up, not timed
         for candidate in args.candidates:

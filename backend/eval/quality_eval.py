@@ -1,11 +1,13 @@
 """T65: translation quality of the whole flow, speech in (docs/experiments.md 9).
 
   uv run python -m eval.quality_eval --split test --tag t65_test
+  uv run python -m eval.quality_eval --split test --en-ko hy-mt2-split --tag t83_quality_test   (T83)
 
 For each FLEURS sentence ID present in both languages, the first recording of it in file order is
 recognized with the server's settings and the result translated, as the speech API does. The same
 sentence's reference transcription is translated as well. Both translations are scored with chrF against
-the other language's transcription, so the difference is what recognition errors cost.
+the other language's transcription, so the difference is what recognition errors cost. --en-ko and --ko-en
+pick the translation per direction as the server's EN_KO_TRANSLATION and KO_EN_TRANSLATION do (T83).
 """
 
 from __future__ import annotations
@@ -17,10 +19,12 @@ from datetime import UTC, datetime
 import pyarrow.parquet as pq
 import sacrebleu
 
-from app.services.interfaces import ModelError
+from app.config import Settings
+from app.services.interfaces import ModelError, Translator
+from app.services.models import load_translation
 from app.services.stt import WhisperSpeechToText
-from app.services.translation import DirectionalTranslator, MarianTranslator
 from eval.common import DATA, FLEURS_CONFIG, MODELS, REPORTS, gpu_memory_mb
+from eval.hymt_setup import QUANTS
 from eval.stt_eval import error_rate, recognize
 from eval.text_norm import normalize
 
@@ -41,20 +45,25 @@ def load(split: str) -> tuple[dict[str, dict[int, dict]], list[int]]:
     return rows, sorted(rows["ko"].keys() & rows["en"].keys())
 
 
-def server_models() -> tuple[WhisperSpeechToText, DirectionalTranslator]:
-    """The models and settings app/services/models.py loads."""
+def server_models(
+    en_ko: str = "opus", ko_en: str = "opus", quant: str = "q8_0"
+) -> tuple[WhisperSpeechToText, Translator]:
+    """The models and settings app/services/models.py loads; Hy-MT2 must be the recorded build (T83)."""
     stt = WhisperSpeechToText("large-v3-turbo", vad_filter=True, device="cuda", compute_type="float16")
-    ct2 = MODELS / "ct2"
-    translator = DirectionalTranslator(
-        {
-            ("ko", "en"): MarianTranslator(ct2 / "opus-mt-tc-big-ko-en", "ko", "en"),
-            ("en", "ko"): MarianTranslator(ct2 / "opus-mt-tc-big-en-ko", "en", "ko", by_sentence=True),
-        }
+    _, _, _, model, digest = QUANTS[quant]
+    settings = Settings(
+        ct2_dir=MODELS / "ct2",
+        en_ko_translation=en_ko,
+        ko_en_translation=ko_en,
+        hymt_model=model,
+        hymt_digest=digest,
+        hymt_timeout_s=120,
     )
+    translator = load_translation(settings, {"device": "cuda", "compute_type": "float16"})
     return stt, translator
 
 
-def translate(translator: DirectionalTranslator, text: str, source: str, target: str) -> str:
+def translate(translator: Translator, text: str, source: str, target: str) -> str:
     """The translation, or "" when there is nothing to translate or the model fails (counted apart)."""
     if not text.strip():
         return ""
@@ -66,7 +75,7 @@ def translate(translator: DirectionalTranslator, text: str, source: str, target:
 
 def run(args: argparse.Namespace) -> None:
     rows, ids = load(args.split)
-    stt, translator = server_models()
+    stt, translator = server_models(args.en_ko, args.ko_en, args.hymt_quant)
     results = {}
     for source, target in DIRECTIONS:
         items = []
@@ -101,20 +110,24 @@ def run(args: argparse.Namespace) -> None:
             "nothing_heard": sum(1 for i in items if not i["heard"].strip()),
             "items": items,
         }
-    write_report(results, args)
+    write_report(results, args, translator.model_name)
 
 
-def write_report(results: dict, args: argparse.Namespace) -> None:
+def write_report(results: dict, args: argparse.Namespace, translator_name: str) -> None:
     gpu, _ = gpu_memory_mb()
     stamp = datetime.now(UTC)
     base = REPORTS / f"quality_{args.tag}_{stamp:%Y%m%d_%H%M%S}"
     base.with_suffix(".json").write_text(
-        json.dumps({"gpu": gpu, "results": results}, indent=1, ensure_ascii=False), encoding="utf-8"
+        json.dumps(
+            {"gpu": gpu, "translator": translator_name, "results": results}, indent=1, ensure_ascii=False
+        ),
+        encoding="utf-8",
     )
     lines = [
         f"# 전체 흐름 번역 품질 ({args.tag})",
         "",
         f"- 날짜: {stamp.isoformat()}, FLEURS {args.split}, 문장 ID마다 첫 녹음 하나, GPU {gpu}",
+        f"- 번역: {translator_name}",
         "- 음성 경로: 녹음 → 인식(서버 설정) → 번역. 전사 경로: 정답 전사 → 번역. 참조: 다른 언어의 전사",
         "",
         "| 방향 | 문장 | 음성 경로 chrF | 전사 경로 chrF | 차이 | 인식 오류(한 CER/영 WER) | "
@@ -146,6 +159,10 @@ def main() -> None:
     )
     parser.add_argument("--split", choices=("validation", "test"), default="test")
     parser.add_argument("--tag", required=True)
+    # T83 (docs/experiments.md 15): the translation per direction, as the server's settings name it.
+    parser.add_argument("--en-ko", choices=("opus", "hy-mt2", "hy-mt2-split"), default="opus")
+    parser.add_argument("--ko-en", choices=("opus", "hy-mt2"), default="opus")
+    parser.add_argument("--hymt-quant", choices=("q8_0", "q4_k_m"), default="q8_0")
     run(parser.parse_args())
 
 
