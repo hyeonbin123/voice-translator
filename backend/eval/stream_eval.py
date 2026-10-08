@@ -567,14 +567,21 @@ class GpuLog:
         }
 
 
-def service(args: argparse.Namespace) -> None:
-    """docs/experiments.md 8, real service check: the composed service through nginx, in real time.
-    The clips and their word times come from this machine's models first; they are idle while streaming."""
-    silero = Silero()
+def choose_clips(silero: Silero, args: argparse.Namespace) -> tuple[dict, dict]:
+    """The clips the service check streams, per language, with this machine's final results (word times)."""
     model, translator = load_models()
     chosen, skipped = {}, {}
     for lang in args.langs:
         chosen[lang], skipped[lang] = utterances(silero, model, translator, lang, args.split, args.count)
+    return chosen, skipped
+
+
+def service(args: argparse.Namespace) -> None:
+    """docs/experiments.md 8, real service check: the composed service through nginx, in real time.
+    The clips and their word times come from this machine's models first. They are released before streaming
+    (T83), so their GPU memory is not held next to the server's while it is measured."""
+    chosen, skipped = choose_clips(Silero(), args)
+    gc.collect()
     with GpuLog() as gpu:
         results = asyncio.run(stream_all(args, chosen))
     # Other programs' names stay out of the published report: work/ is not committed.

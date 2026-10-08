@@ -178,3 +178,48 @@ def test_dialog_clips_take_turns_between_the_languages_on_one_connection():
         ("e2", "en"),
     ]
     assert [name for name, _ in turns("conversation", chosen)] == ["en", "ko"]
+
+
+def test_the_service_check_releases_its_own_models_before_streaming(monkeypatch):
+    # T83: this machine's models only pick the clips and their word times; held while streaming, they took
+    # GPU memory next to the server's (the Hy-MT2 trial adds a model to the server's Ollama).
+    import argparse
+    import gc
+    import weakref
+
+    from eval import stream_eval
+
+    class Model:
+        pass
+
+    made: list[weakref.ref] = []
+
+    def load_models():
+        model, translator = Model(), Model()
+        made.extend([weakref.ref(model), weakref.ref(translator)])
+        return model, translator
+
+    class Stop(Exception):
+        pass
+
+    def stream_all(args, chosen):
+        gc.collect()
+        assert [ref() for ref in made] == [None, None]
+        raise Stop
+
+    class NoGpuLog:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(stream_eval, "Silero", lambda: None)
+    monkeypatch.setattr(stream_eval, "load_models", load_models)
+    monkeypatch.setattr(stream_eval, "utterances", lambda *args: ([], {"not_one_utterance": 0}))
+    monkeypatch.setattr(stream_eval, "stream_all", stream_all)
+    monkeypatch.setattr(stream_eval, "GpuLog", NoGpuLog)
+    args = argparse.Namespace(langs=["en", "ko"], split="validation", count=40)
+    with pytest.raises(Stop):
+        stream_eval.service(args)
+    assert len(made) == 2
