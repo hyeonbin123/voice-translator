@@ -10,7 +10,8 @@ server is measured in that image this compares it with the image it was built fr
     transcribe  GPU: the server's recognition (its default settings) of the same clips, and T14's four
                 no-speech checks (silence and noise, in Korean and in English)
     compare     two records of one kind: the same timestamps or texts for every clip, and for transcribe the
-                T14 rule that the four no-speech checks come back empty (4/4)
+                T14 rule that the four no-speech checks come back empty (4/4); the records must hold the
+                expected number of clips (--expect-clips, by default the 60 validation clips of section 14)
 
 The clips are the e2e clips (data/e2e/<split>/<language>_<id>.wav, eval/e2e_eval.py). It runs inside the API
 images, which have no pyarrow or jiwer. From backend/ (or /app in a container):
@@ -33,6 +34,7 @@ import numpy as np
 
 SAMPLE_RATE = 16_000
 NO_SPEECH_INPUTS = ("silence", "noise")
+EXPECTED_CLIPS = 60  # the e2e validation clips; docs/experiments.md 14 asks for 60/60 (T89)
 
 
 def no_speech_wav(kind: str, seconds: float = 3.0) -> bytes:
@@ -160,10 +162,12 @@ def transcribe(args: argparse.Namespace) -> None:
     _write(record, args.out)
 
 
-def compare(before: dict, after: dict) -> dict:
+def compare(before: dict, after: dict, expect_clips: int | None = None) -> dict:
     """Pass when every clip has the same result and so do the no-speech inputs; for transcribe, the no-speech
     checks must also all be empty after the swap (T14: 4/4). Records without clips, or without all of T14's
-    no-speech inputs, are not compared (T84): agreeing on nothing is no evidence."""
+    no-speech inputs, are not compared (T84): agreeing on nothing is no evidence. With `expect_clips`, records
+    that hold another number of clips do not pass either (T89): two runs on the same incomplete clip set
+    agree too, but the gate counts the clips (60/60)."""
     if before["kind"] != after["kind"]:
         raise ValueError(f"the records are of a different kind: {before['kind']} and {after['kind']}")
     if set(before["clips"]) != set(after["clips"]) or set(before["no_speech"]) != set(after["no_speech"]):
@@ -193,6 +197,9 @@ def compare(before: dict, after: dict) -> dict:
         "no_speech_empty": {"before": empty(before), "after": empty(after), "of": len(after["no_speech"])},
     }
     passed = not differs and not no_speech_differs
+    if expect_clips is not None:
+        result["expected_clips"] = expect_clips
+        passed = passed and len(before["clips"]) == expect_clips
     if before["kind"] == "transcribe":
         passed = passed and empty(after) == len(after["no_speech"])
     result["pass"] = passed
@@ -209,10 +216,17 @@ def main() -> None:
     check = phases.add_parser("compare", help="exit status 1 unless the two records agree")
     check.add_argument("before", type=Path)
     check.add_argument("after", type=Path)
+    check.add_argument(
+        "--expect-clips",
+        type=int,
+        default=EXPECTED_CLIPS,
+        help=f"the number of clips both records must hold (default {EXPECTED_CLIPS}, the validation clips)",
+    )
     args = parser.parse_args()
     if args.phase == "compare":
         result = compare(
-            *(json.loads(path.read_text(encoding="utf-8")) for path in (args.before, args.after))
+            *(json.loads(path.read_text(encoding="utf-8")) for path in (args.before, args.after)),
+            expect_clips=args.expect_clips,
         )
         print(json.dumps(result, ensure_ascii=False))
         sys.exit(0 if result["pass"] else 1)

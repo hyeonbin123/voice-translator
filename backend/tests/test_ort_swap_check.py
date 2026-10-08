@@ -97,6 +97,32 @@ def test_records_missing_a_no_speech_input_are_not_compared():
         )
 
 
+def test_records_holding_fewer_clips_than_expected_fail():
+    # Two runs on the same incomplete clip set agree, but the gate is 60/60 (docs/experiments.md 14) (T89).
+    clips = {f"en_{i}.wav": "Hello." for i in range(59)}
+    before, after = record("transcribe", clips, SILENT), record("transcribe", clips, SILENT)
+    result = ort_swap_check.compare(before, after, expect_clips=60)
+    assert result["pass"] is False
+    assert (result["clips"], result["same"], result["expected_clips"]) == (59, 59, 60)
+    assert ort_swap_check.compare(before, after, expect_clips=59)["pass"] is True
+
+
+@pytest.mark.parametrize(("extra", "status"), [([], 1), (["--expect-clips", "59"], 0)])
+def test_the_compare_command_expects_the_60_validation_clips(tmp_path, monkeypatch, capsys, extra, status):
+    clips = {f"ko_{i}.wav": [[0, 16000]] for i in range(59)}
+    paths = []
+    for name in ("before", "after"):
+        path = tmp_path / f"{name}.json"
+        path.write_text(json.dumps(record("vad", clips, {"silence": [], "noise": []})), encoding="utf-8")
+        paths.append(str(path))
+    monkeypatch.setattr(sys, "argv", ["ort_swap_check", "compare", *paths, *extra])
+    with pytest.raises(SystemExit) as exited:
+        ort_swap_check.main()
+    assert exited.value.code == status
+    printed = json.loads(capsys.readouterr().out)
+    assert printed["expected_clips"] == (60 if not extra else 59) and printed["clips"] == 59
+
+
 @pytest.mark.parametrize("folder", ["empty", "missing"])
 def test_a_folder_without_clips_stops_the_run(tmp_path, folder):
     (tmp_path / "empty").mkdir()
