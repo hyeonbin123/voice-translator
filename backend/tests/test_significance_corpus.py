@@ -1,4 +1,5 @@
-"""Paired intervals for corpus chrF and BLEU (needs sacrebleu, from the eval group, so not run in CI)."""
+"""Paired intervals for corpus chrF and BLEU (needs sacrebleu, from the eval group: CI runs this module in a
+step of its own that adds it, T88)."""
 
 import numpy as np
 import pytest

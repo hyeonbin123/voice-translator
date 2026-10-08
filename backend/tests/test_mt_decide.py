@@ -1,6 +1,7 @@
 """The T83 decision rules (docs/experiments.md 15) on made-up reports.
 
-Needs sacrebleu (eval group), so CI skips this module.
+Needs sacrebleu (eval group): CI's plain test step skips this module, and a step of its own runs it with
+sacrebleu added (T88).
 """
 
 import json

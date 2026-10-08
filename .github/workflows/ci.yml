@@ -47,6 +47,13 @@ jobs:
       - name: Test
         run: uv run pytest -q
 
+      # The plain run skips these modules: they need sacrebleu and jiwer from the eval group, which also
+      # brings torch. Add only those two, at their locked versions, so these tests run too (T88).
+      - name: Test the evaluation tools that need sacrebleu and jiwer
+        run: >-
+          uv run --with sacrebleu==2.6.0 --with jiwer==4.0.0
+          pytest -q -rs tests/test_mt_decide.py tests/test_significance_corpus.py tests/test_reanalysis.py
+
       - name: Migrate development database
         run: uv run alembic upgrade head
 

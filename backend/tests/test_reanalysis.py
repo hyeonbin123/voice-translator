@@ -1,6 +1,7 @@
 """The re-analysis reads the stored reports right (no intervals are computed on them here).
 
-It scores with sacrebleu and jiwer from the eval group, which CI does not install, so CI skips this module.
+It scores with sacrebleu and jiwer from the eval group, which CI's plain test step does not install: a step of
+its own adds the two and runs this module (T88).
 """
 
 import argparse
