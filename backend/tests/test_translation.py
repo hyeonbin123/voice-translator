@@ -344,6 +344,21 @@ def test_hymt_prepare_loads_the_model_to_stay_and_reports_its_build():
     assert generate == [{"model": "hy-mt2:1.8b-q8_0", "keep_alive": -1}]
 
 
+def test_hymt_prepare_keeps_each_request_within_the_time_left():
+    # Startup passes what is left of HYMT_PREPARE_TIMEOUT_S; no request inside prepare may wait longer (T86).
+    server, limits = ollama_server(), {}
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        limits[request.url.path] = request.extensions["timeout"]["read"]
+        return server(request)
+
+    translator, _ = hymt_with(handle, timeout_s=30, prepare_timeout_s=120)
+    translator.prepare()
+    assert limits == {"/api/show": 30, "/api/tags": 30, "/api/generate": 120}
+    translator.prepare(timeout_s=5)
+    assert limits == {"/api/show": 5, "/api/tags": 5, "/api/generate": 5}
+
+
 def test_hymt_prepare_fails_when_ollama_lacks_the_model():
     translator, sent = hymt_with(ollama_server(show_status=404))
     with pytest.raises(ModelError, match="hymt_setup"):

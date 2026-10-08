@@ -33,7 +33,9 @@ def fake_model_classes(monkeypatch):
     monkeypatch.setattr(stt, "WhisperSpeechToText", recording("Whisper"))
     monkeypatch.setattr(translation, "MarianTranslator", recording("Marian"))
     monkeypatch.setattr(
-        translation, "HyMtTranslator", type("HyMt", (Recorder,), {"prepare": lambda self: "the-build"})
+        translation,
+        "HyMtTranslator",
+        type("HyMt", (Recorder,), {"prepare": lambda self, timeout_s=None: "the-build"}),
     )
     monkeypatch.setattr(tts, "MeloTextToSpeech", recording("Melo"))
     monkeypatch.setattr(tts, "KokoroTextToSpeech", recording("Kokoro"))
@@ -389,6 +391,7 @@ def test_hy_mt2_can_translate_english_to_korean_one_sentence_at_a_time(fake_mode
             ollama_url="http://ollama:11434",
             hymt_model="hy-mt2:1.8b-q8_0",
             hymt_digest="the-build",
+            hymt_prepare_timeout_s=45,
         )
     )
     hymt = [(args, kwargs) for name, args, kwargs in fake_model_classes if name == "HyMt"]
@@ -397,6 +400,7 @@ def test_hy_mt2_can_translate_english_to_korean_one_sentence_at_a_time(fake_mode
         "timeout_s": 30,
         "by_sentence": True,
         "expected_digest": "the-build",
+        "prepare_timeout_s": 45,  # the load request too waits no longer than startup does (T86)
     }
     assert hymt == [(("hy-mt2:1.8b-q8_0",), expected)]
     marian = [args[0].name for name, args, _ in fake_model_classes if name == "Marian"]
@@ -447,8 +451,8 @@ def flaky_hymt(failures: int, error: Exception):
         def __init__(self, *args, **kwargs):
             pass
 
-        def prepare(self):
-            calls.append(1)
+        def prepare(self, timeout_s=None):
+            calls.append(timeout_s)
             if len(calls) <= failures:
                 raise error
             return "the-build"
@@ -474,6 +478,38 @@ def test_hy_mt2_that_never_gets_ready_stops_startup(fake_model_classes, monkeypa
     with pytest.raises(ModelError, match="not available"):
         models.load_models(settings)
     assert len(calls) >= 2
+
+
+@pytest.mark.parametrize("attempt_s", [None, 1.0])
+def test_hy_mt2_startup_waits_no_longer_than_its_limit(fake_model_classes, monkeypatch, attempt_s):
+    # HYMT_PREPARE_TIMEOUT_S bounds the whole wait (docs/api.md), including a load request that hangs until
+    # its own limit (attempt_s None: each try takes all the time it is given) (T86).
+    clock = [0.0]
+    asked = []
+
+    class HyMt:
+        model_name = "HyMt"
+
+        def __init__(self, *args, **kwargs):
+            self.default_s = kwargs.get("prepare_timeout_s", 300)
+
+        def prepare(self, timeout_s=None):
+            asked.append(timeout_s)
+            limit = self.default_s if timeout_s is None else timeout_s
+            clock[0] += limit if attempt_s is None else min(attempt_s, limit)
+            raise ModelError("Ollama could not load hy-mt2:1.8b-q8_0: ReadTimeout")
+
+    monkeypatch.setattr(translation, "HyMtTranslator", HyMt)
+    monkeypatch.setattr(models.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(models.time, "sleep", lambda seconds: clock.__setitem__(0, clock[0] + seconds))
+    settings = Settings(
+        model_device="cpu", tts_enabled=False, en_ko_translation="hy-mt2", hymt_prepare_timeout_s=10
+    )
+    with pytest.raises(ModelError, match="could not load"):
+        models.load_models(settings)
+    assert clock[0] <= 10 + 0.01
+    assert asked[0] == pytest.approx(10)  # each try gets the time left, never more
+    assert all(later <= earlier for earlier, later in zip(asked, asked[1:], strict=False))
 
 
 def test_hy_mt2_of_another_build_stops_startup_at_once(fake_model_classes, monkeypatch):

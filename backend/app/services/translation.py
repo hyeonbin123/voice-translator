@@ -247,6 +247,7 @@ class HyMtTranslator:
         self.calls: list[dict] = []
         self._model = model
         self._expected_digest = expected_digest
+        self._timeout_s = timeout_s
         self._prepare_timeout_s = prepare_timeout_s
         self._client = httpx.Client(base_url=base_url, timeout=timeout_s)
 
@@ -277,21 +278,29 @@ class HyMtTranslator:
         # A reply cut at the output cap ("length") is kept, as opus keeps one cut at 256 tokens.
         return _nonempty(content)
 
-    def prepare(self) -> str:
+    def prepare(self, timeout_s: float | None = None) -> str:
         """Check that Ollama has the model, and the expected build of it; load it to stay; return its digest.
 
+        `timeout_s`, what is left of the startup wait, caps every request here (T86): the checks otherwise
+        wait up to the request limit, the load up to `prepare_timeout_s`.
         Raises ModelError while Ollama or the model is not there (worth waiting for), and RuntimeError for
         another build (not worth waiting for).
         """
+
+        def limit(default_s: float) -> float:
+            return default_s if timeout_s is None else min(default_s, timeout_s)
+
         try:
-            shown = self._client.post("/api/show", json={"model": self._model})
+            shown = self._client.post(
+                "/api/show", json={"model": self._model}, timeout=limit(self._timeout_s)
+            )
             if shown.status_code == 404:
                 raise ModelError(
                     f"Ollama has no model {self._model}: create it with eval.hymt_setup "
                     "(docs/experiments.md 15)"
                 )
             shown.raise_for_status()
-            tags = self._client.get("/api/tags")
+            tags = self._client.get("/api/tags", timeout=limit(self._timeout_s))
             tags.raise_for_status()
             digests = [
                 m.get("digest")
@@ -310,7 +319,7 @@ class HyMtTranslator:
             loaded = self._client.post(
                 "/api/generate",
                 json={"model": self._model, "keep_alive": -1},
-                timeout=self._prepare_timeout_s,
+                timeout=limit(self._prepare_timeout_s),
             )
             loaded.raise_for_status()
         except httpx.HTTPError as exc:

@@ -12,6 +12,7 @@ from app.services.pipeline import PipelineModels
 logger = logging.getLogger(__name__)
 
 HYMT_RETRY_S = 2.0  # seconds between tries while Ollama starts (T83)
+HYMT_MIN_REQUEST_S = 0.01  # a try that starts just before the deadline still gets a valid request limit
 
 WARM_UP_TEXT: dict[Language, str] = {"ko": "안녕하세요.", "en": "Hello."}
 
@@ -66,6 +67,7 @@ def load_translation(settings: Settings, engine: dict) -> Translator:
             timeout_s=settings.hymt_timeout_s,
             by_sentence=by_sentence,
             expected_digest=settings.hymt_digest,
+            prepare_timeout_s=settings.hymt_prepare_timeout_s,
         )
         _wait_until_ready(model, settings.hymt_prepare_timeout_s)
         return model
@@ -85,15 +87,18 @@ def load_translation(settings: Settings, engine: dict) -> Translator:
 
 
 def _wait_until_ready(model, timeout_s: float) -> None:
+    """Try prepare until it succeeds or `timeout_s` has passed. Each try gets only the time left, and so does
+    the pause before the next one, so a hanging request cannot stretch the wait past the limit (T86)."""
     deadline = time.monotonic() + timeout_s
     while True:
         try:
-            digest = model.prepare()
+            digest = model.prepare(timeout_s=max(deadline - time.monotonic(), HYMT_MIN_REQUEST_S))
         except ModelError as exc:
-            if time.monotonic() >= deadline:
+            left = deadline - time.monotonic()
+            if left <= 0:
                 raise
             logger.info("Waiting for the translation model on Ollama: %s", exc)
-            time.sleep(HYMT_RETRY_S)
+            time.sleep(min(HYMT_RETRY_S, left))
             continue
         logger.info("Translation model %s is ready (build %s)", model.model_name, digest)
         return
