@@ -87,8 +87,13 @@ def load_translation(settings: Settings, engine: dict) -> Translator:
 
 
 def _wait_until_ready(model, timeout_s: float) -> None:
-    """Try prepare until it succeeds or `timeout_s` has passed. Each try gets only the time left, and so does
-    the pause before the next one, so a hanging request cannot stretch the wait past the limit (T86)."""
+    """Try prepare until it succeeds or `timeout_s` has passed.
+
+    Each try gets only the time left, prepare gives each of its requests only what is left when that request
+    starts (T87), and the pause before the next try is no longer than the time left either, so a request that
+    hangs ends at about the limit (T86). About: httpx applies a limit to each phase of a request (connecting,
+    then each read), not to the request as a whole.
+    """
     deadline = time.monotonic() + timeout_s
     while True:
         try:

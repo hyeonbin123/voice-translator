@@ -1,4 +1,5 @@
 import json
+import time
 from pathlib import Path
 
 import httpx
@@ -356,7 +357,28 @@ def test_hymt_prepare_keeps_each_request_within_the_time_left():
     translator.prepare()
     assert limits == {"/api/show": 30, "/api/tags": 30, "/api/generate": 120}
     translator.prepare(timeout_s=5)
-    assert limits == {"/api/show": 5, "/api/tags": 5, "/api/generate": 5}
+    assert limits == pytest.approx({"/api/show": 5, "/api/tags": 5, "/api/generate": 5}, abs=0.5)
+
+
+def test_hymt_prepare_takes_the_time_left_again_before_each_request(monkeypatch):
+    # Slow checks that succeed use up part of the time left, and the load gets only the rest: one try must not
+    # last up to three times what is left (T87). show and tags take 4 s each of the 10 s left here.
+    server, limits, clock = ollama_server(), {}, [100.0]
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        limits[request.url.path] = request.extensions["timeout"]["read"]
+        if request.url.path in ("/api/show", "/api/tags"):
+            clock[0] += 4
+        return server(request)
+
+    monkeypatch.setattr(time, "monotonic", lambda: clock[0])
+    translator, _ = hymt_with(handle, timeout_s=30, prepare_timeout_s=120)
+    translator.prepare(timeout_s=10)
+    assert limits == pytest.approx({"/api/show": 10, "/api/tags": 6, "/api/generate": 2})
+    clock[0] = 100.0
+    limits.clear()
+    translator.prepare(timeout_s=7)  # nothing left for the load: it still gets a valid, tiny limit
+    assert 0 < limits["/api/generate"] <= 0.01
 
 
 def test_hymt_prepare_fails_when_ollama_lacks_the_model():

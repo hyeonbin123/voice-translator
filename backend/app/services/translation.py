@@ -7,6 +7,7 @@ CTranslate2, the same engine as speech recognition, after a one-off conversion (
 from __future__ import annotations
 
 import re
+import time
 import unicodedata
 from collections.abc import Callable
 from pathlib import Path
@@ -222,6 +223,8 @@ HY_MT_PROMPT = (
 # repetition penalty, opus's output cap of 256 tokens, and a fixed context size: the longest request (500
 # characters, docs/api.md) with the prompt and the cap fits well inside 2048 tokens.
 HY_MT_OPTIONS = {"temperature": 0, "repeat_penalty": 1.05, "num_predict": 256, "num_ctx": 2048}
+# A request that starts with no time left before prepare's deadline still gets a valid limit (T87).
+HY_MT_MIN_REQUEST_S = 0.01
 
 
 class HyMtTranslator:
@@ -281,14 +284,18 @@ class HyMtTranslator:
     def prepare(self, timeout_s: float | None = None) -> str:
         """Check that Ollama has the model, and the expected build of it; load it to stay; return its digest.
 
-        `timeout_s`, what is left of the startup wait, caps every request here (T86): the checks otherwise
-        wait up to the request limit, the load up to `prepare_timeout_s`.
+        `timeout_s`, what is left of the startup wait, sets a deadline: each request here (show, tags, the
+        load) gets at most the time left when it starts (T86, T87), so slow checks leave the load only the
+        rest. Without it the checks wait up to the request limit, the load up to `prepare_timeout_s`.
         Raises ModelError while Ollama or the model is not there (worth waiting for), and RuntimeError for
         another build (not worth waiting for).
         """
+        deadline = None if timeout_s is None else time.monotonic() + timeout_s
 
         def limit(default_s: float) -> float:
-            return default_s if timeout_s is None else min(default_s, timeout_s)
+            if deadline is None:
+                return default_s
+            return min(default_s, max(deadline - time.monotonic(), HY_MT_MIN_REQUEST_S))
 
         try:
             shown = self._client.post(
