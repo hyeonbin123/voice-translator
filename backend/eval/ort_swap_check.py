@@ -49,12 +49,24 @@ def no_speech_wav(kind: str, seconds: float = 3.0) -> bytes:
     return buffer.getvalue()
 
 
+def no_speech_names(kind: str) -> set[str]:
+    """The no-speech inputs a record of this kind holds: T14's two for the VAD, and those two in each
+    language for recognition."""
+    if kind == "vad":
+        return set(NO_SPEECH_INPUTS)
+    return {f"{language}_{name}" for language in ("ko", "en") for name in NO_SPEECH_INPUTS}
+
+
 def clips(folder: Path) -> list[tuple[str, bytes, str]]:
-    """(file name, audio, language) for each <language>_<id>.wav, in name order."""
-    return [
+    """(file name, audio, language) for each <language>_<id>.wav, in name order. A folder without any (a wrong
+    or empty path) stops the run, so that two such runs cannot agree on nothing (T84)."""
+    found = [
         (path.name, path.read_bytes(), path.name.split("_", 1)[0])
         for path in sorted(Path(folder).glob("*_*.wav"))
     ]
+    if not found:
+        raise ValueError(f"no clips (<language>_<id>.wav) in {folder}")
+    return found
 
 
 def runtime_info() -> dict:
@@ -150,11 +162,19 @@ def transcribe(args: argparse.Namespace) -> None:
 
 def compare(before: dict, after: dict) -> dict:
     """Pass when every clip has the same result and so do the no-speech inputs; for transcribe, the no-speech
-    checks must also all be empty after the swap (T14: 4/4)."""
+    checks must also all be empty after the swap (T14: 4/4). Records without clips, or without all of T14's
+    no-speech inputs, are not compared (T84): agreeing on nothing is no evidence."""
     if before["kind"] != after["kind"]:
         raise ValueError(f"the records are of a different kind: {before['kind']} and {after['kind']}")
     if set(before["clips"]) != set(after["clips"]) or set(before["no_speech"]) != set(after["no_speech"]):
         raise ValueError("the two records do not cover the same clips")
+    if not before["clips"]:
+        raise ValueError("the records hold no clips")
+    expected = no_speech_names(before["kind"])
+    if set(before["no_speech"]) != expected:
+        raise ValueError(
+            f"the records' no-speech inputs are {sorted(before['no_speech'])}, not {sorted(expected)}"
+        )
     differs = sorted(name for name in before["clips"] if before["clips"][name] != after["clips"][name])
     no_speech_differs = sorted(
         name for name in before["no_speech"] if before["no_speech"][name] != after["no_speech"][name]

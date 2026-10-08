@@ -77,6 +77,34 @@ def test_records_of_different_kinds_or_clips_are_not_compared():
         )
 
 
+def test_records_without_clips_are_not_compared():
+    # A wrong or empty clip folder in both runs must not pass the 60/60 gate with 0/0 (T84).
+    for kind, quiet in (("vad", {"silence": [], "noise": []}), ("transcribe", SILENT)):
+        with pytest.raises(ValueError, match="no clips"):
+            ort_swap_check.compare(record(kind, {}, quiet), record(kind, {}, quiet))
+
+
+def test_records_missing_a_no_speech_input_are_not_compared():
+    # The no-speech inputs are T14's: both kinds must hold all of them, even when both lack the same one.
+    clips = {"en_1.wav": "Hello."}
+    three = {key: value for key, value in SILENT.items() if key != "en_noise"}
+    with pytest.raises(ValueError, match="no-speech"):
+        ort_swap_check.compare(record("transcribe", clips, three), record("transcribe", clips, three))
+    timestamps = {"en_1.wav": [[0, 16000]]}
+    with pytest.raises(ValueError, match="no-speech"):
+        ort_swap_check.compare(
+            record("vad", timestamps, {"silence": []}), record("vad", timestamps, {"silence": []})
+        )
+
+
+@pytest.mark.parametrize("folder", ["empty", "missing"])
+def test_a_folder_without_clips_stops_the_run(tmp_path, folder):
+    (tmp_path / "empty").mkdir()
+    (tmp_path / "empty" / "notes.txt").write_text("x")
+    with pytest.raises(ValueError, match="no clips"):
+        ort_swap_check.clips(tmp_path / folder)
+
+
 def test_clips_take_the_language_from_the_file_name(tmp_path):
     (tmp_path / "ko_12.wav").write_bytes(b"k")
     (tmp_path / "en_3.wav").write_bytes(b"e")
