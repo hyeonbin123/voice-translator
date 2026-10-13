@@ -9,6 +9,17 @@ its first two, and all of it. Whisper's language detection keeps the Korean and 
 only: the larger one decides, and its share of the two is the confidence.
 """
 
+# [파일 역할] 두 사람 대화 모드의 언어 판별(한국어인가 영어인가)과 확신 문턱 τ를 고르는 측정
+# 도구(docs/experiments.md 10절).
+# [설계 이유] 짧은 대답도 흉내 내려고 같은 녹음에서 앞 1초·2초·전체 세 길이를 만든다. 조각은 브라우저가 실제로
+# 보내는 대로(Silero로 자른 한 마디, 말 앞 192ms부터) 자른다: 처음에는 Whisper 단어 시각으로 말 시작을
+# 잡았는데, 대부분 녹음에서 첫 단어가 0초로 나와 '1초' 조각이 앞의 조용한 부분을 판별하는 문제가 있어
+# 바꿨다(10절 1차 측정, 아래 run의 영어 주석).
+# [판단 규칙] 확신이 τ 이상인 판별의 정확도가 모든 조건(두 언어 × 1초·2초·전체)에서 99% 이상인 τ 중 가장 작은
+# 것. validation에서 0.6을 골랐다(DIALOG_LANGUAGE_THRESHOLD).
+# [연결] 판별 계산은 서버(app/services/stt.WhisperSpeechToText.detect_language)와 같고, 녹음 읽기·Silero는
+# eval/eos_eval.py, 한 마디 자르기는 eval/stream_eval.py에서 가져온다.
+
 from __future__ import annotations
 
 import argparse
@@ -17,18 +28,23 @@ import statistics
 import time
 from datetime import UTC, datetime
 
+# eos_eval: FLEURS 읽기·음량 맞추기(load_clips), Silero 판정, 표본 추출률·언어·시드 상수. stream_eval:
+# 브라우저처럼 한 마디를 자르는 cut과 앞뒤로 남기는 조각 수(PAD_FRAMES).
 import numpy as np
 
 from eval.common import REPORTS, gpu_memory_mb
 from eval.eos_eval import LANGS, RATE, SEED, Silero, load_clips
 from eval.stream_eval import PAD_FRAMES, cut
 
+# LENGTHS: 조각 길이(말 시작부터 초, None은 전체). THRESHOLDS: τ 후보. PREROLL_S: 마디 앞에 붙는 6조각 ×
+# 512표본 = 192ms. REQUIRED_ACCURACY: 판단 규칙의 99%.
 LENGTHS = {"1s": 1.0, "2s": 2.0, "full": None}
 THRESHOLDS = (0.6, 0.7, 0.8, 0.9, 0.95)
 PREROLL_S = PAD_FRAMES * 512 / RATE  # the browser's clip starts 192 ms before speech (section 7)
 REQUIRED_ACCURACY = 0.99
 
 
+# 서버와 같은 large-v3-turbo를 GPU float16으로 올린다(Windows면 CUDA DLL 경로 먼저 등록).
 def load_model():
     from faster_whisper import WhisperModel
 
@@ -38,6 +54,8 @@ def load_model():
     return WhisperModel("large-v3-turbo", device="cuda", compute_type="float16")
 
 
+# 서버의 detect_language와 같은 규칙(VAD 켬, 한국어·영어 확률만 남겨 큰 쪽, 확신 = 큰 쪽 ÷ 둘의 합, 둘 다
+# 0이면 한국어 0.5)에 판별 시간을 더해 돌려준다.
 def korean_or_english(model, audio: np.ndarray) -> tuple[str, float, float]:
     """(the language, its share of the two probabilities, seconds taken)."""
     began = time.perf_counter()
@@ -50,6 +68,7 @@ def korean_or_english(model, audio: np.ndarray) -> tuple[str, float, float]:
     return ("ko" if ko >= en else "en"), max(ko, en) / (ko + en), took
 
 
+# 한 마디에서 앞 192ms + 1초, 192ms + 2초, 전체를 잘라 낸다(마디가 그보다 짧으면 슬라이스가 전체가 된다).
 def pieces(clip: np.ndarray) -> dict[str, np.ndarray]:
     """The first second and two of speech, and all of it, from the clip the browser would send."""
     return {
@@ -58,6 +77,9 @@ def pieces(clip: np.ndarray) -> dict[str, np.ndarray]:
     }
 
 
+# 언어마다 녹음을 읽고, 첫 녹음으로 한 번 예열한 뒤(시간에 넣지 않음), 녹음마다 한 마디로 잘라 세 길이를
+# 판별한다. 한 마디로 잘리지 않는 녹음(중간에 1초 넘게 쉬는 등)은 빼고 수를 센다. 잡음 시드는 분할 시드와 녹음
+# 순번으로 정해 다시 돌려도 같다.
 def run(args: argparse.Namespace) -> None:
     model = load_model()
     silero = Silero()
@@ -91,6 +113,10 @@ def run(args: argparse.Namespace) -> None:
     write_report(guesses, skipped, args)
 
 
+# 조건(언어 × 길이)마다 전체 정확도, 판별 시간 중앙값, τ마다 '확신이 τ보다 낮아 번갈아 처리로 넘기는 비율'과
+# '나머지(확신 ≥ τ)의 정확도'를 낸다.
+# 그다음 τ마다 조건 중 가장 낮은 나머지 정확도가 99% 이상인지(규칙 충족)와 전체 넘김 비율을 낸다. 나머지가
+# 하나도 없는 조건(None)은 0으로 보아 충족하지 않는 것으로 친다.
 def summarize(guesses: list[dict], thresholds: list[float]) -> tuple[list[dict], list[dict]]:
     conditions = []
     for lang in LANGS:
@@ -125,6 +151,8 @@ def summarize(guesses: list[dict], thresholds: list[float]) -> tuple[list[dict],
     return conditions, rule
 
 
+# 판별 하나하나까지 담은 JSON과, 조건별 표·τ별 규칙 표를 담은 마크다운을 eval/reports/langid_<태그>_<시각>에
+# 남긴다.
 def write_report(guesses: list[dict], skipped: dict, args: argparse.Namespace) -> None:
     conditions, rule = summarize(guesses, args.thresholds)
     gpu, _ = gpu_memory_mb()
@@ -164,6 +192,7 @@ def write_report(guesses: list[dict], skipped: dict, args: argparse.Namespace) -
     print(f"written to {base.with_suffix('.md')}")
 
 
+# --split으로 validation/test, --thresholds로 볼 τ를 고른다. test에는 고른 τ 하나만 적용한다(위 영어 주석).
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter

@@ -1,3 +1,9 @@
+// [파일 역할] player.ts(translationPlayer) 테스트 묶음. 서버 음성 재생과 브라우저 내장 음성 대체 재생에서
+// 시작·끝·멈춤·오류 처리와 blob URL 해제를 확인한다.
+// [가짜 객체] jsdom은 소리를 재생하지 못하므로 Audio 요소, URL.createObjectURL·revokeObjectURL,
+// speechSynthesis를 가짜로 바꾼다. 만들어진 Audio 요소를 elements에 모아 테스트가 onended·onerror를 직접
+// 일으킨다.
+
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { translationPlayer } from './player'
 import type { TranslationResult } from '../translation/api'
@@ -22,6 +28,9 @@ beforeEach(() => {
 })
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
+// 확인: audio_id로 인증된 음성을 받아(api.audio) 재생을 시작하고 playing을 한 번 부르며, 정상 종료·멈춤·재생
+// 오류 세 경우 모두 재생을 멈추고 src를 지우고 blob URL을 해제한다. 오류일 때만 약속이 실패한다.
+// 왜: 어느 경로로 끝나도 받은 음성이 메모리에 남지 않아야 하고, 멈춤은 오류로 보이면 안 된다.
 it.each(['end', 'abort', 'error'])('fetches authenticated audio and cleans up on %s', async (ending) => {
   const audio = vi.fn().mockResolvedValue(new Blob(['wav']))
   const controller = new AbortController(), playing = vi.fn()
@@ -40,6 +49,7 @@ it.each(['end', 'abort', 'error'])('fetches authenticated audio and cleans up on
   expect(removeAttribute).toHaveBeenCalledWith('src')
 })
 
+// 확인: 브라우저가 자동 재생을 거절하면(play() 실패) 재생 실패 안내로 끝나고 blob URL은 해제된다.
 it('reports autoplay rejection and releases the blob URL', async () => {
   play.mockRejectedValueOnce(new Error('NotAllowedError'))
   await expect(translationPlayer({ audio: async () => new Blob() })(result, new AbortController().signal, vi.fn()))
@@ -47,6 +57,8 @@ it('reports autoplay rejection and releases the blob URL', async () => {
   expect(revoke).toHaveBeenCalledWith('blob:test')
 })
 
+// 확인: 음성을 받는 동안 멈추면, 늦게 도착한 음성으로 URL을 만들거나 재생하지 않는다.
+// 왜: 사용자가 멈춘 뒤 소리가 갑자기 나는 일을 막는다.
 it('does not start a late audio download after stop', async () => {
   let resolve!: (blob: Blob) => void
   const audio = () => new Promise<Blob>((done) => { resolve = done })
@@ -56,6 +68,7 @@ it('does not start a late audio download after stop', async () => {
   expect(createUrl).not.toHaveBeenCalled(); expect(play).not.toHaveBeenCalled()
 })
 
+// 확인: 서버 음성이 없을 때 번역문을 도착 언어(en-US)로 읽고, 멈추면 speechSynthesis.cancel로 읽기를 끊는다.
 it('uses the target language for browser fallback and cancels it on stop', async () => {
   const speak = vi.fn(), cancel = vi.fn()
   vi.stubGlobal('speechSynthesis', { speak, cancel })

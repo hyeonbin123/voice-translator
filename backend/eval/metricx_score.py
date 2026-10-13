@@ -20,6 +20,17 @@ are error scores: lower is better. From backend/:
 The input has one JSON object per line with `key`, `src` and `mt`.
 """
 
+# [파일 역할] Hy-MT2 시험의 '오염 거부권' 점검에 쓰는 MetricX-24 참조 없는(QE) 문장 점수를 매기는 독립
+# 스크립트(docs/experiments.md 15절).
+# [설계 이유] FLEURS는 FLORES 문장이라 Hy-MT2가 학습 때 봤을 수 있다. 그래서 공개일 뒤의 새 글(오염 점검
+# 세트)을 Hy-MT2와 opus로 번역하고, 참조 번역이 없으므로 참조 없는 점수로 비교한다. 이 점수는 채택 근거가
+# 아니라 거부에만 쓴다(15절: 참조 없는 점수는 매끄러운 LLM 출력을 좋게 볼 수 있다).
+# 공식 코드는 다른 transformers 버전을 요구해, COMET 채점과 같은 별도 가상환경에서 같은 계산을 직접 옮긴 이
+# 스크립트로 돌린다. 파일 맨 위에서는 표준 라이브러리만 import한다(ruff·backend 테스트가 읽을 수 있게).
+# 가중치·토크나이저는 리비전과 SHA-256으로 고정한다.
+# [연결] 입력 JSONL은 eval/mt_decide.py(contam 단계)가 만들고, 출력 점수도 mt_decide가 읽어 짝지은 구간을
+# 계산한다.
+
 from __future__ import annotations
 
 import argparse
@@ -31,6 +42,9 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
+# 고정한 모델·토크나이저(15절에 같은 값이 적혀 있다). MAX_INPUT_LENGTH: 공식 코드의 최대 입력 토큰 1536.
+# SCORE_TOKEN: 점수로 읽는 출력 토큰 번호(<extra_id_10>). CODE: 계산을 옮겨 온 공식 코드의 커밋(메타데이터에
+# 남김).
 MODEL = "google/metricx-24-hybrid-large-v2p6"  # Apache-2.0
 REVISION = "51e875ba5c525c81627cfd135ee10f43c87dce00"
 WEIGHTS = "pytorch_model.bin"
@@ -44,6 +58,7 @@ SCORE_TOKEN = 250089  # <extra_id_10>
 CODE = "google-research/metricx@fc4978eb064670f7cc33e93ea4f52d38396b8ae6"
 
 
+# 4.9GB 가중치를 1MiB씩 읽어 SHA-256을 계산한다.
 def sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as file:
@@ -52,11 +67,14 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+# 참조 없는 입력 형식: "source: <원문> candidate: <번역문>".
 def qe_input(source: str, translation: str) -> str:
     """MetricX-24's reference-free input (predict.py with --qe)."""
     return "source: " + source + " candidate: " + translation
 
 
+# 고정 리비전의 모델 폴더와 토크나이저 파일 폴더. 내려받기 스레드를 하나로 제한하는 이유는 아래 영어
+# 주석(Windows 심볼릭 링크 권한 경쟁)이다.
 def snapshots(offline: bool) -> tuple[Path, Path]:
     from huggingface_hub import snapshot_download
     from huggingface_hub.file_download import are_symlinks_supported
@@ -77,6 +95,7 @@ def snapshots(offline: bool) -> tuple[Path, Path]:
     return model, tokenizer
 
 
+# 가중치와 토크나이저 모델(spiece.model)이 고정한 파일인지 해시로 확인하고, 다르면 멈춘다.
 def check_files(model_dir: Path, tokenizer_dir: Path) -> str:
     """SHA-256 of the weights; stops unless the weights and the tokenizer model are the pinned files."""
     actual = sha256(model_dir / WEIGHTS)
@@ -88,12 +107,17 @@ def check_files(model_dir: Path, tokenizer_dir: Path) -> str:
     return actual
 
 
+# 준비 단계: 받고 해시를 확인한다.
 def download() -> None:
     model, tokenizer = snapshots(offline=False)
     check_files(model, tokenizer)
     print(f"ok: {model} and {tokenizer} (SHA-256 checked)")
 
 
+# MetricX의 회귀 모델은 transformers의 MT5ForConditionalGeneration과 층이 같으므로 그 클래스에 가중치를
+# 넣는다. pickle 파일이라 weights_only=True로 텐서만 읽어 임의 코드 실행을 막는다. 빠진 키가 공유 임베딩 두
+# 개(파일에 한 번만 저장된 표) 말고 더 있거나 남는 키가 있으면 다른 모델로 보고 멈춘다. 정밀도는 fp32(mT5는
+# fp16에서 넘치고, 이 GPU에는 bf16이 없다: 위 docstring).
 def load(device: str):
     import torch
     import transformers
@@ -112,6 +136,9 @@ def load(device: str):
     return model, tokenizer, weights_sha256
 
 
+# 문장마다(배치 1, 패딩 없음): 입력을 토큰화해 1536토큰으로 자르고 끝의 </s>를 뺀 뒤(공식 predict.py와 같게),
+# 디코더에 토큰 0을 한 단계 넣어 SCORE_TOKEN 위치의 로짓을 점수로 읽고 0~25로 자른다. 오류 점수라 낮을수록
+# 좋다.
 def score(model, tokenizer, samples: list[dict], device: str) -> list[float]:
     """One segment at a time (batch size 1, as the MetricX README runs it): no padding."""
     import torch
@@ -130,6 +157,10 @@ def score(model, tokenizer, samples: list[dict], device: str) -> list[float]:
     return scores
 
 
+# score 명령: 오프라인(HF_HUB_OFFLINE=1)으로 적재·채점하고, 키가 겹치거나 유한하지 않은 점수가 있으면 아무것도
+# 쓰지 않고 멈춘다. 결과에는 키별 점수와, 모델·가중치 해시·토크나이저·공식 코드
+# 커밋·모드(qe)·정밀도·장치·시간·패키지 버전 메타데이터를 남긴다. 기본 장치는 CPU다(15절: 400문장이 CPU로 약
+# 7분이라 GPU를 쓰지 않음).
 def run(args: argparse.Namespace) -> None:
     import os
 
@@ -180,6 +211,7 @@ def run(args: argparse.Namespace) -> None:
     print(f"{len(samples)} segments in {meta['score_s']} s -> {args.output}")
 
 
+# 하위 명령 download / score.
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter

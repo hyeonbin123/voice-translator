@@ -1,10 +1,25 @@
+// [파일 역할] 번역 화면의 '두 사람 대화' 입력 방식 화면. 두 가지 보기를 제공한다: 말풍선 목록(노트북·모니터,
+// 한국어 화자는 왼쪽·영어 화자는 오른쪽)과, 휴대폰을 두 사람 사이에 놓고 쓰는 마주 보기(화면을 위아래로
+// 나누고 맞은편 칸을 180도 돌려 각자 자기 언어 번역을 크게 봄, f3f6afb).
+// [설계 이유] 흐름은 DialogSession(session.ts)이 관리하고, 이 컴포넌트는 상태를 그리고 시작·멈춤·보기
+// 전환·방향 바꾸기·다시 듣기 버튼만 연결한다.
+// [연결] translation/TranslatePage.tsx가 입력 방식으로 두 사람 대화를 고르면 그린다. 방향은 고르지
+// 않는다(서버가 마디마다 판별).
+
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import type { Language, TranslationApi } from '../translation/api'
 import { DialogSession, type DialogTurn, wasLanguageGuessed } from './session'
 
+// 언어 코드와 마디 상태의 화면 이름.
 const languageName = { ko: '한국어', en: '영어' }
 const turnStatus = { queued: '번역 대기', translating: '번역 중', done: '번역 완료', error: '번역 실패', canceled: '멈춤 · 전송 취소' }
 
+// 결과가 나온 마디 아래에 붙는 버튼·안내 묶음(말풍선과 마주 보기 칸이 함께 쓴다).
+// - 서버 음성이 없으면 브라우저 음성으로 읽는다는 안내
+// - 확신이 낮아 방향을 추정한 마디면 그 사실과 '방향 바꾸기' 버튼. 녹음이 이미 지워진(최근 5마디 밖) 마디는
+//   버튼을 끄고 이유를 보인다
+// - 번역 음성 다시 듣기, 방향 바꾸기 실패와 재생 실패 안내
+// busy: 그 마디를 재생하거나 방향을 바꾸는 중이면 버튼을 잠근다.
 function ResultActions({ turn, session, busy }: { turn: DialogTurn; session: DialogSession; busy: boolean }) {
   if (!turn.result) return null
   const canReverse = wasLanguageGuessed(turn.result)
@@ -25,6 +40,9 @@ function ResultActions({ turn, session, busy }: { turn: DialogTurn; session: Dia
   </>
 }
 
+// 마주 보기의 한 칸. 그 칸 화자의 언어로 번역된 가장 최근 마디를 크게 보이고, 상대방 원문을 작게 덧붙인다.
+// 맞은편 칸(top)은 CSS에서 내용을 180도 돌린다(styles.css의 face-pane-top). aria-label로 어느 쪽 칸인지
+// 스크린리더에 알린다.
 function FacePane({ language, turn, top, session, busy }: {
   language: Language; turn?: DialogTurn; top: boolean; session: DialogSession; busy: boolean
 }) {
@@ -41,6 +59,8 @@ function FacePane({ language, turn, top, session, busy }: {
   </section>
 }
 
+// 상태: 세션 상태(구독), 마주 보기 여부, 맞은편 칸의 언어(기본 한국어). 세션은 api가 바뀔 때만 새로 만들고
+// 화면을 떠나면 멈춘다. latestFor는 그 언어로 번역된 가장 최근 마디를 찾는다(마주 보기 칸에 보일 것).
 export default function DialogPanel({ api, onActiveChange }: {
   api: TranslationApi; onActiveChange: (active: boolean) => void
 }) {
@@ -60,6 +80,8 @@ export default function DialogPanel({ api, onActiveChange }: {
     <h2 id="dialog-title">두 사람 대화</h2>
     <p id="dialog-hint" className="hint">한국어와 영어로 번갈아 말해 주세요. 언어를 자동으로 가려 상대 언어로 번역하고, 번역 음성이 끝나면 다시 듣습니다.</p>
     <p className="hint">약 1초 동안 말소리가 없으면 한 마디를 보냅니다. 녹음은 저장하지 않으며 방향 수정용으로 최근 몇 마디만 메모리에 둡니다.</p>
+    {/* 버튼: 시작·멈춤 토글, 멈춘 뒤 다시 듣기 중일 때의 '음성 멈춤', 말풍선 ↔ 마주 보기 */}
+    {/* 전환(aria-pressed), 마주 보기일 때 위아래 칸 언어 바꾸기(휴대폰을 어느 쪽으로 놓았는지에 맞춤). */}
     <div className="actions">
       <button type="button" className="primary" aria-describedby="dialog-hint" aria-pressed={state.active}
         onClick={() => { if (state.active) session.stop(); else void session.start() }}>
@@ -75,6 +97,9 @@ export default function DialogPanel({ api, onActiveChange }: {
     {state.notice && <p role="status" className="hint">{state.notice}</p>}
     {state.error && <p role="alert" className="error">{state.error}</p>}
     <p className="hint">멈추면 아직 끝나지 않은 말과 대기 중인 번역·재생을 취소합니다. 다시 시작한 첫 마디에는 이전 언어를 사용하지 않습니다.</p>
+    {/* 보기 전환. 마주 보기: 맞은편 칸과 가까운 칸. 말풍선: 원문 언어에 따라 왼쪽(한국어)·오른쪽(영어) */}
+    {/* 정렬 클래스를 주고, 새 말풍선과 글 변화를 스크린리더가 말을 끊지 않고 읽게 */}
+    {/* 한다(aria-live="polite"). */}
     {faceToFace ? <div className="face-layout" aria-label="마주 보기 대화" aria-live="polite">
       <FacePane top language={topLanguage} turn={latestFor(topLanguage)} session={session}
         busy={state.playingId === latestFor(topLanguage)?.id || state.correctingId === latestFor(topLanguage)?.id} />

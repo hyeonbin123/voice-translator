@@ -11,6 +11,18 @@ with the key and counts, per model, the pairs preferred and the clips marked una
     uv run python -m eval.tts_ab unblind --key ../work/t78/ab-key.json --answers ../work/t78/ab/answers.txt
 """
 
+# [파일 역할] 한국어 합성 후보와 MeloTTS를 사람이 블라인드로 듣고 비교하게 하는 도구다(T78 12절 3단계, T82
+# 14절 3단계). build는 두 후보의 validation 음성으로 청취 폴더(번호만 붙은 클립과 index.html)와 그 폴더 밖의
+# 답 열쇠 파일을 만들고, unblind는 청취자가 돌려준 결과 글을 열쇠로 풀어 모델별 선호 수와 '부자연' 표시 수를
+# 센다.
+# [왜 필요한가] 재인식 CER은 자연스러움을 대신하지 못한다(3절 한계). 그래서 후보가 자동 관문을 모두 넘으면
+# 사람이 20문장을 블라인드로 듣고 거부하지 않을 때만 채택하도록 규칙을 정했다. 거부 여부는 듣는 사람이 정하며
+# 수치 기준이 없다.
+# [블라인드 설계] 쌍 순서와 쌍 안의 좌우를 시드로 섞고, 파일 이름에는 번호만 쓰며, 열쇠는 청취 폴더 밖에만
+# 둔다. 두 클립 모두 앞뒤 조용한 부분과 음량을 같은 방법으로 맞춰 길이·크기로 모델을 알아채지 못하게 한다.
+# [실제 사용] T78은 0단계, T82는 1단계에서 후보가 떨어져 이 청취 단계까지 가지 않았다(12·14절). 도구는
+# tests/test_tts_eval.py가 검증한다.
+
 from __future__ import annotations
 
 import argparse
@@ -23,10 +35,13 @@ import wave
 from datetime import UTC, datetime
 from pathlib import Path
 
+# numpy: 프레임 RMS 계산과 음량 조절. 합성 음성 경로(AUDIO)와 문장 읽기는 main에서 eval.tts_eval을 불러 쓴다.
 import numpy as np
 
 from eval.common import REPORTS
 
+# 청취할 20문장 ID. 합성하기 전에 정해 docs/experiments.md 12절에 같은 목록을 적었다. 결과를 보고 문장을
+# 고르지 못하게 하려는 사전 고정이다.
 # The 20 sentences, fixed before any synthesis: random.Random(78).sample of the 129 validation sentence IDs
 # (sorted), then sorted. 8 of them contain digits.
 AB_IDS = (
@@ -51,6 +66,10 @@ AB_IDS = (
     1637,
     1650,
 )
+# SEED: 쌍 순서와 좌우 섞기 시드(12절). TARGET_DBFS: 말소리 프레임 RMS를 맞출 목표 −23dBFS. FLOOR_DBFS: 이보다
+# 조용한 20ms 프레임은 말소리가 아닌 것으로 본다. PAD_S: 앞뒤에 남길 조용한 부분 0.1초. PEAK: 키운 뒤 봉우리가
+# 넘지 않을 상한(찌그러짐 방지).
+# _ANSWER: 청취 페이지가 만드는 결과 한 줄 형식(쌍 번호 두 자리, 선호 1·2·same·none, 부자연 표시 -·1·2·1,2).
 SEED = 7802  # pair order and the side of each model
 TARGET_DBFS = -23.0  # RMS of the frames above the floor, after trimming
 FLOOR_DBFS = -50.0
@@ -59,6 +78,8 @@ PEAK = 0.98
 _ANSWER = re.compile(r"^(\d{2}) pref=(1|2|same|none) bad=(-|1|2|1,2)$")
 
 
+# 16비트 모노 WAV를 -1~1 float 배열과 표본화율로 읽는다. 다른 형식이면 비교 조건이 달라지므로 ValueError로
+# 멈춘다.
 def _read(path: Path) -> tuple[np.ndarray, int]:
     with wave.open(str(path)) as clip:
         if clip.getnchannels() != 1 or clip.getsampwidth() != 2:
@@ -67,6 +88,7 @@ def _read(path: Path) -> tuple[np.ndarray, int]:
         return samples, clip.getframerate()
 
 
+# float 배열을 16비트 모노 WAV로 쓴다(범위를 넘는 값은 잘라 냄).
 def _write(path: Path, samples: np.ndarray, rate: int) -> None:
     buffer = io.BytesIO()
     with wave.open(buffer, "wb") as out:
@@ -77,6 +99,10 @@ def _write(path: Path, samples: np.ndarray, rate: int) -> None:
     path.write_bytes(buffer.getvalue())
 
 
+# 앞뒤 조용한 부분을 0.1초만 남기고 자르고, 말소리 프레임의 RMS를 −23dBFS로 맞춘다(12절 블라인드 A/B 규칙).
+# 입력: 파형, 표본화율. 출력: 맞춘 클립과 적용한 이득(dB, 열쇠에 기록).
+# 말소리 프레임만으로 음량을 재는 것은 문장 사이 쉼의 길이가 평균 음량을 바꾸지 않게 하려는 것이다. 키운 뒤
+# 봉우리가 0.98을 넘으면 이득을 그만큼 줄인다.
 def loudness_match(samples: np.ndarray, rate: int) -> tuple[np.ndarray, float]:
     """Trim lead and tail quiet to PAD_S and scale the speech frames' RMS to TARGET_DBFS (peak kept under
     PEAK), so loudness and silence length do not tell the models apart. Returns the clip and its gain in dB.
@@ -87,6 +113,7 @@ def loudness_match(samples: np.ndarray, rate: int) -> tuple[np.ndarray, float]:
         raise ValueError("the clip is shorter than one frame")
     frames = samples[: count * frame].reshape(count, frame)
     rms = np.sqrt(np.mean(frames**2, axis=1))
+    # −50dBFS보다 큰 20ms 프레임 = 말소리 프레임. 0으로 나누기·log 0을 막으려고 RMS 아래쪽을 1e-12로 자른다.
     active = np.flatnonzero(20 * np.log10(np.maximum(rms, 1e-12)) > FLOOR_DBFS)
     if active.size == 0:
         raise ValueError("the clip is silent")
@@ -103,6 +130,12 @@ def loudness_match(samples: np.ndarray, rate: int) -> tuple[np.ndarray, float]:
     return clip.astype(np.float32), round(float(20 * np.log10(gain)), 2)
 
 
+# 청취 페이지 틀(str.format으로 채움). 중괄호를 두 겹으로 쓴 것은 format이 CSS·JS의 중괄호를 자리표시자로 읽지
+# 않게 하려는 것이다.
+# 페이지 구성: 안내문, 쌍마다 문장·두 플레이어·'더 자연스러운 쪽'·'부자연' 표시, 전체 의견, '결과 만들기'
+# 단추와 결과 글 상자. 선택 상태는 localStorage에 저장해 페이지를 다시 열어도 이어서 할 수 있다(저장이 막힌
+# 브라우저에서도 동작하도록 try로 감쌈). 결과 글은 _ANSWER 형식의 줄들이다. 어두운 화면 설정이면 색 변수를
+# 바꾼다.
 PAGE = """<!doctype html>
 <html lang="ko">
 <head>
@@ -188,6 +221,8 @@ restore();
 </html>
 """
 
+# 쌍 하나의 HTML 틀. 클립 파일 이름은 '번호-좌우'뿐이라 모델 이름이 드러나지 않는다. preload='none'으로 누르기
+# 전에는 음성을 받지 않는다.
 PAIR = """<section>
 <h2>{number}번</h2>
 <p class="text">{text}</p>
@@ -207,6 +242,11 @@ PAIR = """<section>
 </section>"""
 
 
+# 청취 폴더와 답 열쇠를 만들고 열쇠 dict를 돌려준다. 입력: 합성 음성 폴더(data/tts_audio), 실행 태그, 두 후보
+# 이름, 문장 ID, ID → 원문, 청취 폴더, 열쇠 경로, 시드.
+# 열쇠 경로가 청취 폴더 안이면 청취자가 답을 볼 수 있으므로 거부한다. 쌍마다 두 클립의 표본화율이 다르면 소리
+# 차이로 모델이 드러나므로 멈춘다.
+# 열쇠에는 쌍 번호, 문장 ID, 좌우의 모델, 적용한 이득이 들어간다.
 def build(
     audio_root: Path,
     tag: str,
@@ -251,6 +291,10 @@ def build(
     return key
 
 
+# 청취 결과 글을 열쇠로 풀어 요약한다: 모델별 선호 수, 비슷함 수, 답하지 않은 쌍 수(none과 결과에 없는 쌍),
+# 모델별 부자연 표시 수, 전체 의견, 쌍별 풀이.
+# 형식에 맞지 않거나 없는 쌍 번호가 있으면 ValueError로 멈춘다. 잘못 읽은 줄을 조용히 건너뛰면 집계가 틀어지기
+# 때문이다.
 def unblind(key: dict, answers: str) -> dict:
     by_number = {f"{pair['pair']:02d}": pair for pair in key["pairs"]}
     models = (key["a"], key["b"])
@@ -294,6 +338,8 @@ def unblind(key: dict, answers: str) -> dict:
     return summary
 
 
+# 명령줄 진입점. build는 FLEURS 한국어 validation 원문(또는 --sentences-dir로 내보낸 JSON)을 읽어 청취 폴더를
+# 만들고, unblind는 요약을 reports/tts_ab_<tag>_*.json에 쓰고 쌍별 풀이를 뺀 요약을 출력한다.
 def main() -> None:
     parser = argparse.ArgumentParser()
     phases = parser.add_subparsers(dest="phase", required=True)

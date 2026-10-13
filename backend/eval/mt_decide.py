@@ -18,6 +18,16 @@ From backend/ with the eval group:
         --tag t83_contam
 """
 
+# [파일 역할] Hy-MT2 번역 시험의 판단 규칙(docs/experiments.md 15절)을 저장된 측정 결과에 그대로 적용하는
+# 도구. 번역 모델은 돌리지 않는다.
+# [설계 이유] 측정 전에 적은 규칙을 코드로 고정해, 같은 입력이면 언제든 같은 판정을 다시 낼 수 있게 한다.
+# 구간은 재분석(13절)과 같은 짝지은 붓스트랩(eval/significance.py, 10,000번, 시드 12345)을 쓴다.
+# [주요 구성] comet-input(COMET 채점할 문장 모으기) → validation(규칙 (a) 품질·(b) 출력·(c) 지연과 팔 고르기)
+# → typo(영어 오타 교정기를 은퇴시킬지) → vram(규칙 (d) GPU 메모리) → metricx-input·contam(오염 거부권).
+# [연결] 입력은 eval/mt_eval.py·eval/typo_eval.py 리포트, eval/comet_score.py의 COMET-22 점수,
+# eval/metricx_score.py의 MetricX 점수, eval/contam_set.py의 번역 결과. 결과는
+# eval/reports/mt_decide_<태그>_<시각>.json·.md로 남는다. 테스트: tests/test_mt_decide.py.
+
 from __future__ import annotations
 
 import argparse
@@ -25,15 +35,21 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
+# numpy: 문장 점수 배열. eval.significance: 붓스트랩 반복 수·시드, 구간 타입, 평균 차이의 짝지은 구간.
+# sacrebleu(chrF)는 쓰는 함수 안에서 import한다.
 import numpy as np
 
 from eval.common import DATA, REPORTS
 from eval.significance import ROUNDS, SEED, Interval, mean_difference
 
 # The registered comparisons (docs/experiments.md 15). The baseline is the server's setting per direction.
+# BASELINE: 방향별 기준(서버의 현재 설정: 한→영 통째로, 영→한 문장 단위). ARMS: 시험 팔(Q8_0; 영→한은 통째로와
+# 문장 단위 둘). FALLBACK: Q8_0 팔이 지연에서만 떨어졌을 때 대신 재는 Q4_K_M 팔.
 BASELINE = {"ko-en": "opus-mt-tc-big-ko-en", "en-ko": "opus-mt-tc-big-en-ko/split"}
 ARMS = {"ko-en": ["hy-mt2-q8"], "en-ko": ["hy-mt2-q8", "hy-mt2-q8/split"]}
 FALLBACK = {"hy-mt2-q8": "hy-mt2-q4", "hy-mt2-q8/split": "hy-mt2-q4/split"}  # only after a latency-only miss
+# 규칙의 문턱: (b) 다른 문자·설명형 출력 129개 중 1개 이하·빈 출력 0개, (c) 지연 p50 ≤ 0.35초·p95 ≤ 0.8초, (d)
+# 고른 빌드의 메모리 − 대신하는 것 ≤ +512MB.
 MAX_FLAGGED = 1  # (b) other scripts or explanatory outputs, of 129
 MAX_EMPTY = 0
 MAX_P50_S = 0.35  # (c)
@@ -42,18 +58,22 @@ MAX_NET_VRAM_MB = 512  # (d) +0.5 GB against what the pick replaces (MB = MiB, a
 # What opus takes on the GPU, from docs/experiments.md 2 (T3 validation; both loaded after the CUDA context
 # existed, so the numbers are the models alone). The api process keeps its CUDA context for Whisper
 # either way.
+# Hy-MT2가 대신하는 opus 모델의 GPU 메모리(MB, 2절 validation 표의 값). TYPO_MARGIN: Hy-MT2 혼자의 오타 평균
+# chrF가 '교정기 + opus' − 0.5 이상이면 교정기를 은퇴시킨다.
 OPUS_VRAM_MB = {"en-ko": 512, "ko-en": 514}
 TYPO_MARGIN = (
     0.5  # the corrector retires if Hy-MT2 alone reaches (corrector + opus) - 0.5 on the typo average
 )
 
 
+# COMET 점수를 찾는 키. 재분석(eval/reanalysis.py)과 같은 함수를 써서 두 도구의 키가 같게 한다.
 def comet_key(source: str, translation: str, reference: str) -> str:
     from eval.reanalysis import comet_key as key
 
     return key(source, translation, reference)
 
 
+# 구간 객체를 리포트용 dict(점 추정, 하한, 상한, 0을 포함하는지)로 바꾼다.
 def _interval(interval: Interval) -> dict:
     return {
         "point": interval.point,
@@ -63,6 +83,8 @@ def _interval(interval: Interval) -> dict:
     }
 
 
+# 오타 세트(data/typo/<분할>.jsonl)를 id → 행(깨끗한 원문, 참조 등)으로 읽는다. 오타 리포트에는 오타 입력만
+# 있어 깨끗한 원문·참조를 여기서 가져온다.
 def load_typo_rows(split: str) -> dict[int, dict]:
     path = DATA / "typo" / f"{split}.jsonl"
     return {
@@ -73,6 +95,8 @@ def load_typo_rows(split: str) -> dict[int, dict]:
     }
 
 
+# 오타 리포트의 (원문, 번역, 참조) 세 쌍. COMET의 원문은 오타 입력이 아니라 깨끗한 원문이다(참조가 깨끗한
+# 원문의 번역이므로, 13절과 같게).
 def _typo_triples(result: dict, rows: dict[int, dict]) -> list[tuple[str, str, str]]:
     """COMET's source is the clean original (its reference translates that), as in docs/experiments.md 13."""
     source, target = result["direction"].split("-")
@@ -83,6 +107,8 @@ def _typo_triples(result: dict, rows: dict[int, dict]) -> list[tuple[str, str, s
     ]
 
 
+# 여러 리포트에서 COMET으로 채점할 문장을 모은다. 같은 (원문, 번역, 참조)는 키가 같으므로 한 번만 넣어 채점
+# 시간을 아낀다. 오타 리포트(levels가 있음)는 --typo-split으로 원문 세트를 알아야 한다.
 def comet_input(reports: list[Path], typo_split: str | None) -> list[dict]:
     """Unique (source, translation, reference) triples of mt_eval and typo_eval reports, first seen first."""
     rows = load_typo_rows(typo_split) if typo_split else None
@@ -105,6 +131,7 @@ def comet_input(reports: list[Path], typo_split: str | None) -> list[dict]:
     return list(seen.values())
 
 
+# 항목들의 COMET 점수 배열(0~100 눈금으로 ×100). 점수가 빠졌거나 유한하지 않으면 판정을 내지 않고 멈춘다.
 def _comet(comet: dict[str, float], items: list[dict]) -> np.ndarray:
     keys = [comet_key(item["source"], item["hypothesis"], item["reference"]) for item in items]
     missing = [key for key in keys if key not in comet]
@@ -116,6 +143,12 @@ def _comet(comet: dict[str, float], items: list[dict]) -> np.ndarray:
     return values * 100
 
 
+# 한 방향에서 한 팔을 기준과 견준다. 두 실행이 같은 문장을 같은 순서로 가졌는지 먼저 확인한다(짝지은 비교의
+# 전제).
+# chrF 차이는 문장 통계를 다시 더하는 corpus 점수의 짝지은 구간, COMET 차이는 문장 점수 평균의 짝지은
+# 구간이다.
+# (a) 두 구간의 하한이 모두 0보다 큼(두 지표 모두 유의하게 나음), (b) 출력 점검, (c) 지연. latency_only_miss는
+# (a)·(b)는 통과하고 (c)에서만 떨어진 경우로, Q4_K_M 대체 팔을 잴지 정한다.
 def compare(arm: dict, base: dict, comet: dict[str, float], rounds: int = ROUNDS) -> dict:
     """One arm against the baseline in one direction: rules (a), (b) and (c)."""
     from sacrebleu.metrics import CHRF
@@ -155,6 +188,8 @@ def compare(arm: dict, base: dict, comet: dict[str, float], rounds: int = ROUNDS
     }
 
 
+# 모든 규칙을 통과한 팔 중 chrF가 가장 높은 팔. 가장 높은 값과 0.1점 안이면 지연 p50이 짧은 팔을 고른다.
+# 통과한 팔이 없으면 None(opus 유지).
 def pick(arms: dict[str, dict]) -> str | None:
     """The passing arm with the higher chrF; on equal chrF (within 0.1) the faster one."""
     passing = [(name, r) for name, r in arms.items() if r["passes"]]
@@ -165,6 +200,10 @@ def pick(arms: dict[str, dict]) -> str | None:
     return min(close, key=lambda pair: pair[1]["latency_p50"])[0]
 
 
+# 방향마다: 기준 결과를 찾고, 측정된 팔(Q8_0 팔과, 리포트에 있으면 Q4_K_M 팔)을 모두 비교한 뒤 팔을 고른다.
+# 고르는 대상은 Q8_0 팔과, 지연에서만 떨어진 Q8_0 팔을 대신하는 Q4_K_M 팔뿐이다(그 밖의 Q4_K_M 결과는 팔이
+# 아님). 아직 재지 않은 필요한 대체 팔은 fallback_needed로 알려 준다.
+# measured의 기본 인수(direction=direction)는 반복문 변수의 현재 값을 붙잡는다.
 def validation(results: list[dict], comet: dict[str, float], rounds: int = ROUNDS) -> dict:
     by_name = {result["model"]: result for result in results}
     out: dict = {"directions": {}}
@@ -198,6 +237,10 @@ def validation(results: list[dict], comet: dict[str, float], rounds: int = ROUND
     return out
 
 
+# 영→한 오타 판정: 교정기 없는 Hy-MT2(후보 A)와 지금 설정인 교정기 + opus(후보 C)를 같은 오타 세트에서 견준다.
+# 두 리포트의 모든 수준(가벼움·심함·깨끗)이 같은 문장 순서인지 먼저 확인한다.
+# 판정(retire_corrector)은 점 추정 규칙(오타 평균 chrF 차이 ≥ −0.5)이고, 오타 평균·깨끗한 입력의 chrF 차이
+# 구간과 COMET 차이 구간은 함께 적기만 한다(15절).
 def typo(opus: dict, hymt: dict, rows: dict[int, dict], comet: dict[str, float] | None, rounds: int = ROUNDS):
     """Hy-MT2 alone (candidate A with the Hy-MT2 translator) against the corrector with opus (candidate C)."""
     from sacrebleu.metrics import CHRF
@@ -266,6 +309,9 @@ def typo(opus: dict, hymt: dict, rows: dict[int, dict], comet: dict[str, float] 
     return out
 
 
+# (d) GPU 메모리: 고른 팔들의 빌드별 메모리를 합하고(같은 빌드는 한 번, 큰 값으로), 대신하는 것(바꾼 방향의
+# opus, 교정기를 은퇴시키면 교정기)을 빼서 +512MB 이하인지 본다. 고른 팔이 없으면 판정하지 않는다(passes
+# None). 교정기는 영→한을 바꿀 때만 은퇴할 수 있다.
 def vram(decision: dict, typo_decision: dict | None) -> dict:
     """(d): what the picked Hy-MT2 builds take against what they replace. A build (hy-mt2-q8, hy-mt2-q4; the
     whole and sentence-by-sentence arms are one Ollama model) counts once even when it serves both
@@ -294,6 +340,9 @@ def vram(decision: dict, typo_decision: dict | None) -> dict:
     }
 
 
+# 오염 거부권: 고정 세트에서 방향마다 Hy-MT2 − opus의 MetricX 평균 차이와 짝지은 구간을 낸다(영어 문장 →
+# 영→한, 한국어 문장 → 한→영). MetricX는 오류 점수라 구간 전체가 0보다 크면 opus가 뚜렷이 나은 것이고, 그
+# 방향은 거부한다. Hy-MT2가 번역하지 않은 방향은 건너뛴다.
 def contam(frozen: list[dict], outputs: dict, metricx: dict[str, float], rounds: int = ROUNDS) -> dict:
     """MetricX-24 QE (an error score, lower is better) of Hy-MT2 minus opus on the frozen set, per direction.
 
@@ -319,6 +368,8 @@ def contam(frozen: list[dict], outputs: dict, metricx: dict[str, float], rounds:
     return out
 
 
+# eval/contam_set.py가 쓴 번역 결과에서 MetricX 입력 행을 만든다. 키는 "시스템/방향/문장 id"로, contam이 같은
+# 키로 점수를 찾는다.
 def metricx_input(frozen: list[dict], outputs: dict) -> list[dict]:
     """One QE segment per system, direction and sentence, keyed system/direction/id."""
     rows = []
@@ -337,6 +388,7 @@ def metricx_input(frozen: list[dict], outputs: dict) -> list[dict]:
     return rows
 
 
+# 판정 결과를 만든 시각과 붓스트랩 설정(반복 수·시드)과 함께 JSON으로, 사람이 읽을 요약을 마크다운으로 남긴다.
 def _write(name: str, tag: str, result: dict, lines: list[str]) -> Path:
     stamp = datetime.now(UTC)
     result = {"created": stamp.isoformat(timespec="seconds"), "rounds": ROUNDS, "seed": SEED, **result}
@@ -349,10 +401,13 @@ def _write(name: str, tag: str, result: dict, lines: list[str]) -> Path:
     return base
 
 
+# 구간을 "+점 [하한, 상한]" 형식의 문자열로.
 def _fmt(interval: dict) -> str:
     return f"{interval['point']:+.2f} [{interval['low']:+.2f}, {interval['high']:+.2f}]"
 
 
+# validation 판정의 마크다운 표: 팔마다 chrF·차이 구간·COMET 차이 구간·출력 점검·지연·VRAM과 규칙 (a)(b)(c)
+# 통과 여부(O/X), 끝에 방향별로 고른 팔과 필요한 대체 팔.
 def validation_lines(result: dict) -> list[str]:
     lines = [
         "| 방향 | 팔 | chrF (기준) | chrF 차이 [95%] | COMET-22 차이 [95%] | 다른 문자·설명형 / 빈 | "
@@ -378,6 +433,8 @@ def validation_lines(result: dict) -> list[str]:
     return lines
 
 
+# 하위 명령: comet-input / validation / typo / vram / metricx-input / contam. 각 명령은 위 함수에 저장된
+# 리포트를 넣고 결과를 쓰거나(validation·typo·contam) 출력한다(vram·입력 만들기).
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -434,6 +491,7 @@ def main() -> None:
         result["comet_meta"] = comet["meta"]
         _write("validation", args.tag, result, validation_lines(result))
     elif args.command == "typo":
+        # 오타 리포트에서 영→한의 후보 C(교정기 + opus)와 후보 A(Hy-MT2 혼자) 결과만 꺼내 비교한다.
         rows = load_typo_rows(args.split)
         opus = next(r for r in read(args.opus) if r["direction"] == "en-ko" and r["candidate"] == "C")
         hymt = next(r for r in read(args.hymt) if r["direction"] == "en-ko" and r["candidate"] == "A")

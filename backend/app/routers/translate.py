@@ -1,7 +1,19 @@
+# [파일 역할] 번역 HTTP API: 글자 번역(POST /api/translate/text), 음성 번역(POST /api/translate/speech), 두
+# 사람 대화(POST /api/translate/dialog). 성공하면 기록을 저장하고 201과 Location 헤더(/api/history/{id})를
+# 돌려준다.
+# [설계 이유] 실패를 화면이 구분할 수 있게 상황마다 고정된 상태 코드·문구로 바꾼다(docs/api.md '실패했을 때'
+# 표, 문구는 계약). 음성 업로드는 10MB를 넘는 순간 읽기를 멈추도록 multipart 파서를 바꿔 끼워, 큰 파일이
+# 디스크·메모리에 다 쌓이기 전에 413으로 끊는다.
+# [연결] 실제 흐름은 services/pipeline.py, 언어 결정은 services/dialog.py, 모델 호출 스레드는
+# services/inference.py.
+
 import logging
 from contextlib import contextmanager
 from typing import Annotated
 
+# RequestValidationError: 폼 필드의 언어 쌍 검증 실패를 FastAPI 표준 422 형식으로 내려고. APIRoute: 경로
+# 처리기를 감싸 multipart 파서를 바꿔 끼우려고. MultiPartParser·MultiPartException(Starlette)과
+# MultipartParseError(python-multipart): 업로드 크기 제한과 깨진 multipart 처리.
 from fastapi import APIRouter, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute
@@ -28,6 +40,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/translate", tags=["translate"])
 
 
+# with 블록 안에서 난 모델 예외를 API 계약의 HTTP 오류로 바꾼다. 순서가 중요하다:
+# UndecodableAudioError·NoSpeechError는 ModelError의 하위 클래스라 먼저 잡아야 422가 되고, 그 밖의
+# ModelError는 503이 된다. 로그에는 describe()로 종류와 위치만 남긴다.
 @contextmanager
 def failures_as_http():
     """The API's fixed answers for a translation that failed (docs/api.md)."""
@@ -47,6 +62,7 @@ def failures_as_http():
         raise HTTPException(503, "Translation service is unavailable") from exc
 
 
+# 번역(준비+저장)을 실행하고, 만들어진 기록의 주소를 Location 헤더에 넣는다(201 Created의 관례).
 async def execute(response: Response, **kwargs) -> TranslationResponse:
     with failures_as_http():
         result = await pipeline.translate(**kwargs)
@@ -54,6 +70,10 @@ async def execute(response: Response, **kwargs) -> TranslationResponse:
     return result
 
 
+# 글자 번역. TextRequest가 1~500자·NUL·빈 글자·언어 쌍을 먼저 검증한다(422). 영어 입력은 pipeline 안에서 오타
+# 교정을 거칠 수 있다.
+# 이 경로는 아래 router.route_class 지정보다 먼저 등록되므로 일반 APIRoute를 쓴다(JSON 요청이라 multipart
+# 제한이 필요 없다).
 @router.post("/text", status_code=201, response_model=TranslationResponse)
 async def translate_text(
     body: TextRequest,
@@ -75,10 +95,15 @@ async def translate_text(
     )
 
 
+# 업로드가 10MB를 넘었다는 표시. MultiPartException을 상속해 Starlette 파서 안에서 던질 수 있게 하고, 아래에서
+# 다른 multipart 오류(400)와 구분해 413으로 바꾼다.
 class AudioUploadTooLarge(MultiPartException):
     pass
 
 
+# 파일 파트의 바이트를 받는 대로 세다가 10MB를 넘으면 바로 예외를 낸다. Content-Length 헤더만 보면 chunked
+# 전송이나 거짓 헤더를 막지 못하므로, 실제로 들어온 바이트를 센다. 파트가 시작될 때마다 0으로 되돌리고, 파일이
+# 아닌 폼 필드(source_lang 등)는 세지 않는다.
 class LimitedMultipartParser(MultiPartParser):
     """Count file bytes before Starlette spools them, including chunked requests."""
 
@@ -94,6 +119,11 @@ class LimitedMultipartParser(MultiPartParser):
         super().on_part_data(data, start, end)
 
 
+# 이 라우터의 경로 처리기를 감싸, multipart 요청이면 FastAPI가 폼을 읽기 전에 제한된 파서로 먼저 읽는다. 파일
+# 1개·필드 2개까지만 받는다(audio, 언어 필드). 파싱 오류는 400 "Invalid multipart request", 크기 초과는 413.
+# 읽은 폼을 request._form에 넣어 두면 FastAPI의 File/Form 검증이 다시 읽지 않고 그 결과를 쓴다(공개 setter가
+# 없어 내부 속성을 씀). 처리가 끝나면 임시 파일을 닫는다. multipart가 아닌 요청은 그대로 넘겨 FastAPI가 422
+# 등을 내게 한다.
 class LimitedUploadRoute(APIRoute):
     def get_route_handler(self):
         handler = super().get_route_handler()
@@ -124,9 +154,13 @@ class LimitedUploadRoute(APIRoute):
         return limited
 
 
+# 이 줄 뒤에 등록되는 경로(/speech, /dialog)만 위의 제한된 경로 클래스를 쓴다.
 router.route_class = LimitedUploadRoute
 
 
+# 음성 번역. 폼 필드: audio(녹음 파일), source_lang, target_lang. 인식 언어는 source_lang으로 고정한다.
+# 언어 쌍은 폼 필드라 TextRequest처럼 본문 모델로 검증되지 않으므로, LanguagePair를 직접 만들어 검증하고 오류
+# 위치(loc) 앞에 "body"를 붙여 다른 검증 오류와 같은 형식의 422로 낸다.
 @router.post("/speech", status_code=201, response_model=TranslationResponse)
 async def translate_speech(
     response: Response,
@@ -155,6 +189,8 @@ async def translate_speech(
     )
 
 
+# 업로드 파일을 바이트로 읽는다. 위의 파서가 이미 10MB를 막지만, 다른 경로로 만든 UploadFile이 들어와도
+# 안전하도록 크기 확인을 한 번 더 한다(한도 + 1바이트만 읽어 넘었는지 판단).
 async def read_audio(audio: UploadFile) -> bytes:
     # Defense in depth if another caller supplies an already parsed UploadFile.
     if audio.size is not None and audio.size > pipeline.MAX_AUDIO_BYTES:
@@ -165,6 +201,10 @@ async def read_audio(audio: UploadFile) -> bytes:
     return content
 
 
+# 두 사람 대화. 순서: 업로드 읽기 → 언어 판별 기능 확인(없으면 503) → 음성 검사·언어 판별(모델 스레드) → 직전
+# 마디 언어와 문턱으로 처리할 언어 결정 → 그 언어에서 상대 언어로 음성 번역과 같은 흐름 실행.
+# 언어 판별과 번역 안의 인식은 같은 음성을 두 번 모델에 넣는다. 응답에는 확신(소수 셋째 자리까지)과 추측
+# 여부를 더한다.
 @router.post("/dialog", status_code=201, response_model=DialogResponse)
 async def translate_dialog(
     response: Response,

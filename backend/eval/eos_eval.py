@@ -13,6 +13,20 @@ The energy detector E computes what frontend/src/conversation/endpointer.ts comp
 The Silero detector S runs the ONNX file faster-whisper ships, one chunk at a time as a browser would.
 """
 
+# [파일 역할] 대화 모드의 '말 끝 판정'(브라우저가 한 마디가 끝났다고 보는 규칙)을 오프라인으로 재는 측정
+# 도구(docs/experiments.md 7절). run은 판정 방법(E 음량 기준, S Silero VAD) × 쉼 기준(500·700·1000ms) × 잡음
+# 조건마다 잘림·붙음·놓침·헛판정·판정 지연을 재고, server는 실제 서비스에 3초·5초 음성을 보내 응답 시간을
+# 잰다.
+# [설계 이유] 실제 대화 녹음 대신 FLEURS 문장을 한 사람이 이어 말하듯 이어 붙여 세션을 만들고, 기준 말 경계는
+# 두 판정 방법과 무관한 Whisper 단어 시각에서 얻는다. 판정 계산은 브라우저
+# 코드(frontend/src/conversation/endpointer.ts, Silero ONNX 파일)와 같게 옮겨, 오프라인 결과가 브라우저 동작을
+# 대신하게 한다. 측정 결과 Silero VAD 1초 쉼을 골랐다(README: 잘림 2.2~3.1%, 붙음·놓침 0).
+# [흐름] FLEURS 읽기·음량 맞추기(load_clips) → Whisper 단어 시각으로 기준 경계(word_bounds, data/eos/에 캐시)
+# → 세션 만들기(build_sessions) → 잡음 섞기(with_noise) → 프레임별 말소리 표시(energy_flags / Silero.flags) →
+# 쉼 기준별 마디 묶기(group) → 기준과 맞춰 채점(score) → 리포트(write_report).
+# [연결] eval/langid_eval.py와 eval/stream_eval.py가 이 파일의 load_clips, Silero, 상수(RATE, LANGS, SEED)를
+# 가져다 쓴다.
+
 import argparse
 import io
 import json
@@ -25,10 +39,15 @@ import wave
 from datetime import UTC, datetime
 from pathlib import Path
 
+# numpy: 파형·프레임 계산. pyarrow·faster-whisper·onnxruntime은 측정 때만 필요해 쓰는 함수 안에서
+# import한다(마디 묶기·채점 함수는 그런 의존성 없이 테스트된다).
 import numpy as np
 
 from eval.common import DATA, REPORTS
 
+# 세션·잡음 설정. 쉼 기준 후보 500·700·1000ms, 잡음 조건은 잡음 없음(-60dBFS 바닥 잡음만)·SNR 20dB·10dB 분홍
+# 잡음. 세션은 10문장, 문장 사이 쉼은 1.5~3.0초 무작위, 맨 앞 1초 쉼(E의 잡음 수준 측정용). SEED는 분할마다
+# 고정해 다시 돌려도 같은 세션이 나온다(validation 17, test 31).
 RATE = 16000
 LANGS = {"en": "en_us", "ko": "ko_kr"}
 SILENCES_MS = (500, 700, 1000)
@@ -41,6 +60,12 @@ LEAD_S = 1.0  # silence before the first utterance, for the energy detector's no
 SEED = {"validation": 17, "test": 31}
 BOUNDS = DATA / "eos"
 
+# E(음량 기준) 매개변수: 20ms 프레임, 처음 25프레임(0.5초)으로 잡음 수준을 잼, 잡음보다 10dB 넘게 크면 말소리,
+# 조용한 프레임으로 잡음 수준을 5%씩 갱신, 말소리 3프레임(60ms) 연속이면 시작.
+# S(Silero VAD v6) 매개변수: 512표본(32ms) 조각, 앞 64표본 문맥, 확률 0.5 이상이면 말소리, 2조각(64ms)
+# 연속이면 시작.
+# 공통: 마디 앞 200ms를 함께 보내고, 말소리 합이 250ms 미만인 덩어리(기침·짧은 잡음)는 버리고, 앞 200ms를
+# 포함해 29초가 되면 강제로 끊는다(서버의 30초 제한 안).
 # E: energy detector (endpointer.ts)
 E_FRAME = 320  # 20 ms
 E_CALIBRATION_FRAMES = 25  # only calibrate; their median starts the noise level
@@ -59,12 +84,16 @@ MIN_SPEECH_MS = 250
 MAX_CLIP_MS = 29_000  # including the pre-roll, as endpointer.ts counts it
 
 
+# 프레임마다 RMS를 dB로(20·log10(RMS + 1e-10)). 1e-10은 완전한 무음에서 log(0)을 피한다. 끝의 남는 표본은
+# 버린다.
 def frame_db(audio: np.ndarray, frame: int) -> np.ndarray:
     count = len(audio) // frame
     frames = audio[: count * frame].reshape(count, frame).astype(np.float64)
     return 20 * np.log10(np.sqrt((frames**2).mean(axis=1)) + 1e-10)
 
 
+# 분홍 잡음(1/f): 흰 잡음의 스펙트럼을 주파수의 제곱근으로 나눠(전력이 1/f) 만든 뒤 RMS가 1이 되게 맞춘다.
+# 0Hz에서 0으로 나누지 않도록 첫 주파수를 다음 값으로 바꾼다.
 def pink_noise(samples: int, rng: np.random.Generator) -> np.ndarray:
     spectrum = np.fft.rfft(rng.standard_normal(samples))
     freqs = np.fft.rfftfreq(samples)
@@ -73,6 +102,8 @@ def pink_noise(samples: int, rng: np.random.Generator) -> np.ndarray:
     return (noise / np.sqrt((noise**2).mean())).astype(np.float32)
 
 
+# FLEURS 녹음을 16kHz로 풀고, 가장 큰 20ms 프레임이 -20dBFS가 되도록 음량을 맞춘다(브라우저 자동 음량 조절
+# 대신). 같은 문장을 여러 사람이 읽으므로 키에 parquet 행 번호를 붙여 녹음마다 구분한다.
 def load_clips(lang: str, split: str) -> list[tuple[str, np.ndarray]]:
     """(key, clip) with the key "<parquet row>-<FLEURS id>": the same sentence is read by several people."""
     # Imported here: it needs the eval group (pyarrow), the grouping and the metrics don't.
@@ -88,6 +119,8 @@ def load_clips(lang: str, split: str) -> list[tuple[str, np.ndarray]]:
     return clips
 
 
+# 기준 말 경계(표본 단위): 첫 단어 시작 ~ 마지막 단어 끝. 한 번 계산하면 data/eos/<분할>_<언어>.json에 저장해
+# 다시 쓴다(GPU 시간 절약). 단어가 없으면 None이고 그 녹음은 세션에서 뺀다.
 def word_bounds(clips: list[tuple[str, np.ndarray]], lang: str, split: str) -> dict[str, list[int] | None]:
     """Reference speech bounds in samples: Whisper's first word start to last word end, or None without words.
 
@@ -119,6 +152,8 @@ def word_bounds(clips: list[tuple[str, np.ndarray]], lang: str, split: str) -> d
     return bounds
 
 
+# 단어가 있는 녹음을 고정 시드로 섞어 10개씩 묶고, 맨 앞 1초 쉼 + (녹음 + 무작위 쉼)을 이어 붙인 트랙을
+# 만든다. 각 녹음의 기준 경계는 트랙 안의 위치(cursor)로 옮겨 적는다. 10개가 안 되는 나머지는 버린다.
 def build_sessions(clips, bounds: dict, split: str, lang: str) -> list[dict]:
     """Each session: one float32 track and the reference speech bounds of its utterances (samples)."""
     usable = [(key, clip) for key, clip in clips if bounds.get(key)]
@@ -139,6 +174,8 @@ def build_sessions(clips, bounds: dict, split: str, lang: str) -> list[dict]:
     return sessions
 
 
+# 트랙에 분홍 잡음을 더한다. 잡음 없음 조건도 -60dBFS 바닥 잡음을 깐다(실제 마이크는 완전한 0을 내지 않음).
+# SNR 조건은 기준 말소리 구간의 RMS를 기준으로 잡음 크기를 정한다.
 def with_noise(session: dict, snr_db: float | None, seed: int) -> np.ndarray:
     track = session["track"]
     noise = pink_noise(len(track), np.random.default_rng(seed))
@@ -150,6 +187,8 @@ def with_noise(session: dict, snr_db: float | None, seed: int) -> np.ndarray:
     return (track + noise * level).astype(np.float32)
 
 
+# E의 프레임별 말소리 표시. 처음 25프레임의 중앙값으로 잡음 수준을 시작하고, 말소리가 아닌 프레임에서만 지수
+# 이동 평균으로 잡음 수준을 갱신한다(말소리가 잡음 수준을 끌어올리지 않게).
 def energy_flags(audio: np.ndarray) -> np.ndarray:
     """E: speech frames as endpointer.ts decides them. Calibration frames are never speech."""
     db = frame_db(audio, E_FRAME)
@@ -163,6 +202,8 @@ def energy_flags(audio: np.ndarray) -> np.ndarray:
     return flags
 
 
+# faster-whisper에 들어 있는 Silero VAD v6 ONNX 파일을 CPU에서 스레드 하나로 돌린다. 대화 모드는 같은 파일을
+# 브라우저에서 onnxruntime-web으로 돌린다(README).
 class Silero:
     def __init__(self) -> None:
         import faster_whisper
@@ -173,6 +214,8 @@ class Silero:
         path = Path(faster_whisper.__file__).parent / "assets" / "silero_vad_v6.onnx"
         self.session = onnxruntime.InferenceSession(str(path), options, providers=["CPUExecutionProvider"])
 
+    # 브라우저 스트리밍처럼 512표본씩: 앞 조각의 끝 64표본을 문맥으로 붙이고, LSTM 상태(h, c)를 다음 조각으로
+    # 넘긴다. 조각마다 말소리 확률을 구해 0.5 이상이면 말소리로 표시한다.
     def flags(self, audio: np.ndarray) -> np.ndarray:
         """S: one 512-sample chunk at a time, with the previous 64 samples and the carried state."""
         h = np.zeros((1, 1, 128), np.float32)
@@ -189,6 +232,11 @@ class Silero:
         return probs >= S_THRESHOLD
 
 
+# 프레임별 표시를 브라우저와 같은 규칙으로 마디로 묶는다(쉼 기준만 바꿔 여러 번 부를 수 있게 표시와 분리했다).
+# 시작: 말소리가 start_frames만큼 연속이면 그 첫 프레임에서 시작(앞 200ms는 있는 만큼). 진행: 말소리면 quiet를
+# 0으로, 아니면 늘린다. 끝: 조용함이 쉼 기준에 닿거나 앞 200ms 포함 29초가 되면 끝. 말소리 합이 250ms 이상일
+# 때만 마디로 남긴다.
+# 결과의 end는 말소리 구간의 끝(쉼이 시작된 프레임, 강제로 끊었으면 그 프레임), decided는 판정이 난 시각이다.
 def group(flags: np.ndarray, frame: int, silence_ms: int, start_frames: int) -> list[dict]:
     """Utterances as the browser cuts them: speech span (first speech frame to first quiet frame) and the
     sample at which the end was decided, in samples."""
@@ -220,6 +268,10 @@ def group(flags: np.ndarray, frame: int, silence_ms: int, start_frames: int) -> 
     return utterances
 
 
+# 판정 마디와 기준 경계가 겹치면 대응한다. found: 기준마다 겹친 판정들, covers: 판정마다 겹친 기준 수.
+# 잘림 = 판정 둘 이상과 겹친 기준, 놓침 = 겹친 판정이 없는 기준, 붙음 = 한 판정이 기준 여러 개를 덮은 이웃 쌍
+# 수, 헛판정 = 어떤 기준과도 겹치지 않는 판정. 판정 지연(ms)은 잘리지도 붙지도 않은(1:1로 대응한) 문장에서만
+# 판정 시각 − 기준 끝으로 잰다.
 def score(utterances: list[dict], refs: list[tuple[int, int]]) -> dict:
     found = [[u for u in utterances if u["start"] < end and u["end"] > start] for start, end in refs]
     covers = [sum(1 for start, end in refs if u["start"] < end and u["end"] > start) for u in utterances]
@@ -238,6 +290,9 @@ def score(utterances: list[dict], refs: list[tuple[int, int]]) -> dict:
     }
 
 
+# 오프라인 측정 본체. 말소리 표시는 쉼 기준과 상관없으므로 세션·조건·판정 방법마다 한 번만 계산하고, 쉼
+# 기준마다 group·score만 다시 한다(위 docstring). 결과는 (방법, 쉼, 조건, 언어)마다 합산한다(지연은 목록으로
+# 이어 붙임).
 def run(args: argparse.Namespace) -> None:
     silero = Silero()
     detectors = {"E": (energy_flags, E_FRAME, E_START_FRAMES), "S": (silero.flags, S_CHUNK, S_START_FRAMES)}
@@ -270,6 +325,8 @@ def run(args: argparse.Namespace) -> None:
     write_report(totals, dropped, args)
 
 
+# 합산 결과를 비율로 바꿔 JSON과 마크다운 표(eval/reports/eos_<태그>_<시각>)로 남긴다. 잘림 비율 = 잘린 문장 ÷
+# 문장, 붙음 비율 = 붙은 쌍 ÷ 이웃 쌍, 헛판정은 마디 사이 쉼 1분당.
 def write_report(totals: dict, dropped: dict, args: argparse.Namespace) -> None:
     rows = []
     for (name, silence, condition, lang), t in sorted(totals.items()):
@@ -314,6 +371,7 @@ def write_report(totals: dict, dropped: dict, args: argparse.Namespace) -> None:
     print(f"written to {base.with_suffix('.md')}")
 
 
+# server 측정에서 보낼 16비트 모노 WAV(범위를 넘는 표본은 잘라 냄).
 def wav_bytes(audio: np.ndarray) -> bytes:
     buffer = io.BytesIO()
     with wave.open(buffer, "wb") as out:
@@ -324,6 +382,9 @@ def wav_bytes(audio: np.ndarray) -> bytes:
     return buffer.getvalue()
 
 
+# 실제 서비스(docker compose, 기본 8080) 응답 시간 측정. 임시 계정을 만들어 로그인하고, 언어마다 무작위
+# 30문장의 '말 시작 200ms 앞 ~ 3초·5초'를 음성 번역 API에 보내 201까지 걸린 벽시계 시간의 중앙값을 남긴다.
+# 비밀번호는 임의로 만들고 어디에도 저장하지 않으며, 리포트에는 계정 이름의 앞부분만 남긴다.
 def server(args: argparse.Namespace) -> None:
     """Server response time for conversation-length speech: the first 3 s and 5 s of an utterance's speech,
     with the 200 ms before it, through the composed service. Creates a throwaway account (not stored)."""
@@ -365,6 +426,8 @@ def server(args: argparse.Namespace) -> None:
     print(f"written to {path}")
 
 
+# 하위 명령 run / server. 둘 다 분할·언어·태그를 받고, run은 판정 방법과 쉼 기준을 고를 수 있다(test에는 고른
+# 조합만 적용, docs/experiments.md 7절).
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter

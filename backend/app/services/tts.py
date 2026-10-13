@@ -5,6 +5,16 @@ mono PCM WAV (docs/api.md). Model libraries are imported inside the constructors
 module needs none of them.
 """
 
+# [파일 역할] 음성 합성(TTS) 구현 모음. 서비스가 쓰는 것은 한국어 MeloTTS, 영어 Kokoro-82M과 언어별
+# 라우터(LanguageTextToSpeech)이고, MMS-TTS는 측정 후보, Supertonic 3은 비교용 설정이다(docs/experiments.md
+# 3·12·14절).
+# [설계 이유] 모든 구현이 같은 형식(16비트 모노 PCM WAV)을 돌려줘 API·저장·화면 재생이 모델과 상관없게 한다.
+# 모델 라이브러리는 생성자 안에서 import해, 의존성이 서로 충돌하는 후보(예: MeloTTS는 transformers 4.27
+# 고정)를 각자 환경에서 측정할 수 있고, tts 그룹을 설치하지 않은 환경에서도 이 모듈을 불러올 수 있다.
+# Windows에서만 필요한 작은 우회 두 가지가 들어 있다(README 알려진 한계).
+# [연결] services/models.load_speech_synthesis가 서비스용 합성기를 만들고, eval/tts_candidates.py가 측정
+# 후보로 쓴다.
+
 from __future__ import annotations
 
 import io
@@ -16,15 +26,21 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TypeVar
 
+# numpy: 모델이 내는 float 파형을 16비트 정수 PCM으로 바꾼다.
 import numpy as np
 
 from app.services.interfaces import Language, ModelError, SynthesizedAudio, TextToSpeech
 
 T = TypeVar("T")
+# MMS 후보의 Hugging Face 저장소 이름과 MeloTTS의 (언어 코드, 화자). 측정에서 언어마다 화자 하나로
+# 정했다(docs/experiments.md 3절: MeloTTS는 KR·EN-US).
 MMS_REPOS = {"ko": "facebook/mms-tts-kor", "en": "facebook/mms-tts-eng"}
 MELO_VOICES = {"ko": ("KR", "KR"), "en": ("EN", "EN-US")}  # language code and speaker in MeloTTS
 
 
+# float 파형(-1~1)을 WAV 파일 바이트로 감싼다. 범위를 넘는 표본은 잘라(clip) 정수 변환 때 넘침으로 소리가
+# 깨지지 않게 하고, 32767을 곱해 little-endian 16비트로 바꾼다. 빈 파형은 실패로 본다. 길이(ms)는 표본 수 ÷
+# 표본 추출률로 계산한다.
 def wav_bytes(samples: np.ndarray, sample_rate: int) -> SynthesizedAudio:
     """Float samples in [-1, 1] to a 16-bit mono PCM WAV file."""
     samples = np.asarray(samples, dtype=np.float32).reshape(-1)
@@ -41,6 +57,8 @@ def wav_bytes(samples: np.ndarray, sample_rate: int) -> SynthesizedAudio:
     return SynthesizedAudio(wav=buffer.getvalue(), sample_rate=sample_rate, duration_ms=duration_ms)
 
 
+# 합성 모델 경계: 어떤 예외든 ModelError로 바꾼다. 파이프라인은 ModelError를 잡아 번역은 돌려주고 tts_error만
+# 채운다. 오류 메시지에는 예외 종류만 넣어 번역문이 섞이지 않게 한다.
 def _guarded(run: Callable[[], T]) -> T:
     """Any failure inside the model (CUDA errors, text front-end errors) becomes a ModelError."""
     try:
@@ -51,6 +69,7 @@ def _guarded(run: Callable[[], T]) -> T:
         raise ModelError(f"the speech synthesis model failed: {type(exc).__name__}") from exc
 
 
+# 이 모델이 다루지 않는 언어이거나 빈 글이면 ModelError.
 def _check_text(text: str, language: Language, languages: tuple[Language, ...]) -> None:
     if language not in languages:
         raise ModelError(f"this model does not speak {language}")
@@ -58,6 +77,8 @@ def _check_text(text: str, language: Language, languages: tuple[Language, ...]) 
         raise ModelError("text is empty")
 
 
+# 측정 후보(서비스에서 쓰지 않음, 비상업 라이선스). 토크나이저가 uroman을 요구하는 모델(한국어)이면 입력을
+# 로마자로 바꾼 뒤 넣는다. torch.no_grad()로 추론만 해 기울기 계산 메모리를 쓰지 않는다.
 class MmsTextToSpeech:
     """Meta's MMS-TTS (VITS), one model per language. CC-BY-NC-4.0.
 
@@ -92,6 +113,9 @@ class MmsTextToSpeech:
         return wav_bytes(_guarded(run), self._model.config.sampling_rate)
 
 
+# Windows에서 MeloTTS를 import하기 전에 부른다. Linux(Docker)에서는 아무것도 하지 않는다. 일본어 모듈을 빈
+# 모듈로 바꿔 끼우되 영어 처리가 쓰는 distribute_phone 하나만 복사해 넣고, g2pkk의 형태소 분석기 확인·생성을
+# python-mecab-ko로 바꾼다(monkeypatch).
 def _prepare_melo_on_windows() -> None:
     """Work around two MeloTTS import problems on Windows (docs/experiments.md, T4 candidates).
 
@@ -121,6 +145,8 @@ def _prepare_melo_on_windows() -> None:
     g2pkk.g2pkk.G2p.get_mecab = lambda self: mecab.MeCab()
 
 
+# 서비스의 한국어 합성(측정으로 고름, README: 재인식 한국어 CER 5.58%). tts_to_file에 출력 경로 None을 주면
+# 파일을 쓰지 않고 파형 배열을 돌려준다. speed=1.0은 기본 말 속도, quiet=True는 진행 출력을 끈다.
 class MeloTextToSpeech:
     """MeloTTS, one model per language. MIT. Pins transformers 4.27, so it needs its own environment."""
 
@@ -141,6 +167,9 @@ class MeloTextToSpeech:
         return wav_bytes(audio, self._sample_rate)
 
 
+# Windows에서 Kokoro를 올리기 전에 부른다. 이 프로젝트 폴더처럼 경로에 한글이 있으면 espeak-ng가 프로세스를
+# 통째로 끝내 버리므로, 작업 폴더를 데이터 폴더의 부모로 옮기고 상대 경로(ASCII)만 넘긴다. 사용자가
+# ESPEAK_DATA_PATH를 이미 정했으면 건드리지 않는다.
 def _espeak_data_on_windows() -> None:
     """Kokoro's English front end falls back to espeak-ng, whose bundled library cannot open a data path
     with non-ASCII characters on Windows, and ends the whole process when it tries. When the data sits
@@ -159,6 +188,8 @@ def _espeak_data_on_windows() -> None:
     os.environ["ESPEAK_DATA_PATH"] = data.name
 
 
+# 서비스의 영어 합성(README: 재인식 영어 WER 3.91%). lang_code="a"는 Kokoro의 미국 영어, 목소리는 af_heart.
+# 파이프라인이 글을 조각내 조각마다 파형을 내므로 이어 붙이고, 표본 추출률은 Kokoro의 24kHz로 고정한다.
 class KokoroTextToSpeech:
     """Kokoro-82M, English only. Apache-2.0. See _espeak_data_on_windows for its one Windows workaround."""
 
@@ -183,6 +214,10 @@ class KokoroTextToSpeech:
         return wav_bytes(_guarded(run), 24_000)
 
 
+# 비교용 설정(KO_TTS=supertonic). 실제 ONNX 추론은 services/supertonic.SupertonicEngine이 맡고, 이 클래스는
+# TextToSpeech 인터페이스와 WAV 변환만 맡는다. engine을 직접 넘길 수 있어 테스트가 가짜 엔진을 끼운다.
+# model_name에 단계 수와 GPU 여부를 넣어 기록과 /api/health에서 어떤 설정으로 합성했는지 구분한다. providers는
+# 세션별로 실제로 올라간 ONNX Runtime 제공자 목록이다(측정 기록용).
 class SupertonicTextToSpeech:
     """Supertonic 3 (Supertone) on ONNX Runtime: the CPU provider uses no GPU memory (T78, docs/experiments.md
     12); the CUDA provider is a trial that needs the onnxruntime-gpu package (T82, docs/experiments.md 14).
@@ -226,6 +261,8 @@ class SupertonicTextToSpeech:
         return wav_bytes(audio, self._engine.sample_rate)
 
 
+# 언어마다 다른 합성기로 보내는 라우터(한국어 MeloTTS, 영어 Kokoro). model_name은 "ko: ..., en: ..." 형태로
+# 기록과 /api/health에 나간다. 등록되지 않은 언어면 ModelError.
 class LanguageTextToSpeech:
     """Routes each language to its own model, since the best model may differ by language."""
 

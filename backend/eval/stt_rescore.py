@@ -8,6 +8,15 @@ normalized reference and hypothesis, and normalizing is idempotent apart from th
 (Korean apostrophes), so normalizing them again gives the corrected text without running the models.
 """
 
+# [파일 역할] 저장된 음성 인식 보고서(eval/stt_eval.py의 JSON)에 지금의 정규화(eval/text_norm.py)를 다시
+# 적용해 오류율만 다시 계산하는 스크립트다(T15). 원래 보고서는 그대로 두고 <원래 이름>_rescored.json·.md를
+# 옆에 쓴다.
+# [왜 필요한가] T15에서 한국어 아포스트로피 정규화를 고쳤을 때, 모델을 다시 돌리면 GPU 시간이 들고 결과가
+# 실행마다 조금씩 흔들릴 수 있다. 보고서에는 이미 정규화된 정답·인식 결과가 남아 있고 정규화는 다시 적용해도
+# 고친 부분 말고는 바뀌지 않으므로, 저장된 글에 새 정규화만 다시 적용하면 모델 없이 보정된 값을
+# 얻는다(docs/experiments.md 1절 보정 표).
+# [연결] 결과 파일(stt_t2_*_rescored)은 eval/reanalysis.py(T80)가 T2 비교의 입력으로 쓴다.
+
 from __future__ import annotations
 
 import argparse
@@ -16,10 +25,14 @@ import statistics
 from datetime import UTC, datetime
 from pathlib import Path
 
+# 오류율 계산(전체 합산 CER·WER)과 정규화는 원래 측정과 같은 함수를 쓴다.
 from eval.stt_eval import error_rate
 from eval.text_norm import normalize
 
 
+# 보고서의 모든 모델·언어·발화에 정규화를 다시 적용하고, 발화별 오류율과 언어별 전체 합산 오류율을 다시
+# 계산한다. 이전 값은 error_before_rescore로 남겨 보고서에 '전 → 후'로 적는다. 입력 dict를 직접 고쳐서
+# 돌려준다.
 def rescore(results: list[dict]) -> list[dict]:
     for result in results:
         for language, values in result["languages"].items():
@@ -36,6 +49,8 @@ def rescore(results: list[dict]) -> list[dict]:
     return results
 
 
+# 명령줄 진입점. 보고서 경로를 받아 _rescored.json과 '모델별 한국어 CER·영어 WER 전 → 후, 두 언어 평균' 표를
+# 담은 .md를 쓴다.
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("report", type=Path, help="a stt_*.json report written by eval.stt_eval")
@@ -63,6 +78,7 @@ def main() -> None:
             else "-"
             for language in ("ko", "en")
         ]
+        # 선택 규칙에 쓰는 (한국어 CER + 영어 WER) / 2 평균을 보정 뒤 값으로 다시 낸다.
         mean = statistics.mean(values["error"] for values in by_language.values())
         lines.append(f"| {result['model']} | {cells[0]} | {cells[1]} | {mean:.2%} |")
     report = base.with_suffix(".md")

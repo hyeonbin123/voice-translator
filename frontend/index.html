@@ -1,13 +1,26 @@
 <!doctype html>
+<!-- [파일 역할] 화면 전체의 유일한 HTML 페이지(단일 페이지 앱). 내용은 비어 있고, React가 아래 #root 안에 -->
+<!-- 번역·기록·로그인 화면을 그린다. -->
+<!-- [연결] Vite 개발 서버는 이 파일을 그대로 내주고, `npm run build`는 script 경로를 해시가 붙은 번들 -->
+<!-- 파일로 바꾼 dist/index.html을 만든다. 배포에서는 nginx가 /assets/ 밖의 모든 경로(/history 등)에 이 -->
+<!-- 파일을 돌려줘 화면 경로 처리를 React Router에 맡긴다(frontend/nginx.conf). -->
+<!-- lang="ko": 화면 문구가 한국어라 스크린리더가 한국어로 읽게 하고, 접근성 검사(axe, npm run -->
+<!-- test:a11y)의 문서 언어 규칙도 만족시킨다. -->
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
+    <!-- 탭 아이콘. public/favicon.svg는 빌드할 때 그대로 dist 루트로 복사된다. -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- 휴대폰에서 화면 폭을 기기 폭에 맞춘다. 이것이 없으면 모바일 브라우저가 넓은 가상 폭으로 그린 뒤 -->
+    <!-- 축소해 보여 줘서, 360px 같은 좁은 화면용 배치가 적용되지 않는다. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>voice-translator</title>
   </head>
   <body>
+    <!-- React가 화면을 그리는 자리. src/main.tsx가 이 요소에 createRoot로 App을 붙인다. -->
     <div id="root"></div>
+    <!-- 진입 스크립트. 개발 중에는 Vite가 TSX를 브라우저에서 바로 쓸 수 있게 변환해 주고, 빌드 때는 이 -->
+    <!-- 줄이 번들 파일 경로로 바뀐다. -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

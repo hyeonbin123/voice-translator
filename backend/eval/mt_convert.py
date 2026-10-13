@@ -11,6 +11,15 @@ Writes data/models/ct2/<name> (git-ignored). The server itself needs only ctrans
   keep one, so most Korean pieces become <unk>.
 """
 
+# [파일 역할] 번역 후보 seq2seq 모델을 CTranslate2 형식(float16)으로 바꿔 data/models/ct2/<이름>에 두는 일회성
+# 변환 스크립트. 바꾼 뒤 토큰화가 원래와 같은지 FLEURS 문장으로 확인한다.
+# [설계 이유] 서버는 음성 인식과 같은 엔진(CTranslate2)으로 번역해 transformers·torch 없이 ctranslate2와
+# sentencepiece만으로 돈다. tc-big은 Hugging Face 변환본의 어휘가 깨져 있어(한국어 조각 대부분이 <unk>)
+# Helsinki의 원본 MarianNMT 배포본(각 약 740MB)을 받아 바꾼다(위 docstring, README '전체 실행').
+# [연결] README의 첫 실행 준비 단계에서 `uv run python -m eval.mt_convert --models opus-mt-tc-big-ko-en
+# opus-mt-tc-big-en-ko`로 부른다. 결과 폴더는 서버(services/models.load_translation, CT2_DIR)와
+# eval/mt_eval.py가 읽는다.
+
 from __future__ import annotations
 
 import argparse
@@ -19,12 +28,15 @@ import shutil
 import zipfile
 from pathlib import Path
 
+# ctranslate2: 변환기(TransformersConverter, MarianConverter). pyarrow: FLEURS parquet에서 확인용 문장을 읽음.
+# huggingface_hub·transformers: Hugging Face 모델을 받고, 원래 토크나이저와 비교한다(eval 의존성 그룹).
 import ctranslate2
 import httpx
 import pyarrow.parquet as pq
 from huggingface_hub import snapshot_download
 from transformers import AutoTokenizer
 
+# 서버와 같은 토큰화 함수를 가져와, 서버가 실제로 만드는 토큰을 검사한다.
 from app.services.translation import (
     NLLB_CODES,
     load_sentencepiece,
@@ -34,6 +46,8 @@ from app.services.translation import (
 )
 from eval.common import DATA, FLEURS_CONFIG, MODELS
 
+# HF_MODELS: Hugging Face 저장소에서 바로 바꾸는 후보(opus-mt-ko-en, NLLB). OPUS_RELEASE·OPUS_MODELS: tc-big
+# 원본 배포본 주소와 언어 쌍(원문·번역문 어휘를 따로 쓰는 sepvoc 모델).
 # name: (Hugging Face repo, files kept next to the converted model, source language or None for NLLB)
 HF_MODELS = {
     "opus-mt-ko-en": ("Helsinki-NLP/opus-mt-ko-en", ["source.spm", "target.spm"], "ko"),
@@ -44,12 +58,16 @@ OPUS_RELEASE = "https://object.pouta.csc.fi/Tatoeba-MT-models/{pair}/opusTCv2021
 OPUS_MODELS = {"opus-mt-tc-big-ko-en": ("kor-eng", "ko"), "opus-mt-tc-big-en-ko": ("eng-kor", "en")}
 
 
+# 확인용 문장: FLEURS validation의 원문을 문장 id마다 하나씩(같은 문장의 여러 녹음은 같은 원문이라 dict로 중복
+# 제거). FLEURS를 먼저 받아 둬야 한다(eval.fleurs_download).
 def sentences(language: str) -> list[str]:
     path = DATA / "fleurs" / FLEURS_CONFIG[language] / "validation.parquet"
     rows = pq.read_table(path, columns=["id", "raw_transcription"]).to_pylist()
     return list({row["id"]: row["raw_transcription"] for row in rows}.values())
 
 
+# 변환된 모델의 원문 어휘. 어휘를 나눈 모델은 source_vocabulary.json, 하나를 공유하는 모델은
+# shared_vocabulary.json에 있다.
 def source_vocabulary(model_dir: Path) -> set[str]:
     for name in ("source_vocabulary.json", "shared_vocabulary.json"):
         if (model_dir / name).exists():
@@ -57,6 +75,9 @@ def source_vocabulary(model_dir: Path) -> set[str]:
     raise FileNotFoundError(f"no vocabulary in {model_dir}")
 
 
+# 우리 토큰화(app/services/translation.py)가 Hugging Face 토크나이저와 같은지 모든 문장에서 비교해 다른 문장
+# 수를 돌려준다. Hugging Face 쪽은 어휘에 없는 조각을 <unk>로 바꿔 내므로, 우리 쪽도 변환된 어휘에 없는 조각을
+# <unk>로 바꾼 뒤 비교한다. opus-mt는 한 방향(source), NLLB는 두 언어 모두 본다.
 def check_hf_tokens(name: str, snapshot: str, output: Path, source: str | None) -> str:
     """CTranslate2 maps pieces missing from the vocabulary to <unk>, so compare after that step."""
     vocabulary = source_vocabulary(output)
@@ -80,6 +101,7 @@ def check_hf_tokens(name: str, snapshot: str, output: Path, source: str | None) 
     return f"{name}: tokens differ from the Hugging Face tokenizer in {mismatches}/{total} sentences"
 
 
+# Hugging Face 저장소를 받아 float16으로 바꾸고, 토크나이저 파일(copy_files)을 옆에 복사한 뒤 토큰을 확인한다.
 def convert_hf(name: str, output: Path) -> str:
     repo, files, source = HF_MODELS[name]
     snapshot = snapshot_download(repo)
@@ -89,6 +111,8 @@ def convert_hf(name: str, output: Path) -> str:
     return check_hf_tokens(name, snapshot, output, source)
 
 
+# 배포본의 어휘 파일(한 줄에 토큰 하나, 줄 번호가 색인)을 MarianConverter가 읽는 YAML("토큰": 번호) 형식으로
+# 바꾼다. 역슬래시와 큰따옴표는 YAML 문자열 안에서 이스케이프한다. 마지막 빈 줄은 토큰이 아니므로 뺀다.
 def write_yaml_vocabulary(plain: Path, target: Path) -> None:
     """The releases list one token per line (index = line number); the converter reads Marian's YAML form."""
     tokens = plain.read_text(encoding="utf-8").split("\n")
@@ -98,6 +122,10 @@ def write_yaml_vocabulary(plain: Path, target: Path) -> None:
     target.write_text("".join(f'"{token}": {i}\n' for i, token in enumerate(escaped)), encoding="utf-8")
 
 
+# tc-big 변환: 배포본 zip을 (없으면) 받고 풀어서 → 원문·번역문 어휘를 YAML로 바꾸고 → 가장 좋은
+# 체크포인트(*.best-perplexity.npz)를 MarianConverter로 바꾸고 → SentencePiece 모델 두 개를 옆에 복사한다.
+# 마지막으로 FLEURS 문장의 원문 조각 중 어휘에 없는 조각 수를 센다(docs/experiments.md 2절: 한→영 3262개 중
+# 2개, 영→한 3973개 중 1개였다).
 def convert_opus(name: str, output: Path) -> str:
     pair, source = OPUS_MODELS[name]
     archive = MODELS / "opus" / f"{pair}-tc-big.zip"
@@ -131,6 +159,8 @@ def convert_opus(name: str, output: Path) -> str:
     return f"{name}: {missing}/{len(pieces)} source pieces are missing from the vocabulary"
 
 
+# 고른 모델마다 변환한다. 이미 있으면 --force가 없는 한 건너뛰고, 다시 할 때는 이전 결과 폴더를 지우고
+# 처음부터 바꾼다.
 def main() -> None:
     names = [*HF_MODELS, *OPUS_MODELS]
     parser = argparse.ArgumentParser()

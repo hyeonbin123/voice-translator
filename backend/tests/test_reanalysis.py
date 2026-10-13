@@ -4,6 +4,14 @@ It scores with sacrebleu and jiwer from the eval group, which CI's plain test st
 its own adds the two and runs this module (T88).
 """
 
+# [파일 역할] 기록된 번역·음성 인식 결정의 재분석 도구 eval/reanalysis.py(docs/experiments.md 13절)를
+# 검증한다. 저장된 보고서를 제대로 읽는지(관문 check), 비교 목록과 문턱이 측정 전에 적은 대로인지, COMET-22
+# 채점 목록·정밀도 점검·보고서 쓰기가 맞는지 확인한다. 구간 계산 자체는 test_significance*.py가 맡는다.
+# [왜 중요한가] 재분석은 모델을 다시 돌리지 않고 eval/reports/의 문장별 결과만으로 계산한다. 그래서 '저장된
+# 문장으로 기록된 점수를 정확히 다시 만들 수 있다'와 '두 쪽이 같은 문장끼리 짝지어졌다'가 모든 결론의 전제다.
+# [실행 환경] sacrebleu·jiwer는 eval 그룹에만 있어 없으면 파일 전체를 건너뛰고, CI는 둘을 얹은 별도 단계에서
+# 이 파일을 돌린다(.github/workflows/ci.yml).
+
 import argparse
 import json
 from pathlib import Path
@@ -11,6 +19,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+# importorskip 뒤에 import해야 하므로 아래 import들은 E402 경고를 끄는 표시를 달고 이 자리에 있다.
+# reanalysis에서는 비교 목록 상수(MT_COMPARISONS·STT_COMPARISONS), 비교·데이터 클래스, 단계별 함수(check,
+# comet_*, analyse_*, markdown)와 보고서 읽기 도우미(mt·typo·stored)를 가져온다. rate_difference는 문장 단위
+# 구간을 직접 계산해 견줄 기준이다.
 jiwer = pytest.importorskip("jiwer")
 pytest.importorskip("sacrebleu")
 from sacrebleu.metrics import BLEU  # noqa: E402
@@ -38,6 +50,9 @@ from eval.reanalysis import (  # noqa: E402
 from eval.significance import rate_difference  # noqa: E402
 
 
+# 13절의 관문: 저장된 문장별 결과로 다시 계산한 chrF·CER·WER가 기록된 값과 1e-9 안에서 모두 같고, 각 비교의 두
+# 쪽이 같은 문장을 짝짓는지 실제 저장 보고서로 확인한다. 기록된 점수의 개수(66개)도 고정해, 보고서나 비교
+# 목록이 바뀌면 바로 드러나게 한다.
 def test_stored_items_reproduce_every_recorded_score():
     # The gate in docs/experiments.md 13: chrF, CER and WER recomputed from the items equal the recorded
     # values (T32 chrF with the references from the T3 reports), and each comparison pairs the same sentences.
@@ -47,6 +62,9 @@ def test_stored_items_reproduce_every_recorded_score():
     assert len(rows) == 66
 
 
+# 오타 평가(6절) 보고서는 오타 섞인 입력만 저장하고 깨끗한 원문·참조는 저장하지 않는다. 그래서 같은 분할의
+# 번역 평가(2절) 보고서에서 같은 FLEURS 문장 id로 가져오는지 확인한다: 문장 id·원문·참조는 같고(129문장),
+# 번역문만 다르다.
 def test_typo_sentences_take_source_and_reference_from_t3():
     noisy = typo(reanalysis.T32_DEV, "en-ko", "C", "heavy")(stored)
     clean = mt(reanalysis.T3_DEV, "opus-mt-tc-big-en-ko", "en-ko")(stored)
@@ -55,6 +73,10 @@ def test_typo_sentences_take_source_and_reference_from_t3():
     assert noisy.hypotheses != clean.hypotheses
 
 
+# 비교 27개의 키가 겹치지 않고, 대표 비교의 문턱이 13절에 측정 전에 적은 값과 같은지 확인한다. 예: 번역 한→영
+# NLLB 비교는 −1(1점 이내면 빠른 쪽), 영→한 문장 단위는 −0.3, 오타 교정 C는 깨끗한 입력 −0.5·오타 평균 +1.0,
+# 음성 인식 turbo 대 large-v3는 1%p, 빈 결과 줄이기는 0.2%p. 전체 흐름 품질(9절)은 확인 측정이라 판단 규칙과
+# 문턱이 없다(None).
 def test_comparison_keys_are_unique_and_thresholds_registered():
     keys = [c.key for c in MT_COMPARISONS] + [c.key for c in STT_COMPARISONS]
     assert len(keys) == len(set(keys)) == 27
@@ -66,6 +88,9 @@ def test_comparison_keys_are_unique_and_thresholds_registered():
     assert thresholds["t65-ko-en"] is None
 
 
+# 발화 하나의 편집 수 ÷ 정답 길이가 jiwer의 cer(한국어)·wer(영어)와 같은지 확인한다. 말뭉치 단위 오류율 구간은
+# 발화별 편집 수와 길이를 더해 계산하므로, 발화 단위 셈이 jiwer와 같아야 기록된 오류율이 재현된다. 숫자 표기
+# 차이, 단어 빠짐, 빈 인식 결과를 사례로 둔다.
 @pytest.mark.parametrize(
     ("language", "reference", "hypothesis"),
     [
@@ -80,6 +105,8 @@ def test_utterance_edits_match_jiwer_rates(language, reference, hypothesis):
     assert edits / length == pytest.approx(rate(reference, hypothesis))
 
 
+# COMET-22로 채점할 (원문, 번역문, 참조) 목록에 중복이 없고, 모든 번역 비교의 두 쪽 문장이 빠짐없이 들어
+# 있는지 확인한다. 하나라도 빠지면 run이 점수 없는 문장 때문에 멈춘다.
 def test_comet_segments_are_unique_and_cover_every_side():
     rows = comet_segments()
     keys = [row["key"] for row in rows]
@@ -92,6 +119,8 @@ def test_comet_segments_are_unique_and_cover_every_side():
             assert all(comet_key(*triple) in known for triple in triples)
 
 
+# 정밀도 점검용 부분집합은 번역 평가(2절) validation의 tc-big 번역 두 방향(129 × 2 = 258문장)이다. GPU fp16
+# 점수와 CPU fp32 점수를 이 부분집합에서 견준다.
 def test_precision_subset_is_t3_tc_big_in_both_directions():
     rows = comet_segments(subset="precision")
     assert len(rows) == 258
@@ -99,6 +128,9 @@ def test_precision_subset_is_t3_tc_big_in_both_directions():
     assert {row["mt"] for row in rows} >= set(ko_en.hypotheses)
 
 
+# fp16과 fp32 점수의 일치 기준(문장별 최대 차이 0.01, 시스템 평균 차이 0.001)을 적용하는지 확인한다: 모두
+# 0.0005 차이는 통과, 한 문장만 0.02 차이는 실패, 모두 0.002 차이는 문장 기준은 통과해도 평균 기준에서 실패.
+# 두 점수 파일의 문장 집합이 다르면 ValueError다.
 def test_comet_agreement_applies_the_registered_limits():
     keys = [row["key"] for row in comet_segments(subset="precision")]
     first = {key: 0.8 for key in keys}
@@ -111,6 +143,8 @@ def test_comet_agreement_applies_the_registered_limits():
         comet_agreement(first, {key: 0.8 for key in keys[1:]})
 
 
+# 회귀 테스트(커밋 18adc0a): comet-agreement 명령은 결과를 json.dumps로 출력하는데, passes가 numpy bool이면
+# 직렬화에서 실패했다. 결과가 JSON으로 왕복되고 passes가 파이썬 bool인지 확인한다.
 def test_comet_agreement_prints_as_json():
     # The comet-agreement command prints the result with json.dumps; a numpy bool there crashed it.
     keys = [row["key"] for row in comet_segments(subset="precision")]
@@ -119,13 +153,18 @@ def test_comet_agreement_prints_as_json():
         assert json.loads(json.dumps(comet_agreement(first, second)))["passes"] is expected
 
 
+# 아래 단위 테스트에 쓰는 작은 참조 4문장.
 REFS = ("The cat sat on the mat.", "It is raining today.", "We meet at noon.", "Prices rose last year.")
 
 
+# 저장 보고서 대신 주어진 번역문으로 Segments를 돌려주는 가짜 로더(reports 인자는 쓰지 않음).
 def _segments(hypotheses):
     return lambda reports: Segments((1, 2, 3, 4), ("s1", "s2", "s3", "s4"), REFS, tuple(hypotheses))
 
 
+# 번역 비교 한 행: a가 참조에 더 가까우니 chrF 차이가 양수이고 문턱 −1보다 구간 전체가 위라 'robust', p값이
+# 계산되며, COMET 차이는 (0.9 − 0.7) × 100 = 20점이고 chrF와 부호가 같은지 확인한다. markdown 보고서 줄에
+# 단계·분할·방향·문장 수와 한국어 분류 이름('견고')이 나오는지도 본다.
 def test_analyse_mt_reports_chrf_bleu_and_comet_on_the_same_resamples():
     a = _segments(
         ["The cat sat on the mat.", "It rains today.", "We meet at noon.", "Prices rose last year."]
@@ -158,6 +197,8 @@ def test_analyse_mt_reports_chrf_bleu_and_comet_on_the_same_resamples():
     assert "| T3 | validation | ko-en | a − b | 4 |" in text and "견고" in text
 
 
+# 두 쪽의 문장 id가 다르면(4번 대신 5번) 짝지을 수 없으므로 ValueError로 멈춘다. 다른 문장끼리 비교한 구간을
+# 막는다.
 def test_analyse_mt_rejects_sides_on_different_sentences():
     a = _segments(["x"] * 4)
     other = lambda reports: Segments((1, 2, 3, 5), ("s1", "s2", "s3", "s4"), REFS, ("y",) * 4)  # noqa: E731
@@ -166,6 +207,10 @@ def test_analyse_mt_rejects_sides_on_different_sentences():
         analyse_mt(comparison, None, None, rounds=10, trials=10)
 
 
+# 음성 인식 비교는 두 구간을 낸다: 녹음 단위(발화 4개를 따로 재표집)와 문장 단위(같은 문장의 녹음을 묶어
+# 재표집, by_group). FLEURS는 한 문장을 여러 사람이 읽으므로 판정 분류는 문장 단위 구간을 쓴다.
+# 점 추정은 40글자 중 편집 2개 차이 = 5%p이고, 문장 3개·녹음 4개를 세며, 두 구간이 rate_difference를 직접 부른
+# 결과와 같은지 확인한다.
 def test_analyse_stt_groups_recordings_by_sentence():
     ids = (1, 1, 2, 3)  # sentence 1 read twice
     lengths = np.array([10, 10, 10, 10])
@@ -186,6 +231,10 @@ def test_analyse_stt_groups_recordings_by_sentence():
     assert (row["utterance"]["low"], row["utterance"]["high"]) == pytest.approx((single.low, single.high))
 
 
+# run 전체 흐름: 비교 목록을 작은 가짜 비교 하나씩으로 바꾸고, 관문(check)은 통과로, 보고서 폴더는 tmp_path로
+# 바꾼다. 보고서 JSON에 두 행과 sacrebleu 서명(참조 1개)이 적히고, COMET 점수는 실제로 쓴 8문장만 따로
+# 저장되며(쓰지 않은 'unused'는 빠짐), markdown에 음성 인식 행이 '녹음 4 (문장 3)' 형식으로 나오는지 확인한다.
+# BLEU를 13a 토크나이저로 바꾼 것은 flores200 토크나이저가 처음 쓸 때 내려받기를 하기 때문이다(테스트 주석).
 def test_run_writes_the_report_and_the_comet_scores_it_used(tmp_path, monkeypatch):
     a = _segments(
         ["The cat sat on the mat.", "It rains today.", "We meet at noon.", "Prices rose last year."]
@@ -234,6 +283,8 @@ def test_run_writes_the_report_and_the_comet_scores_it_used(tmp_path, monkeypatc
     assert "| T2 | validation | a − b | ko 4 (3) |" in base.with_suffix(".md").read_text(encoding="utf-8")
 
 
+# COMET 점수 파일에 비교 문장의 점수가 하나라도 없으면 run이 SystemExit으로 멈추는지 확인한다. 일부 문장만으로
+# 평균을 내는 일을 막는다.
 def test_run_refuses_missing_comet_scores(tmp_path, monkeypatch):
     a = _segments(["x"] * 4)
     comparison = MtComparison("x", "T3", "validation", "ko-en", "a − b", (a,), (a,), None, "rule")
@@ -247,6 +298,8 @@ def test_run_refuses_missing_comet_scores(tmp_path, monkeypatch):
         reanalysis.run(argparse.Namespace(comet=str(comet_file), tag="u", rounds=10, trials=10), reports=None)
 
 
+# 회귀 테스트(커밋 4abb008): max()는 첫 값이 아닌 NaN을 건너뛰므로, NaN 점수가 정밀도 점검을 통과할 수 있었다.
+# 유한한 숫자가 아닌 점수가 있으면 ValueError로 거부하는지 확인한다.
 def test_comet_agreement_rejects_scores_that_are_not_numbers():
     # max() skips a NaN that is not first, so a NaN segment could otherwise pass the precision check.
     keys = [row["key"] for row in comet_segments(subset="precision")]
@@ -257,6 +310,7 @@ def test_comet_agreement_rejects_scores_that_are_not_numbers():
         comet_agreement(first, second)
 
 
+# run도 NaN 점수가 든 파일을 SystemExit으로 거부하는지 확인한다(같은 커밋 4abb008).
 def test_run_refuses_comet_scores_that_are_not_numbers(tmp_path, monkeypatch):
     a = _segments(["x"] * 4)
     comparison = MtComparison("x", "T3", "validation", "ko-en", "a − b", (a,), (a,), None, "rule")

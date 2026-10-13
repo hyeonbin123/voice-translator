@@ -1,4 +1,6 @@
 ﻿:root {
+  /* 전역 기본값: 운영체제 기본 글꼴(없으면 Segoe UI, 한글은 Noto Sans KR), 기본 글자색·배경색, 읽기 편한 */
+  /* 줄 간격. font-synthesis: none은 글꼴에 없는 굵게·기울임을 브라우저가 흉내 내지 않게 한다. */
   font-family: system-ui, 'Segoe UI', 'Noto Sans KR', sans-serif;
   color: #1d2939;
   background: #f5f7fa;
@@ -6,23 +8,42 @@
   line-height: 1.6;
 }
 
+/* [파일 역할] 앱 전체가 쓰는 하나뿐인 스타일시트. main.tsx가 한 번 불러오며, CSS 프레임워크 없이 클래스 */
+/* 이름으로 화면별 구역을 나눈다. 아래 순서: 기본 요소와 접근성 → 전체 배치 → 로그인 → 메뉴 → 번역 화면 → */
+/* 결과·재생 → 기록 → 대화 모드·동시통역 → 두 사람 대화 → 화면 읽기 전용 → 좁은 화면. */
+/* [접근성 기준] 키보드 포커스 테두리 3px, 버튼·선택지 최소 높이 44px(터치 대상), 테두리·비활성 */
+/* 버튼·placeholder 색을 직접 지정해 대비를 확보, 긴 글이 360px 화면에서 가로로 넘치지 않게 */
+/* 줄바꿈(faf1e55). 실제 브라우저 검사(npm run test:a11y)가 axe의 WCAG 2.2 AA 규칙, 포커스 테두리 모양, */
+/* 가로 넘침을 확인한다. */
+
+/* 기본 요소: 너비에 테두리·안쪽 여백을 포함해 계산하고, 폼 요소도 본문 글꼴을 따르게 하며, 버튼은 최소 */
+/* 44px 높이로 손가락으로 누르기 쉽게 한다. */
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; }
 a { color: #2159a1; text-underline-offset: 3px; }
 button, input, textarea, select { font: inherit; }
 button { cursor: pointer; border: 1px solid #697b92; border-radius: 8px; padding: 8px 14px; background: white; color: inherit; min-height: 44px; }
+/* 비활성 버튼은 흐리게(opacity) 하지 않고 색을 직접 정해 글자 대비를 유지한다. */
 button:disabled { cursor: not-allowed; opacity: 1; color: #536175; background: #e8edf3; border-color: #697b92; }
+/* 키보드로 옮긴 포커스에만 3px 파란 테두리를 보인다(마우스 클릭에는 나오지 않음). 브라우저 검사가 이 */
+/* 두께와 모양을 확인한다. */
 :focus-visible { outline: 3px solid #2973cc; outline-offset: 3px; }
+/* 본문 바로가기 링크: 평소에는 화면 위로 밀어 숨기고, 포커스를 받으면 제자리로 내려와 보인다(App.tsx). */
 .skip-link { position: absolute; left: 16px; top: 8px; z-index: 1; padding: 12px 16px; background: white; border: 2px solid #2159a1; border-radius: 8px; transform: translateY(-160%); }
 .skip-link:focus { transform: translateY(0); }
+/* 코드로 포커스를 주는 제목·오류 문구(tabIndex=-1)가 스크롤될 때 화면 가장자리에 붙지 않게 여유를 둔다. */
+/* placeholder는 일부 브라우저가 기본으로 흐리게 하므로 색과 불투명도를 직접 정한다. */
 [tabindex="-1"] { scroll-margin-block: 20px; }
 ::placeholder { color: #536175; opacity: 1; }
+/* 전체 배치: 내용 폭을 1080px로 제한해 가운데 두고, 머리글(서비스 이름과 한 줄 소개)은 좁으면 줄을 바꾼다. */
 .app { max-width: 1080px; margin: auto; padding: 0 24px 64px; }
 .brand { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding: 24px 0; border-bottom: 1px solid #dce2eb; }
 .brand a { font-weight: 750; font-size: 20px; text-decoration: none; color: #1d2939; }
 .brand span, .muted, .hint { color: #536175; }
 .brand span { font-size: 14px; }
 main { padding-top: 32px; }
+/* 로그인·가입 카드와 공통 폼: 입력란은 세로로 쌓고, 주 버튼(.primary)·오류(.error)·안내(.notice) 색을 */
+/* 정한다. */
 .auth-card { max-width: 440px; margin: 20px auto; padding: 32px; background: white; border: 1px solid #dce2eb; border-radius: 16px; box-shadow: 0 8px 30px #182c4610; }
 h1 { margin: 4px 0 12px; font-size: 28px; letter-spacing: -.04em; }
 .eyebrow { color: #2159a1; font-size: 13px; font-weight: 700; margin: 0; }
@@ -37,12 +58,16 @@ input::file-selector-button { font: inherit; color: #1d2939; background: #edf4ff
 .switch-auth { text-align: center; font-size: 14px; margin: 24px 0 0; }
 .error { color: #a12020; background: #fff0f0; padding: 12px; border-radius: 8px; margin-bottom: 0; }
 .notice { background: #edf4ff; color: #204c81; padding: 12px; border-radius: 8px; }
+/* 로그인 뒤 상단 메뉴 줄: 좁으면 줄바꿈하고, 현재 화면 메뉴(NavLink의 active)를 배경색으로 표시한다. 긴 */
+/* 이메일은 아무 곳에서나 줄을 바꿔 넘치지 않게 한다. */
 .workspace-bar, .account, nav { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
 .workspace-bar { justify-content: space-between; margin-bottom: 24px; }
 nav a { padding: 8px 16px; text-decoration: none; border-radius: 8px; }
 nav a.active { background: #e4edfb; color: #184985; font-weight: 700; }
 .account { font-size: 14px; min-width: 0; }
 .account span { overflow-wrap: anywhere; }
+/* 카드 모양 구역: 없는 페이지 안내(.placeholder)와 번역 화면 카드, 그 안의 묶음(fieldset), 방향 선택·글 */
+/* 상자. min-width: 0은 grid·flex 안에서 내용 때문에 상자가 화면 밖으로 늘어나지 않게 한다. */
 .placeholder { padding: 32px; border: 1px solid #dce2eb; border-radius: 16px; background: white; }
 .translator { padding: 32px; border: 1px solid #dce2eb; border-radius: 16px; background: white; }
 .translator fieldset { min-width: 0; margin: 0 0 20px; padding: 0; border: 0; }
@@ -50,12 +75,16 @@ nav a.active { background: #e4edfb; color: #184985; font-weight: 700; }
 .direction label { display: block; margin-top: 0; }
 .translator select, .translator textarea { width: 100%; min-width: 0; padding: 12px; border: 1px solid #697b92; border-radius: 8px; color: inherit; background: white; }
 .translator textarea { resize: vertical; }
+/* 입력 방법 라디오: 각 선택지를 44px 높이로 해 누르기 쉽게 한다. 녹음 영역과 버튼 줄(.actions)은 좁으면 */
+/* 줄바꿈한다. */
 .mode-picker label { display: inline-flex; align-items: center; gap: 8px; margin: 0 24px 0 0; min-height: 44px; }
 .mode-picker input { width: auto; }
 .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 12px 0; }
 .recording-panel { padding: 16px; background: #f5f7fa; border-radius: 8px; }
 .recording-panel > label { display: block; }
 .recording-panel p, .error, .notice, .timings dd { overflow-wrap: anywhere; }
+/* 번역 결과: 원문·번역문을 같은 폭 두 칸으로 나란히 둔다(minmax(0, 1fr)이라 긴 단어가 칸을 밀어내지 않음). */
+/* 원문의 줄바꿈은 그대로 살리고(pre-wrap), 처리 시간 숫자는 폭이 같은 숫자 글꼴로 맞춘다. */
 .translation-result { margin-top: 32px; border-top: 1px solid #dce2eb; padding-top: 16px; }
 .result-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
 .result-columns p { white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -64,6 +93,8 @@ nav a.active { background: #e4edfb; color: #184985; font-weight: 700; }
 .timings { display: flex; flex-wrap: wrap; gap: 16px 32px; margin-bottom: 0; }
 .timings dt { font-size: 13px; color: #536175; }
 .timings dd { margin: 0; font-variant-numeric: tabular-nums; }
+/* 기록 화면: 목록 항목 전체가 링크이고, 원문·번역문은 두 줄까지만 보이고 나머지는 잘라 목록 길이를 고르게 */
+/* 한다. 삭제 버튼은 빨간색(.danger). */
 .history-panel { padding: 32px; border: 1px solid #dce2eb; border-radius: 16px; background: white; }
 .history-list { list-style: none; padding: 0; }
 .history-list li { border-bottom: 1px solid #dce2eb; }
@@ -71,12 +102,16 @@ nav a.active { background: #e4edfb; color: #184985; font-weight: 700; }
 .history-link > span:not(.hint) { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .history-panel h2 { font-size: 18px; }
 .danger { color: #a12020; border-color: #a12020; }
+/* 대화 모드와 동시통역이 함께 쓰는 패널과 마디 목록(회색 상자 하나가 한 마디). */
 .conversation-panel > label { display: block; }
 .conversation-panel .primary { margin-top: 0; }
 .conversation-turns { list-style: none; padding: 0; }
 .conversation-turns > li { margin-top: 20px; padding: 16px; background: #f5f7fa; border: 1px solid #dce2eb; border-radius: 8px; overflow-wrap: anywhere; }
 .conversation-turns h3 { font-size: 16px; margin-top: 0; }
 .conversation-turns h4 { margin: 8px 0; color: #536175; }
+/* 두 사람 대화 말풍선: 한국어 화자는 왼쪽, 영어 화자는 오른쪽에 붙이고(dialog-turn-en), 꼬리 모서리와 */
+/* 배경색을 달리해 누가 말했는지 구분한다. 번역문은 굵게 해 원문보다 눈에 띄게 한다. 확신이 낮아 방향을 */
+/* 추정한 안내(.guess-notice)는 노란 상자로 강조한다. */
 .dialog-turns { display: flex; flex-direction: column; list-style: none; padding: 0; margin: 0; }
 .dialog-turns > li { display: flex; margin-top: 16px; }
 .dialog-turns > .dialog-turn-en { justify-content: flex-end; }
@@ -87,6 +122,8 @@ nav a.active { background: #e4edfb; color: #184985; font-weight: 700; }
 .dialog-translation { margin: 8px 0 12px; padding-top: 8px; border-top: 1px solid #b9c7d9; font-weight: 700; white-space: pre-wrap; }
 .guess-notice { margin: 12px 0; padding: 10px; border: 2px solid #8a6415; border-radius: 8px; background: #fff6d8; color: #503900; }
 .guess-notice p { margin: 0 0 8px; }
+/* 마주 보기: 화면을 위아래 두 칸으로 나누고, 위 칸(맞은편 사람 쪽) 내용을 180도 돌려 탁자 건너편에서 바로 */
+/* 읽히게 한다. 번역문 글자 크기는 clamp로 화면 폭에 따라 24~48px 사이에서 커진다. */
 .face-layout { display: grid; grid-template-rows: 1fr 1fr; min-height: min(70vh, 720px); margin-top: 16px; border: 2px solid #697b92; border-radius: 16px; overflow: hidden; }
 .face-pane { display: grid; place-items: center; min-height: 260px; padding: 18px; background: #f2efff; text-align: center; overflow-wrap: anywhere; }
 .face-pane-top { border-bottom: 2px solid #697b92; background: #edf4ff; }
@@ -95,9 +132,14 @@ nav a.active { background: #e4edfb; color: #184985; font-weight: 700; }
 .face-pane h3 { margin: 0; font-size: 14px; color: #45566d; }
 .face-translation { margin: 12px 0; font-size: clamp(24px, 6vw, 48px); font-weight: 750; line-height: 1.35; white-space: pre-wrap; }
 .face-source { margin: 8px 0; color: #45566d; }
+/* 동시통역 자막: 아직 바뀔 수 있는 부분은 회색, 확정된 부분(strong)은 진한 색·굵게. */
 .live-draft { color: #536175; }
 .live-caption strong { color: #182438; font-weight: 700; }
+/* 화면에는 보이지 않지만 스크린리더는 읽는 글(예: 자막의 '확정된 부분' 표시, 동시통역 완료 알림). display: */
+/* none과 달리 접근성 트리에 남는다. */
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+/* 좁은 화면(휴대폰, 520px 이하): 바깥·카드 여백을 줄이고, 머리글을 세로로 쌓고, 원문·번역문을 한 칸으로 */
+/* 쌓고, 말풍선 폭을 넓히고, 마주 보기 높이와 글자 크기를 휴대폰에 맞춘다. */
 @media (max-width: 520px) {
   .app { padding-left: 16px; padding-right: 16px; }
   .brand { gap: 4px; flex-direction: column; align-items: flex-start; }

@@ -1,3 +1,10 @@
+// [파일 역할] 번역 화면(TranslatePage)과 음성 재생 영역(Playback) 테스트 묶음. 실제 ApiClient에 가짜 fetch를
+// 붙여 인증 머리글, 요청 본문, 오류 문구 선택, 업로드 형식, 포커스, 취소, blob URL 정리까지 화면 쪽 계약을
+// 확인한다.
+// [가짜 객체] fetch, speechSynthesis(브라우저 음성), URL.createObjectURL·revokeObjectURL, 미디어 pause를
+// 가짜로 바꾼다. beforeEach에서 refresh 토큰으로 세션을 실제로 복원해 access 토큰을 얻은 뒤 fetch 기록을
+// 지운다.
+
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -45,6 +52,7 @@ beforeEach(async () => {
 })
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
+// 글 상자에 값을 넣고 '번역하기'를 누르는 도우미.
 async function submitText(text = '안녕하세요') {
   const user = userEvent.setup()
   fireEvent.change(screen.getByLabelText(/번역할 글/), { target: { value: text } })
@@ -52,6 +60,9 @@ async function submitText(text = '안녕하세요') {
   return user
 }
 
+// 확인: 앞뒤 공백을 자른 글과 방향이 JSON으로 Bearer 토큰과 함께 가고, 결과 제목으로 포커스가 옮겨지며,
+// 번역문에 lang이 붙고 처리 시간(120 ms, 실행 안 함 2개)이 보인다. 서버 음성이 없을 때 자동으로 읽지 않고
+// 버튼을 눌러야 읽으며 중지할 수 있다. 화면을 닫아도 로그인 토큰은 남는다.
 it('submits trimmed Unicode text with authentication, shows the result and timings, and reads it on demand', async () => {
   fetchMock.mockResolvedValueOnce(response(result))
   const view = render(<TranslatePage api={api} />)
@@ -73,6 +84,8 @@ it('submits trimmed Unicode text with authentication, shows the result and timin
   expect(sessionStorage.length).toBe(1)
 })
 
+// 확인: 방향을 영어 → 한국어로 바꾸면 요청 방향이 바뀌고 한국어 음성(ko-KR)으로 읽는다. 이모지 500개는
+// UTF-16으로는 1000단위지만 500자로 세어 통과한다(서버와 같은 코드 포인트 단위).
 it('changes direction and counts supplementary Unicode characters as one character each', async () => {
   fetchMock.mockResolvedValueOnce(response({ ...result, source_lang: 'en', target_lang: 'ko', translated_text: '안녕하세요' }))
   render(<TranslatePage api={api} />)
@@ -83,6 +96,7 @@ it('changes direction and counts supplementary Unicode characters as one charact
   expect(speak.mock.calls[0][0].lang).toBe('ko-KR')
 })
 
+// 확인: 공백만 있는 글과 501자는 요청 없이 1~500자 안내를 보인다.
 it.each(['   ', '가'.repeat(501)])('rejects invalid text without a request (%#. boundary)', async (text) => {
   render(<TranslatePage api={api} />)
   await submitText(text)
@@ -90,6 +104,11 @@ it.each(['   ', '가'.repeat(501)])('rejects invalid text without a request (%#.
   expect(fetchMock).not.toHaveBeenCalled()
 })
 
+// 확인: 오류 문구는 계약에 있는 '상태 코드:detail' 짝일 때만 그 안내를 고르고(413·422·503의 고정 문자열),
+// 짝이 맞지 않거나 계약 밖이면 일반 문구로 떨어진다. 응답에 담긴 입력값('secret-password')이나 다른 경로의
+// 문구는 화면에 나오지 않고, 결과 없이 버튼이 다시 켜진다.
+// 왜: 서버 문자열을 그대로 보이면 내부 내용이나 입력한 비밀이 화면에 새어 나올 수 있다(api/client.ts의
+// checked).
 it.each([
   [413, 'Audio file is larger than 10 MB', '10MB 이하'],
   [422, 'Audio could not be decoded', '파일을 읽을 수 없습니다'],
@@ -110,6 +129,8 @@ it.each([
   expect(screen.getByRole('button', { name: '번역하기' })).toBeEnabled()
 })
 
+// 확인: 음성 파일은 multipart로 올라가며 Content-Type을 직접 넣지 않는다(브라우저가 boundary를 붙여야
+// 하므로). 파일 이름·형식·내용과 방향 필드가 그대로 가고, 응답의 인식 시간(200 ms)이 보인다.
 it('uploads audio as multipart without setting its boundary and displays speech timing', async () => {
   fetchMock.mockResolvedValueOnce(response({ ...result, mode: 'speech', stt_model: 'example-stt', stt_ms: 200 }))
   render(<TranslatePage api={api} />)
@@ -136,6 +157,7 @@ it('uploads audio as multipart without setting its boundary and displays speech 
   expect(form.get('target_lang')).toBe('en')
 })
 
+// 확인: 두 사람 대화를 고르면 방향 선택과 '번역하기' 버튼이 사라지고 두 사람 대화 패널이 나온다.
 it('offers two-person dialog without a manual language direction', async () => {
   render(<TranslatePage api={api} />)
   await userEvent.click(screen.getByLabelText('두 사람 대화'))
@@ -144,6 +166,9 @@ it('offers two-person dialog without a manual language direction', async () => {
   expect(screen.queryByRole('button', { name: '번역하기' })).not.toBeInTheDocument()
 })
 
+// 확인: 숨긴 파일 입력 대신 버튼으로 고르고, 고른 파일 이름이 상태 문구와 버튼 설명으로 읽힌다. 입력값은 비워
+// 같은 파일을 다시 고를 수 있다. 파일 창을 취소해도 고른 파일은 유지되고, 방향을 바꾸면 지워진다(다른 언어로
+// 녹음한 파일을 그대로 보내지 않게).
 it('announces the selected file, preserves it on cancel, and resets it when direction changes', async () => {
   render(<TranslatePage api={api} />)
   const user = userEvent.setup()
@@ -172,6 +197,8 @@ it('announces the selected file, preserves it on cancel, and resets it when dire
   expect(fetchMock).not.toHaveBeenCalled()
 })
 
+// 확인: 빈 파일이나 크기 한도를 넘는 파일을 고르면 오류를 보이고, 앞서 고른 파일도 지워 '번역하기'를 끈다.
+// 요청은 보내지 않는다.
 it.each([0, MAX_AUDIO_BYTES + 1])('rejects an empty or oversized upload: %s bytes', async (size) => {
   render(<TranslatePage api={api} />)
   await userEvent.click(screen.getByLabelText('음성 입력'))
@@ -186,6 +213,8 @@ it.each([0, MAX_AUDIO_BYTES + 1])('rejects an empty or oversized upload: %s byte
   expect(fetchMock).not.toHaveBeenCalled()
 })
 
+// 확인: 번역 중에는 버튼과 방향 선택이 잠겨 요청이 하나만 가고, 화면을 떠나면 그 요청이 취소되며 늦게 온
+// 응답은 반영하지 않는다.
 it('locks duplicate submissions and aborts an in-flight translation when leaving', async () => {
   let resolve!: (value: Response) => void
   fetchMock.mockReturnValueOnce(new Promise<Response>((done) => { resolve = done }))
@@ -201,6 +230,8 @@ it('locks duplicate submissions and aborts an in-flight translation when leaving
   expect(screen.queryByText('Hello')).not.toBeInTheDocument()
 })
 
+// Playback 확인: 서버 음성을 Bearer 토큰으로 받아 blob URL로 재생 컨트롤에 넣고, 서버 음성이 있으면 브라우저
+// 읽기 버튼은 없다. 사라질 때 재생을 멈추고 URL을 해제한다.
 it('fetches server audio with a bearer token and releases its blob URL on removal', async () => {
   const blob = new Blob(['wav'], { type: 'audio/wav' })
   fetchMock.mockResolvedValueOnce(new Response(blob))
@@ -214,6 +245,7 @@ it('fetches server audio with a bearer token and releases its blob URL on remova
   expect(HTMLMediaElement.prototype.pause).toHaveBeenCalled()
 })
 
+// Playback 확인: 음성이 404면 계약 안내를 보이고, '음성 다시 불러오기'를 누르면 새로 받아 재생할 수 있다.
 it('handles missing server audio and retries with a fresh fetch', async () => {
   fetchMock.mockResolvedValueOnce(response({ detail: 'Audio not found' }, 404))
     .mockResolvedValueOnce(new Response(new Blob(['wav'])))
@@ -224,6 +256,8 @@ it('handles missing server audio and retries with a fresh fetch', async () => {
   expect(fetchMock).toHaveBeenCalledTimes(2)
 })
 
+// Playback 확인: 음성을 받는 중에 사라지면 요청을 취소하고, 늦게 도착해도 blob URL을 만들지 않는다(해제되지
+// 않는 URL이 남지 않게).
 it('does not create a blob URL if the audio fetch resolves after unmount', async () => {
   let resolve!: (value: Response) => void
   fetchMock.mockReturnValueOnce(new Promise<Response>((done) => { resolve = done }))
@@ -234,6 +268,8 @@ it('does not create a blob URL if the audio fetch resolves after unmount', async
   expect(URL.createObjectURL).not.toHaveBeenCalled()
 })
 
+// Playback 확인: 합성만 실패한 결과는 그 사실을 알리고, 브라우저에 음성 읽기 기능도 없으면 읽기 버튼을 눌렀을
+// 때 안내한다. 서버 요청은 하지 않는다.
 it('explains a TTS-only failure and handles unavailable browser voices', async () => {
   vi.stubGlobal('speechSynthesis', undefined)
   render(<Playback result={{ ...result, tts_error: 'Speech synthesis failed' }} api={api} />)

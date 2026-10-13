@@ -10,6 +10,15 @@
 The settings compared and the rule are written in docs/experiments.md before any run.
 """
 
+# [파일 역할] 실제 모델을 올린 서버에 FLEURS 음성을 보내 전체 흐름(업로드 → 인식 → 번역 → 합성 → 저장)의 지연,
+# 번역 중 다른 요청(/api/health)의 응답 시간, GPU 메모리, 서버 메모리 증가를 재는 측정 도구.
+# [설계 이유] 모델 스레드 수(MODEL_THREADS) 결정(docs/experiments.md 4절), 번역 중 다른 요청이 막히던 문제와
+# gc.freeze 확인·메모리 측정(5절), 이후 시험들의 '서버 회귀' 확인(15절 등)을 같은 도구로 한다. 측정 데이터는
+# 8~12초 음성으로 고정해 언어별 30개를 뽑고(README: 10초 음성 → 번역 음성까지 중앙값 0.89초), 측정용 임시
+# 계정의 기록은 끝에 지운다.
+# [흐름] prepare(FLEURS에서 녹음을 골라 WAV와 목록 저장) → run(동시 요청 수별 지연·health·VRAM) 또는
+# memory(정해진 예열 뒤 묶음마다 서버 메모리).
+
 from __future__ import annotations
 
 import argparse
@@ -21,16 +30,22 @@ import time
 import uuid
 from datetime import UTC, datetime
 
+# httpx: 서버에 비동기로 요청을 보낸다(run은 httpx만 있으면 어느 환경에서나 돈다). pyarrow·psutil은 쓰는 명령
+# 안에서만 import한다.
 import httpx
 
 from eval.common import DATA, FLEURS_CONFIG, REPORTS
 
+# E2E: 고른 녹음을 두는 폴더(data/e2e/<분할>). 언어별 30개, 길이 8~12초, FLEURS 표본 추출률 16kHz.
 E2E = DATA / "e2e"
 PER_LANGUAGE = 30
 MIN_SECONDS, MAX_SECONDS = 8.0, 12.0
 SAMPLE_RATE = 16_000
 
 
+# 언어마다 FLEURS 행을 ID 순으로 보며 길이가 8~12초인 녹음을 문장 ID당 하나씩, 앞에서부터 30개 고른다(같은
+# 문장을 여러 사람이 읽으므로 중복 제거). 원본 음성 바이트를 그대로 WAV로 쓰고 목록(manifest.json)을 남겨,
+# run이 매번 같은 녹음을 같은 순서로 보낸다.
 def prepare(args: argparse.Namespace) -> None:
     import pyarrow.parquet as pq
 
@@ -58,6 +73,7 @@ def prepare(args: argparse.Namespace) -> None:
     print(f"{len(manifest)} recordings written to {out}")
 
 
+# nvidia-smi로 GPU 전체의 사용 중 메모리(MiB)를 읽는다. 명령이 없거나 실패하면 None.
 def gpu_used_mib() -> int | None:
     query = ["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"]
     try:
@@ -66,10 +82,14 @@ def gpu_used_mib() -> int | None:
         return None
 
 
+# 95번째 백분위: quantiles(n=20)의 19개 경계 중 마지막(인덱스 18). 값이 하나면 그 값.
 def percentile_95(values: list[float]) -> float:
     return statistics.quantiles(values, n=20)[18] if len(values) >= 2 else values[0]
 
 
+# 측정용 임시 계정을 만들어 로그인한 뒤, 언어별 첫 녹음으로 한 번씩 예열(기록하지 않음)하고, 목록 전체를 동시
+# 요청 수(1 또는 2)만큼씩 묶어 보낸다. 그동안 watch가 0.2초마다 /api/health 응답 시간과 GPU 메모리를
+# 잰다(health가 200이 아니면 무한대로 적어 p95에 반영). 끝나면 만든 기록을 모두 지운다.
 async def run(args: argparse.Namespace) -> None:
     folder = E2E / args.split
     manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
@@ -81,6 +101,8 @@ async def run(args: argparse.Namespace) -> None:
         login = await client.post("/api/auth/login", data={"username": email, "password": password})
         headers = {"Authorization": f"Bearer {login.raise_for_status().json()['access_token']}"}
 
+        # 녹음 하나를 음성 번역 API로 보내고 벽시계 지연과 응답의 단계별 시간(stt/mt/tts_ms)·합성
+        # 오류·원문·번역문을 결과에 붙인다. JSON이 아닌 오류 응답도 결과로 남긴다.
         async def translate(item: dict) -> dict:
             target = "en" if item["language"] == "ko" else "ko"
             files = {"audio": (item["file"], (folder / item["file"]).read_bytes(), "audio/wav")}
@@ -123,6 +145,8 @@ async def run(args: argparse.Namespace) -> None:
     write_report(args, results, health, [v for v in vram if v is not None])
 
 
+# 성공(201)한 요청으로 언어별·전체 지연 p50/p95와 단계별 시간 중앙값을 내고, 서버 오류(5xx)·그 밖의 실패·합성
+# 실패 수, health p95·최대, VRAM 시작·최고값과 함께 JSON(요청별 원자료 포함)과 마크다운 표로 남긴다.
 def write_report(args: argparse.Namespace, results: list[dict], health: list[float], vram: list[int]) -> None:
     ok = [r for r in results if r["status"] == 201]
     summary: dict = {
@@ -189,6 +213,9 @@ def write_report(args: argparse.Namespace, results: list[dict], health: list[flo
     print(f"written to {report}")
 
 
+# 서버 프로세스(PID로 지정)의 메모리를 psutil로 읽는다. 순서와 기준은 아래 docstring. 예열 뒤 기준점과 마지막
+# 묶음 뒤의 전용 메모리 차이, 두 번째 묶음 뒤부터 마지막까지의 차이(초기화 뒤에도 계속 느는지)를 낸다. README
+# 알려진 한계의 '메모리 기준 미달'이 이 측정 결과다.
 async def memory(args: argparse.Namespace) -> None:
     """T24: server memory across batches after a fixed warm-up (rule in docs/experiments.md 5절).
 
@@ -209,6 +236,7 @@ async def memory(args: argparse.Namespace) -> None:
     def clock() -> float:
         return round(time.perf_counter() - started, 3)
 
+    # 작업 집합(rss)과 전용 메모리(Windows의 private bytes, 없으면 rss)를 MB로 읽는다.
     def read_memory() -> dict:
         info = server.memory_info()
         private = getattr(info, "private", info.rss)  # Windows reports private bytes; elsewhere fall back
@@ -218,6 +246,7 @@ async def memory(args: argparse.Namespace) -> None:
             "private_mb": round(private / 2**20, 1),
         }
 
+    # 5초 기다린 뒤 1초 간격으로 세 번 읽어 중앙값을 낸다(한 번 읽기의 흔들림을 줄임).
     async def settle(label: str) -> dict:
         await asyncio.sleep(5)
         readings = []
@@ -242,6 +271,8 @@ async def memory(args: argparse.Namespace) -> None:
         login = await client.post("/api/auth/login", data={"username": email, "password": password})
         headers = {"Authorization": f"Bearer {login.raise_for_status().json()['access_token']}"}
 
+        # 요청 하나를 보내고 단계(예열·묶음 번호), 동시 요청 여부, 보낸 시각, 지연, 상태, 단계별 시간을
+        # 기록한다.
         async def send(item: dict, phase: str, concurrent: bool) -> None:
             target = "en" if item["language"] == "ko" else "ko"
             files = {"audio": (item["file"], (folder / item["file"]).read_bytes(), "audio/wav")}
@@ -268,6 +299,8 @@ async def memory(args: argparse.Namespace) -> None:
                 memory_trace.append(await asyncio.to_thread(read_memory))
                 await asyncio.sleep(2)
 
+        # health는 0.2초, 메모리는 2초마다 계속 잰다. 예열: 순차 10개(언어별 5) + 한·영 동시 5쌍 → 기준점.
+        # 묶음마다 60개를 하나씩 + 30쌍을 동시에(120개) → 기준점과 같은 방식으로 읽기.
         watchers = [asyncio.create_task(watch_health()), asyncio.create_task(watch_memory())]
         start_reading = await asyncio.to_thread(read_memory)
         for item in korean[:5] + english[:5]:
@@ -288,6 +321,7 @@ async def memory(args: argparse.Namespace) -> None:
             if request.get("id"):
                 await client.delete(f"/api/history/{request['id']}", headers=headers)
 
+    # 요약은 기준점 이후(예열 제외)의 요청과 health만으로 낸다. checkpoints[2]는 두 번째 묶음 뒤의 읽기다.
     measured_from = checkpoints[0]["readings"][-1]["t"]
     measured = [r for r in requests if r["phase"] != "warmup"]
     sequential = [r["elapsed_s"] for r in measured if not r["concurrent"] and r["status"] == 201]
@@ -339,6 +373,7 @@ async def memory(args: argparse.Namespace) -> None:
     print(f"written to {report}")
 
 
+# 하위 명령 prepare / run / memory. 서버 주소 기본값은 run이 8000, memory가 8010이다.
 def main() -> None:
     parser = argparse.ArgumentParser()
     phases = parser.add_subparsers(dest="phase", required=True)

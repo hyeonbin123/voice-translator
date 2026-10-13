@@ -37,6 +37,15 @@ from a generator per engine, and one engine synthesizes one text at a time. The 
 fails unless every session really runs on it.
 """
 
+# [파일 역할] Supertonic 3 한국어 음성 합성을 ONNX Runtime으로 직접 돌리는 엔진. 파일 고정·검증, 글
+# 전처리(정규화·글자 색인), 네 개의 ONNX 그래프(길이 예측 → 글 인코더 → 흐름 정합 N단계 → 보코더) 실행, 긴 글
+# 나누기를 맡는다.
+# [설계 이유] 두 번의 시험(CPU, GPU)을 위한 비교용 설정이고 서비스 기본은 MeloTTS다(docs/experiments.md
+# 12·14절). 만든 곳이 저장소를 보관 처리해 수정이 없으므로, 리비전과 파일별 SHA-256을 고정해 받고 올릴 때마다
+# 확인한다(README). 참조 코드(MIT, 위 docstring)를 옮기되 바꾼 점은 docstring 끝에 적혀 있다.
+# [연결] services/tts.SupertonicTextToSpeech가 SupertonicEngine.load로 쓰고, eval/supertonic_download.py가
+# REPO·REVISION·PINNED_FILES·verify_files로 파일을 받아 검증한다. 테스트: tests/test_supertonic.py.
+
 from __future__ import annotations
 
 import hashlib
@@ -49,6 +58,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
+# numpy: 그래프 입출력(ONNX Runtime은 numpy 배열을 주고받음)과 잡음 생성. onnxruntime은 설치되지 않은
+# 환경에서도 모듈을 불러올 수 있게 load() 안에서 import한다.
 import numpy as np
 
 REPO = "supertone-oss-archive/supertonic-3"
@@ -56,6 +67,8 @@ REPO = "supertone-oss-archive/supertonic-3"
 # 3cadd1ee6394adea1bd021217a0e650ede09a323.
 REVISION = "aafc6e32416a594460b32413efc49d7fe4ce6d46"
 # Every file this project reads, by SHA-256, checked when downloaded and when loaded.
+# 이 프로젝트가 읽는 파일 전부와 그 SHA-256. 받을 때와 올릴 때 모두 대조해, 다른 파일이 섞이면 합성을 끈 채
+# 뜬다(docs/api.md SUPERTONIC_DIR).
 PINNED_FILES: dict[str, str] = {
     "onnx/duration_predictor.onnx": "c3eb91414d5ff8a7a239b7fe9e34e7e2bf8a8140d8375ffb14718b1c639325db",
     "onnx/text_encoder.onnx": "c7befd5ea8c3119769e8a6c1486c4edc6a3bc8365c67621c881bbb774b9902ff",
@@ -66,11 +79,14 @@ PINNED_FILES: dict[str, str] = {
     "voice_styles/F1.json": "bbdec6ee00231c2c742ad05483df5334cab3b52fda3ba38e6a07059c4563dbc2",
     "LICENSE": "0d944a9110fed9a9602d60e0423a272903e7bd21ab060490774efc77c2275e9f",
 }
+# 모델을 이루는 네 그래프의 이름(파일 이름과 같음).
 ONNX_PARTS = ("duration_predictor", "text_encoder", "vector_estimator", "vocoder")
 # Fixed before any listening (docs/experiments.md 12): the first female preset, since the service's other
 # voices (MeloTTS KR, Kokoro af_heart) are female too.
 DEFAULT_VOICE = "F1"
 # The reference code's defaults.
+# 참조 코드의 기본값: 말 속도 1.05(길이 예측을 이 값으로 나눔), 조각 사이 무음 0.3초, 한국어·일본어 조각 최대
+# 120자(그 밖의 언어 300자). PROVIDERS: 허용하는 ONNX Runtime 제공자.
 SPEED = 1.05
 SILENCE_S = 0.3
 MAX_CHUNK_CHARS = {"ko": 120, "ja": 120}
@@ -80,16 +96,22 @@ PROVIDERS = ("cpu", "cuda")
 # (EXHAUSTIVE) searches again for every new input shape, and speech changes shape with every sentence; the
 # default arena grows by powers of two; gpu_mem_limit caps the arena (weights about 400 MB in fp32 plus the
 # activations), not the CUDA context or the cuBLAS and cuDNN handles.
+# GPU 시험용 CUDA 제공자 옵션(측정 전에 고정, 이유는 위 영어 주석): 합성곡 알고리즘은 입력 모양이 바뀔 때마다
+# 다시 찾지 않도록 HEURISTIC, 메모리 아레나는 요청한 만큼만 늘리고, 아레나 상한은 1GiB(1 << 30바이트).
 CUDA_PROVIDER_OPTIONS: dict[str, Any] = {
     "device_id": 0,
     "cudnn_conv_algo_search": "HEURISTIC",
     "arena_extend_strategy": "kSameAsRequested",
     "gpu_mem_limit": 1 << 30,
 }
+# 모델이 아는 언어 태그. 이 서비스는 한국어만 Supertonic으로 합성한다.
 LANGUAGES = frozenset(
     "en ko ja ar bg cs da de el es et fi fr hi hr hu id it lt lv nl pl pt ro ru sk sl sv tr uk vi na".split()
 )
 
+# 참조 코드의 글 정규화 규칙: 이모지는 지우고, 대시·둥근 따옴표 등은 기본 문자로, 괄호·슬래시 같은 기호는
+# 공백으로, 장식 문자는 지우고, 몇몇 표현(@, e.g.,)은 말로 풀어 읽게 한다. _SPACE_BEFORE: 문장부호 앞 공백을
+# 없앨 부호. _ENDING: 글이 이미 문장 끝 부호로 끝나는지.
 _EMOJI = re.compile(
     "[\U0001f600-\U0001f64f\U0001f300-\U0001f5ff\U0001f680-\U0001f6ff\U0001f700-\U0001f77f"
     "\U0001f780-\U0001f7ff\U0001f800-\U0001f8ff\U0001f900-\U0001f9ff\U0001fa00-\U0001fa6f"
@@ -118,6 +140,8 @@ _DECORATIONS = re.compile(r"[♥☆♡©\\]")
 _EXPRESSIONS = {"@": " at ", "e.g.,": "for example, ", "i.e.,": "that is, "}
 _SPACE_BEFORE = (",", ".", "!", "?", ";", ":", "'")
 _ENDING = re.compile(r"[.!?;:,'\"')\]}…。」』】〉》›»]$")
+# 문장 경계: . ! ? 뒤의 공백. 앞이 Mr. Dr. etc. 같은 약어나 대문자 이니셜이면 고정 길이 lookbehind를 여러 개
+# 이어 나누지 않는다.
 _SENTENCE_BREAK = re.compile(
     r"(?<!Mr\.)(?<!Mrs\.)(?<!Ms\.)(?<!Dr\.)(?<!Prof\.)(?<!Sr\.)(?<!Jr\.)(?<!Ph\.D\.)(?<!etc\.)(?<!e\.g\.)"
     r"(?<!i\.e\.)(?<!vs\.)(?<!Inc\.)(?<!Ltd\.)(?<!Co\.)(?<!Corp\.)(?<!St\.)(?<!Ave\.)(?<!Blvd\.)(?<!\b[A-Z]\.)"
@@ -125,16 +149,21 @@ _SENTENCE_BREAK = re.compile(
 )
 
 
+# onnxruntime.InferenceSession에서 이 엔진이 쓰는 run 메서드만 정의한 Protocol. 테스트가 가짜 세션을 넣을 수
+# 있게 한다.
 class Session(Protocol):
     def run(self, output_names: Any, input_feed: dict[str, np.ndarray]) -> list[np.ndarray]: ...
 
 
+# 목소리 프리셋(voice_styles/*.json)의 두 스타일 벡터. 배열 모양은 오른쪽 주석과 같다.
 @dataclass(frozen=True)
 class Voice:
     ttl: np.ndarray  # style for the text encoder and the vector estimator, (1, 50, 256)
     dp: np.ndarray  # style for the duration predictor, (1, 8, 16)
 
 
+# 고정한 파일이 모두 있고 SHA-256이 맞는지 확인한다. 큰 ONNX 파일을 한꺼번에 메모리에 올리지 않도록 1MiB씩
+# 읽어 해시한다. 없으면 FileNotFoundError(받는 명령을 안내), 다르면 ValueError.
 def verify_files(model_dir: Path, files: Mapping[str, str]) -> None:
     """Raise unless every pinned file is there with its SHA-256."""
     for name, expected in files.items():
@@ -151,6 +180,8 @@ def verify_files(model_dir: Path, files: Mapping[str, str]) -> None:
             raise ValueError(f"Supertonic file {name} does not match its pinned SHA-256")
 
 
+# 긴 글을 모델에 넣을 조각으로 나눈다: 빈 줄로 문단을 나누고, 문단 안에서는 문장을 max_len 글자 안에 들어가는
+# 만큼 이어 붙인다. 한 문장이 max_len보다 길면 그 문장 하나가 한 조각이 된다(더 자르지 않음).
 def chunk_text(text: str, max_len: int) -> list[str]:
     """The reference's chunker: paragraphs, then sentences joined while they fit in max_len characters."""
     chunks = []
@@ -170,6 +201,8 @@ def chunk_text(text: str, max_len: int) -> list[str]:
     return chunks
 
 
+# 글을 모델 입력으로 바꾼다. indexer는 유니코드 코드 포인트 → 모델 글자 번호 표(unicode_indexer.json)이고,
+# -1이면 모델이 모르는 글자다.
 class TextProcessor:
     """Text to the model's input: the reference's normalization, then one index per character."""
 
@@ -180,6 +213,10 @@ class TextProcessor:
         code = ord(char)
         return code < len(self._indexer) and self._indexer[code] != -1
 
+    # 순서: NFKD 정규화(한글 음절을 자모로 분해) → 참조 규칙으로 기호 정리 → 모델이 모르는 글자는 공백으로
+    # 바꾸고 그 수를 센다(참조 코드는 -1을 그대로 넘겼지만 여기서는 버림) → 부호 앞 공백 제거, 겹친 따옴표
+    # 하나로, 공백 정리 → 끝 부호가 없으면 마침표를 붙임 → <ko>...</ko>처럼 언어 태그로 감싼다. 읽을 글자가
+    # 하나도 없으면 ValueError.
     def prepare(self, text: str, language: str) -> tuple[str, int]:
         """The tagged text the model reads, and how many characters it could not read and dropped."""
         if language not in LANGUAGES:
@@ -203,11 +240,13 @@ class TextProcessor:
             text += "."
         return f"<{language}>{text}</{language}>", dropped
 
+    # 태그를 포함한 글을 글자 번호 배열 (1, 길이)와 모두 1인 마스크 (1, 1, 길이)로 바꾼다. 배치 크기는 1이다.
     def ids(self, prepared: str) -> tuple[np.ndarray, np.ndarray]:
         ids = np.array([[self._indexer[ord(char)] for char in prepared]], dtype=np.int64)
         return ids, np.ones((1, 1, ids.shape[1]), dtype=np.float32)
 
 
+# 목소리 JSON의 data(평탄한 숫자 목록)를 dims 모양의 float32 배열로 되살린다.
 def load_voice(path: Path) -> Voice:
     style = json.loads(Path(path).read_text(encoding="utf-8"))
 
@@ -217,6 +256,9 @@ def load_voice(path: Path) -> Voice:
     return Voice(ttl=array("style_ttl"), dp=array("style_dp"))
 
 
+# 합성 엔진. 설정(tts.json)에서 표본 추출률과 잠재 공간 크기를 읽는다: 잠재 프레임 하나가 표본 base_chunk_size
+# × chunk_compress_factor개에 해당하고, 잠재 채널 수는 latent_dim × chunk_compress_factor다. rng를 엔진마다
+# 두어 잡음을 만들고(테스트는 0만 내는 가짜 생성기를 넣는다), Lock으로 한 번에 한 글만 합성한다.
 class SupertonicEngine:
     """Speech for one text at a time. ONNX Runtime releases the GIL while a graph runs. The graphs' inputs and
     outputs are numpy arrays on either provider, so on the GPU each run copies them to and from the device."""
@@ -242,6 +284,12 @@ class SupertonicEngine:
         self._rng = rng if rng is not None else np.random.default_rng()
         self._lock = threading.Lock()
 
+    # 파일 검증 → onnxruntime 세션 네 개 생성 → (GPU면) 모든 세션이 실제로 CUDA 제공자로 올라갔는지 확인 →
+    # 설정·색인·목소리를 읽어 엔진을 만든다.
+    # ONNX Runtime은 CUDA 제공자를 못 쓰면 경고만 하고 CPU로 돌기 때문에, 첫 제공자가 CUDA가 아닌 세션이
+    # 하나라도 있으면 RuntimeError로 적재를 실패시킨다(조용히 CPU로 돌면 GPU 시험 결과가 틀려짐).
+    # preload_dlls()는 nvidia pip 패키지의 CUDA·cuDNN 라이브러리를 미리 불러온다.
+    # intra_op_num_threads는 한 연산 안의 병렬 스레드 수(SUPERTONIC_THREADS), inter_op는 1로 고정한다.
     @classmethod
     def load(
         cls,
@@ -302,9 +350,15 @@ class SupertonicEngine:
             providers=active,
         )
 
+    # 그래프 하나를 실행하고 첫 번째 출력만 돌려준다(output_names=None은 모든 출력).
     def _run(self, part: str, **feeds: np.ndarray) -> np.ndarray:
         return self._sessions[part].run(None, feeds)[0]
 
+    # 글 조각 하나의 합성: (1) 길이 예측 그래프로 말 길이(초)를 구하고 speed로 나눠 조금 빠르게 (2) 글
+    # 인코더로 글 임베딩 (3) 길이에 맞는 잠재 프레임 수만큼 표준 정규 잡음을 만든다(프레임 수는 올림) (4) 벡터
+    # 추정 그래프를 steps번 돌려 잡음을 말 잠재 표현으로 바꾼다(흐름 정합, 단계가 적을수록 빠르고 음질이 낮음)
+    # (5) 보코더로 파형을 만들고 예측 길이(samples)로 자른다. 조각마다 자기 예측 길이로 자르는 것이 참조
+    # 코드와 바꾼 점이다.
     def _speak(self, text: str, language: str, steps: int, speed: float) -> np.ndarray:
         ids, mask = self.processor.ids(self.processor.prepare(text, language)[0])
         voice = self._voice
@@ -328,6 +382,9 @@ class SupertonicEngine:
             )
         return self._run("vocoder", latent=latent)[0, :samples].astype(np.float32)
 
+    # 글 전체 합성: 언어별 최대 길이로 조각을 나눠 차례로 합성하고 사이에 무음(silence_s)을 넣어 잇는다. Lock
+    # 안에서 돌아 같은 엔진의 잡음 생성기와 세션을 동시에 쓰지 않는다. ONNX Runtime은 그래프를 도는 동안 GIL을
+    # 놓으므로(위 docstring) 그동안 이벤트 루프와 다른 스레드가 계속 돈다.
     def synthesize(
         self, text: str, language: str, steps: int, speed: float = SPEED, silence_s: float = SILENCE_S
     ) -> np.ndarray:

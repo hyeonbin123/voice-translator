@@ -1,3 +1,11 @@
+// [파일 역할] 두 사람 대화 세션(DialogSession) 테스트 묶음. 앞부분은 예시 모드(HTTP 업로드), 뒷부분(streaming
+// 도우미 아래)은 로그인한 실제 모드(웹소켓 mode 'dialog')를 검사한다.
+// [무엇을 지키나] 직전 마디 언어를 정확히 넘기기(서버가 애매한 마디를 번갈아 처리로 정하는 근거), 재생 중
+// 듣지 않기, 방향 바꾸기의 세 결과(성공, 다시 번역 실패, 기록 삭제만 실패), 재연결 때 마지막 마디 정보 이어
+// 주기, 마지막 마디를 바꿨을 때만 서버에 알리기.
+// [가짜 객체] 대화 모드 테스트와 같다: deferred로 응답·재생 시점을 조종하고, 예시 모드는 입력 값을 확률로
+// 쓰는 가짜 모델, 실제 모드는 정해 둔 이벤트를 돌려주는 가짜 판정기와 test/fakeSocket.ts를 쓴다.
+
 import { afterEach, expect, it, vi } from 'vitest'
 import { TranslationApi, type DialogTranslationResult, type TranslationResult } from '../translation/api'
 import { SileroEndpointer, type CreateEndpointer, type LiveEndpointEvent } from '../conversation/silero'
@@ -6,6 +14,8 @@ import type { PlayTranslation } from '../conversation/player'
 import { DialogSession } from './session'
 import { FakeSocket } from '../test/fakeSocket'
 
+// deferred: 밖에서 풀 수 있는 약속. utterance: 말소리 8조각 + 조용함 31조각으로 마디 하나. speechResult: 일반
+// 음성 번역 결과(방향 바꾸기 응답). result: 두 사람 대화 결과, guessed면 확신 0.55로 추정 표시.
 function deferred<T>() {
   let resolve!: (value: T) => void
   let reject!: (error: unknown) => void
@@ -31,6 +41,8 @@ const result = (id: string, source_lang: 'ko' | 'en', guessed = false): DialogTr
 const sessions: DialogSession[] = []
 afterEach(() => { sessions.forEach((session) => session.stop()); sessions.length = 0 })
 
+// 예시 모드 세션 도구. send(n): 마디 하나를 말하고 n번째 말풍선을 기다림. reply(i, body): i번째 요청에 201
+// 응답.
 function setup(create?: CreateEndpointer) {
   let capture!: (samples: Float32Array) => void
   const microphone = { stop: vi.fn(), setPaused: vi.fn() }
@@ -58,6 +70,10 @@ function setup(create?: CreateEndpointer) {
     capture: (samples: Float32Array) => capture(samples) }
 }
 
+// 확인: 마디는 하나씩 /api/translate/dialog로 올라가고(conversation.wav), 첫 마디는 previous_lang 없이, 둘째
+// 마디는 첫 마디가 처리된 언어(ko)와 함께 간다. 멈췄다 다시 시작한 뒤 첫 마디는 다시 previous_lang 없이 간다.
+// 왜: 둘째 요청이 첫 응답 전에 나가면 직전 언어를 모른 채 판별하게 된다. 요청을 순서대로 하나씩 보내는
+// 이유다.
 it('uploads the same WAV sequentially and sends only the last processed source language', async () => {
   const s = setup(); await s.session.start()
   await s.send(1); await s.send(2)
@@ -78,6 +94,8 @@ it('uploads the same WAV sequentially and sends only the last processed source l
   expect(restarted.get('previous_lang')).toBeNull()
 })
 
+// 확인: 번역 음성이 실제로 나는 동안만 마이크를 쉬고 그 사이 소리는 판정기에 넣지 않으며, 끝나면 다시 듣는다.
+// 멈추면 마이크를 닫고 메모리의 녹음을 지우고 재생을 취소한다.
 it('pauses capture only while translated audio is playing and cleans up on stop', async () => {
   const s = setup(); await s.session.start(); await s.send(1)
   s.reply(0, result('one', 'ko'))
@@ -96,6 +114,8 @@ it('pauses capture only while translated audio is playing and cleans up on stop'
   expect(s.played[0].signal.aborted).toBe(true)
 })
 
+// 확인: 추정으로 ko → en 처리된 마디를 바꾸면 같은 녹음을 en → ko로 /api/translate/speech에 보내고, 새 결과로
+// 말풍선을 바꾼 뒤 틀린 기록(/api/history/wrong)을 DELETE하며, 새 결과를 재생한다.
 it('re-sends a guessed turn in the opposite direction, deletes the wrong record, and replaces it', async () => {
   const s = setup(); await s.session.start(); await s.send(1)
   const original = result('wrong', 'ko', true)
@@ -121,6 +141,7 @@ it('re-sends a guessed turn in the opposite direction, deletes the wrong record,
   await vi.waitFor(() => expect(s.played).toHaveLength(2))
 })
 
+// 확인: 반대 방향 번역이 실패하면 원래 말풍선을 그대로 두고 '원래 말풍선을 유지했습니다' 안내를 붙인다.
 it('keeps the original guessed bubble when retranslation fails', async () => {
   const s = setup(); await s.session.start(); await s.send(1)
   const original = result('wrong', 'ko', true)
@@ -138,6 +159,9 @@ it('keeps the original guessed bubble when retranslation fails', async () => {
   })
 })
 
+// 확인: 새 번역은 성공했고 틀린 기록 삭제만 실패하면 새 번역을 그대로 보이고, 예전 기록은 기록 화면에서 지울
+// 수 있다고 알린다.
+// 왜: 예전에는 삭제가 끝나야 새 번역을 보여 줘서, 삭제가 실패하면 틀린 말풍선과 기록 두 개가 남았다(5a6a17c).
 it('shows the replacement and tells the user when deleting the wrong record fails', async () => {
   const s = setup(); await s.session.start(); await s.send(1)
   const original = result('wrong', 'ko', true)
@@ -161,6 +185,8 @@ it('shows the replacement and tells the user when deleting the wrong record fail
 
 // Signed in, each turn streams over the live connection in dialog mode: the server detects its language and
 // prepares it at a 192 ms pause, and keeps the last turn's language itself (T77, docs/experiments.md 11).
+// 실제 모드 세션 도구. liveToken은 처음 'access', 거절된 토큰을 받으면 'fresh'. 소켓은 열 때마다 sockets에
+// 쌓인다.
 function streaming() {
   let capture!: (samples: Float32Array) => void
   const microphone = { stop: vi.fn(), setPaused: vi.fn() }
@@ -196,6 +222,10 @@ const onset: LiveEndpointEvent = { type: 'start', startSample: 0 }
 const audio: LiveEndpointEvent = { type: 'audio', samples: new Float32Array([-1, 0, 1]) }
 const end: LiveEndpointEvent = { type: 'end', samples: new Float32Array(512), startSample: 0, endSample: 512, detectedAtSample: 0, forced: false }
 
+// 확인: 첫 start는 mode 'dialog'만 담고(방향 없음), 마디 메시지가 순서대로 나간다. 언어 필드가 없는 final은
+// 두 사람 대화 결과가 아니므로 무시하고 올바른 final만 받는다. HTTP 요청은 없다. 4401로 다시 연결하면 새
+// start에 마지막으로 처리된 마디의 언어와 번호(previous_lang 'ko', previous_id 1)를 넣는다.
+// 왜: 새 연결의 서버는 직전 마디를 모르므로, 넘겨주지 않으면 다음 애매한 마디를 번갈아 처리할 수 없다.
 it('streams turns in dialog mode and starts a new connection from the last turn it knows', async () => {
   const s = streaming(); await s.start()
   expect(s.sockets[0].messages()[0]).toEqual({ type: 'start', token: 'access', mode: 'dialog' })
@@ -211,6 +241,10 @@ it('streams turns in dialog mode and starts a new connection from the last turn 
   expect(s.sockets[1].messages()[0]).toEqual({ type: 'start', token: 'fresh', mode: 'dialog', previous_lang: 'ko', previous_id: 1 })
 })
 
+// 확인: 더 오래된 마디(1)를 바꿨을 때는 previous 메시지를 보내지 않고, 마지막 마디(2)를 바꿨을 때만 {type:
+// 'previous', id: 2, lang: 'ko'}를 보낸다.
+// 왜: 서버가 기억하는 직전 언어는 마지막 마디의 것이라, 그 마디가 바뀌었을 때만 고쳐야 다음 마디 판별이 HTTP
+// 경로와 같아진다(docs/api.md).
 it('tells the server when the last turn is turned around, and not for an older one', async () => {
   const s = streaming(); await s.start()
   const previous = () => s.sockets[0].messages().filter((m) => (m as { type?: string }).type === 'previous')
