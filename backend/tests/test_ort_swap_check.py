@@ -184,6 +184,50 @@ def test_the_no_speech_inputs_are_t14s():
         assert ort_swap_check.no_speech_wav(kind) == stt_eval.no_speech_wav(kind)
 
 
+# transcribe 단계의 가짜 인식기. 'quiet' 클립과 무음 입력(WAV)은 말 없음(NoSpeechError), 'broken' 클립은
+# 디코딩 불가(UndecodableAudioError), 그 밖에는 바이트를 그대로 글자로 돌려준다.
+class FakeRecognizer:
+    model_name = "fake"
+    options = {"beam_size": 5}
+
+    def transcribe(self, audio: bytes, language: str):
+        from app.services.interfaces import NoSpeechError, UndecodableAudioError
+
+        if audio == b"broken":
+            raise UndecodableAudioError("the audio could not be decoded")
+        if audio == b"quiet" or audio.startswith(b"RIFF"):
+            raise NoSpeechError("no speech was recognized")
+        return Namespace(text=audio.decode())
+
+
+# 말을 찾지 못한 클립과 무음 입력은 빈 결과로 기록된다(서버의 '말 없음'과 같음, T14 규칙을 세는 데 필요).
+def test_transcribe_records_no_speech_as_an_empty_result(tmp_path, monkeypatch):
+    (tmp_path / "en_1.wav").write_bytes(b"Hello.")
+    (tmp_path / "ko_2.wav").write_bytes(b"quiet")
+    monkeypatch.setattr(ort_swap_check, "server_recognizer", FakeRecognizer)
+    monkeypatch.setattr(ort_swap_check, "runtime_info", lambda: {"package": "onnxruntime"})
+    out = tmp_path / "stt.json"
+    ort_swap_check.transcribe(Namespace(clips=tmp_path, out=out))
+    written = json.loads(out.read_text(encoding="utf-8"))
+    assert written["clips"] == {"en_1.wav": "Hello.", "ko_2.wav": ""}
+    assert written["no_speech"] == SILENT
+
+
+# 디코딩할 수 없는 클립은 서버가 '말 없음'과 다른 오류로 알리는 결과라 빈 결과로 기록하지 않고 실행을
+# 멈춘다(기록도 쓰지 않음). 예전에는 두 오류의 상위 클래스를 잡아 빈 결과로 기록했고, 두 실행이 같은 클립을
+# 똑같이 못 읽거나 한쪽은 못 읽고 한쪽은 말을 못 찾아도 '같음'이 되었다.
+def test_transcribe_stops_on_audio_that_cannot_be_decoded(tmp_path, monkeypatch):
+    from app.services.interfaces import UndecodableAudioError
+
+    (tmp_path / "en_1.wav").write_bytes(b"broken")
+    monkeypatch.setattr(ort_swap_check, "server_recognizer", FakeRecognizer)
+    monkeypatch.setattr(ort_swap_check, "runtime_info", lambda: {"package": "onnxruntime"})
+    out = tmp_path / "stt.json"
+    with pytest.raises(UndecodableAudioError):
+        ort_swap_check.transcribe(Namespace(clips=tmp_path, out=out))
+    assert not out.exists()
+
+
 # vad 단계가 클립마다 말소리 구간을, 무음 입력 둘에도 구간을 기록하고, 설치된 ONNX Runtime 정보(runtime)를
 # 함께 남기는지 확인한다. 실제 VAD와 런타임 조회는 monkeypatch로 가짜 함수로 바꿔 모델 없이 돈다.
 def test_vad_writes_one_record_with_the_runtime(tmp_path, monkeypatch):

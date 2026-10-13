@@ -180,17 +180,19 @@ def server_recognizer():
 # transcribe 단계: 서버 인식기로 모든 클립과 두 언어의 무음 입력을 인식해 전사를 기록한다(GPU). 모델 이름과
 # 디코딩 옵션도 함께 남겨 두 기록이 같은 설정인지 볼 수 있게 한다.
 def transcribe(args: argparse.Namespace) -> None:
-    from app.services.interfaces import InvalidAudioError
+    from app.services.interfaces import NoSpeechError
 
     stt = server_recognizer()
 
-    # 말을 찾지 못하면 인식기가 NoSpeechError(InvalidAudioError의 하위 클래스)를 낸다. 서버가 이를 '말
-    # 없음'으로 알리듯 여기서는 빈 문자열로 기록해야 T14 규칙(무음 4번 모두 빈 결과)을 셀 수 있다. 상위
-    # 클래스로 잡으므로 디코딩할 수 없는 음성도 빈 결과로 기록된다.
+    # 말을 찾지 못하면 인식기가 NoSpeechError를 낸다. 서버가 이를 '말 없음'으로 알리듯 여기서는 빈 문자열로
+    # 기록해야 T14 규칙(무음 4번 모두 빈 결과)을 셀 수 있다. 디코딩할 수 없는 음성(UndecodableAudioError)은
+    # 서버도 다른 오류(422 "Audio could not be decoded")로 알리는 다른 결과라 빈 결과에 섞지 않고, 기록을 쓰지
+    # 않은 채 실행을 멈춘다. 2026-10-13 전에는 두 오류의 상위 클래스(InvalidAudioError)를 잡아 디코딩 실패도
+    # 빈 결과로 기록했다(저장된 T82 기록에는 빈 결과인 클립이 없어 영향 없음).
     def text(audio: bytes, language: str) -> str:
         try:  # no speech found is an empty result, as the server reports it (T14)
             return stt.transcribe(audio, language).text
-        except InvalidAudioError:
+        except NoSpeechError:
             return ""
 
     record = {

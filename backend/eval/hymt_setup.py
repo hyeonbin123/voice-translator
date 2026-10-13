@@ -163,7 +163,10 @@ def check(quant: str, ollama_url: str) -> dict:
         show = shown.json()
         tags = client.get("/api/tags").json()["models"]
         version = client.get("/api/version").json()["version"]
-    digest = next((m["digest"] for m in tags if m.get("name") == name), None)
+    # 서버(HyMtTranslator.prepare)와 같이 목록의 name 또는 model 필드가 이름과 같은 모델을 찾는다.
+    # 2026-10-13 전에는 name만 봐서, Ollama가 두 필드를 다르게 적으면 서버는 받아들이는 모델을 여기서는
+    # '없음'으로 보았다.
+    digest = next((m.get("digest") for m in tags if name in (m.get("name"), m.get("model"))), None)
     problems = (
         [] if digest == QUANTS[quant][4] else [f"digest {digest} is not the recorded {QUANTS[quant][4]}"]
     )

@@ -99,6 +99,23 @@ def stored(name: str) -> object:
     return json.loads((REPORTS / name).read_text(encoding="utf-8"))
 
 
+# 16절: 고친 한국어 오타 생성기로 다시 잰 한→영 결과를 6절 보고서(T32_DEV) 대신 읽는다. T32_DEV에서 한→영
+# 항목(후보 A·B·C)만 새 보고서의 것으로 바꾸고, 영→한 항목과 다른 보고서는 그대로 둔다. 관문·구간·COMET 계산은
+# 13절 그대로다. 새 보고서에 한→영 A·B·C가 하나씩 있지 않으면 비교를 만들 수 없어 멈춘다.
+def with_t32_ko_en(report: str, reports: Reports = stored) -> Reports:
+    """T32_DEV with its Korean-to-English entries (A, B, C) read from `report` (docs/experiments.md 16)."""
+    replacement = [entry for entry in reports(report) if entry["direction"] == "ko-en"]
+    if sorted(entry["candidate"] for entry in replacement) != ["A", "B", "C"]:
+        raise ValueError(f"{report} must hold the ko-en entries A, B and C once each")
+
+    def load(name: str) -> object:
+        if name != T32_DEV:
+            return reports(name)
+        return replacement + [entry for entry in reports(T32_DEV) if entry["direction"] != "ko-en"]
+
+    return load
+
+
 # 번역 비교의 한쪽 데이터: 문장 ID, 깨끗한 원문, 참조, 이 시스템의 번역문. 원문을 따로 두는 것은 COMET-22가
 # (원문, 번역문, 참조)를 입력으로 받기 때문이다.
 @dataclass(frozen=True)
@@ -773,6 +790,7 @@ def run(args: argparse.Namespace, reports: Reports = stored) -> Path:
         "sacrebleu": sacrebleu.__version__,
         "signatures": {"chrf": signature(CHRF()), "bleu": signature(bleu())},
         "comet": meta,
+        "t32_ko_en": getattr(args, "t32_ko_en", None),
         "mt": mt_rows,
         "stt": stt_rows,
     }
@@ -805,6 +823,8 @@ def markdown(result: dict) -> str:
         "- 고르지 않는다. 차이는 a − b, [ ]는 95% 구간. "
         "분류: 견고 = 구간 전체가 점 추정과 같은 쪽, 문턱 걸침 = 문턱이 구간 안",
     ]
+    if result.get("t32_ko_en"):
+        lines.append(f"- 6절 한→영(후보 A·B·C)은 `{result['t32_ko_en']}`에서 읽음(docs/experiments.md 16절)")
     if result["comet"]:
         meta = result["comet"]
         lines.append(
@@ -858,7 +878,7 @@ def main() -> None:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("check", help="recompute the recorded scores from the stored items")
+    checking = commands.add_parser("check", help="recompute the recorded scores from the stored items")
     segments = commands.add_parser("comet-input", help="write the unique segments to score with COMET-22")
     segments.add_argument("--output", required=True)
     segments.add_argument("--subset", choices=["precision"], help="only the fp16/fp32 check subset")
@@ -872,10 +892,20 @@ def main() -> None:
     analysis.add_argument("--tag", required=True)
     analysis.add_argument("--rounds", type=int, default=ROUNDS)
     analysis.add_argument("--trials", type=int, default=TRIALS)
+    # 16절 다시 재기: 6절 한→영 항목을 고친 오타 세트로 다시 잰 보고서(eval/reports/ 안의 파일 이름)에서
+    # 읽는다.
+    for command in (checking, segments, analysis):
+        command.add_argument(
+            "--t32-ko-en",
+            metavar="REPORT",
+            help="read section 6's Korean-to-English entries from this typo_eval report "
+            "(docs/experiments.md 16)",
+        )
     args = parser.parse_args()
+    reports = with_t32_ko_en(args.t32_ko_en) if getattr(args, "t32_ko_en", None) else stored
 
     if args.command == "check":
-        rows = check()
+        rows = check(reports)
         for row in rows:
             if not row["ok"]:
                 print(f"MISMATCH {row['name']}: recorded {row['recorded']} recomputed {row['recomputed']}")
@@ -883,7 +913,7 @@ def main() -> None:
         if not all(row["ok"] for row in rows):
             raise SystemExit(1)
     elif args.command == "comet-input":
-        rows = comet_segments(subset=args.subset)
+        rows = comet_segments(reports, subset=args.subset)
         Path(args.output).parent.mkdir(parents=True, exist_ok=True)
         Path(args.output).write_text(
             "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8"
@@ -895,7 +925,7 @@ def main() -> None:
         )
         print(json.dumps(comet_agreement(first, second), indent=1))
     else:
-        print(f"report: {run(args)}")
+        print(f"report: {run(args, reports)}")
 
 
 if __name__ == "__main__":

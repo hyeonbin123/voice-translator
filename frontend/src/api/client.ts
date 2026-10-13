@@ -205,9 +205,6 @@ export class ApiClient {
   // 인증 헤더를 붙일 수 없고 주소에 넣은 토큰은 로그에 남기 때문에 토큰을 첫 메시지로 보낸다(docs/api.md).
   // 서버가 4401로 닫으면 그때 쓴 토큰을 rejectedToken으로 넘기고, 아직 같은 토큰이면 갱신해 새 토큰을
   // 준다(c005648). 호출 위치: translation/api.ts의 liveToken(→ live/socket.ts).
-  // 바로 아래 영어 한 줄 설명은 원래 request()에 달린 것인데, liveToken이 그 사이에 추가되면서 liveToken 위에
-  // 남았다.
-  /** Authenticated API requests, including future JSON, multipart, and audio responses. */
   async liveToken(rejectedToken?: string): Promise<string> {
     const generation = this.generation
     if (!this.accessToken || this.accessToken === rejectedToken) await this.refresh()
@@ -222,6 +219,7 @@ export class ApiClient {
   // - 401이면 한 번만 갱신 후 다시 보낸다. 방금 갱신한 토큰으로도 401이면 더 시도하지 않고 만료 로그아웃한다
   // - 실패 응답은 checked가 path에 맞는 안내 문구로 바꾼다
   // 호출 위치: translation/api.ts, history/api.ts, 아래 initialize·login의 /api/auth/me.
+  /** Authenticated API requests, including future JSON, multipart, and audio responses. */
   async request(path: string, init: RequestInit = {}): Promise<Response> {
     if (!path.startsWith('/api/')) throw new Error('API paths must start with /api/')
     const generation = this.generation

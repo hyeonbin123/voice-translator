@@ -122,21 +122,24 @@ def summarize(guesses: list[dict], thresholds: list[float]) -> tuple[list[dict],
     for lang in LANGS:
         for length in LENGTHS:
             group = [g for g in guesses if g["lang"] == lang and g["length"] == length]
+            # 녹음이 모두 빠진(한 마디로 잘리지 않은) 조건은 판별이 없어 비율·중앙값을 None으로 둔다. 0으로
+            # 나누거나 빈 목록의 중앙값을 구하다 멈추면 그때까지 GPU로 낸 판별도 보고서에 남지 않는다.
             row = {
                 "lang": lang,
                 "length": length,
                 "count": len(group),
-                "accuracy": sum(g["guess"] == lang for g in group) / len(group),
-                "seconds_p50": statistics.median(g["seconds"] for g in group),
+                "accuracy": sum(g["guess"] == lang for g in group) / len(group) if group else None,
+                "seconds_p50": statistics.median(g["seconds"] for g in group) if group else None,
             }
             for tau in thresholds:
                 sure = [g for g in group if g["confidence"] >= tau]
-                row[f"unsure_{tau}"] = 1 - len(sure) / len(group)
+                row[f"unsure_{tau}"] = 1 - len(sure) / len(group) if group else None
                 row[f"sure_accuracy_{tau}"] = (
                     sum(g["guess"] == lang for g in sure) / len(sure) if sure else None
                 )
             conditions.append(row)
     rule = []
+    total = sum(c["count"] for c in conditions)
     for tau in thresholds:
         worst = min((c[f"sure_accuracy_{tau}"] or 0.0) for c in conditions)
         rule.append(
@@ -144,11 +147,18 @@ def summarize(guesses: list[dict], thresholds: list[float]) -> tuple[list[dict],
                 "threshold": tau,
                 "worst_sure_accuracy": worst,
                 "meets": worst >= REQUIRED_ACCURACY,
-                "unsure_overall": sum(c[f"unsure_{tau}"] * c["count"] for c in conditions)
-                / sum(c["count"] for c in conditions),
+                "unsure_overall": sum(c[f"unsure_{tau}"] * c["count"] for c in conditions if c["count"])
+                / total
+                if total
+                else None,
             }
         )
     return conditions, rule
+
+
+# 비율을 백분율 글자로 바꾼다. 판별이 없는 조건(None)은 '-'.
+def _percent(value: float | None, digits: int) -> str:
+    return "-" if value is None else f"{value:.{digits}%}"
 
 
 # 판별 하나하나까지 담은 JSON과, 조건별 표·τ별 규칙 표를 담은 마크다운을 eval/reports/langid_<태그>_<시각>에
@@ -177,16 +187,17 @@ def write_report(guesses: list[dict], skipped: dict, args: argparse.Namespace) -
         cells = []
         for tau in args.thresholds:
             sure = c[f"sure_accuracy_{tau}"]
-            cells.append(f"{c[f'unsure_{tau}']:.1%} / {'-' if sure is None else f'{sure:.1%}'}")
+            cells.append(f"{_percent(c[f'unsure_{tau}'], 1)} / {_percent(sure, 1)}")
+        seconds = "-" if c["seconds_p50"] is None else f"{c['seconds_p50'] * 1000:.0f}ms"
         lines.append(
-            f"| {c['lang']} | {c['length']} | {c['count']} | {c['accuracy']:.1%} | "
-            f"{c['seconds_p50'] * 1000:.0f}ms | " + " | ".join(cells) + " |"
+            f"| {c['lang']} | {c['length']} | {c['count']} | {_percent(c['accuracy'], 1)} | "
+            f"{seconds} | " + " | ".join(cells) + " |"
         )
     lines += ["", "| τ | 조건 중 가장 낮은 나머지 정확도 | 99% 이상 | 전체 넘김 비율 |", "|---|---|---|---|"]
     for r in rule:
         lines.append(
             f"| {r['threshold']} | {r['worst_sure_accuracy']:.2%} | {'예' if r['meets'] else '아니오'} | "
-            f"{r['unsure_overall']:.1%} |"
+            f"{_percent(r['unsure_overall'], 1)} |"
         )
     base.with_suffix(".md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"written to {base.with_suffix('.md')}")

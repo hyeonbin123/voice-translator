@@ -53,7 +53,9 @@ export default function LivePanel({ api, direction, onActiveChange }: {
       </button>
       {!state.active && state.playingId !== null && <button type="button" onClick={session.stop}>음성 멈춤</button>}
     </div>
-    {api.demo && <p className="hint">동시통역은 로그인 후 사용할 수 있습니다.</p>}
+    {/* 예시 모드도 로그인해야 이 화면에 오므로(App.tsx의 로그인 전용 틀) '로그인 후'가 아니라 예시 모드라서 */}
+    {/* 못 쓴다고 알린다. */}
+    {api.demo && <p className="hint">예시 모드에서는 동시통역을 쓸 수 없습니다.</p>}
     <p role="status" aria-atomic="true">{status}</p>
     {state.notice && <p role="status" className="hint">{state.notice}</p>}
     {state.error && <p role="alert" className="error">{state.error}</p>}

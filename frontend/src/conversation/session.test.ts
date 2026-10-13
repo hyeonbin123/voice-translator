@@ -54,7 +54,7 @@ function setup(create?: CreateEndpointer) {
     const task = deferred<void>(); played.push({ id: turn.id, begin, task, signal }); return task.promise
   })
   const run = vi.fn(async (input: Float32Array) => ({ probability: input[64], h: new Float32Array(128), c: new Float32Array(128) }))
-  // Example mode (no login, VITE_TRANSLATION_MOCK) uploads each clip over HTTP after its end.
+  // Example mode (VITE_TRANSLATION_MOCK=true; the page still needs a login) uploads each clip over HTTP after its end.
   const session = new ConversationSession(new TranslationApi({ request }, true), open, play,
     create ?? (async () => new SileroEndpointer(run)))
   sessions.push(session)

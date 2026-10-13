@@ -8,9 +8,10 @@
 // 웹소켓(page.routeWebSocket), 마이크·녹음기·오디오 처리, 브라우저 음성 합성, 말소리 판정 모델(ONNX) 실행기.
 // [구성] 대화 모드, 두 사람 대화, 동시통역, 회원가입·로그인·로그아웃, 글자 번역, 녹음·파일 업로드, 기록
 // 목록·상세·삭제, 오류와 다시 시도.
-// [참고] 이 파일의 마지막 변경(커밋 f3f6afb)은 로그인한 대화 모드·두 사람 대화가 웹소켓 미리 처리로 바뀐 커밋
-// 00bf7d7보다 앞선다. 그래서 두 검사의 가짜 응답은 HTTP 업로드 경로(/api/translate/speech,
-// /api/translate/dialog)에 걸려 있다.
+// [참고] 로그인한 대화 모드·두 사람 대화는 커밋 00bf7d7부터 웹소켓 미리 처리를 쓴다. 이 파일은 그 뒤에도 두
+// 검사의 가짜 응답을 HTTP 업로드 경로에만 걸어 두어, 웹소켓이 개발 서버의 프록시로 나가 연결에 실패하고 두
+// 검사가 '듣는 중'을 기다리다 실패했다. 2026-10-13부터 두 검사도 동시통역 검사처럼 가짜 웹소켓 서버로 답하고,
+// HTTP 업로드가 한 번도 없었는지 함께 확인한다.
 
 import { test, expect, type Page, type Locator } from '@playwright/test'
 // AxeBuilder: 페이지에 axe-core를 넣어 WCAG 규칙 위반을 자동으로 찾는다.
@@ -156,18 +157,40 @@ test('conversation keyboard controls, live states, turn error recovery and 360px
       harness.finishSpeech = () => utterance.onend?.(new SpeechSynthesisEvent('end', { utterance }))
     }
   })
-  // 음성 업로드 가짜 응답: 첫 마디는 422 "No speech was recognized", 둘째 마디는 release()를 부를 때까지
-  // 붙잡았다가 201로 답한다(번역 중 상태를 검사하려고).
-  let calls = 0
+  // 로그인한 실제 모드의 대화 모드는 마디를 웹소켓(WS /api/translate/live, mode 'conversation')으로 흘려보내고
+  // end 뒤 서버의 final 또는 error를 기다린다(00bf7d7, docs/api.md). 가짜 웹소켓 서버는 받은 메시지를
+  // 기록하고(소리 바이너리는 'audio'로), start의 토큰·방향·mode를 확인한 뒤 ready로 답한다. 첫 마디의 end에는
+  // error "No speech was recognized"로, 둘째 마디의 end는 release()를 부를 때까지 붙잡았다가 final로
+  // 답한다(번역 중 상태를 검사하려고).
+  const received: (string | Record<string, unknown>)[] = []
+  let ends = 0
   let release!: () => void
-  await page.route('**/api/translate/speech', async (route) => {
-    calls++
-    if (calls === 1) await route.fulfill({ status: 422, json: { detail: 'No speech was recognized' } })
-    else {
-      await new Promise<void>((resolve) => { release = resolve })
-      await route.fulfill({ status: 201, json: { ...item, mode: 'speech' } })
-    }
+  let closed = false
+  await page.routeWebSocket((url) => url.pathname === '/api/translate/live', (ws) => {
+    expect(new URL(ws.url()).search).toBe('')
+    ws.onClose(() => { closed = true })
+    ws.onMessage((raw) => {
+      if (typeof raw !== 'string') { received.push('audio'); return }
+      const message = JSON.parse(raw)
+      received.push(message)
+      if (message.type === 'start') {
+        expect(message).toEqual({ type: 'start', token: tokens.access_token, source_lang: 'ko', target_lang: 'en', mode: 'conversation' })
+        ws.send(JSON.stringify({ type: 'ready' }))
+      } else if (message.type === 'end' && ++ends === 1) {
+        ws.send(JSON.stringify({ type: 'error', id: message.id, detail: 'No speech was recognized' }))
+      } else if (message.type === 'end') {
+        release = () => ws.send(JSON.stringify({ type: 'final', id: message.id, result: { ...item, mode: 'speech' } }))
+      }
+    })
   })
+  // 예시 모드만 끝난 마디를 HTTP로 올린다. 실제 모드에서 업로드로 돌아가지 않는지 보려고 업로드 수를 센다.
+  let uploads = 0
+  await page.route('**/api/translate/speech', async (route) => {
+    uploads++
+    await route.fulfill({ status: 201, json: { ...item, mode: 'speech' } })
+  })
+  // 웹소켓으로 보낸 JSON 메시지의 종류와 마디 번호(소리 바이너리는 뺀다).
+  const sent = () => received.flatMap((message) => typeof message === 'string' ? [] : [`${message.type}${message.id ?? ''}`])
   const capture = (speech: number, quiet: number) => page.evaluate(([a, b]) => {
     (window as unknown as { capture: (a: number, b: number) => void }).capture(a, b)
   }, [speech, quiet])
@@ -198,26 +221,33 @@ test('conversation keyboard controls, live states, turn error recovery and 360px
   await expect(panel.getByRole('heading', { name: '1번째 말 · 번역 실패' })).toBeVisible()
   await expect(panel.getByText(/말소리를 찾지 못했습니다/)).toBeVisible()
   await audit(page, 'conversation-error-360')
-  // 둘째 마디는 업로드가 붙잡혀 있어 '듣는 중 · 번역 중'(번역을 기다리는 동안에도 계속 듣는다)이다.
+  // 둘째 마디는 결과가 붙잡혀 있어 '듣는 중 · 번역 중'(번역을 기다리는 동안에도 계속 듣는다)이다. 마디마다
+  // utterance → (소리) → 192ms 쉼의 pause → 1초 쉼의 end 순서로 보냈다.
   await capture(8, 31)
   await expect(panel.getByRole('status')).toContainText('듣는 중 · 번역 중')
+  await expect.poll(() => ends).toBe(2)
+  expect(sent()).toEqual(['start', 'utterance1', 'pause1', 'end1', 'utterance2', 'pause2', 'end2'])
+  expect(received).toContain('audio')
   await audit(page, 'conversation-translating-360')
   // 결과가 오면 번역 음성을 읽는 동안 '재생 중 · 듣기 멈춤'이 되고, 번역문에는 lang="en"이 붙어 스크린리더가
-  // 영어로 읽는다. 재생 중에 들어온 소리는 버리므로 업로드가 늘지 않는다(calls 2 그대로).
+  // 영어로 읽는다. 재생 중에 들어온 소리는 버리므로 보낸 메시지가 늘지 않는다.
   release()
   await expect(panel.getByRole('status')).toContainText('재생 중 · 듣기 멈춤')
   await expect(panel.getByText('Hello', { exact: true })).toHaveAttribute('lang', 'en')
+  const count = received.length
   await capture(8, 31)
-  expect(calls).toBe(2)
+  expect(received).toHaveLength(count)
   await audit(page, 'conversation-playing-360')
-  // 읽기가 끝나면 다시 '듣는 중'이 되고, '대화 멈춤'을 누르면 '멈춤' 상태와 함께 언어 선택이 다시 풀리며 둘째
-  // 마디는 '번역 완료'로 남는다.
+  // 읽기가 끝나면 다시 '듣는 중'이 되고, '대화 멈춤'을 누르면 웹소켓을 닫고 '멈춤' 상태와 함께 언어 선택이
+  // 다시 풀리며 둘째 마디는 '번역 완료'로 남는다. 업로드는 한 번도 없었다.
   await page.evaluate(() => (window as unknown as { finishSpeech: () => void }).finishSpeech())
   await expect(panel.getByRole('status')).toContainText('듣는 중')
   await activate(page, page.getByRole('button', { name: '대화 멈춤' }))
   await expect(panel.getByRole('status')).toHaveText('멈춤')
+  await expect.poll(() => closed).toBe(true)
   await expect(page.getByLabel('말하거나 입력할 언어')).toBeEnabled()
   await expect(panel.getByRole('heading', { name: '2번째 말 · 번역 완료' })).toBeVisible()
+  expect(uploads).toBe(0)
   await audit(page, 'conversation-stopped-360')
 })
 
@@ -258,19 +288,37 @@ test('two-person dialog keyboard, guessed direction, face-to-face view and 360px
       harness.finishDialogSpeech = () => utterance.onend?.(new SpeechSynthesisEvent('end', { utterance }))
     }
   })
-  // 두 사람 대화 업로드의 가짜 응답과 요청 본문 기록: 첫 마디는 확신 0.55로 한국어라고
+  // 로그인한 실제 모드의 두 사람 대화는 마디를 웹소켓(mode 'dialog')으로 흘려보내고, 서버가 마디 언어를
+  // 판별하며 연결마다 직전 마디 언어를 기억한다(00bf7d7, docs/api.md). 가짜 웹소켓 서버는 받은 메시지를
+  // 기록하고, start에 ready로, 마디의 end에 final로 답한다: 첫 마디는 확신 0.55로 한국어라고
   // 추정한(language_guessed) 결과, 둘째 마디는 확신 0.98의 영어 결과.
-  const dialogBodies: string[] = []
   const dialogResults = [
     { ...item, id: 'wrong', mode: 'speech', source_lang: 'ko', target_lang: 'en', source_text: '안녕하세요',
       translated_text: 'Hello', language_confidence: .55, language_guessed: true },
     { ...item, id: 'english', mode: 'speech', source_lang: 'en', target_lang: 'ko', source_text: 'Thank you',
       translated_text: '감사합니다', language_confidence: .98, language_guessed: false },
   ]
-  await page.route('**/api/translate/dialog', async (route) => {
-    dialogBodies.push(route.request().postData() ?? '')
-    await route.fulfill({ status: 201, json: dialogResults[dialogBodies.length - 1] })
+  const received: (string | Record<string, unknown>)[] = []
+  let ends = 0
+  let closed = false
+  await page.routeWebSocket((url) => url.pathname === '/api/translate/live', (ws) => {
+    expect(new URL(ws.url()).search).toBe('')
+    ws.onClose(() => { closed = true })
+    ws.onMessage((raw) => {
+      if (typeof raw !== 'string') { received.push('audio'); return }
+      const message = JSON.parse(raw)
+      received.push(message)
+      if (message.type === 'start') ws.send(JSON.stringify({ type: 'ready' }))
+      else if (message.type === 'end') ws.send(JSON.stringify({ type: 'final', id: message.id, result: dialogResults[ends++] }))
+    })
   })
+  // 예시 모드만 끝난 마디를 HTTP로 올린다. 실제 모드에서 업로드로 돌아가지 않는지 보려고 업로드 수를 센다.
+  let uploads = 0
+  await page.route('**/api/translate/dialog', async (route) => {
+    uploads++
+    await route.fulfill({ status: 201, json: dialogResults[0] })
+  })
+  const messages = () => received.filter((message): message is Record<string, unknown> => typeof message !== 'string')
   // 방향 바꾸기는 같은 녹음을 음성 번역 API에 반대 방향으로 다시 보내고(docs/api.md), 틀린 기록은 DELETE로
   // 지운다. 두 요청을 기록해 확인한다.
   let correctionBody = ''
@@ -303,20 +351,21 @@ test('two-person dialog keyboard, guessed direction, face-to-face view and 360px
   await activate(page, panel.getByRole('button', { name: '두 사람 대화 시작' }))
   await expect(panel.getByRole('status')).toContainText('듣는 중')
 
-  // 첫 마디: 방향을 추정했다는 안내가 보이고, 직전 마디가 없으니 요청에 previous_lang이 없다. 이어서 번역
-  // 음성을 읽는 동안 듣기를 멈춘다.
+  // 첫 마디: 방향을 추정했다는 안내가 보이고, 첫 연결이라 start에 직전 마디 언어(previous_lang·previous_id)가
+  // 없다. 이어서 번역 음성을 읽는 동안 듣기를 멈춘다.
   await capture(8, 31)
   await expect(panel.getByText(/방향을 추정했습니다/)).toBeVisible()
-  expect(dialogBodies[0]).not.toContain('name="previous_lang"')
+  expect(messages()[0]).toEqual({ type: 'start', token: tokens.access_token, mode: 'dialog' })
   await expect(panel.getByRole('status')).toContainText('재생 중 · 듣기 멈춤')
   await finishSpeech()
   await expect(panel.getByRole('status')).toContainText('듣는 중')
-  // 둘째 마디: 요청에 직전 마디 언어(previous_lang=ko)가 실려, 서버가 확신이 낮을 때 '번갈아 말한다'고 볼 수
-  // 있게 한다. 말풍선은 언어별 모양(.dialog-turn-ko/-en)으로 나뉜다.
+  // 둘째 마디: 같은 연결로 보내므로 서버가 첫 마디 언어(ko)를 직전 마디 언어로 써서, 확신이 낮을 때 '번갈아
+  // 말한다'고 볼 수 있다(start는 한 번뿐). 말풍선은 언어별 모양(.dialog-turn-ko/-en)으로 나뉜다.
   await capture(8, 31)
   await expect(panel.getByText('감사합니다', { exact: true })).toBeVisible()
-  expect(dialogBodies[1]).toContain('name="previous_lang"')
-  expect(dialogBodies[1]).toContain('ko')
+  expect(messages().map((message) => `${message.type}${message.id ?? ''}`))
+    .toEqual(['start', 'utterance1', 'pause1', 'end1', 'utterance2', 'pause2', 'end2'])
+  expect(received).toContain('audio')
   await finishSpeech()
   await expect(panel.locator('.dialog-turn-ko')).toContainText('안녕하세요')
   await expect(panel.locator('.dialog-turn-en')).toContainText('Thank you')
@@ -336,7 +385,8 @@ test('two-person dialog keyboard, guessed direction, face-to-face view and 360px
   await activate(page, panel.getByRole('button', { name: '말풍선 보기' }))
 
   // 방향 바꾸기: 1번째 말이 다시 번역 완료로 바뀌고, 다시 보낸 요청이 en → ko 방향이며, 틀린 기록이 지워지고,
-  // 추정 안내가 사라진 뒤 새 번역을 읽는다. 마지막으로 멈춤 상태를 검사한다.
+  // 추정 안내가 사라진 뒤 새 번역을 읽는다. 1번째 말은 마지막으로 처리된 마디가 아니라서 서버에 직전 마디
+  // 언어를 바꾸라는 previous 메시지를 보내지 않는다. 마지막으로 멈추면 웹소켓을 닫고, 업로드는 한 번도 없었다.
   await activate(page, panel.getByRole('button', { name: '이 말의 방향 바꾸기' }))
   await expect(panel.getByRole('article', { name: '1번째 말 · 번역 완료' })).toContainText('안녕하세요')
   expect(correctionBody).toContain('name="source_lang"')
@@ -346,9 +396,12 @@ test('two-person dialog keyboard, guessed direction, face-to-face view and 360px
   expect(deleted).toBe('DELETE')
   await expect(panel.getByText(/방향을 추정했습니다/)).toHaveCount(0)
   await expect(panel.getByRole('status')).toContainText('재생 중 · 듣기 멈춤')
+  expect(messages().some((message) => message.type === 'previous')).toBe(false)
   await finishSpeech()
   await activate(page, panel.getByRole('button', { name: '두 사람 대화 멈춤' }))
   await expect(panel.getByRole('status')).toHaveText('멈춤')
+  await expect.poll(() => closed).toBe(true)
+  expect(uploads).toBe(0)
   await audit(page, 'dialog-stopped-360')
 })
 

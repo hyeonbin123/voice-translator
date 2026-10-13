@@ -53,13 +53,13 @@ KEY_TO_JAMO = {key: jamo for jamo, key in DUBEOLSIK.items()}
 ROWS = ("qwertyuiop", "asdfghjkl", "zxcvbnm")
 
 
-# 키 하나의 같은 줄 좌우 키 목록. 어느 줄에도 없으면 빈 목록.
-# 주의: 빈 문자열을 넣으면 ''가 모든 문자열에 포함된 것으로 판정돼 첫 줄의 'q' 위치로 보고 ['w']를 돌려준다.
-# _korean_neighbour_key는 표에 없는 자모(받침 없음, 쌍자음 등)에 빈 문자열을 넘기므로 이 경우가 생긴다.
+# 키 하나의 같은 줄 좌우 키 목록. 어느 줄에도 없으면 빈 목록. 글자 하나인 키만 찾는다: `in`은 부분 문자열
+# 검사라 빈 문자열('')이 모든 줄에 포함된 것으로 판정돼 첫 줄의 'q' 위치로 보고 ['w']를 돌려주었다(2026-10-13
+# 고침, docs/experiments.md 16절).
 def neighbours(key: str) -> list[str]:
     """Keys to the left and right on the same keyboard row."""
     for row in ROWS:
-        if key in row:
+        if len(key) == 1 and key in row:
             i = row.index(key)
             return [row[j] for j in (i - 1, i + 1) if 0 <= j < len(row)]
     return []
@@ -85,8 +85,10 @@ def compose(cho: int, jung: int, jong: int) -> str:
 # 한국어 오타 '옆 키를 잘못 누름': 단어의 음절마다 초성·중성·종성 각각을 두벌식 자판의 옆 키 자모로 바꾼 모든
 # 경우 중 하나를 무작위로 고른다. 옆 키가 다른 종류의 자모(예: 초성 자리에 모음 키)면 그 경우는 버린다. 바꿀
 # 수 없으면 None.
-# 주의: 받침이 없는 음절이나 쌍자음 초성처럼 DUBEOLSIK 표에 없는 자모는 neighbours('')가 ['w'](ㅈ)를 돌려줘,
-# 'ㅈ' 받침이 새로 붙거나 초성이 ㅈ으로 바뀌는 경우도 후보에 섞인다. 실제 옆 키 오타는 아니다.
+# 받침이 없는 자리, 쌍자음, Shift로 치는 모음(ㅒ·ㅖ), 두 키로 치는 겹모음·겹받침처럼 DUBEOLSIK 표에 없는
+# 자모는 이 오타의 후보가 아니다. 2026-10-13 전 코드는 이런 자리에 빈 키를 넘겨 neighbours('')가
+# ['w'](ㅈ)를 돌려줘, 'ㅈ' 받침이 새로 붙거나(가 → 갖) 쌍자음 초성·겹받침이 ㅈ으로 바뀌는(까 → 자,
+# 닭 → 닺) 후보가 섞였다(docs/experiments.md 16절).
 def _korean_neighbour_key(word: str, rng: random.Random) -> str | None:
     options = []
     for i, char in enumerate(word):
@@ -94,7 +96,9 @@ def _korean_neighbour_key(word: str, rng: random.Random) -> str | None:
             continue
         cho, jung, jong = decompose(char)
         for slot, jamo in ((0, CHO[cho]), (1, JUNG[jung]), (2, JONG[jong])):
-            for key in neighbours(DUBEOLSIK.get(jamo, "")):
+            if jamo not in DUBEOLSIK:
+                continue  # 자판의 키 하나로 치지 않는 자모: 옆 키 오타 후보가 없다
+            for key in neighbours(DUBEOLSIK[jamo]):
                 typed = KEY_TO_JAMO[key]
                 parts = [cho, jung, jong]
                 if slot == 0 and typed in CHO:

@@ -13,8 +13,10 @@ import pytest
 # 나누고 다시 합치며, neighbours는 QWERTY 자판에서 같은 줄의 좌우 키를 준다.
 from eval.typo_noise import (
     CHO,
+    DUBEOLSIK,
     JONG,
     JUNG,
+    _korean_neighbour_key,
     add_typos,
     compose,
     decompose,
@@ -35,11 +37,56 @@ def test_hangul_syllables_decompose_and_compose_back():
     assert all(compose(*decompose(char)) == char for char in "가각힣쌀쌁뭐")
 
 
-# 옆 키 오타는 같은 줄의 좌우 키만 쓴다. 줄 끝 키(q)는 한쪽만, 숫자처럼 표에 없는 키는 옆 키가 없다.
+# 옆 키 오타는 같은 줄의 좌우 키만 쓴다. 줄 끝 키(q)는 한쪽만, 숫자처럼 표에 없는 키는 옆 키가 없다. 빈
+# 문자열(두벌식 표에 없는 자모의 키)도 옆 키가 없다. 예전에는 ''가 모든 줄에 포함된 것으로 판정돼
+# ['w']를 냈다.
 def test_neighbouring_keys_stay_on_the_same_row():
     assert neighbours("q") == ["w"]
     assert neighbours("g") == ["f", "h"]
     assert neighbours("1") == []
+    assert neighbours("") == []
+
+
+# 옆 키 오타 후보를 모두 모으려고 rng.choice에 넘어온 목록을 그대로 잡아 두는 가짜 난수 생성기.
+class _Options:
+    def __init__(self):
+        self.options: list[str] = []
+
+    def choice(self, options):
+        self.options = list(options)
+        return options[0]
+
+
+def _neighbour_key_options(word: str) -> list[str]:
+    rng = _Options()
+    _korean_neighbour_key(word, rng)
+    return rng.options
+
+
+# 한국어 옆 키 오타는 두벌식 표에 있는 자모만 그 키의 같은 줄 좌우 키 자모로 바꾼다. 받침 없는 음절(가),
+# 쌍자음 초성(까), 겹받침(닭), Shift로 치는 모음(얘)은 그 자리에 후보가 없다. 예전 코드는 이런 자리에 'ㅈ'(w)
+# 오타를 만들었다(가 → 갖, 까 → 자, 닭 → 닺, 얘 → 얮).
+def test_korean_neighbour_key_uses_only_keys_on_the_layout():
+    assert sorted(_neighbour_key_options("가")) == sorted(["다", "사", "거", "기"])
+    assert sorted(_neighbour_key_options("까")) == sorted(["꺼", "끼"])
+    assert sorted(_neighbour_key_options("닭")) == sorted(["잙", "갉", "덝", "딝"])
+    assert _neighbour_key_options("얘") == ["냬", "럐"]
+
+
+# 같은 성질을 시험 문장 전체로 확인한다: 후보마다 음절 하나의 자모 하나만 바뀌고, 원래 자모는 두벌식 표에
+# 있으며, 바뀐 자모의 키는 원래 키의 같은 줄 좌우 키다.
+def test_korean_neighbour_key_changes_one_jamo_to_a_neighbouring_key():
+    jamo = (CHO, JUNG, JONG)
+    for word in KOREAN.split():
+        for option in _neighbour_key_options(word):
+            changed = [(a, b) for a, b in zip(word, option, strict=True) if a != b]
+            assert len(changed) == 1
+            before, after = decompose(changed[0][0]), decompose(changed[0][1])
+            slots = [slot for slot in range(3) if before[slot] != after[slot]]
+            assert len(slots) == 1
+            original, typed = jamo[slots[0]][before[slots[0]]], jamo[slots[0]][after[slots[0]]]
+            assert original in DUBEOLSIK
+            assert DUBEOLSIK[typed] in neighbours(DUBEOLSIK[original])
 
 
 # 같은 시드의 난수 생성기로 두 번 만들면 오타 결과가 똑같아야 한다(평가 세트 재현성). 확률 0.5면 이 문장에서는

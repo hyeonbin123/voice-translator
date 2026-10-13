@@ -14,6 +14,7 @@ its own adds the two and runs this module (T88).
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -323,3 +324,47 @@ def test_run_refuses_comet_scores_that_are_not_numbers(tmp_path, monkeypatch):
     comet_file.write_text(json.dumps({"meta": {}, "scores": scores}))
     with pytest.raises(SystemExit):
         reanalysis.run(argparse.Namespace(comet=str(comet_file), tag="u", rounds=10, trials=10), reports=None)
+
+
+# 16절 다시 재기용 바꿔 읽기: 6절 보고서(T32_DEV)의 한→영 항목 A·B·C만 새 보고서의 것으로 바뀌고, 영→한
+# 항목과 다른 보고서는 그대로다. 새 보고서의 영→한 항목은 쓰지 않는다. 한→영 A·B·C가 하나씩 없으면
+# ValueError로 멈춘다.
+def test_the_t32_ko_en_entries_can_come_from_a_new_report():
+    def entry(direction, candidate, source):
+        return {"direction": direction, "candidate": candidate, "from": source}
+
+    files = {
+        reanalysis.T32_DEV: [entry("ko-en", c, "old") for c in "ABC"]
+        + [entry("en-ko", c, "old") for c in "ABC"],
+        "new.json": [entry("ko-en", c, "new") for c in "ABC"] + [entry("en-ko", "A", "new")],
+        "other.json": ["unchanged"],
+        "partial.json": [entry("ko-en", c, "new") for c in "AB"],
+    }
+    reports = reanalysis.with_t32_ko_en("new.json", files.__getitem__)
+    read = reports(reanalysis.T32_DEV)
+    assert [(e["direction"], e["candidate"], e["from"]) for e in read] == [
+        *(("ko-en", c, "new") for c in "ABC"),
+        *(("en-ko", c, "old") for c in "ABC"),
+    ]
+    assert reports("other.json") == ["unchanged"]
+    with pytest.raises(ValueError):
+        reanalysis.with_t32_ko_en("partial.json", files.__getitem__)
+
+
+# 바꿔 읽어도 관문은 그대로 돈다: 새 보고서 자리에 기록된 6절 보고서를 그대로 넣으면 66개가 모두 재현된다.
+def test_the_gate_runs_on_the_replaced_t32_entries():
+    def files(name):
+        return stored(reanalysis.T32_DEV if name == "same.json" else name)
+
+    rows = check(reanalysis.with_t32_ko_en("same.json", files))
+    assert [row["name"] for row in rows if not row["ok"]] == [] and len(rows) == 66
+
+
+# 명령줄의 --t32-ko-en이 check·comet-input·run에 바꿔 읽는 함수를 넘기는지 확인한다(여기서는 check).
+def test_the_command_line_passes_the_replacement_on(monkeypatch, capsys):
+    seen = []
+    monkeypatch.setattr(reanalysis, "with_t32_ko_en", lambda report: ("replaced", report))
+    monkeypatch.setattr(reanalysis, "check", lambda reports: seen.append(reports) or [])
+    monkeypatch.setattr(sys, "argv", ["reanalysis", "check", "--t32-ko-en", "typo_new.json"])
+    reanalysis.main()
+    assert seen == [("replaced", "typo_new.json")]

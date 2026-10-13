@@ -416,7 +416,10 @@ def server(args: argparse.Namespace) -> None:
                 else:
                     failures += 1
             key = f"{lang}_{seconds}s"
-            results[key] = {"count": len(times), "failures": failures, "p50_s": statistics.median(times)}
+            # 한 조건의 요청이 모두 실패하면 중앙값이 없다(None). 빈 목록의 중앙값을 구하다 멈추면 앞서 잰
+            # 조건의 결과도 보고서에 남지 않는다.
+            p50 = statistics.median(times) if times else None
+            results[key] = {"count": len(times), "failures": failures, "p50_s": p50}
             print(key, results[key], flush=True)
     stamp = datetime.now(UTC)
     path = REPORTS / f"eos_{args.tag}_{stamp:%Y%m%d_%H%M%S}.json"

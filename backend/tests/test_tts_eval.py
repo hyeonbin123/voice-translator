@@ -144,16 +144,17 @@ def test_score_reads_only_the_synthesis_records_of_its_own_tag(tmp_path, monkeyp
     assert [record["tag"] for record in tts_eval.synth_records("t_dev_load")] == ["t_dev_load"]
 
 
-# 가짜 인식 모델: 호출 언어를 기록하고 2 ms씩 걸리며, 처음 한 번 또는 매번 실패하게 할 수 있다.
+# 가짜 인식 모델: 호출 언어를 기록하고 2 ms씩 걸리며, 첫 호출 뒤의 호출(fail_later) 또는 매번(fail_all)
+# 실패하게 할 수 있다.
 class CountingStt:
-    def __init__(self, fail_first: bool = False, fail_all: bool = False) -> None:
+    def __init__(self, fail_later: bool = False, fail_all: bool = False) -> None:
         self.calls: list[str] = []
-        self.fail_first, self.fail_all = fail_first, fail_all
+        self.fail_later, self.fail_all = fail_later, fail_all
 
     def transcribe(self, audio: bytes, language: str):
         self.calls.append(language)
         time.sleep(0.002)
-        if self.fail_all or (self.fail_first and len(self.calls) == 1):
+        if self.fail_all or (self.fail_later and len(self.calls) > 1):
             raise RuntimeError("no GPU")
         return Namespace(text="ok")
 
@@ -177,15 +178,22 @@ def test_the_recognition_load_runs_back_to_back_until_stopped():
 
 
 # 부하 인식이 첫 호출부터 실패하면(가짜 'no GPU' 오류) start가 RuntimeError로 측정을 멈추는지 확인한다. 두
-# 번째 부분은 실패 없는 부하(fail_first=False)가 오류 0으로 끝나는지 확인한다.
+# 번째 부분은 첫 인식이 성공한 뒤의 실패는 세기만 하고 부하를 멈추지 않는지 본다: 첫 호출만 성공하는
+# 인식기로 start가 돌아오고, 실패가 세 번 쌓이도록(부하가 계속 돎) 기다린 뒤 stop의 요약이 성공 1번과
+# 실패를 센다. 2026-10-13 전에는 실패 없는 인식기(fail_first=False)를 써서 이 경로를 확인하지 못했다.
 def test_a_recognition_load_that_cannot_run_stops_the_measurement():
     load = tts_eval.SttLoad(CountingStt(fail_all=True), [(b"a", "en")])
     with pytest.raises(RuntimeError, match="recognition load"):
         load.start(timeout=5)
     # A later failure is counted, not fatal.
-    load = tts_eval.SttLoad(CountingStt(fail_first=False), [(b"a", "en")])
+    stt = CountingStt(fail_later=True)
+    load = tts_eval.SttLoad(stt, [(b"a", "en")])
     load.start(timeout=5)
-    assert load.stop()["errors"] == 0
+    deadline = time.monotonic() + 5
+    while len(stt.calls) < 4 and time.monotonic() < deadline:
+        time.sleep(0.01)
+    summary = load.stop()
+    assert summary["errors"] >= 3 and summary["calls"] == summary["errors"] + 1
 
 
 # 부하용 클립은 <언어>_<id>.wav 이름 순서로 읽고, 언어는 파일 이름 앞부분에서 얻으며 다른 파일은 무시한다.

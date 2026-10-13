@@ -136,3 +136,22 @@ def test_global_voices_own_line_is_not_a_partner_note_but_an_italic_partner_note
     assert first_sentence(GV_BOILERPLATE.sub(" ", a), "en") == (
         "On a Saturday in late July, the country shut down its internet for the first time."
     )
+
+
+# 세트는 한 번만 고정하므로 같은 파일이 이미 있으면 기사를 하나도 받지 않고 바로 멈춘다. 예전에는 두
+# 누리집에서 기사 수백 쪽을 다 받은 뒤에야 파일이 있는지 봤다. 네트워크를 쓰려 하면 실패하도록
+# httpx.Client를 바꿔 둔다.
+def test_build_stops_before_any_request_when_the_set_exists(tmp_path, monkeypatch):
+    import httpx
+
+    from eval import contam_set
+
+    def no_network(**kwargs):
+        raise AssertionError("build fetched articles for a set that already exists")
+
+    monkeypatch.setattr(httpx, "Client", no_network)
+    out = tmp_path / "v1.jsonl"
+    out.write_text("{}\n", encoding="utf-8")
+    with pytest.raises(SystemExit, match="exists"):
+        contam_set.build(out)
+    assert out.read_text(encoding="utf-8") == "{}\n"

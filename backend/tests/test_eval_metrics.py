@@ -133,3 +133,41 @@ def test_a_word_appears_when_it_is_on_screen_to_stay():
     spans = [(0, 5, 0.3), (5, 10, 0.9)]
     # "hello" went away at 1.0 and came back at 1.5; "world" was shown whole only by the final result.
     assert appearance_lags(events, spans) == pytest.approx([1.2, 1.1])
+
+
+# 대화 모드 서버 응답 측정(eos_eval server)에서 한 조건(언어 × 길이)의 요청이 모두 실패해도 멈추지 않고, 그
+# 조건의 중앙값을 None으로 둔 채 앞서 잰 조건과 함께 보고서를 쓰는지 확인한다. 예전에는 빈 목록의
+# 중앙값(statistics.median)에서 StatisticsError로 멈춰 보고서가 남지 않았다. 서버는 httpx MockTransport로,
+# 녹음과 말 경계는 가짜로 바꾼다. 영어 한 녹음으로 3초 조각(첫 번역 요청)은 201, 5초 조각(둘째)은 422다.
+def test_the_server_report_survives_a_condition_whose_requests_all_failed(tmp_path, monkeypatch):
+    import argparse
+    import json
+
+    import httpx
+
+    from eval import eos_eval
+
+    translations = []
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/auth/register":
+            return httpx.Response(201, json={})
+        if request.url.path == "/api/auth/login":
+            return httpx.Response(200, json={"access_token": "token"})
+        translations.append(request.url.path)
+        return httpx.Response(201 if len(translations) == 1 else 422, json={})
+
+    client = httpx.Client
+    monkeypatch.setattr(httpx, "Client", lambda **kw: client(transport=httpx.MockTransport(answer), **kw))
+    clip = np.zeros(6 * eos_eval.RATE, dtype=np.float32)
+    monkeypatch.setattr(eos_eval, "load_clips", lambda lang, split: [("0-1", clip)])
+    monkeypatch.setattr(
+        eos_eval, "word_bounds", lambda clips, lang, split: {"0-1": [eos_eval.RATE, clip.size]}
+    )
+    monkeypatch.setattr(eos_eval, "REPORTS", tmp_path)
+    args = argparse.Namespace(base_url="http://test", langs=["en"], split="validation", count=1, tag="t")
+    eos_eval.server(args)
+    results = json.loads(next(tmp_path.glob("eos_t_*.json")).read_text(encoding="utf-8"))["results"]
+    assert translations == ["/api/translate/speech"] * 2
+    assert results["en_3s"]["count"] == 1 and results["en_3s"]["p50_s"] >= 0
+    assert results["en_5s"] == {"count": 0, "failures": 1, "p50_s": None}

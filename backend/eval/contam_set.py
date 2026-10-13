@@ -227,6 +227,10 @@ def build_english(client, count: int = PER_LANGUAGE) -> list[dict]:
 def build(out: Path) -> None:
     import httpx
 
+    # 기사 수백 쪽을 받기 전에 먼저 본다. 2026-10-13 전에는 다 받은 뒤에야 확인해, 이미 있는 세트면
+    # 외부 누리집에 보낸 요청이 모두 헛되었다.
+    if out.exists():
+        raise SystemExit(f"{out} exists: the set is frozen once; write a new version instead")
     with httpx.Client(headers={"User-Agent": USER_AGENT}, timeout=30, follow_redirects=True) as client:
         rows = build_korean(client) + build_english(client)
     counts = {language: sum(row["lang"] == language for row in rows) for language in ("ko", "en")}
