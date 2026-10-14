@@ -1,0 +1,2757 @@
+[
+ {
+  "direction": "ko-en",
+  "candidate": "D",
+  "corrector": "ollama/qwen2.5:7b-instruct",
+  "translator": "ctranslate2/opus-mt-tc-big-ko-en",
+  "vram_mb": 4705,
+  "levels": {
+   "clean": {
+    "chrf": 55.86443185352491,
+    "input_chrf": 94.23396050702398,
+    "correction_p50": 0.5200686999596655,
+    "total_p50": 0.6235202999087051,
+    "empty_corrections": 0,
+    "failures": 0,
+    "items": [
+     {
+      "id": 1510,
+      "input": "또한 유엔은 지구 온난화의 영향을 받는 국가들의 대처를 돕기 위한 기금의 조성을 완료하기를 기대하고 있습니다.",
+      "corrected": "또한 유엔은 지구 온난화의 영향을 받는 국가들의 대처를 돕기 위한 기금의 조성을 완료하기를 기대하고 있습니다.",
+      "hypothesis": "The United Nations also expects to complete the creation of funds to help countries affected by global warming.",
+      "chrf": 55.0
+     },
+     {
+      "id": 1511,
+      "input": "곧, 폭동 진압 장비를 갖춘 경찰들이 마당으로 진입해 최루 가스를 이용하여 수감자들을 코너로 몰아넣었습니다.",
+      "corrected": "곧, 폭동 진압 장비를 갖춘 경찰들이 마당으로 진입해 최루 가스를 이용하여 수감자들을 코너로 몰아넣었습니다.",
+      "hypothesis": "Soon, police officers with rioting equipment entered the yard and used tear gas to push prisoners into the corner.",
+      "chrf": 54.3
+     },
+     {
+      "id": 1513,
+      "input": "아르헨티나는 세계 최고의 폴로 팀과 선수를 보유한 것으로 유명합니다.",
+      "corrected": "아르헨티나는 세계 최고의 Polo 팀과 선수를 보유한 것으로 유명합니다.",
+      "hypothesis": "Argentina is known for having the best Polo teams and players in the world.",
+      "chrf": 76.2
+     },
+     {
+      "id": 1514,
+      "input": "부상자들이 병원으로 이송되고 싸움이 중단되자, 약 40명의 수감자들은 교도소 마당에서 버티며 각자 유치장으로 돌아가길 거부했습니다.",
+      "corrected": "부상자들이 병원으로 이송되고 싸움이 중단되자, 약 40명의 수감자들은 교도소 마당에서 버티며 각자 유치장으로 돌아가길 거부했습니다.",
+      "hypothesis": "When the wounded were taken to the hospital and the fighting stopped, some 40 prisoners refused to return to their detention centers while holding out in the prison yard.",
+      "chrf": 50.3
+     },
+     {
+      "id": 1515,
+      "input": "마텔리가 4년 만에 다섯 번째 하는 CEP다.",
+      "corrected": "마텔리가 4년 만에 다섯 번째 하는 CEP다.",
+      "hypothesis": "Martelli is the fifth in four years.",
+      "chrf": 55.0
+     },
+     {
+      "id": 1516,
+      "input": "본 장소에 밎는 존엄, 엄숙함, 경의를 다해 대해 주십시오. 홀로코스트나 나치에 대한 농담을 하지 마십시오.",
+      "corrected": "본 장소에 대한 존엄, 엄숙함, 경의를 다해 대해 주십시오. 홀로코스트나 나치에 대한 농담을 하지 마십시오.",
+      "hypothesis": "Please be respectful of this place with dignity, solemnity and respect. Don't make jokes about the Holocaust or the Nazis.",
+      "chrf": 65.2
+     },
+     {
+      "id": 1517,
+      "input": "AI 연구는 기계가 지능적 행동을 요구하는 작업을 자동화하는 연구를 포함합니다.",
+      "corrected": "AI 연구는 기계가 지능적 행동을 수행하는 작업을 자동화하는 연구를 포함합니다.",
+      "hypothesis": "AI research involves automating the work of machines performing intelligent behavior.",
+      "chrf": 55.6
+     },
+     {
+      "id": 1518,
+      "input": "한 전직 필리핀 경찰관이 필리핀의 수도 마닐라에서 버스를 납치하여 홍콩 관광객들을 인질로 삼았다.",
+      "corrected": "한 전직 필리핀 경찰관이 필리핀의 수도 마닐라에서 버스를 납치하여 홍콩 관광객들을 인질로 삼았다.",
+      "hypothesis": "An ex-Philippine police officer kidnapped a bus in Manila, the Philippines’ capital, and took Hong Kong tourists hostage.",
+      "chrf": 55.8
+     },
+     {
+      "id": 1519,
+      "input": "대부분의 경우, 해외 갭 이어(gap-year) 코스에 등록하면 실제로 고국에서 고등 교육에 진학할 가능성을 높일 수 있습니다.",
+      "corrected": "대부분의 경우, 해외 갭 이어(gap-year) 코스에 등록하면 실제로 고국에서 고등 교육에 진학할 가능성을 높일 수 있습니다.",
+      "hypothesis": "In most cases, enrolling in a gap-year course abroad can actually increase your chances of progressing to higher education in your home country.",
+      "chrf": 75.7
+     },
+     {
+      "id": 1521,
+      "input": "우주에 있는 위성은 신호를 받고 나서 거의 즉각적으로 반사해 내려보낸다.",
+      "corrected": "우주에 있는 위성은 신호를 받고 나서 거의 즉시 반사해 내려보낸다.",
+      "hypothesis": "Satellites in space receive signals and then reflect them back almost immediately.",
+      "chrf": 47.1
+     },
+     {
+      "id": 1522,
+      "input": "기술은 가상 현장학습에 도움을 줍니다. 학생들은 교실에 앉은 상태로 박물관 전시품들을 볼 수 있고, 수족관을 구경할 수 있으며, 아름다운 예술 작품을 감상할 수 있습니다.",
+      "corrected": "기술은 가상 현장학습에 도움을 줍니다. 학생들은 교실에 앉은 상태로 박물관 전시품들을 볼 수 있고, 수족관을 구경할 수 있으며, 아름다운 예술 작품을 감상할 수 있습니다.",
+      "hypothesis": "Technology helps virtual field trips. Students can sit in classrooms to see museum exhibits, see aquariums, and see beautiful artwork.",
+      "chrf": 47.7
+     },
+     {
+      "id": 1523,
+      "input": "최종 점수는 21 대 20으로 1점 차 승부였으며, 올블랙스(All Blacks)의 15연승으로 끝났다.",
+      "corrected": "최종 점수는 21 대 20으로 1점 차 승부였으며, 올블랙스(All Blacks)의 15연승으로 끝났다.",
+      "hypothesis": "The final score was 21–20, ending with the All Blacks' 15th straight win.",
+      "chrf": 49.0
+     },
+     {
+      "id": 1524,
+      "input": "미터법 사용, 절대주의 체제에서 공화주의로의 전환, 민족주의와 국가는 한 통치자가 아닌 여러 사람의 소유라는 생각의 발생과 같이, 사회 및 정치적인 면에 많은 영향들을 미쳤습니다.",
+      "corrected": "미터법 사용, 절대주의 체제에서 공화주의로의 전환, 민족주의와 국가에 대한 생각의 발생과 같이, 사회 및 정치적인 면에 많은 영향을 미쳤습니다.",
+      "hypothesis": "The use of metric, the transition from an absolutist system to republican, nationalism and the emergence of ideas about the state have had a lot of influence on social and political aspects.",
+      "chrf": 49.7
+     },
+     {
+      "id": 1525,
+      "input": "이 도시는 전통적인 터키의 모습보다 지중해 유럽의 분위기를 더 많이 가지고 있지만 넓은 대로, 정면이 유리로 장식된 건물, 현대적인 쇼핑센터들 사이에 띄엄띄엄 전통적인 붉은 기와 지붕과 18세기 시장 그리고 오래된 모스크와 교회들이 있습니다.",
+      "corrected": "이 도시는 전통적인 터키의 모습보다 지중해 유럽의 분위기를 더 많이 가지고 있지만 넓은 대로, 정면이 유리로 장식된 건물, 현대적인 쇼핑센터들 사이에 띄엄띄엄 전통적인 붉은 기와 지붕과 18세기 시장 그리고 오래된 모스크와 교회들이 있습니다.",
+      "hypothesis": "The city has more of a Mediterranean European atmosphere than a traditional Turkish look, but on the wide streets, with glass-clad buildings, traditional red roofs and 18th-century markets and old mosques and churches.",
+      "chrf": 56.8
+     },
+     {
+      "id": 1527,
+      "input": "폴란드 남자 시각 장애인 스키 선수 마키 크레젤(Maciej Krezel)과 가이드 안나 오가진스카(Anna Ogarzynska)가 슈퍼대회전(Super G)에서 13위로 경기를 마쳤다. 한국의 박종석은 남자 좌식스키 슈퍼대회전(Super G)에서 24위를 차지했다.",
+      "corrected": "폴란드 남자 시각 장애인 스키 선수 마키 크레젤(Maciej Krezel)과 가이드 안나 오가진스카(Anna Ogarzynska)가 슈퍼대회전(Super G)에서 13위로 경기를 마쳤다. 한국의 박종석은 남자 좌식스키 슈퍼대회전(Super G)에서 24위를 차지했다.",
+      "hypothesis": "Polish man-visual skier Maciej Krezel and guide Anna Ogarzynska finished 13th in the Super G, with Park Jong-seok finishing 24th in the Super G.",
+      "chrf": 49.5
+     },
+     {
+      "id": 1528,
+      "input": "일부 축제들은 어린아이들이 있는 가족들을 위한 특별한 캠핑 공간을 가지고 있습니다.",
+      "corrected": "일부 축제들은 어린이들이 있는 가족들을 위한 특별한 캠핑 공간을 가지고 있습니다.",
+      "hypothesis": "Some festivals have special camping areas for families with children.",
+      "chrf": 89.3
+     },
+     {
+      "id": 1529,
+      "input": "링의 CEO인 제이미 시미노프 (Jamie Siminoff)는 차고에 있던 그의 숍에서 초인종 소리를 들을 수 없었을 때 회사를 시작했다고 말했습니다.",
+      "corrected": "링의 CEO인 제이미 시미노프 (Jamie Siminoff)는 차고에 있던 그의 소프트에서 초인종 소리를 들을 수 없었을 때 회사를 시작했다고 말했습니다.",
+      "hypothesis": "Ring CEO Jamie Siminoff said he started the company when he couldn’t hear the doorbell from his soft in the garage.",
+      "chrf": 46.1
+     },
+     {
+      "id": 1530,
+      "input": "화요일에 베어 쓰러뜨릴 예정이었으나 긴급 법원의 판결로 구조되었다.",
+      "corrected": "화요일에 베어를 쓰러뜨릴 예정이었으나 긴급 법원의 판결로 구조되었다.",
+      "hypothesis": "He was scheduled to drop Bear on Tuesday, but was rescued by an emergency court.",
+      "chrf": 53.5
+     },
+     {
+      "id": 1531,
+      "input": "동아프리카의 섬들은 아프리카 동부 연안을 따라 인도양에 자리 잡고 있다.",
+      "corrected": "동아프리카의 섬들은 아프리카 동부 연안을 따라 인도양에 위치하고 있다.",
+      "hypothesis": "The islands of East Africa are located in the Indian Ocean along the East Coast of Africa.",
+      "chrf": 62.8
+     },
+     {
+      "id": 1532,
+      "input": "108 접시의 Chhappan Bhog(힌두교에서는 신에게 바치는 단것, 과일, 견과류, 요리 등 56가지 다른 먹을거리들)가 Baba Shyam에게 차려졌습니다.",
+      "corrected": "108 접시의 Chhappan Bhog(힌두교에서는 신에게 바치는 56가지 다른 먹을거리들, 과일, 견과류, 요리 등)가 Baba Shyam에게 차려졌습니다.",
+      "hypothesis": "108 dishes of Chhappan Bhog (56 different foods, fruits, nuts, dishes, etc.) were served to Baba Shyam.",
+      "chrf": 52.8
+     },
+     {
+      "id": 1533,
+      "input": "여러 일반적인 형식(예: APS 형식)은 이 가로 세로 비율과 동일하거나 거의 비슷합니다.",
+      "corrected": "여러 일반적인 형식(예: APS 형식)은 이 가로와 세로 비율과 동일하거나 거의 비슷합니다.",
+      "hypothesis": "Many common formats (e.g. APS formats) are the same or nearly identical to this aspect ratio.",
+      "chrf": 47.5
+     },
+     {
+      "id": 1534,
+      "input": "상대적인 접근이 불가능한 의미를 결합하여, 'Timbuktu'는 이국적이고 멀리 떨어진 지역에 대한 은유로 사용하게 되었다.",
+      "corrected": "상대적인 접근이 불가능한 의미를 결합하여, 'Timbuktu'는 이국적이고 멀리 떨어진 지역에 대한 은유로 사용하게 되었다.",
+      "hypothesis": "Combining the inaccessibility of the relative approach, the 'Timbuktu' became a metaphor for an exotic and remote region.",
+      "chrf": 48.0
+     },
+     {
+      "id": 1535,
+      "input": "이것은 종전에 지상 레이더 기반 기술을 사용했던 것과 달리 위성 기반 기술을 이용하여 항공관제사들이 매우 높은 정확도로 항공기를 특정할 수 있게 하며, 조종사들에게 더 정확한 정보를 제공한다.",
+      "corrected": "이것은 종전에 지상 레이더 기반 기술을 사용했던 것과 달리 위성 기반 기술을 이용하여 항공관제사들이 매우 높은 정확도로 항공기를 특정할 수 있게 하며, 조종사들에게 더 정확한 정보를 제공한다.",
+      "hypothesis": "This allows air traffic controllers to specify aircraft with very high accuracy and provides pilots with more accurate information, as opposed to using ground radar-based technology in the past.",
+      "chrf": 56.5
+     },
+     {
+      "id": 1536,
+      "input": "현지 당국은 그 발전소 인근 주민들에게 실내에 머물며 에어컨을 끄고 수돗물을 마시지 말라고 경고하고 있다.",
+      "corrected": "현지 당국은 그 발전소 인근 주민들에게 실내에 머물며 에어컨을 끄고 수돗물을 마시지 말라고 경고하고 있다.",
+      "hypothesis": "Local authorities are warning residents to stay indoors, turn off air conditioning and not drink tap water.",
+      "chrf": 69.6
+     },
+     {
+      "id": 1537,
+      "input": "어둠 속에서 피라미드를 볼 수 있고 쇼가 시작하기 전에 고요 속에서 피라미드를 볼 수 있습니다.",
+      "corrected": "어둠 속에서 피라미드를 볼 수 있고, 쇼가 시작하기 전에 고요 속에서 피라미드를 볼 수 있습니다.",
+      "hypothesis": "You can see the pyramid in the dark, and you can see it in the stillness before the show starts.",
+      "chrf": 63.9
+     },
+     {
+      "id": 1538,
+      "input": "고립된 산간 지형에 위치한 포인트 마리온과 페어몬트 사이의 길은 버팔로 피츠버그 고속도로 중에서 가장 운전하기 힘든 곳으로 알려져 있다.",
+      "corrected": "고립된 산간 지형에 위치한 포인트 마리온과 페어몬트 사이의 길은 버팔로 피츠버그 고속도로 중에서 가장 운전하기 힘든 곳으로 알려져 있다.",
+      "hypothesis": "The road between Point Marion and Fairmont on isolated mountain terrain is the most difficult to drive on the Buffalo Pittsburgh Highway.",
+      "chrf": 49.4
+     },
+     {
+      "id": 1539,
+      "input": "하위문화의 구성원들은 종종 패션, 매너리즘, 그리고 특정 속어를 포함하는 독특하고 상징적인 스타일을 통해 소속감을 나타낸다.",
+      "corrected": "하위문화의 구성원들은 종종 패션, 매너리즘, 그리고 특정 속어를 포함하는 독특하고 상징적인 스타일을 통해 소속감을 나타낸다.",
+      "hypothesis": "Members of subculture often show a sense of belonging through a unique and symbolic style that includes fashion, mannerisms, and certain slang words.",
+      "chrf": 56.3
+     },
+     {
+      "id": 1540,
+      "input": "티베트 불교는 이론상으로 매우 간단합니다. 쿤달리니 요가, 명상 및 모두를 포용하는 사랑의 길로 구성되어 있습니다.",
+      "corrected": "티베트 불교는 이론상으로 매우 간단합니다. 쿤달리니 요가, 명상 및 모두를 포용하는 사랑의 길로 구성되어 있습니다.",
+      "hypothesis": "Tibetan Buddhism is very simple in theory. It consists of Kundalini yoga, meditation and the path of love that embraces all.",
+      "chrf": 72.4
+     },
+     {
+      "id": 1541,
+      "input": "택배회사는 물건을 빨리 배달해 주는 대가로 많은 보수를 받습니다. 종종 업무 서류, 긴급 수리를 위한 상품이나 예비 부품의 경우에는 시간이 매우 중요합니다.",
+      "corrected": "택배회사는 물건을 빨리 배달해 주는 대가로 많은 보수를 받습니다. 종종 업무 서류, 긴급 수리를 위한 상품이나 예비 부품의 경우에는 시간이 매우 중요합니다.",
+      "hypothesis": "Couriers get a lot of pay in return for fast delivery of goods. Often, time is very important for work documents, products for urgent repairs or spare parts.",
+      "chrf": 44.5
+     },
+     {
+      "id": 1542,
+      "input": "\"부시의 대변인 고든 존드로는 북한의 약속에 대해 \"\"한반도의 비핵화를 달성하기 위한 주요 단계\"\"라고 평했습니다.\"",
+      "corrected": "\"부시의 대변인 고든 존드로는 북한의 약속에 대해 \"\"한반도의 비핵화를 달성하기 위한 주요 단계\"\"라고 평했습니다.\"",
+      "hypothesis": "\"Bush spokesman Gordon Zondroe described North Korea's commitment as a \"major step toward denuclearization of the Korean Peninsula.\"",
+      "chrf": 59.8
+     },
+     {
+      "id": 1543,
+      "input": "그 환자는 에볼라 바이러스 감염이 발생한 나이지리아에 방문한 적이 있었다.",
+      "corrected": "그 환자는 에볼라 바이러스 감염이 발생한 나이지리아에 방문한 적이 있었다.",
+      "hypothesis": "The patient had been to Nigeria where the Ebola virus had spread.",
+      "chrf": 62.5
+     },
+     {
+      "id": 1544,
+      "input": "곤충은 공중에서 날 수 있었던 첫 번째 동물입니다. 곤충의 비행 능력은 더 쉽게 적을 피하고 더 효율적으로 음식과 짝을 찾는 데 도움을 주었습니다.",
+      "corrected": "곤충은 공중에서 날 수 있었던 첫 번째 동물입니다. 곤충의 비행 능력은 더 쉽게 적을 피하고 더 효율적으로 음식과 짝을 찾는 데 도움을 주었습니다.",
+      "hypothesis": "Insects are the first animals that have been able to fly in the air. Their ability to fly has helped them more easily avoid enemies and find food and mates more efficiently.",
+      "chrf": 77.8
+     },
+     {
+      "id": 1545,
+      "input": "\"카레는 물의 양에 따라 \"\"되직\"\"하거나 \"\"묽게\"\"될 수 있다.\"",
+      "corrected": "\"카레는 물의 양에 따라 \"\"직하게\"\"或将文本按照换行重新排列：\n将\n文\n本\n按\n照\n换\n行\n重\n新\n排\n列：\n将文本按照换行重新排列：",
+      "hypothesis": "\"Kareh\" according to the quantity of water \"\"Honestly\"\"  ⁇   ⁇   ⁇   ⁇   ⁇   ⁇   ⁇   ⁇   ⁇ :  ⁇   ⁇   ⁇   ⁇ :",
+      "chrf": 17.1
+     },
+     {
+      "id": 1546,
+      "input": "깃털의 구조는 비행 용이 아니라 체온 조절이나 과시용으로 쓰였음을 암시한다. 연구원들은 어린 공룡의 꼬리에서 나온 샘플을 조사하니 유아의 솜털이 아닌 성인 공룡의 깃털이라고 이야기하였다.",
+      "corrected": "깃털의 구조는 비행용이 아니라 체온 조절이나 과시용으로 쓰였음을 암시한다. 연구원들은 어린 공룡의 꼬리에서 나온 샘플을 조사하니 유아의 솜털이 아닌 성인 공룡의 깃털이라고 이야기하였다.",
+      "hypothesis": "The structure of the feathers suggests that they were not used for flight, but for body temperature control and display. The researchers examined samples from the tails of young dinosaurs and described them as adult dinosaur feathers, not infant fur.",
+      "chrf": 55.4
+     },
+     {
+      "id": 1548,
+      "input": "수천 km(마일) 떨어진 사람과 통화한다면 인공위성을 쓰고 있는 겁니다.",
+      "corrected": "수천 km(마일) 떨어진 사람과 통화한다면 인공위성을 사용하고 있는 겁니다.",
+      "hypothesis": "If you're talking to someone thousands of miles away, you're using a satellite.",
+      "chrf": 68.3
+     },
+     {
+      "id": 1550,
+      "input": "\"스키여행은 스키광(\"\"ski bums\"\")이라고 불리는 애호가들이 즐기는 여행 방식이다. 그 사람들은 휴가 일정을 어느 한 특정 장소에서 줄곧 스키를 타는 시간으로 계획한다.\"",
+      "corrected": "\"스키 여행은 스키광('ski bums'라고 불리는 애호가들)이 즐기는 여행 방식이다. 그人们似乎误解了任务要求，这是一道针对韩语的指令，需要由人类用韩语回答。我将按照要求用韩语纠正拼写、 typo 和间距错误。\n\n\"스키 여행은 스키광('ski bums'라고 불리는 애호가들)이 즐기는 여행 방식이다. 그人们似乎误解了任务要求，这是一道针对韩语的指令，需要由人类用韩语回答。我将按照要求用韩语纠正拼写、 typo 和间距错误。\n\n\"스키 여행은 스키광('ski bums'라고 불리는 애호가들)이 즐기는 여행 방식이다. 그人们似乎误解了任务要求，这是一道针对韩语的指令，需要由人类用韩语回答。我将按照要求用韩语纠正拼写、 typo 和间距错误。\n\n\"스키 여행은 스키광('ski bums'라고 불리는 애호가들)이 즐기는 여행 방식이다. 그人们似乎误解了",
+      "hypothesis": "\"Skiing is a way of life for skiers.  ⁇ Skiing is a way of life for skiers.  ⁇ Skiing is a way of life for skiers.  ⁇ Skiing is a way of life.",
+      "chrf": 16.6
+     },
+     {
+      "id": 1551,
+      "input": "그들은 여전히 충돌의 크기와 지구가 어떤 영향을 받을 것인지에 대해 연구 중이다.",
+      "corrected": "그들은 여전히 충돌의 크기와 지구가 어떤 영향을 받을 것인지에 대해 연구 중이다.",
+      "hypothesis": "They are still working on the size of the collision and how the Earth will be affected.",
+      "chrf": 53.4
+     },
+     {
+      "id": 1552,
+      "input": "도표화된 분석 결과가 공개 웹사이트에 게시될 예정입니다.",
+      "corrected": "도표화된 분석 결과가 공개 웹사이트에 게시될 예정입니다.",
+      "hypothesis": "Graphiced analysis results will be posted on the public website.",
+      "chrf": 60.5
+     },
+     {
+      "id": 1553,
+      "input": "크리스마스는 기독교에서 가장 중요한 큰 명절 중 하나로 예수님의 생일을 기념하는 명절이다.",
+      "corrected": "크리스마스는 기독교에서 가장 중요한 큰 명절 중 하나로 예수 그리스도의 생일을 기념하는 명절이다.",
+      "hypothesis": "Christmas is one of the most important holidays in Christianity, celebrating the birthday of Jesus Christ.",
+      "chrf": 78.9
+     },
+     {
+      "id": 1555,
+      "input": "교회 뜰에는 몇몇 무덤 위에 비둘기의 흥미로운 대리석 조각들이 있다.",
+      "corrected": "교회 뜰에는 몇몇 무덤 위에 비둘기의 흥미로운 대리석 조각들이 있다.",
+      "hypothesis": "In the church courtyard there are interesting marble sculptures of pigeons on some graves.",
+      "chrf": 69.2
+     },
+     {
+      "id": 1556,
+      "input": "그의 1,000번째 도장은 2000년에 다비드 클뢰커 에렌슈트랄의 장대한 작품인 '스웨덴 역대 왕의 위업'을 새긴 것이다. 그리고 이는 기네스 세계 기록에 등재되어 있다.",
+      "corrected": "그의 1,000번째 도장은 2000년에 다비드 클뢰커 에렌슈트랄의 장대한 작품인 '스웨덴 역대 왕의 위업'을 새긴 것이다. 그리고 이는 기네스 세계 기록에 등재되어 있다.",
+      "hypothesis": "His 1,000th seal is the engraving of David Klöcker Erenstral's magnificent work \"The Rise of the Swedish King of All Time\" in 2000, and is listed in the Guinness World Records.",
+      "chrf": 59.4
+     },
+     {
+      "id": 1557,
+      "input": "1차 세계대전을 통해 전생의 참상과 만행을 겪은 국가들은 미래에 그러한 상황을 다시는 겪지 않기를 기도했습니다.",
+      "corrected": "1차 세계대전을 통해 전생의 참상과 만행을 겪은 국가들은 미래에 그러한 상황을 다시는 겪지 않기를 기원했습니다.",
+      "hypothesis": "Nations that have suffered the devastation and atrocities of previous lives through World War I hope to never experience such a situation again in the future.",
+      "chrf": 54.8
+     },
+     {
+      "id": 1558,
+      "input": "조직이 혁신적이 되려면, 리더십은 혁신 문화뿐만 아니라 공유 지식 및 조직적인 학습을 창조해야 합니다.",
+      "corrected": "조직이 혁신적이 되려면, 리더십은 혁신 문화뿐만 아니라 공유 지식 및 조직적 학습을 창조해야 합니다.",
+      "hypothesis": "For an organization to be innovative, leadership must create shared knowledge and organizational learning, as well as an innovative culture.",
+      "chrf": 79.2
+     },
+     {
+      "id": 1559,
+      "input": "이탈리아어는 대부분의 단어들이 정확히 쓰여진대로 발음되기 때문에 발음이 비교적 쉽다.",
+      "corrected": "이탈리아어는 대부분의 단어들이 정확히 쓰여진대로 발음되기 때문에 발음이 비교적 쉽다.",
+      "hypothesis": "The pronunciation is relatively easy in Italian because most words are pronounced exactly as they are written.",
+      "chrf": 84.5
+     },
+     {
+      "id": 1560,
+      "input": "해류를 벗어나기만 하면, 평소처럼 수영해서 돌아오는 것은 그다지 어렵지 않다.",
+      "corrected": "해류를 벗어나기만 하면, 평소처럼 수영해서 돌아오는 것은 그다지 어렵지 않다.",
+      "hypothesis": "Once you get out of the water, it’s not as difficult as usual to get back to swimming.",
+      "chrf": 42.9
+     },
+     {
+      "id": 1561,
+      "input": "대부분의 구역에서는 편안하고 튼튼한 소형 일제 코스터 버스가 운행된다.",
+      "corrected": "대부분의 구역에서는 편안하고 튼튼한 소형 일제 코스터 버스가 운행된다.",
+      "hypothesis": "In most areas there is a comfortable and sturdy small Japanese coaster bus.",
+      "chrf": 51.5
+     },
+     {
+      "id": 1562,
+      "input": "이것은 일반적인 관행이 되었지만, 철은 마차의 나무 바퀴를 더 많이 마모되게 하였습니다.",
+      "corrected": "이것은 일반적인 관행이 되었지만, 철은 마차의 나무 바퀴를 더 많이 마모하게 하였습니다.",
+      "hypothesis": "This became a common practice, but iron caused more wear on the wheel of the wagon.",
+      "chrf": 73.9
+     },
+     {
+      "id": 1563,
+      "input": "이것은 젊은 공룡의 꼬리이지만, 샘플을 보면 어린 개체의 솜털이 아닌 성체의 깃털임을 알 수 있다고 연구진은 말합니다.",
+      "corrected": "이것은 젊은 공룡의 꼬리이지만, 샘플을 보면 어린 개체의 솜털이 아닌 성체의 깃털임을 알 수 있다고 연구진은 말합니다.",
+      "hypothesis": "This is a young dinosaur's tail, but if you look at the sample, you'll see that it's not a young individual's feather, it's an adult's feather.",
+      "chrf": 34.9
+     },
+     {
+      "id": 1564,
+      "input": "Moll 박사는 일부 환자가 병원에서 질병에 감염되었을 수 있다고 생각하며, 그중 적어도 2명은 건강한 병원 근로자였을 것으로 생각했습니다.",
+      "corrected": "Moll 박사는 일부 환자가 병원에서 질병에 감염되었을 수 있다고 생각하며, 그중 적어도 2명은 건강한 병원 근로자였을 것으로 생각했습니다.",
+      "hypothesis": "Dr. Moll believed that some patients may have been infected by the disease in hospitals, and at least two of them were healthy hospital workers.",
+      "chrf": 54.9
+     },
+     {
+      "id": 1565,
+      "input": "과학의 주요 목적은 과학적 방법을 통해 세상이 어떻게 움직이는지 이해하는 것이다. 이 방식이 사실 대부분의 과학적 연구를 이끌어간다.",
+      "corrected": "과학의 주요 목적은 과학적 방법을 통해 세상이 어떻게 움직이는지 이해하는 것이다. 이 방식이 대부분의 과학적 연구를 이끌어간다.",
+      "hypothesis": "The main purpose of science is to understand how the world works through scientific methods, which lead to most scientific research.",
+      "chrf": 55.3
+     },
+     {
+      "id": 1566,
+      "input": "비록 우리 물품의 팔십 퍼센트가 중앙아메리카 국가들에서 관세를 통해 세금이 부과된다. 우리가 당신을 대접한다.",
+      "corrected": "비록 우리 물품의 팔십 퍼센트가 중앙아메리카 국가들에서 관세를 통해 세금이 부과된다. 하지만 우리가 당신을 대접합니다.",
+      "hypothesis": "Even though eighty percent of our goods are taxed through tariffs in Central American countries, we treat you well.",
+      "chrf": 84.9
+     },
+     {
+      "id": 1567,
+      "input": "그 해의 가장 규모가 큰 토너먼트 경기는 12월에 라스 카니타스의 폴로 경기장에서 열립니다.",
+      "corrected": "그 해의 가장 규모가 큰 토너먼트 경기는 12월에 라스 카니타스의 polo 경기장에서 열립니다.",
+      "hypothesis": "The biggest tournament match of the year will take place at the polo stadium in Las Canitas in December.",
+      "chrf": 58.3
+     },
+     {
+      "id": 1568,
+      "input": "특히 비(非)로마니, 사이에서는 널리 쓰이지만, 로마니, 사람들에 대한 부정적인 고정관념과 부정확한 인식을 주기 때문에 '집시'라는 말은 종종 불쾌하게 여겨지고 있다.",
+      "corrected": "특히 비(非)로마니어, 사이에서는 널리 쓰이지만, 로마니어, 사람들에 대한 부정적인 고정관념과 부정확한 인식을 주기 때문에 '집시'라는 말은 종종 불쾌하게 여겨지고 있다.",
+      "hypothesis": "Especially non-Romanic, although widely used, Romani, because of its negative stereotypes and inaccurate perceptions of people, the word \"gypsy\" is often disagreeable.",
+      "chrf": 63.0
+     },
+     {
+      "id": 1569,
+      "input": "보고서는 미국의 중동 정책에 관해 공개 토론과 의견 일치 형성에 대한 탄원으로 시작한다.",
+      "corrected": "보고서는 미국의 중동 정책에 관해 공개토론과 의견일치 형성에 대한 탄원으로 시작한다.",
+      "hypothesis": "The report begins with a plea for a forum and consensus on U.S. Middle East policy.",
+      "chrf": 32.6
+     },
+     {
+      "id": 1570,
+      "input": "또한 의회는 주(州) 간의 세법과 관세를 무효화할 권한이 없었습니다.",
+      "corrected": "또한 의회는 주(州) 간의 세법과 관세를 무효화할 권한이 없었습니다.",
+      "hypothesis": "Also, Congress did not have the authority to invalidate state-to-state tax laws and tariffs.",
+      "chrf": 52.6
+     },
+     {
+      "id": 1571,
+      "input": "아랍인들을 통해서도 이슬람교가 전해졌으며, 코모로스와 마요트 지방에서 큰 변화가 일어났습니다.",
+      "corrected": "아랍인들을 통해서도 이슬람교가 전해졌으며, 코모로스와 마요트 지방에서 큰 변화가 일어났습니다.",
+      "hypothesis": "Islam was passed on through the Arabs, and a big change took place in Comoros and Mayotte.",
+      "chrf": 49.0
+     },
+     {
+      "id": 1572,
+      "input": "정부청사 근처에서 2시간 만에 폭탄 3개가 추가로 폭발했다.",
+      "corrected": "정부청사 근처에서 2시간 만에 폭탄 3개가 추가로 폈발했다.",
+      "hypothesis": "Three more bombs were fired in less than two hours.",
+      "chrf": 37.0
+     },
+     {
+      "id": 1573,
+      "input": "위성 전화는 실외에서 위성과 송수신선이 직결된 곳에서 전화를 사용해야 하기 때문에, 보통 휴대폰을 대체할 수 없다.",
+      "corrected": "위성 전화는 실외에서 위성과 송수신선이 직결된 곳에서 전화를 사용해야 하기 때문에, 보통 휴대폰을 대체할 수 없다.",
+      "hypothesis": "Satellite telephones usually cannot replace mobile phones because they must be used outdoors where satellites and transceivers are directly connected.",
+      "chrf": 39.9
+     },
+     {
+      "id": 1574,
+      "input": "겨울은 믿을 수 없을 만큼 쌀쌀해지기도 한다. 영하 이하로 내려가는 날은 드물지만, 바람과 습도가 합쳐져서 실제 온도보다 더 춥게 느껴진다.",
+      "corrected": "겨울은 믿을 수 없을 만큼 쌀쌀해지기도 한다. 영하 이하로 내려가는 날은 드물지만, 바람과 습도가 합쳐져서 실제 온도보다 더 춥게 느껴진다.",
+      "hypothesis": "Winters can be incredibly cold; they rarely go below freezing, but wind and humidity combine to make them feel colder than they actually are.",
+      "chrf": 56.0
+     },
+     {
+      "id": 1575,
+      "input": "이스라엘은 협정이 이루어지자 이 구역의 현재 주둔군을 10년간 두는 것을 요구했고, PA는 주둔군이 5년 후에 떠나는 것에 동의했다.",
+      "corrected": "이스라엘은 협정이 이루어지자 이 구역의 현재 주둔군을 10년간 두는 것을 요구했고, PA는 주둔군이 5년 후에 떠나는 것에 동의했다.",
+      "hypothesis": "Israel demanded that the region's current garrison be held for ten years, and the PA agreed to leave five years later.",
+      "chrf": 36.4
+     },
+     {
+      "id": 1576,
+      "input": "강의은 일반적으로 여기에서 논의되는 모든 문제에 대해 훨씬 더 자세히 다루며, 보통 실무 경험이 동반됩니다.",
+      "corrected": "강의는 일반적으로 여기에서 논의되는 모든 문제에 대해 훨씬 더 자세히 다루며, 보통 실무 경험이 동반됩니다.",
+      "hypothesis": "Lectures are usually discussed in much more detail on all the issues discussed here, and are usually accompanied by practical experience.",
+      "chrf": 54.9
+     },
+     {
+      "id": 1577,
+      "input": "그게 저에겐 말이 안 되는 것 같았습니다. 확실히 공평하지 않았어요.",
+      "corrected": "그게 저에게는 말이 안 되는 것 같았습니다. 확실히 공평하지 않았어요.",
+      "hypothesis": "It didn't make sense to me. It certainly wasn't fair.",
+      "chrf": 69.6
+     },
+     {
+      "id": 1578,
+      "input": "그러고, 라카 싱은 바잔들을 노래하는 데 앞장섰다.",
+      "corrected": "그러고, 라카 싱은 바탄들을 노래하는 데 앞장섰다.",
+      "hypothesis": "Then Raqqa Singh took the lead in singing the Batans.",
+      "chrf": 68.4
+     },
+     {
+      "id": 1579,
+      "input": "이 시점에서 이라크의 행동이 종파적인 전쟁이나 폭력이 증가하는 것, 혹은 혼돈의 상태를 막을 수 있다는 데에 보장은 없다.",
+      "corrected": "이 시점에서 이라크의 행동이 종파적인 전쟁이나 폭력이 증가하는 것, 혹은 혼돈의 상태를 막을 수 있다는 보장은 없다.",
+      "hypothesis": "At this point, there is no guarantee that Iraq’s actions will prevent sectarian wars, violence, or chaos.",
+      "chrf": 43.6
+     },
+     {
+      "id": 1581,
+      "input": "아마존은 또한 지구상에서 가장 넓은 강으로, 때때로 폭이 6마일이 되곤 한다.",
+      "corrected": "아마존은 또한 지구상에서 가장 넓은 강으로, 때때로 폭이 6마일이 된다.",
+      "hypothesis": "The Amazon is also the widest river on Earth, sometimes six miles wide.",
+      "chrf": 91.0
+     },
+     {
+      "id": 1582,
+      "input": "히브리 가족의 삶은 거의 야외에서 이루어졌습니다.",
+      "corrected": "히브리 가족의 삶은 거의 야외에서 이루어졌습니다.",
+      "hypothesis": "The life of the Hebrew family was almost outside.",
+      "chrf": 49.9
+     },
+     {
+      "id": 1583,
+      "input": "그녀는 피임약이 의학적으로 꼭 필요한 것으로 여겨야 한다고 촉구하는 여성과 남성 모두의 긍정적인 의견과 격려가 쇄도했기 때문에 이런 결론을 내렸다.",
+      "corrected": "그녀는 피임약이 의학적으로 꼭 필요한 것으로 여겨야 한다고 촉구하는 여성과 남성 모두의 긍정적인 의견과 격려가 쇄도했기 때문에 이런 결론을 내렸다.",
+      "hypothesis": "She came to this conclusion because of the positive opinions and encouragement of both women and men who called for contraceptives to be considered medically necessary.",
+      "chrf": 49.7
+     },
+     {
+      "id": 1584,
+      "input": "비슈케크 시가지에 법 집행관들이 나타나지 않자, 간밤에 광범위한 약탈이 계속되었다고 전해진다.",
+      "corrected": "비슈케크 시가지에 법 집행관들이 나타나지 않자, 간밤에 광범위한 약탈이 계속되었다고 전해진다.",
+      "hypothesis": "When law enforcement officers failed to appear in the town of Bishkek, extensive looting was reportedly carried on overnight.",
+      "chrf": 50.9
+     },
+     {
+      "id": 1586,
+      "input": "그녀의 첫 번째 경기는 활강 경기였는데, 1회전에서 결승선을 통과하지 못했습니다. 116명의 선수 중 36명이 그 경기에서 같은 결과를 얻었습니다.",
+      "corrected": "그녀의 첫 번째 경기는 활강 경기였는데, 1회전에서 결승선을 통과하지 못했습니다. 116명의 선수 중 36명이 그 경기에서 같은 결과를 얻었습니다.",
+      "hypothesis": "Her first game was a run, and she didn't make it to the finish line in the first round, with 36 of the 116 players getting the same result.",
+      "chrf": 40.3
+     },
+     {
+      "id": 1587,
+      "input": "이번 시즌의 첫 발병 사례는 7월 말에 보고되었습니다.",
+      "corrected": "이번 시즌의 첫 발병 사례는 7월 말에 보고되었습니다.",
+      "hypothesis": "The first case of this season was reported in July.",
+      "chrf": 56.3
+     },
+     {
+      "id": 1588,
+      "input": "경찰에 따르면 사진기자를 친 차량의 운전자는 형사 고발을 당할 가능성이 낮다.",
+      "corrected": "경찰에 따르면 사진기자를 친 차량의 운전자는 형사 고발을 당할 가능성이 낮다.",
+      "hypothesis": "According to police, the driver of the vehicle who hit the photographer is less likely to be charged with a crime.",
+      "chrf": 73.7
+     },
+     {
+      "id": 1589,
+      "input": "하위문화를 명확하게 구분하는 특징은 언어적, 미적, 종교적, 정치적, 성적, 지리적 요소가 있으며, 이러한 요소들의 결합일 수도 있다.",
+      "corrected": "하위문화를 명확하게 구분하는 특징은 언어적, 미적, 종교적, 정치적, 성적, 지리적 요소가 있으며, 이러한 요소들의 결합일 수도 있다.",
+      "hypothesis": "The distinguishing features of subculture are linguistic, aesthetic, religious, political, sexual, and geographical, and may be a combination of these elements.",
+      "chrf": 66.2
+     },
+     {
+      "id": 1590,
+      "input": "주요 지역 맥주는 '넘버원(Number One)'으로, 복합적인 풍미는 아니지만 기분 좋은 상큼한 맥주입니다. 또 다른 지역 맥주로는 '만타(Manta)'가 있습니다.",
+      "corrected": "주요 지역 맥주는 '넘버원(Number One)'으로, 복합적인 풍미는 아니지만 기분 좋은 상큼한 맥주입니다. 또 다른 지역 맥주로는 '만타(Manta)'가 있습니다.",
+      "hypothesis": "The main local beer is 'Number One', which is not a complex flavor, but is delicious. Another local beer is 'Manta'.",
+      "chrf": 57.7
+     },
+     {
+      "id": 1591,
+      "input": "뉴트 깅리치 전 하원의장, 릭 페리 텍사스 주지사, 미셸 바흐만 하원 의원이 각각 4위, 5위, 6위를 차지했습니다.",
+      "corrected": "뉴트 깅리치 전 하원의장, 릭 페리 텍사스 주지사, 미셸 바흐만 하원 의원이 각각 4위, 5위, 6위를 차지했습니다.",
+      "hypothesis": "Former Speaker of the House of Representatives Newt Gingrich, Governor of Texas Rick Perry, and House of Representatives Michelle Bachman each finished fourth, fifth, and sixth.",
+      "chrf": 57.7
+     },
+     {
+      "id": 1593,
+      "input": "시간이 흘러 나무 바퀴는 철 바퀴로 대체되었다. 그리고 1767년에 드디어 철로만 만든 철도가 소개되었다.",
+      "corrected": "시간이 흘러 나무 바퀴는 철 바퀴로 대체되었다. 그리고 1767년에 드디어 철로만 만든 철도가 소개되었다.",
+      "hypothesis": "Over time, the wooden wheels were replaced by iron wheels, and in 1767, a railway was introduced that was made entirely of iron.",
+      "chrf": 58.4
+     },
+     {
+      "id": 1594,
+      "input": "코끼리나 기린처럼 일부 동물은 자동차에 가까이 접근하는 경향이 있으며 표준 장비를 이용하여 잘 관찰할 수 있습니다.",
+      "corrected": "코끼리나 기린처럼 일부 동물은 자동차에 가까이 접근하는 경향이 있으며, 표준 장비를 이용하여 잘 관찰할 수 있습니다.",
+      "hypothesis": "Some animals, like elephants and giraffes, tend to get close to their cars and can be observed well using standard equipment.",
+      "chrf": 58.1
+     },
+     {
+      "id": 1595,
+      "input": "티벳 불교는 부처님의 가르침을 기반으로 하지만, 대승불교의 사랑의 관념 및 인도 요가의 많은 기술을 바탕으로 확장되었습니다.",
+      "corrected": "티베트 불교는 부처님의 가르침을 기반으로 하지만, 대승불교의 사랑의 관념 및 인도 요가의 많은 기술을 바탕으로 확장되었습니다.",
+      "hypothesis": "Tibetan Buddhism is based on the teachings of the Buddha, but it has been expanded based on the idea of the Buddha's love and many techniques of Indian yoga.",
+      "chrf": 58.3
+     },
+     {
+      "id": 1596,
+      "input": "박물학자나 철학자는 고전 텍스트와 특별히 라틴어 성경에 초점을 맞췄습니다.",
+      "corrected": "박물학자나 철학자는 고전 텍스트와 특별히 라틴어 성경에 초점을 맞췄습니다.",
+      "hypothesis": "Naturalists and philosophers focused on classical texts and especially the Latin Bible.",
+      "chrf": 70.5
+     },
+     {
+      "id": 1598,
+      "input": "차가 집에 충돌했을 때 세 명이 안에 있었지만, 그들 중 한 명도 다치지 않았다.",
+      "corrected": "차가 집에 충돌했을 때 세 명이 안에 있었지만, 그들 중 한 명도 다치지 않았습니다.",
+      "hypothesis": "Three people were inside when the car hit the house, but not one of them was injured.",
+      "chrf": 57.7
+     },
+     {
+      "id": 1599,
+      "input": "원래 인구는 전혀 변동이 없었지만 여전히 전과 같은 적응이 필요합니다.",
+      "corrected": "원래 인구는 전혀 변동이 없었지만 여전히 전과 같은 적응이 필요합니다.",
+      "hypothesis": "The original population has not changed at all, but it still needs the same adaptation.",
+      "chrf": 73.2
+     },
+     {
+      "id": 1600,
+      "input": "현장 활동의 예로는 사냥, 낚시, 사진, 조류 관찰 및 공원 및 생태계에 대한 연구가 있다.",
+      "corrected": "현장 활동의 예로는 사냥, 낚시, 사진, 조류 관찰 및 공원 및 생태계에 대한 연구가 있다.",
+      "hypothesis": "Examples of field activities include hunting, fishing, photography, bird watching, and research into parks and ecosystems.",
+      "chrf": 65.2
+     },
+     {
+      "id": 1601,
+      "input": "과학자들은 오셀롯이 잡아먹을 동물(먹이)을 쫓고, 또 찾는 데에 냄새를 사용한다고 생각합니다. 어디에 있었는지 냄새를 맡으면서 말이지요.",
+      "corrected": "과학자들은 오셀롯이 잡아먹을 동물(먹이)을 쫓고, 또 찾는 데에 냄새를 사용한다고 생각합니다. 어디에 있었는지 냄새를 맡으면서 말이죠.",
+      "hypothesis": "Scientists think that Ocelots use smell to hunt down and find the animals they eat, smelling where they've been.",
+      "chrf": 52.5
+     },
+     {
+      "id": 1604,
+      "input": "그는 NSA로서 1978년 캠프 데이비드 어코드, 1970년대 후반에 미국과 중국의 관계 정상화, 1979년 이란 인질 위기로 이어진 이란 혁명, 1979년 소련의 아프가니스탄 침공과 같은 세계 문제를 외교적으로 다루는 일에서 카터 대통령을 보좌하였습니다.",
+      "corrected": "그는 NSA로서 1978년 캠프 데이비드 약속, 1970년대 후반에 미국과 중국의 관계 정상화, 1979년 이란 인질 위기로 이어진 이란 혁명, 1979년 소련의 아프가니스탄 침공과 같은 세계 문제를 외교적으로 다루는 일에서 카터 대통령을 보좌하였습니다.",
+      "hypothesis": "As an NSA, he served President Carter on diplomatic matters such as the 1978 Camp David Promise, normalizing relations between the United States and China in the late 1970s, the Iranian Revolution that led to the 1979 hostage crisis, and the 1979 Soviet invasion of Afghanistan.",
+      "chrf": 55.7
+     },
+     {
+      "id": 1605,
+      "input": "포유류는 대륙으로부터의 먼 거리로 인해 갈라파고스의 일차 방목 동물인 거대 거북이처럼 여행할 수 없었습니다.",
+      "corrected": "포유류는 대륙으로부터의 먼 거리로 인해 갈라파고스의 일차 방목 동물인 거대 거북이처럼 여행할 수 없었습니다.",
+      "hypothesis": "Mammals couldn't travel like giant turtles, the primary grazing animals of the Galapagos, because of their distance from the continent.",
+      "chrf": 53.4
+     },
+     {
+      "id": 1606,
+      "input": "포르투갈인들은 이곳을 파괴한 다음 Casa Branca라는 이름으로 재건했지만, 1755년 지진 이후에 그곳을 버리고 떠났습니다.",
+      "corrected": "포르투갈인들은 이곳을 파괴한 다음 Casa Branca라는 이름으로 재건했지만, 1755년 지진 이후에 그곳을 버리고 떠났습니다.",
+      "hypothesis": "The Portuguese destroyed it and rebuilt it under the name Casa Branca, but abandoned it after the 1755 earthquake.",
+      "chrf": 78.9
+     },
+     {
+      "id": 1607,
+      "input": "이 흥미로운 마을을 산책하는데 30분을 투자할만합니다.",
+      "corrected": "이 흥미로운 마을을 산책하는데 30분을 투자할 만합니다.",
+      "hypothesis": "It takes about 30 minutes to walk through this exciting city.",
+      "chrf": 19.2
+     },
+     {
+      "id": 1609,
+      "input": "로빈 우타파(Robin Uthappa)가 이닝 최고점을 기록했다. 4점 11개와 6점 2개로 41 투구만에 70 런을 쳐 이닝 최고점을 기록했다.",
+      "corrected": "로빈 우타파(Robin Uthappa)가 이닝 최고점을 기록했다. 4점 11개와 6점 2개로 41 투구만에 70 런을 쳐 이닝 최고점을 기록했다.",
+      "hypothesis": "Robin Uthappa scored a high in the inning with 11 points out of 4 and 2 points out of 41.",
+      "chrf": 34.3
+     },
+     {
+      "id": 1611,
+      "input": ". 과학자들은 이 공룡 깃털의 윗쪽이 진갈색이고 아랫쪽은 희거나 노란빛이었다고 밝혔다.",
+      "corrected": "과학자들은 이 공룡 깃털의 윗쪽이 진갈색이고 아랫쪽은 희거나 노란빛이었다고 밝혔다.",
+      "hypothesis": "Scientists said the upper part of the dinosaur feathers was dark brown and the lower part was white or yellow.",
+      "chrf": 27.8
+     },
+     {
+      "id": 1612,
+      "input": "100피트 너비의 제방 너머로 물이 흘러넘칩니다.",
+      "corrected": "100피트 너비의 제방 너머로 물이 흐르넘칩니다.",
+      "hypothesis": "The water flows over a 100-foot-wide levees.",
+      "chrf": 24.4
+     },
+     {
+      "id": 1613,
+      "input": "다음으로 일부 안장, 특히 영국의 안장에는 떨어지는 기수가 뒤로 당길 경우 등자 가죽이 안장에서 떨어질 수 있는 안전바가 있다.",
+      "corrected": "다음으로, 일부 안장, 특히 영국의 안장에는 떨어지는 기수가 뒤로 당길 경우 등자 가죽이 안장에서 떨어질 수 있는 안전바가 있다.",
+      "hypothesis": "Next, in some saddles, especially in the UK, there are safety bars where the back of the back leather can fall if the rider pulls back.",
+      "chrf": 33.8
+     },
+     {
+      "id": 1615,
+      "input": "수천 년 전에 아리스다고라는 사람이 태양계가 태양을 중심으로 움직인다고 주장했다.",
+      "corrected": "수천 년 전에 아리스토텔레스라는 사람이 태양계가 태양을 중심으로 움직인다고 주장했다.",
+      "hypothesis": "Thousands of years ago, Aristotle claimed that the solar system revolved around the sun.",
+      "chrf": 54.6
+     },
+     {
+      "id": 1616,
+      "input": "이제 과학적 데이터가 거대한 규모의 이 탄소 경제는 지난 이백만 년 동안 인류의 진화를 도왔던 안정적인 상태에서 생물권을 몰아냈음을 보여줍니다.",
+      "corrected": "이제 과학적 데이터가 거대한 규모의 이 탄소 경제는 지난 이백만 년 동안 인류의 진화를 도왔던 안정적인 상태에서 생물권을 몰아내었다를 보여줍니다.",
+      "hypothesis": "Now, scientific data shows that this massive carbon economy has driven the biosphere out of a stable state that has helped humanity evolve over the last two million years.",
+      "chrf": 58.1
+     },
+     {
+      "id": 1617,
+      "input": "크루거 국립공원(KNP)은 남아프리카의 북동쪽에 위치하여 동쪽으로는 모잠비크, 북쪽으로는 짐바브웨 국경을 따라 형성되어 있으며, 남쪽으로는 크로커다일 강을 경계로 하고 있습니다.",
+      "corrected": "크루거 국립공원(KNP)은 남아프리카의 북동쪽에 위치하여 동쪽으로는 모잠비크, 북쪽으로는 짐바브웨 국경을 따라 형성되어 있으며, 남쪽으로는 크로커다일 강을 경계로 하고 있습니다.",
+      "hypothesis": "Kruger National Park (KNP) is located in the northeast of South Africa, along the border of Mozambique to the north and the Crockerdale River to the south.",
+      "chrf": 60.9
+     },
+     {
+      "id": 1618,
+      "input": "북부 지역 또는 센티넬 산맥에는 남극 대륙에서 가장 높은 산인 빈슨 산괴(Vinson Massif)가 있는데, 빈슨 산 높이는 4,892m입니다.",
+      "corrected": "북부 지역 또는 센티넬 산맥에는 남극 대륙에서 가장 높은 산인 빈슨 산(Vinson Mountain)이 있는데, 빈슨 산 높이는 4,892m입니다.",
+      "hypothesis": "In the northern region or the Sentinel Mountains, Vinson Mountain, the highest mountain in Antarctica, has a height of 4,892 m.",
+      "chrf": 50.0
+     },
+     {
+      "id": 1619,
+      "input": "하지만 대부분의 표지판은 법으로 최초 공식 언어로 확립된 카탈로니아어로만 표기되어 있습니다.",
+      "corrected": "하지만 대부분의 표지판은 법으로 최초 공식 언어로 확립된 카탈로니아어로만 표기되어 있습니다.",
+      "hypothesis": "However, most signs are only in Catalan, which is the first official language established by law.",
+      "chrf": 71.5
+     },
+     {
+      "id": 1620,
+      "input": "이제 군도 전체에서 폭넓게 이용할 수 있는 자바식 요리법은 다양한 단순 제철 요리가 특징적이며, 자바인들이 선호하는 주요 향은 땅콩, 칠리, 설탕(특히 자바 코코넛 설탕)과 다양한 향신료입니다.",
+      "corrected": "이제 군도 전체에서 폭넓게 이용할 수 있는 자바식 요리법은 다양한 단순 제철 요리가 특징적이며, 자바인들이 선호하는 주요 향은 땅콩, 칠리, 설탕(특히 자바 코코넛 설탕)과 다양한 향신료입니다.",
+      "hypothesis": "Now widely available throughout the archipelago, Javanese recipes feature a variety of simple seasonal dishes, and Javanese favorites are peanuts, chili, sugar (especially Java coconut sugar) and a variety of spices.",
+      "chrf": 63.4
+     },
+     {
+      "id": 1621,
+      "input": "초기에는 드레스가 동양의 비잔틴 문화에 크게 영향을 받았습니다.",
+      "corrected": "초기에는 드레스가 동양의 비잔티누스 문화에 크게 영향을 받았습니다.",
+      "hypothesis": "Initially, the dress was heavily influenced by the Byzantine culture of the East.",
+      "chrf": 71.1
+     },
+     {
+      "id": 1622,
+      "input": "조지 W. 부시 미국 대통령은 이 같은 발표를 환영했습니다.",
+      "corrected": "조지 W. 부시 미국 대통령은 이 같은 발표를 환영했습니다.",
+      "hypothesis": "President George W. Bush welcomed the announcement.",
+      "chrf": 93.0
+     },
+     {
+      "id": 1623,
+      "input": "이 조항들은 모든 주에서 만장일치의 동의를 얻어야만 수정이 가능했으며, 중앙 정부를 무시한 주 대표들은 대부분 회의에 불참석했습니다.",
+      "corrected": "이 조항들은 모든 주에서 만장일치의 동의를 얻어야만 수정이 가능했으며, 중앙 정부를 무시한 주 대표들은 대부분 회의에 불참했습니다.",
+      "hypothesis": "These provisions had to be amended with unanimous consent from all states, and most of the state representatives who ignored the central government were absent from the meeting.",
+      "chrf": 54.5
+     },
+     {
+      "id": 1624,
+      "input": "내륙 수로는 휴일을 보내기용으로 좋은 주제가 될 수 있습니다.",
+      "corrected": "내륙 수로는 휴일을 보내기로 좋은 주제가 될 수 있습니다.",
+      "hypothesis": "Inland waterways can be a good topic for a holiday.",
+      "chrf": 63.6
+     },
+     {
+      "id": 1627,
+      "input": "고대 로마 식사는 몇 세기가 지난 후 미국이나 아시아에서 유럽으로 온 음식을 포함할 수 없었습니다.",
+      "corrected": "고대 로마 식사는 몇 세기가 지난 후 미국이나 아시아에서 유럽으로 온 음식을 포함할 수 없었습니다.",
+      "hypothesis": "Ancient Roman meals could not contain food that came to Europe from the United States or Asia centuries later.",
+      "chrf": 58.3
+     },
+     {
+      "id": 1628,
+      "input": "수공예 제품들은 대량 생산된 유사 제품들만큼 낡지 않을지라도 골동품으로 정의할 수 있을 것입니다.",
+      "corrected": "수공예 제품들은 대량 생산된 유사 제품들만큼 낡지 않을지라도 골동품으로 정의할 수 있을 것입니다.",
+      "hypothesis": "Handcrafted products may not be as old as mass-produced similar products, but they can be defined as antiques.",
+      "chrf": 53.1
+     },
+     {
+      "id": 1629,
+      "input": "일부 보도에 따르면 공식 사망자 수는 8명으로 집계됐으며, 공식 보도에 따르면 최대 30명이 부상을 있었다고 전해진다. 그러나 최종 사망자 수는 아직 알려지지 않았다.",
+      "corrected": "일부 보도에 따르면 공식 사망자 수는 8명으로 집계됐으며, 공식 보도에 따르면 최대 30명이 부상을 입었다고 전해진다. 그러나 최종 사망자 수는 아직 알려지지 않았다.",
+      "hypothesis": "According to some reports, the official death toll was eight, with up to 30 people reportedly injured, but the final death toll remains unknown.",
+      "chrf": 47.2
+     },
+     {
+      "id": 1630,
+      "input": "멕시코 선수 알리 벨라스케스는 남자 슈퍼대회전 좌식에서 15위로 끝마쳤습니다. 뉴질랜드 선수 아담 홀은 남자 슈퍼대회전 입식에서 9위로 끝마쳤습니다.",
+      "corrected": "멕시코 선수 알리 벨라스케스는 남자 슈퍼대회전 좌식에서 15위로 끝마쳤습니다. 뉴질랜드 선수 아담 홀은 남자 슈퍼대회전 입식에서 9위로 끝마쳤습니다.",
+      "hypothesis": "Mexican player Ali Velázquez finished 15th in the men's Super Bowl sit-down, while New Zealander Adam Hall finished 9th in the men's Super Bowl.",
+      "chrf": 49.9
+     },
+     {
+      "id": 1631,
+      "input": "고대 신왕국 이집트인들은 조상의 기념비적인 건축물을 보고 경탄했고 이것은 그 당시 기준으로 1000년은 족히 넘은 건축물이었습니다.",
+      "corrected": "고대 신왕국 이집트인들은 조상의 기념비적인 건축물을 보고 경탄했고, 이것은 그 당시 기준으로 1000년은 족히 넘은 건축물이었습니다.",
+      "hypothesis": "The ancient New Kingdom Egyptians marveled at the monumental architecture of their ancestors, which at that time was well over 1,000 years old.",
+      "chrf": 54.8
+     },
+     {
+      "id": 1632,
+      "input": "여성들은 문화적 차이로 인해 괴롭힘으로 간주되는 결과가 초래될 수 있고 팔을 잡는 등의 행위가 드문 일이 아니라는 것을 알아야 합니다.",
+      "corrected": "여성들은 문화적 차이로 인해 괴롭힘으로 간주되는 결과가 초래될 수 있고, 팔을 잡는 등의 행위가 드문 일이 아니라는 것을 알아야 합니다.",
+      "hypothesis": "Women need to know that cultural differences can lead to harassment, and that arm-holding is not uncommon.",
+      "chrf": 40.7
+     },
+     {
+      "id": 1633,
+      "input": "이 역동적인 수송 셔틀은 어떤 식으로든 모든 사람들이 자가용을 기반으로 하는 수송 시스템과 연결되고 이를 지원하도록 한다.",
+      "corrected": "이 역동적인 수송 셔틀은 어떤 식으로든 모든 사람들이 자가용을 기반으로 하는 수송 시스템과 연결되고 이를 지원하도록 한다.",
+      "hypothesis": "This dynamic transport shuttle allows everyone to connect and support a vehicle-based transport system in one way or another.",
+      "chrf": 57.4
+     },
+     {
+      "id": 1635,
+      "input": "우리는 보다 환경친화적인 삶을 시작할 수 있고, 환경 운동에 참여할 수도 있습니다. 또한, 미래에 겪을 고통을 어느 정도 줄이기 위해 활동가가 될 수도 있습니다.",
+      "corrected": "우리는 보다 환경 친화적인 삶을 시작할 수 있고, 환경 운동에 참여할 수도 있습니다. 또한, 미래에 겪을 고통을 어느 정도 줄이기 위해 활동가가 될 수도 있습니다.",
+      "hypothesis": "We can start to live more environmentally friendly lives, we can participate in environmental movements, and we can become activists to reduce some of the suffering that we're going to have in the future.",
+      "chrf": 60.1
+     },
+     {
+      "id": 1636,
+      "input": "스페인 사람들이 3세기 동안 지속된 식민지 시대를 시작했다.",
+      "corrected": "스페인 사람들이 3세기 동안 지속된 식민지 시대를 시작했다.",
+      "hypothesis": "The Spanish began a colonial period that lasted for three centuries.",
+      "chrf": 56.7
+     },
+     {
+      "id": 1637,
+      "input": "겁에 질린 프랑스의 왕 루이 16세, 마리 앙투아네트 여왕 그리고 그들의 두 어린아이들 (11살 마리 테레즈 그리고 4살 루이 샤를) 그리고 왕의 여동생인 엘리자베스 공주, 1789년 10월 6일에 여성노동자 집단에 의해 베르사유에서 파리로 강제추방되었다.",
+      "corrected": "겁에 질린 프랑스의 왕 루이 16세, 마리 앙투아네트 여왕 그리고 그들의 두 어린아이들 (11살 마리 테레즈 그리고 4살 루이 샤를) 그리고 왕의 여동생인 엘리자베스 공주, 1789년 10월 6일에 여성노동자 집단에 의해 베르사유에서 파리로 강제 추방되었다.",
+      "hypothesis": "King Louis XVI of France, Queen Marie-Antoinette and their two children (11-year-old Marie Terrez and 4-year-old Louis Charles) and Princess Elizabeth, the king's sister, were deported from Versailles to Paris on 6 October 1789 by a group of women workers.",
+      "chrf": 56.2
+     },
+     {
+      "id": 1638,
+      "input": "사파리는 아마도 아프리카에서 가장 멋진 관광명소이며 많은 방문객에게 하이라이트가 될 것이다.",
+      "corrected": "사파리는 아마도 아프리카에서 가장 멋진 관광명소이며 많은 방문객에게 하이라이트가 될 것이다.",
+      "hypothesis": "Safari is perhaps the most spectacular tourist attraction in Africa and will be a highlight for many visitors.",
+      "chrf": 62.3
+     },
+     {
+      "id": 1639,
+      "input": "대부분 학생들이 가장 비판적인 청중이므로, 블로그 작가는 비판을 피하기 위해 글쓰기를 향상시키려고 노력하기 시작합니다.",
+      "corrected": "대부분 학생들이 가장 비판적인 청중이므로, 블로그 작가는 비판을 피하기 위해 글쓰기를 향상시키려고 노력하기 시작합니다.",
+      "hypothesis": "As most students are the most critical audience, blog writers begin to try to improve their writing in order to avoid criticism.",
+      "chrf": 67.8
+     },
+     {
+      "id": 1640,
+      "input": "얼음이 덮히고 눈이 쌓인 도로에서는 마찰력이 줄어들어서 당신은 마치 맨 아스팔트 위에 있는 것처럼 운전을 제대로 할 수가 없다.",
+      "corrected": "얼음이 덮히고 눈이 쌓인 도로에서는 마찰력이 줄어들어서 당신은 마치 매 아스팔트 위에 있는 것처럼 운전을 제대로 할 수가 없다.",
+      "hypothesis": "On ice-covered, snow-covered roads, friction is reduced, so you can’t drive as well as you do on every asphalt.",
+      "chrf": 43.1
+     },
+     {
+      "id": 1642,
+      "input": "필리핀 정복에 사용된 미국 제국주의의 전쟁 비용은 필리핀인 자신들에 의해 지급되었다.",
+      "corrected": "필리핀 정복에 사용된 미국 제국주의의 전쟁 비용은 필리핀인 자신들에 의해 지급되었다.",
+      "hypothesis": "The cost of the U.S. imperialist war against the Philippines was paid by the Filipinos themselves.",
+      "chrf": 54.0
+     },
+     {
+      "id": 1644,
+      "input": "\"의견을 물었을 때 밀러는 \"\"청문회 동안 마이크는 많은 이야기를 했습니다… 저는 준비를 하고 있었기 때문에 그가 하는 말을 듣지 못했습니다\"\"라고 말했습니다.\"",
+      "corrected": "\"의견을 물었을 때 밀러는 \"\"청문회 동안 마이크는 많은 이야기를 했습니다… 저는 준비를 하고 있었기 때문에 그가 하는 말을 듣지 못했습니다\"\"라고 말했습니다.\"",
+      "hypothesis": "\"When asked his opinion,\" Miller said, \"Mike talked a lot during the hearing... I was preparing, so I didn't hear what he was saying.\"",
+      "chrf": 61.8
+     },
+     {
+      "id": 1645,
+      "input": "그것의 만연한 힘은 왕에서 평민에 이르는 모든 사람에게 영향을 미칩니다.",
+      "corrected": "그것의 만연한 힘은 왕부터 평민까지 모든 사람에게 영향을 미칩니다.",
+      "hypothesis": "Its rampant power affects everyone, from kings to commoners.",
+      "chrf": 54.5
+     },
+     {
+      "id": 1646,
+      "input": "오클랜드가 두 개의 항구를 가로지르고 있기 때문에 해변이 많습니다. 가장 인기 있는 곳이 세 지역 안에 있습니다.",
+      "corrected": "오클랜드가 두 개의 항구를 가로지르기 때문에 해변이 많습니다. 가장 인기 있는 곳이 세 지역 안에 있습니다.",
+      "hypothesis": "There are many beaches as Auckland crosses two ports. The most popular ones are in three areas.",
+      "chrf": 66.3
+     },
+     {
+      "id": 1647,
+      "input": "제시된 견해는 다른 곳에서 얻을 수 있는 더 상세한 정보와 비교해 주로 피상적이고, 일반적이며, 지나치게 단순화된 모습이다.",
+      "corrected": "제시된 견해는 다른 곳에서 얻을 수 있는 더 상세한 정보와 비교해 주로 피상적이고, 일반적이며, 지나치게 단순화된 모습이다.",
+      "hypothesis": "The views presented are predominantly superficial, general, and oversimplified in comparison with more detailed information that can be obtained elsewhere.",
+      "chrf": 65.4
+     },
+     {
+      "id": 1648,
+      "input": "가나안에는 큰 숲이 없었기 때문에 나무가 무척 비쌌다.",
+      "corrected": "가나안에는 큰 숲이 없었기 때문에 나무가 무척 비쌌다.",
+      "hypothesis": "Because there were no large forests in Canaan, the trees were very expensive.",
+      "chrf": 57.0
+     },
+     {
+      "id": 1649,
+      "input": "일본에서 첫 벚꽃 파티가 천황의 주최로 황궁 주변에서 개최되었습니다. 이 파티에는 천황과 귀족 구성원만이 참여했습니다.",
+      "corrected": "일본에서 첫 벚꽃 파티가 천황의 주최로 황궁 주변에서 개최되었습니다. 이 파티에는 천황과 귀족 구성원만이 참여했습니다.",
+      "hypothesis": "The first cherry blossom party in Japan was held around the Imperial Palace hosted by the emperor. Only the emperor and noble members participated in this party.",
+      "chrf": 56.6
+     },
+     {
+      "id": 1650,
+      "input": "바다 악어는 바다에서 살지 않으며, 록햄프턴 북쪽 강어귀에 주로 서식한다.",
+      "corrected": "바다 악어는 바다에서 살지 않으며, 록햄프턴 북쪽 강어귀에 주로 서식한다.",
+      "hypothesis": "Sea crocodiles do not live in the sea, and are mainly found in the northern estuary of Rockhampton.",
+      "chrf": 41.4
+     },
+     {
+      "id": 1651,
+      "input": "갭이어를 여행과 공부에 사용하는 사람들이 점점 더 늘어나고 있다.",
+      "corrected": "갭이어를 여행과 공부에 사용하는 사람들이 점점 더 늘어나고 있다.",
+      "hypothesis": "The number of people who travel and study is increasing.",
+      "chrf": 29.1
+     },
+     {
+      "id": 1652,
+      "input": "몰도바의 주요 종교는 동방정교입니다.",
+      "corrected": "몰도바의 주요 종교는 동방정교입니다.",
+      "hypothesis": "The main religion in Moldova is Eastern Orthodoxy.",
+      "chrf": 60.8
+     },
+     {
+      "id": 1653,
+      "input": "NPWS와 '오스트레일리아 스포츠 슈터 협회'의 파트너쉽으로 '스포츠 슈터 협회'의 사냥 프로그램에 따라 자격을 갖춘 자원봉사자를 모집했다.",
+      "corrected": "NPWS와 '오스트레일리아 스포츠 슈터 협회'의 파트너십으로 '스포츠 슈터 협회'의 사냥 프로그램에 따라 자격을 갖춘 자원봉사자를 모집했다.",
+      "hypothesis": "In partnership with NPWS and the Australian Sports Shooter Association, they recruited qualified volunteers under the Hunting Program of the Sports Shooter Association.",
+      "chrf": 61.0
+     },
+     {
+      "id": 1654,
+      "input": "아실지 모르겠지만, 중앙아메리카에서 온 대부분의 물품은 이 나라에 면세로 들어왔습니다.",
+      "corrected": "아실지 모르겠지만, 중앙아메리카에서 온 대부분의 물품은 이 나라에 면세로 들어왔습니다.",
+      "hypothesis": "As you may know, most of the goods from Central America have been tax-free in this country.",
+      "chrf": 52.8
+     },
+     {
+      "id": 1656,
+      "input": "경찰은 시체가 하루 정도 있었던 것으로 보인다고 말했습니다.",
+      "corrected": "경찰은 시체가 하루 정도 있었던 것으로 보인다고 말했습니다.",
+      "hypothesis": "Police said the body appeared to have been there for a day.",
+      "chrf": 81.1
+     },
+     {
+      "id": 1657,
+      "input": "하지만 모든 수정이나 요청 사항이 있으면 호텔로 직접 연락하지 말고 우선 여행사를 통해 이를 진행해야 합니다.",
+      "corrected": "하지만 모든 수정이나 요청 사항이 있으면 호텔로 직접 연락하지 말고, 우선 여행사를 통해 이를 진행해야 합니다.",
+      "hypothesis": "However, if you have any modifications or requests, you should not contact the hotel directly, but first through a travel agent.",
+      "chrf": 47.6
+     },
+     {
+      "id": 1658,
+      "input": "하루에 열여덟 개의 메달만 주어지기 때문에, 많은 국가가 메달 단상에 오르지 못했습니다.",
+      "corrected": "하루에 열여덟 개의 메달만 주어지기 때문에, 많은 국가가 메달 단상에 오르지 못했습니다.",
+      "hypothesis": "With only 18 medals given per day, many countries failed to reach the medal.",
+      "chrf": 40.4
+     },
+     {
+      "id": 1659,
+      "input": "과학자들은 충돌로 인한 폭발이 거대했다고 말한다.",
+      "corrected": "과학자들은 충돌로 인한 폭발이 거대했다고 말한다.",
+      "hypothesis": "Scientists say the explosion was huge.",
+      "chrf": 53.4
+     }
+    ]
+   },
+   "light": {
+    "chrf": 55.055480475081566,
+    "input_chrf": 91.41834826664478,
+    "correction_p50": 0.5221521999919787,
+    "total_p50": 0.6243161000311375,
+    "empty_corrections": 0,
+    "failures": 0,
+    "items": [
+     {
+      "id": 1510,
+      "input": "또한 유엔은 지구 온난화의 영향을 받는 국가들의 대처를 돕 기 위한 기금의 조성을 완료하기를 기대하고 있습니다.",
+      "corrected": "또한 유엔은 지구 온난화의 영향을 받는 국가들의 대처를 돕기 위한 기금의 조성을 완료하기를 기대하고 있습니다.",
+      "hypothesis": "The United Nations also expects to complete the creation of funds to help countries affected by global warming.",
+      "chrf": 55.0
+     },
+     {
+      "id": 1511,
+      "input": "곧, 폭동 지압 장비를 갖춘 경찰들이 마당으로진입해최루 가스를 이용하여 수감자들을 코너로 몰아넣었습니다.",
+      "corrected": "곧, 폭동 진압 장비를 갖춘 경찰들이 마당으로 진입해 최루 가스를 이용하여 수감자들을 코너로 몰아넣었습니다.",
+      "hypothesis": "Soon, police officers with rioting equipment entered the yard and used tear gas to push prisoners into the corner.",
+      "chrf": 54.3
+     },
+     {
+      "id": 1513,
+      "input": "아르헨티나는 세 계 최고의 폴로 팀과 선수를 보유한 것으로 유명합니다.",
+      "corrected": "아르헨티나는 세계 최고의 폴로 팀과 선수를 보유한 것으로 유명합니다.",
+      "hypothesis": "Argentina is known for having the best polo teams and players in the world.",
+      "chrf": 81.6
+     },
+     {
+      "id": 1514,
+      "input": "부상자들이 병원으로 이송되고 싸움이 중단되자, 약 40명의 수감자들은 교도소 마당에서 버티며 각자 유치장으로 돌아가길 거부했습니다.",
+      "corrected": "부상자들이 병원으로 이송되고 싸움이 중단되자, 약 40명의 수감자들은 교도소 마당에서 버티며 각자 유치장으로 돌아가길 거부했습니다.",
+      "hypothesis": "When the wounded were taken to the hospital and the fighting stopped, some 40 prisoners refused to return to their detention centers while holding out in the prison yard.",
+      "chrf": 50.3
+     },
+     {
+      "id": 1515,
+      "input": "마텔리가 4년 만에 다섯 번째 하는 CEP다.",
+      "corrected": "마텔리가 4년 만에 다섯 번째 하는 CEP다.",
+      "hypothesis": "Martelli is the fifth in four years.",
+      "chrf": 55.0
+     },
+     {
+      "id": 1516,
+      "input": "본 장소에 밎는 존엄, 엄숙함, 경의를 다해 대해 주십시오. 홀로코스트나 나치에 대한 농담을 하지 마시시오.",
+      "corrected": "본 장소에 대한 존엄, 엄숙함, 경의를 다해 대해 주십시오. 홀로코스트나 나치에 대한 농담을 하지 마시오.",
+      "hypothesis": "Please do not joke about the Holocaust or the Nazis.",
+      "chrf": 30.7
+     },
+     {
+      "id": 1517,
+      "input": "AI 연구 는 기계가 지능적 행동을 요구하는 작업을 자동화하눈 연구를 포함합니다.",
+      "corrected": "AI 연구는 기계가 지능적 행동을 요구하는 작업을 자동화하는 연구를 포함합니다.",
+      "hypothesis": "AI research involves automating tasks that require machines to behave intelligently.",
+      "chrf": 66.3
+     },
+     {
+      "id": 1518,
+      "input": "한 전직 필리핀 경찰관이 필리핀의 수도 마닐라에서 버스를 납치하여 홍콩 관광객들을 인질로 삼았가.",
+      "corrected": "한 전직 필리핀 경찰관이 필리핀의 수도 마닐라에서 버스를 납치하여 홍콩 관광객들을 인질로 삼아서.",
+      "hypothesis": "A former Filipino police officer kidnaps a bus in Manila, the capital of the Philippines, and holds Hong Kong tourists hostage.",
+      "chrf": 72.8
+     },
+     {
+      "id": 1519,
+      "input": "대부분의 경우, 해외 갭 이어(gap-year) 코스 에 등록하면 실제로 고국에서 고등 교육에 진학할 가능성을 높일 수 있습니다.",
+      "corrected": "대부분의 경우, 해외 갭 이어(gap-year) 코스에 등록하면 실제로 고국에서 고등 교육에 진학할 가능성을 높일 수 있습니다.",
+      "hypothesis": "In most cases, enrolling in a gap-year course abroad can actually increase your chances of progressing to higher education in your home country.",
+      "chrf": 75.7
+     },
+     {
+      "id": 1521,
+      "input": "우주에 있는 위성은 신호를 받고 나서 거의 즉각적으로 반사해 내려보낸다.",
+      "corrected": "우주에 있는 위성은 신호를 받고 나서 거의 즉시 반사해 내려보낸다.",
+      "hypothesis": "Satellites in space receive signals and then reflect them back almost immediately.",
+      "chrf": 47.1
+     },
+     {
+      "id": 1522,
+      "input": "술기은 가상 현장학습에 도움을 줍니다. 학생들은 교실에앉은 상태로 박물관 전시품들을 볼 수 있도, 수족관을 구경할 수 있으며, 아름다운 예술 작품을 감상할 수 있습니다.",
+      "corrected": "술기은 가상 현장학습에 도움을 줍니다. 학생들은 교실에 앉은 상태로 박물관 전시품들을 볼 수 있고, 수족관을 구경할 수 있으며, 아름다운 예술 작품을 감상할 수 있습니다.",
+      "hypothesis": "Skills help virtual field trips. Students can sit in classrooms to see museum exhibits, see aquariums, and see beautiful artwork.",
+      "chrf": 43.1
+     },
+     {
+      "id": 1523,
+      "input": "최종 점수능 21 대 20으로 1점 차 승부였며으, 올블랙스(All Blacks)의 15승연으로 끝났다.",
+      "corrected": "최종 점수는 21 대 20으로 1점 차 승부였으며, 올블랙스(All Blacks)의 15승 연속으로 끝났다.",
+      "hypothesis": "The final score was 21–20, a one-point win over the All Blacks in a row.",
+      "chrf": 47.3
+     },
+     {
+      "id": 1524,
+      "input": "미터법 사용, 절대주의 체제에서 공화주의로의전환, 민족주의와 국가는 한 통치자가 아닌 여러 사람의 소유라는 생각의 발생과 같이,사회 및 정치적인 면에많은 영향들을 미쳤습니다.",
+      "corrected": "미터법 사용, 절대주의 체제에서 공화주의로의 전환, 민족주의와 국가는 한 통치자가 아닌 여러 사람의 소유라는 생각의 발생과 같이, 사회 및 정치적인 면에 많은 영향들을 미쳤습니다.",
+      "hypothesis": "The use of the metric system, the transition from the absolutist system to republican, nationalism and the state have had many effects on social and political aspects, such as the emergence of the idea that it belongs to several people, not one ruler.",
+      "chrf": 58.1
+     },
+     {
+      "id": 1525,
+      "input": "이 도시는 전통적인 터키의 모습보다 지중해 유럽의 분위기를 더 많이 가지고 있지만 넓은 대로, 정면이 유리 로 장식된 건물, 현대적인 쇼핑센터들 사이에 띄엄띄엄 전통적인 붉은 기 와지붕과18세기 시장 그리고 오래된 모스크와 교회들이 있습니다.",
+      "corrected": "이 도시는 전통적인 터키의 모습보다 지중해 유럽의 분위기를 더 많이 가지고 있지만 넓은 대로, 정면이 유리로 장식된 건물, 현대적인 쇼핑센터들 사이에 띄엄띄엄 전통적인 붉은 기와지붕과 18세기 시장 그리고 오래된 모스크와 교회들이 있습니다.",
+      "hypothesis": "The city has more of a Mediterranean European atmosphere than a traditional Turkish one, but on the widest avenue, there are glass-clad buildings, traditional red roofs and 18th-century markets, as well as old mosques and churches.",
+      "chrf": 56.2
+     },
+     {
+      "id": 1527,
+      "input": "폴란드 남자 시각 장애인 스키 선수 마 키 크레젤(Maciej Krezel)과 가이드 안나 오가진스카(Anna Ogarzynska)가 슈퍼대회전(Super G)에소 13위로 경를기 마쳤다.한국의 박종석은 남자 좌식스키 슈퍼대회전(Super G)에서 24위를 차지헸다.",
+      "corrected": "폴란드 남자 시각 장애인 스키 선수 마 키 크레젤(Maciej Krezel)과 가이드 안나 오가진스카(Anna Ogarzynska)가 슈퍼대회전(Super G)에서 13위로 경기를 마쳤다.한국의 박종석은 남자 좌식스키 슈퍼대회전(Super G)에서 24위를 차지했다.",
+      "hypothesis": "Polish male visually impaired skier Maciej Krezel and guide Anna Ogarzynska finished 13th in the Super G.",
+      "chrf": 48.2
+     },
+     {
+      "id": 1528,
+      "input": "일브 축제들은 어린아이들이 있는 가족들을 위한 특별한 캠핑 공간을 가지고 있습니다.",
+      "corrected": "일브 축제들은 어린이들이 있는 가족들을 위한 특별한 캠핑 공간을 가지고 있습니다.",
+      "hypothesis": "The Ilves Festival has a special camping area for families with children.",
+      "chrf": 65.9
+     },
+     {
+      "id": 1529,
+      "input": "링의 CEO인 제이미 시미노프(Jamie Siminoff)는 차고에 있던 그의 숍에서 초인종 소리를 드을 수 없었을 때 회사를 시작했다고 말했습니다.",
+      "corrected": "링의 CEO인 제이미 시미노프(Jamie Siminoff)는 차고에 있던 그의-shop에서 초인종 소리를 듣을 수 없었을 때 회사를 시작했다고 말했습니다.",
+      "hypothesis": "Ring CEO Jamie Siminoff said he started the company when he couldn’t hear the doorbell in his garage.",
+      "chrf": 46.0
+     },
+     {
+      "id": 1530,
+      "input": "화요일에 베어 쓰러뜨릴 예정이었으나 긴급 법원의 판결로 구조되었다.",
+      "corrected": "화요일에 베어를 쓰러뜨릴 예정이었으나 긴급 법원의 판결로 구조되었다.",
+      "hypothesis": "He was scheduled to drop Bear on Tuesday, but was rescued by an emergency court.",
+      "chrf": 53.5
+     },
+     {
+      "id": 1531,
+      "input": "동아프리카의 섬들은 아프리카 동부 연안을 따라 인도양에 자리 잡고 있다.",
+      "corrected": "동아프리카의 섬들은 아프리카 동부 연안을 따라 인도양에 위치하고 있다.",
+      "hypothesis": "The islands of East Africa are located in the Indian Ocean along the East Coast of Africa.",
+      "chrf": 62.8
+     },
+     {
+      "id": 1532,
+      "input": "108 접시의Chhappan Bhog(힌두교에서는 신에게 바치는 단것, 과일, 견과류, 요리 등 56가지 다른 먹을거리들)가 Baba Shyam에게 차려졌습니다.",
+      "corrected": "108 접시의 Chhappan Bhog(힌두교에서는 신에게 바치는 단것, 과일, 견과류, 요리 등 56가지 다른 먹을거리들)가 Baba Shyam에게 차려졌습니다.",
+      "hypothesis": "108 dishes of Chhappan Bhog (56 different dishes, including sweets, fruit, nuts, and dishes) were served to Baba Shyam.",
+      "chrf": 51.3
+     },
+     {
+      "id": 1533,
+      "input": "여러 일반적인 형식(예: APS 형식)은 이 가로 세로 비율과 동일하거나 거의 비 슷합니다.",
+      "corrected": "여러 일반적인 형식(예: APS 형식)은 이 가로 세로 비율과 동일하거나 거의 비슷합니다.",
+      "hypothesis": "Many common formats (e.g. APS formats) are the same or nearly identical to this aspect ratio.",
+      "chrf": 47.5
+     },
+     {
+      "id": 1534,
+      "input": "상대적인 접근 이 불가능한의미를결합하여, 'Timbuktu'는 이국적이고 멀리 떨어진 지역에 대한 은유로 사용하게 되었다.",
+      "corrected": "상대적인 접근이 불가능한 의미를 결합하여, 'Timbuktu'는 이국적이고 멀리 떨어진 지역에 대한 은유로 사용하게 되었다.",
+      "hypothesis": "Combining the inaccessibility of the relative approach, the 'Timbuktu' became a metaphor for an exotic and remote region.",
+      "chrf": 48.0
+     },
+     {
+      "id": 1535,
+      "input": "이것은 종전에 지상 레이더 기반 기을술 사용했던 것과 달리 위성 기반 기술을 이용하여 항공관제사들이 매우 높은 정확도로 항공기를 특정할 수 있게 하며, 조종사들에게 다 정확한 정보를 제공한다.",
+      "corrected": "이것은 종전에 지상 레이더 기반 기술 사용했던 것과 달리 위성 기반 기술을 이용하여 항공관제사들이 매우 높은 정확도로 항공기를 특정할 수 있게 하며, 조종사들에게 정확한 정보를 제공한다.",
+      "hypothesis": "This allows air traffic controllers to specify aircraft with very high accuracy and provides pilots with accurate information, unlike previous ground radar-based technologies.",
+      "chrf": 49.6
+     },
+     {
+      "id": 1536,
+      "input": "현지 강국은 그 발전소 인근 주민들에게 실내에 머물며 에어컨을 끄고 돗수물을 마시지 말라고 경고하고 있다.",
+      "corrected": "현지 강국은 그 발전소 인근 주민들에게 실내에 머물며 에어컨을 끄고 돗수물을 마시지 말라고 경고하고 있다.",
+      "hypothesis": "Local powers are warning residents to stay indoors, turn off air conditioning and not drink tap water.",
+      "chrf": 60.0
+     },
+     {
+      "id": 1537,
+      "input": "어둠 속에서 피라미드를 볼 수 있고 쇼가 시작하기 전에 고 요 속에서 피라미드를 볼 수 있습니다.",
+      "corrected": "어둠 속에서 피라미드를 볼 수 있고, 쇼가 시작하기 전에 고요 속에서 피라미드를 볼 수 있습니다.",
+      "hypothesis": "You can see the pyramid in the dark, and you can see it in the stillness before the show starts.",
+      "chrf": 63.9
+     },
+     {
+      "id": 1538,
+      "input": "고립되 간산 지형에 위치한 포인트 마리온과 페어몬트 사이의 길는 버팔로 피츠버그 고속도로 중에서 가장 운전하기 힘든 곳으로 알려져 있다.",
+      "corrected": "고립된 간산 지형에 위치한 포인트 마리온과 페어몬트 사이의 길은 버팔로 피츠버그 고속도로 중에서 가장 운전하기 힘든 곳으로 알려져 있다.",
+      "hypothesis": "The road between Point Marion and Fairmont on isolated mountain terrain is considered to be the most difficult to drive on the Buffalo Pittsburgh Highway.",
+      "chrf": 50.0
+     },
+     {
+      "id": 1539,
+      "input": "하위문화의 구성원들은 종종 패션, 매너리즘, 그리고 특정 속어를 포함하는 독특하고 상징적인 스타일을 통해 소속감을 나타낸다.",
+      "corrected": "하위문화의 구성원들은 종종 패션, 매너리즘, 그리고 특정 속어를 포함하는 독특하고 상징적인 스타일을 통해 소속감을 나타낸다.",
+      "hypothesis": "Members of subculture often show a sense of belonging through a unique and symbolic style that includes fashion, mannerisms, and certain slang words.",
+      "chrf": 56.3
+     },
+     {
+      "id": 1540,
+      "input": "티베트 불교는 이론상으로 매우 간단합니다. 쿤달리니 요가, 명상 및 모두를 포용하는 사랑의 길로 구성되어 있습니다.",
+      "corrected": "티베트 불교는 이론상으로 매우 간단합니다. 쿤달리니 요가, 명상 및 모두를 포용하는 사랑의 길로 구성되어 있습니다.",
+      "hypothesis": "Tibetan Buddhism is very simple in theory. It consists of Kundalini yoga, meditation and the path of love that embraces all.",
+      "chrf": 72.4
+     },
+     {
+      "id": 1541,
+      "input": "택배회사는 물건을 빨리 배달해 주는 대가로 많은 보수를 받습니다. 종종 업무 서류, 긴급 수리를 위한 상품이나 예비 부품의 경우에는 시간이 매우 중요합니다.",
+      "corrected": "택배회사는 물건을 빨리 배달해 주는 대가로 많은 보수를 받습니다. 종종 업무 서류, 긴급 수리를 위한 상품이나 예비 부품의 경우에는 시간이 매우 중요합니다.",
+      "hypothesis": "Couriers get a lot of pay in return for fast delivery of goods. Often, time is very important for work documents, products for urgent repairs or spare parts.",
+      "chrf": 44.5
+     },
+     {
+      "id": 1542,
+      "input": "\"부시의 변대인 고든 존드로는 북한의 약속에 대해 \"\"한반도의 비핵화를 달성하기위한 주요 단계\"\"라고 평했습니다.\"",
+      "corrected": "\"부시의 변호인 고든 존드로는 북한의 약속에 대해 \"\"한반도의 비핵화를 달성하기 위한 주요 단계\"\"라고 평했습니다.\"",
+      "hypothesis": "\"Bush's attorney, Gordon Zondroe, called the North's promise a \"major step toward denuclearization of the Korean Peninsula.\"",
+      "chrf": 48.6
+     },
+     {
+      "id": 1543,
+      "input": "그 환자는 에볼라 바이러스 감염이 발생한 나이지리아에 방문한 적이 있었다.",
+      "corrected": "그 환자는 에볼라 바이러스 감염이 발생한 나이지리아에 방문한 적이 있었다.",
+      "hypothesis": "The patient had been to Nigeria where the Ebola virus had spread.",
+      "chrf": 62.5
+     },
+     {
+      "id": 1544,
+      "input": "곤충은 공중에서 날 수 있었던 첫번째 동물입니다. 곤충의 비행 능력은 더 쉽게 적을 피하고 더 효율적으로 음식과 짝을 찾는 데 도룸을 주었습니다.",
+      "corrected": "곤충은 공중에서 날 수 있었던 첫 번째 동물입니다. 곤충의 비행 능력은 더 쉽게 적을 피하고 더 효율적으로 음식과 짝을 찾는 데 도움을 주었습니다.",
+      "hypothesis": "Insects are the first animals that have been able to fly in the air. Their ability to fly has helped them more easily avoid enemies and find food and mates more efficiently.",
+      "chrf": 77.8
+     },
+     {
+      "id": 1545,
+      "input": "\"카레는 물의 양 에 라따 \"\"되직\"\"하거나 \"\"묽게\"\"될 수 있다.\"",
+      "corrected": "\"카레는 물의 양에 따라 \"\"되직\"\"하거나 \"\"ǜ름ribly\"\" 될 수 있다.\"",
+      "hypothesis": "\"Carres can be \"retired\" or \"retributed\" depending on the amount of water.\"",
+      "chrf": 48.9
+     },
+     {
+      "id": 1546,
+      "input": "깃털의 구조는 비해 용이 아니라 체온 조절이나 과시용으로 쓰였음을 암시한다. 연구원들은 어린 공료의 꼬리에서 나온 샘플을 조사하니 유아의 솜털이 아닌 성인 공룡의 깃털이라고 이애기하였다.",
+      "corrected": "깃털의 구조는 비해 용이 아니라 체온 조절이나 과시용으로 쓰였음을 암시한다. 연구원들은 어린 공룡의 꼬리에서 나온 샘플을 조사하니 유아의 솜털이 아닌 성인 공룡의 깃털이라고 설명하였다.",
+      "hypothesis": "The structure of the feathers suggests that they were used for body temperature control and display, rather than for dragons. The researchers examined samples from the tails of young dinosaurs and described them as adult dinosaur feathers, not infant fur.",
+      "chrf": 51.0
+     },
+     {
+      "id": 1548,
+      "input": "수 천 km(마일) 떨어지 사람과 통화한다면 인공위성을 쓰고 있는 겁니다.",
+      "corrected": "수 천 km(마일) 떨어진 사람과 통화한다면 인공위성을 쓰고 있는 겁니다.",
+      "hypothesis": "If you're talking to someone thousands of miles away, you're using a satellite.",
+      "chrf": 68.3
+     },
+     {
+      "id": 1550,
+      "input": "\"스키여행은 스키광(\"\"ski bums\"\")이라고 불리는 애호가들이 즐기는 여행 방식이다. 그 사람들은 휴가 일정을 어느 한 특정 장소에서 줄곧 스키를 타는 시간으로 계획한다.\"",
+      "corrected": "\"스키 여행은 스키광('ski bums'라고 불리는 애호가들)이 즐기는 여행 방식이다. 그人们似乎误解了任务要求，这是一段韩语文本，不应被翻译成中文。根据任务要求，我将直接纠正其中的拼写、 typo 和间距错误：\n\n\"스키 여행은 스키광('ski bums'라고 불리는 애호가들)이 즐기는 여행 방식이다. 그人们似乎误解了任务要求，这是一段韩语文本，不应被翻译成中文。根据任务要求，我将直接纠正其中的拼写、 typo 和间距错误：\n\n\"스키 여행은 스키광('ski bums'라고 불리는 애호가들)이 즐기는 여행 방식이다. 그人们似乎误解了任务要求，这是一段韩语文本，不应被翻译成中文。根据任务要求，我将直接纠正其中的拼写、 typo 和间距错误：\n\n\"스키 여행은 스키광('ski bums'라고 불리는 애호가들)이 즐기는 여행 방식이다. 그人们似乎误解了任务要求，这是一段",
+      "hypothesis": "\"Skiing is a way of life for skiers. It's a way of life for skiers. It's a way of life for skiers.",
+      "chrf": 13.1
+     },
+     {
+      "id": 1551,
+      "input": "그들음여전히 충돌의 크기와 지구가어떤 영향을 받을 것인지에 대 해 연구 중이다.",
+      "corrected": "그들은 여전히 충돌의 크기와 지구가 어떤 영향을 받을 것인지에 대해 연구 중이다.",
+      "hypothesis": "They are still working on the size of the collision and how the Earth will be affected.",
+      "chrf": 53.4
+     },
+     {
+      "id": 1552,
+      "input": "도표화된 분석 결과가 공개 웹사이트에 게시될 예정입니다.",
+      "corrected": "도표화된 분석 결과가 공개 웹사이트에 게시될 예정입니다.",
+      "hypothesis": "Graphiced analysis results will be posted on the public website.",
+      "chrf": 60.5
+     },
+     {
+      "id": 1553,
+      "input": "크리스마스는 기독교에서 가장 중요한 큰 명절 중 하나로 예수님의 생일을 기념하는 명절이다.",
+      "corrected": "크리스마스는 기독교에서 가장 중요한 큰 명절 중 하나로 예수 그리스도의 생일을 기념하는 명절이다.",
+      "hypothesis": "Christmas is one of the most important holidays in Christianity, celebrating the birthday of Jesus Christ.",
+      "chrf": 78.9
+     },
+     {
+      "id": 1555,
+      "input": "교회 뜰에는 몇몇 무덤 위에 비두기의 흥미로운 대리석 조각들이 있다.",
+      "corrected": "교회 뜰에는 몇몇 무덤 위에 비두기의 흥미로운 대리석 조각들이 있다.",
+      "hypothesis": "In the church courtyard there are interesting marble carvings of the parables on some graves.",
+      "chrf": 56.2
+     },
+     {
+      "id": 1556,
+      "input": "스의 1,000번째 도장은 2000년에 다비드 클뢰커 에렌슈트랄의 장대한 작품인 '스웨덴 역대 왕의 위업'을 새긴 것이다. 그리고 이는 기네스 세계 기록에 등재되어 있다.",
+      "corrected": "스의 1,000번째 도장은 2000년에 다비드 클뢰커 에렌슈트랄의 장대한 작품인 '스웨덴 역대 왕의 위업'을 새긴 것이다. 그리고 이는 기네스 세계 기록에 등재되어 있다.",
+      "hypothesis": "The 1,000th seal of the Su is the engraving of David Klöcker Erenstral's magnificent work \"The Majesty of the Swedish King of All Time\" in 2000, and is listed in the Guinness World Records.",
+      "chrf": 57.1
+     },
+     {
+      "id": 1557,
+      "input": "1차 세계대전을 통해 전생의 참상과 만행을 겪은 국가들은 미래에 그러한 상황을 다시는 겪지 않기를 기도했습니다.",
+      "corrected": "1차 세계대전을 통해 전생의 참상과 만행을 겪은 국가들은 미래에 그러한 상황을 다시는 겪지 않기를 기원했습니다.",
+      "hypothesis": "Nations that have suffered the devastation and atrocities of previous lives through World War I hope to never experience such a situation again in the future.",
+      "chrf": 54.8
+     },
+     {
+      "id": 1558,
+      "input": "조직이 혁신적이 되려면, 리더십은 혁신 문화뿐만 아니라 공유 지식 및 조직적인 학습을 창조해야 합니다.",
+      "corrected": "조직이 혁신적이 되려면, 리더십은 혁신 문화뿐만 아니라 공유 지식 및 조직적 학습을 창조해야 합니다.",
+      "hypothesis": "For an organization to be innovative, leadership must create shared knowledge and organizational learning, as well as an innovative culture.",
+      "chrf": 79.2
+     },
+     {
+      "id": 1559,
+      "input": "이탈리아어는 대부분의 단어들이 정확히 쓰여진대로 발음되기 때문에 발음이 비교적 쉽다.",
+      "corrected": "이탈리아어는 대부분의 단어들이 정확히 쓰여진대로 발음되기 때문에 발음이 비교적 쉽다.",
+      "hypothesis": "The pronunciation is relatively easy in Italian because most words are pronounced exactly as they are written.",
+      "chrf": 84.5
+     },
+     {
+      "id": 1560,
+      "input": "해류를 벗어나기만 하면, 평소처럼 수영해서 돌아오는 것은 그다지 어렵지 않다.",
+      "corrected": "해류를 벗어나기만 하면, 평소처럼 수영해서 돌아오는 것은 그다지 어렵지 않다.",
+      "hypothesis": "Once you get out of the water, it’s not as difficult as usual to get back to swimming.",
+      "chrf": 42.9
+     },
+     {
+      "id": 1561,
+      "input": "대부분의 구역에서는 편안하고 튼튼한 소형 일제 코스터 버스가 운행된다.",
+      "corrected": "대부분의 구역에서는 편안하고 튼튼한 소형 일제 코스터 버스가 운행된다.",
+      "hypothesis": "In most areas there is a comfortable and sturdy small Japanese coaster bus.",
+      "chrf": 51.5
+     },
+     {
+      "id": 1562,
+      "input": "이것은 일반적인 관행이 되었지만, 철은 마차의 나무 바퀴를 더 많이 마모되게하였습니다.",
+      "corrected": "이것은 일반적인 관행이 되었지만, 철은 마차의 나무 바퀴를 더 많이 마모시켰습니다.",
+      "hypothesis": "This has become a common practice, but iron has worn more wooden wheels in wagons.",
+      "chrf": 54.2
+     },
+     {
+      "id": 1563,
+      "input": "이것은 젊은 공룡의 꼬리이지만, 샘플을 보묜 어린 개체의 솜털이 닌아 성체의 깃털임을 알 수 있다고 연구진은 말합니다.",
+      "corrected": "이것은 젊은 공룡의 꼬리이지만, 샘플을 보면 어린 개체의 솜털이 성체의 깃털임을 알 수 있다고 연구진은 말합니다.",
+      "hypothesis": "This is a young dinosaur's tail, but if you look at the sample, you can see that the young individual's feathers are adult feathers.",
+      "chrf": 35.9
+     },
+     {
+      "id": 1564,
+      "input": "Moll 박사는 일부 환자가 병원에서 질병에 감염되었을 수 있다고 생각하며, 중그 적어도 2명은 건강한 병원 근로자였을 거으로 생각했습니다.",
+      "corrected": "Moll 박사는 일부 환자가 병원에서 질병에 감염되었을 수 있다고 생각하며, 중그 적어도 2명은 건강한 병원 근로자였을 거로 생각했습니다.",
+      "hypothesis": "Dr. Moll believed that some patients may have been infected by the disease in hospitals, and at least two of them were healthy hospital workers.",
+      "chrf": 54.9
+     },
+     {
+      "id": 1565,
+      "input": "과학의 주요 목적은 과학 적 방법을 통해 세상이 어떻게 움직이는지 이해하는 것이다. 이 방식이 사실 대부분의 과학적 여구를 이끌어간다.",
+      "corrected": "과학의 주요 목적은 과학적 방법을 통해 세상이 어떻게 움직이는지 이해하는 것이다. 이 방식이 사실 대부분의 과학적 연구를 이끌어간다.",
+      "hypothesis": "The main purpose of science is to understand how the world works through scientific methods, which in fact lead to most scientific research.",
+      "chrf": 57.4
+     },
+     {
+      "id": 1566,
+      "input": "비록 우리 물품의 팔십 퍼센트가 중앙아메리카 국가들에서 관세를 통해 세금이 부과된다. 우리가 당신을 대접한다.",
+      "corrected": "비록 우리 물품의 팔십 퍼센트가 중앙아메리카 국가들에서 관세를 통해 세금이 부과된다. 우리는 당신을 대접합니다.",
+      "hypothesis": "Even though eighty percent of our goods are taxed through tariffs in Central American countries, we will treat you.",
+      "chrf": 83.7
+     },
+     {
+      "id": 1567,
+      "input": "그 해의 가장 규모가 큰 토너먼트 견기는 12월에 라스 카니타스의 폴로 경기장에서 열립니다.",
+      "corrected": "그 해의 가장 규모가 큰 토너먼트는 12월에 라스 카니타스의 폴로 경기장에서 열립니다.",
+      "hypothesis": "The largest tournament of the year takes place at the Polo Stadium in Las Carnitas in December.",
+      "chrf": 72.5
+     },
+     {
+      "id": 1568,
+      "input": "특히 비(非)로마니, 사이에서느 널리 쓰이지만, 로마니, 사람들에 대한 부정적인 고정관념과 부정확한 인식을 주기 때문에 '집시'라는 말은 종종 불쾌하게 여겨지고 있다.",
+      "corrected": "특히 비(非)로마니, 사이에서 널리 쓰이지만, 로마니 사람들에 대한 부정적인 고정관념과 부정확한 인식을 주기 때문에 '집시'라는 말은 종종 불쾌하게 여겨지고 있다.",
+      "hypothesis": "Especially in non-Romani, the term \"gypsy\" is often disagreeable because it gives negative stereotypes and inaccurate perceptions of the Romani people.",
+      "chrf": 56.7
+     },
+     {
+      "id": 1569,
+      "input": "보고서는 미국의 중동 정책에 관해 공개 토론 과 의견 일치 형성에 대한 탄원으로 시작한다.",
+      "corrected": "보고서는 미국의 중동 정책에 관해 공개 토론과 의견 일치 형성에 대한 탄원으로 시작한다.",
+      "hypothesis": "The report begins with a public debate on U.S. Middle East policy and a plea for consensus.",
+      "chrf": 34.6
+     },
+     {
+      "id": 1570,
+      "input": "또한 의회는 부(州) 간의 세법과 관세를 무효화할 권한이 없었습니다.",
+      "corrected": "또한 의회는 부(州) 간의 세법과 관세를 무효화할 권한이 없었습니다.",
+      "hypothesis": "Nor did Congress have the power to nullify the tax laws and tariffs between the states.",
+      "chrf": 53.1
+     },
+     {
+      "id": 1571,
+      "input": "아랍인들을 통해서도 이슬람교가 전해졌으며, 코모로스와 마 요트 지방에서큰 변화가 릴어났습니다.",
+      "corrected": "아랍인들을 통해서도 이슬람교가 전해졌으며, 코모로스와 마요트 지방에서 큰 변화가 이루어졌습니다.",
+      "hypothesis": "Islam was passed on through the Arabs, and a big change took place in Comoros and Mayotte.",
+      "chrf": 49.0
+     },
+     {
+      "id": 1572,
+      "input": "정부청사 처근에서 2시간 만에 폭탄 3개가 추가로 폭발했다.",
+      "corrected": "정부청사 근처에서 2시간 만에 폭탄 3개가 추가로 폈발했다.",
+      "hypothesis": "Three more bombs were fired in less than two hours.",
+      "chrf": 37.0
+     },
+     {
+      "id": 1573,
+      "input": "위성 전화는 실외에서 위성과 송수신선이 직결된 곳에서 전화를 사용해야 하기 때문에,보통 휴대폰을 대체할 수 없다.",
+      "corrected": "위성 전화는 실외에서 위성과 송수신선이 직결된 곳에서 전화를 사용해야 하기 때문에, 보통 휴대폰을 대체할 수 없다.",
+      "hypothesis": "Satellite telephones usually cannot replace mobile phones because they must be used outdoors where satellites and transceivers are directly connected.",
+      "chrf": 39.9
+     },
+     {
+      "id": 1574,
+      "input": "겨울은 믿을 수 없을 만큼 싸쌀해지기도 한다. 영하 이하로 내려가는 은날 드물지만, 바람과 습도가 합쳐져서 실제 온조보다 더 춥게 느껴진다.",
+      "corrected": "겨울은 믿을 수 없을 만큼 싸쌀해지기도 한다. 영하 이하로 내려가는 은날은 드물지만, 바람과 습도가 합쳐져서 실제 온도보다 더 춥게 느껴진다.",
+      "hypothesis": "Winters can be incredibly cold; silver days are rare below freezing, but wind and humidity combine to make them feel colder than they actually are.",
+      "chrf": 52.4
+     },
+     {
+      "id": 1575,
+      "input": "이스라엘은 협정이 이루어지자 이 구역의 현재주둔군을 10년간 두 는 것을 요구했고, PA눈 주둔 군이 5년 후에 떠나는 것에 동의했다.",
+      "corrected": "이스라엘은 협정이 이루어지자 이 구역의 현재 주둔군을 10년간 두는 것을 요구했고, PA는 주둔군이 5년 후에 떠나는 것에 동의했다.",
+      "hypothesis": "Israel demanded that the region's current garrison be held for ten years, and the PA agreed to leave five years later.",
+      "chrf": 36.4
+     },
+     {
+      "id": 1576,
+      "input": "강의은 일반적으로 여기에서 논의되는 모든 문제에 대해 훨씬 더 자세히 다루며, 보 통 실무 경이험 동반됩니다.",
+      "corrected": "강의은 일반적으로 여기에서 논의되는 모든 문제에 대해 훨씬 더 자세히 다루며, 보통 실무 경험이 동반됩니다.",
+      "hypothesis": "Lectures are usually discussed in much more detail on all the issues discussed here, and are usually accompanied by practical experience.",
+      "chrf": 54.9
+     },
+     {
+      "id": 1577,
+      "input": "그게 저에겐 말이 안 되는 것 같았습니다. 확실히 공평하지 않아어요.",
+      "corrected": "그게 저에게는 말이 안 되는 것 같았습니다. 확실히 공평하지 않아요.",
+      "hypothesis": "That didn't make sense to me. It's definitely not fair.",
+      "chrf": 49.5
+     },
+     {
+      "id": 1578,
+      "input": "그러고, 라카 싱은 바잔들을 노래하는 대 앞장섰다.",
+      "corrected": "그러고, 라카 싱은 바지선들을 노래하는 대 앞장섰다.",
+      "hypothesis": "Then, Raqqa Singh took the lead in singing barges.",
+      "chrf": 62.1
+     },
+     {
+      "id": 1579,
+      "input": "이 시점에서 이라크의 행동이 종파적인 전쟁이나 폭력이 증거하는 것, 혹은 혼돈의 상태를 막을 수 있다는 데에 보장은 없다.",
+      "corrected": "이 시점에서 이라크의 행동이 종파적인 전쟁이나 폭력이 증거하는 것, 혹은 혼돈의 상태를 막을 수 있다는 보장은 없다.",
+      "hypothesis": "At this point, there is no guarantee that Iraq’s actions will prevent sectarian wars, violence, or chaos.",
+      "chrf": 43.6
+     },
+     {
+      "id": 1581,
+      "input": "아마존 은 또한 지구상에서 가장 넓은 강으로, 때때로 폭이 6마일이 되곤 한다.",
+      "corrected": "아마존은 또한 지구상에서 가장 넓은 강으로, 때때로 폭이 6마일이 되곤 한다.",
+      "hypothesis": "The Amazon is also the widest river on Earth, sometimes six miles wide.",
+      "chrf": 91.0
+     },
+     {
+      "id": 1582,
+      "input": "히브리 가족의 삶은 거의 야외에서 이루어졌습니다.",
+      "corrected": "히브리 가족의 삶은 거의 야외에서 이루어졌습니다.",
+      "hypothesis": "The life of the Hebrew family was almost outside.",
+      "chrf": 49.9
+     },
+     {
+      "id": 1583,
+      "input": "그녀는 피임약이 의학적으로 꼭 필한요 것으로 여겨야 한다고 촉구하는 여성과 남성 모두의 긍정적인 의견과격려가 쇄도했 기 때문에 이런 결론을 내렸다.",
+      "corrected": "그녀는 피임약이 의학적으로 꼭 필요한 것으로 여겨야 한다고 촉구하는 여성과 남성 모두의 긍정적인 의견과 격려가 쇄도했기 때문에 이런 결론을 내렸다.",
+      "hypothesis": "She came to this conclusion because of the positive opinions and encouragement of both women and men who called for contraceptives to be considered medically necessary.",
+      "chrf": 49.7
+     },
+     {
+      "id": 1584,
+      "input": "비슈케크 시가지에 법 집행관들이 나타나지 않자, 간밤에 광범위한 약탈이 계속되었다고 전해진다.",
+      "corrected": "비슈케크 시가지에 법 집행관들이 나타나지 않자, 간밤에 광범위한 약탈이 계속되었다고 전해진다.",
+      "hypothesis": "When law enforcement officers failed to appear in the town of Bishkek, extensive looting was reportedly carried on overnight.",
+      "chrf": 50.9
+     },
+     {
+      "id": 1586,
+      "input": "그녀의 첫 번째 경기는 활강 경기였는데, 1회에전서 결승선을 통과하지 못했습니다. 116명의 선수 중 36며이 그 경기에서 같은 결과를 얻었습니다.",
+      "corrected": "그녀의 첫 번째 경기는 활강 경기였는데, 1회에 전서 결승선을 통과하지 못했습니다. 116명의 선수 중 36명이 그 경기에서 같은 결과를 얻었습니다.",
+      "hypothesis": "Her first game was a run, and she didn't make it to the finish line in one round, with 36 of the 116 players getting the same result.",
+      "chrf": 37.6
+     },
+     {
+      "id": 1587,
+      "input": "이번 시즌의 첫 발병 사례는 7월 말에 보고되었습니다.",
+      "corrected": "이번 시즌의 첫 발병 사례는 7월 말에 보고되었습니다.",
+      "hypothesis": "The first case of this season was reported in July.",
+      "chrf": 56.3
+     },
+     {
+      "id": 1588,
+      "input": "경찰에 따르면 사진기자를 친 차량의 운전자는 형사 고발을 당할 가능성이 낮다.",
+      "corrected": "경찰에 따르면 사진기자를 친 차량의 운전자는 형사 고발을 당할 가능성이 낮다.",
+      "hypothesis": "According to police, the driver of the vehicle who hit the photographer is less likely to be charged with a crime.",
+      "chrf": 73.7
+     },
+     {
+      "id": 1589,
+      "input": "하위문화를 명확하게구분하는 특징은 언어적, 미적, 종교적, 정치적, 성적, 지리적 요소가 있으며, 이러한요소들의 결 합일 수도 있다.",
+      "corrected": "하위문화를 명확하게 구분하는 특징은 언어적, 미적, 종교적, 정치적, 성적, 지리적 요소가 있으며, 이러한 요소들의 결합일 수도 있다.",
+      "hypothesis": "The distinguishing features of subculture are linguistic, aesthetic, religious, political, sexual, and geographical, and may be a combination of these elements.",
+      "chrf": 66.2
+     },
+     {
+      "id": 1590,
+      "input": "주요 지역 맥주는 '넘버원(Number One)'으로, 복합적인 풍미는 아니지만 기분 좋은 상큼한 맥주입니다. 또 다른 지역 맥주로는 '만타(Manta)'가 있습니다.",
+      "corrected": "주요 지역 맥주는 '넘버원(Number One)'으로, 복합적인 풍미는 아니지만 기분 좋은 상큼한 맥주입니다. 또 다른 지역 맥주로는 '만타(Manta)'가 있습니다.",
+      "hypothesis": "The main local beer is 'Number One', which is not a complex flavor, but is delicious. Another local beer is 'Manta'.",
+      "chrf": 57.7
+     },
+     {
+      "id": 1591,
+      "input": "뉴트 깅리치 전 하 원의장, 릭 페리텍사스 주지사, 미셸 바흐만 하원 의원이 각각 4위, 5위, 6위를 차지했습니다.",
+      "corrected": "뉴트 깅리치 전 하원의장, 릭 페리 텍사스 주지사, 미셸 바흐만 하원 의원이 각각 4위, 5위, 6위를 차지했습니다.",
+      "hypothesis": "Former Speaker of the House of Representatives Newt Gingrich, Governor of Texas Rick Perry, and House of Representatives Michelle Bachman each finished fourth, fifth, and sixth.",
+      "chrf": 57.7
+     },
+     {
+      "id": 1593,
+      "input": "시이간 흐러 나무 바퀴는 철 바퀴로 대체되었다. 그리고 1767년에 드디어 철로만 만든 철도가 소되개었다.",
+      "corrected": "시일간 흐러 나무 바퀴는 철 바퀴로 대체되었다. 그리고 1767년에 드디어 철로만 만든 철도가 소노개었다.",
+      "hypothesis": "Over the course of the week, the wheels were replaced by iron wheels, and in 1767 a railway was finally built.",
+      "chrf": 45.9
+     },
+     {
+      "id": 1594,
+      "input": "코끼리나 린기처럼 부일 동물은 자동차에 가까이 접근하는 경향이있으며 표준 장비를 이용하여 잘 관할찰 수 있습니다.",
+      "corrected": "코끼리나 린기처럼 부유 동물은 자동차에 가까이 접근하는 경향이 있으며 표준 장비를 이용하여 잘 관리할 수 있습니다.",
+      "hypothesis": "Rich animals, like elephants and lingies, tend to get close to their cars and can be managed well using standard equipment.",
+      "chrf": 47.9
+     },
+     {
+      "id": 1595,
+      "input": "티벳 불교는 부처님의 가르침을 기반으로 하지만, 대승불교의 랑사의 관념 및 인도 요가의 많은 기술을 바탕으로 확장되었습니다.",
+      "corrected": "티베트 불교는 부처님의 가르침을 기반으로 하지만, 대승불교의 랑사의 관념 및 인도 요가의 많은 기술을 바탕으로 확장되었습니다.",
+      "hypothesis": "Tibetan Buddhism is based on the teachings of the Buddha, but it has been expanded based on the ideas of the Great Buddha and the many techniques of Indian yoga.",
+      "chrf": 56.7
+     },
+     {
+      "id": 1596,
+      "input": "박물학자나 철힉자는 고전 텍스트와 특별히 라친어 성경에 초점으 맞췄습니다.",
+      "corrected": "박물학자나 철학자는 고전 텍스트와 특별히 라틴어 성경에 초점으 맞췄습니다.",
+      "hypothesis": "Naturalists and philosophers focused on classical texts and especially the Latin Bible.",
+      "chrf": 70.5
+     },
+     {
+      "id": 1598,
+      "input": "차가 집에 충돌했을 때 세 이명 안에 있었지만, 그들 중 한 명도 다치지 않았다.",
+      "corrected": "차가 집에 충돌했을 때 세 명 안에 있었지만, 그들 중 한 명도 다치지 않았다.",
+      "hypothesis": "The car was inside three people when it hit the house, but not one of them was injured.",
+      "chrf": 48.8
+     },
+     {
+      "id": 1599,
+      "input": "원래 인구는 정혀 변동이 없었지만 여전히 전과 같은 적응이 필요합니다.",
+      "corrected": "원래 인구는 정해져 변동이 없었지만 여전히 전과 같은 적응이 필요합니다.",
+      "hypothesis": "The original population did not change, but still needs the same adaptation as before.",
+      "chrf": 67.2
+     },
+     {
+      "id": 1600,
+      "input": "현자 활동의 예로는 사냥, 낚시, 사진, 조류 관차 및 공원 및 생태계에 대한 연구가 있다.",
+      "corrected": "현자 활동의 예로는 사냥, 낚시, 사진, 조류 관찰 및 공원 및 생태계에 대한 연구가 있다.",
+      "hypothesis": "Examples of sage activity include hunting, fishing, photography, bird watching, and research into parks and ecosystems.",
+      "chrf": 62.3
+     },
+     {
+      "id": 1601,
+      "input": "과학자들은 오셀롯이 잡아먹을 동물(먹이)을 쫓고, 떠 찾는 데에 냄새를 사용한다고 생각합니다. 어디에 있었는지 냄새를 맡으면서 말이지요.",
+      "corrected": "과학자들은 오셀롯이 잡아먹을 동물을(먹이)를 쫓고, 떠나 찾는 데에 냄새를 사용한다고 생각합니다. 어디에 있었는지 냄새를 맡으면서 말이죠.",
+      "hypothesis": "Scientists think that Ocelots use smell to hunt down animals that they eat, to go and find them, to smell where they've been.",
+      "chrf": 51.2
+     },
+     {
+      "id": 1604,
+      "input": "그는 NSA로서 1978녀 캠프 데이비드 어코드, 1970년대 후반에 미국과 중국의 관계 정상화, 1979녀 이란 인질 위기로 이어진 이란 혁명, 1979년 소련의 아프가니스탄 침공 과 같은 세계 문제를 외교적으로 다루느 일에서 카터 대통 령을 보좌하였습니다.",
+      "corrected": "그는 NSA로서 1978년 캠프 데이비드 약정, 1970년대 후반에 미국과 중국의 관계 정상화, 1979년 이란 인질 위기로 이어진 이란 혁명, 1979년 소련의 아프가니스탄 침공과 같은 세계 문제를 외교적으로 다루는 일에서 카터 대통령을 보좌하였습니다.",
+      "hypothesis": "As an NSA, he assisted President Carter in dealing diplomatically with world issues such as the 1978 Camp David Accords, normalization of relations between the United States and China in the late 1970s, the Iranian Revolution that led to the 1979 hostage crisis, and the 1979 Soviet invasion of Afghanistan.",
+      "chrf": 62.8
+     },
+     {
+      "id": 1605,
+      "input": "포유류는 대륙으로부터의 먼 거리로 인해 갈라파고스의 일차 방목 동물인 거대 거북이처럼 여할행 수 없었습니다.",
+      "corrected": "포유류는 대륙으로부터의 먼 거리로 인해 갈라파고스의 일차 방목 동물인 거대 거북이처럼 여겨질 수 없었습니다.",
+      "hypothesis": "Mammals could not be regarded as giant turtles, the primary grazing animal of the Galapagos, because of their great distance from the continent.",
+      "chrf": 53.1
+     },
+     {
+      "id": 1606,
+      "input": "포르투갈인들은 이곳을 파괴한 다음 Casa Branca라는 이름으로 재건했지만, 1755년 지진 이후에 그곳을 버리고 떠났습니다.",
+      "corrected": "포르투갈인들은 이곳을 파괴한 다음 Casa Branca라는 이름으로 재건했지만, 1755년 지진 이후에 그곳을 버리고 떠났습니다.",
+      "hypothesis": "The Portuguese destroyed it and rebuilt it under the name Casa Branca, but abandoned it after the 1755 earthquake.",
+      "chrf": 78.9
+     },
+     {
+      "id": 1607,
+      "input": "이 흥미로운 마을을 산책하는데 30분을 투자할만합니다.",
+      "corrected": "이 흥미로운 마을을 산책하는데 30분을 투자할 만합니다.",
+      "hypothesis": "It takes about 30 minutes to walk through this exciting city.",
+      "chrf": 19.2
+     },
+     {
+      "id": 1609,
+      "input": "로빈 우타파(Robin Uthappa)가 이닝 최고점을 기록헸다. 4점 11개와 6점 2개로 41 투구만에 70 런을 쳐 이닝 최고점을 기록 했다.",
+      "corrected": "로빈 우타파(Robin Uthappa)가 이닝 최고점을 기록했다. 4점 11개와 6점 2개로 41 투구만에 70 런을 쳐 이닝 최고점을 기록했다.",
+      "hypothesis": "Robin Uthappa scored a high in the inning with 11 points out of 4 and 2 points out of 41.",
+      "chrf": 34.3
+     },
+     {
+      "id": 1611,
+      "input": ". 과학자들은 이 공룡 깃털의 윗쪽이 진갈색이고 아랫쪽은 희거나 노란빛이었다고 밝혔다.",
+      "corrected": "과학자들은 이 공룡 깃털의 윗쪽이 진갈색이고 아랫쪽은 희거나 노란빛이었다고 밝혔다.",
+      "hypothesis": "Scientists said the upper part of the dinosaur feathers was dark brown and the lower part was white or yellow.",
+      "chrf": 27.8
+     },
+     {
+      "id": 1612,
+      "input": "100피트 너비의 제방 너머로 물이흘러넘칩니다.",
+      "corrected": "100피트 너비의 제방 너머로 물이 흘러넘칩니다.",
+      "hypothesis": "The water flows over a 100-foot-wide levees.",
+      "chrf": 24.4
+     },
+     {
+      "id": 1613,
+      "input": "다음으로 일부 안장, 히특 영국의 안장에는 떨어지는 기수가 뒤로 당길 경우 등자 가죽이 안장에서 떨어질 수 있는 안바전가 있다.",
+      "corrected": "다음으로 일부 안장, 히스패닉 영국의 안장에는 떨어지는 기수가 뒤로 당길 경우 등자 가죽이 안장에서 떨어질 수 있는 안바전이 있다.",
+      "hypothesis": "Then, in some saddles, Hispanic British saddles, there is an antagonism in which the leather of the back can fall out of the saddle if the falling rider pulls back.",
+      "chrf": 42.4
+     },
+     {
+      "id": 1615,
+      "input": "천수 년 전에 아리스다고라는 사람이 태양계가 태양을 중심으로 움직인다고 주장했다.",
+      "corrected": "천수 년 전에 아리스토텔레스라는 사람이 태양계가 태양을 중심으로 움직인다고 주장했다.",
+      "hypothesis": "Thousands of years ago, Aristotle claimed that the solar system revolved around the sun.",
+      "chrf": 54.6
+     },
+     {
+      "id": 1616,
+      "input": "이제 과학적 데이터가 거대한 규모의 이 탄소 경제는 지난 이백만 년 동앙 인류의 진화를 도왔던 안정적인 상태에서 생물권을몰아냈음을 보여줍니다.",
+      "corrected": "이제 과학적 데이터가 거대한 규모의 이 탄소 경제는 지난 이백만 년 동안 인류의 진화를 도왔던 안정적인 상태에서 생물권을 몰아내었음을 보여줍니다.",
+      "hypothesis": "Now, scientific data shows that this massive carbon economy has driven the biosphere out of a stable state that has helped humanity evolve over the last two million years.",
+      "chrf": 58.1
+     },
+     {
+      "id": 1617,
+      "input": "크루거 국립공원(KNP)은 남아프리카의 북동쪽에 위치하여 동쪽으로는 모잠비크, 북쪽으로는 짐바브웨 국경을 따라 형성되어 있으며, 남쪽으로는 크로커다일 강을 경계로 고하 있습니다.",
+      "corrected": "크루거 국립공원(KNP)은 남아프리카의 북동쪽에 위치하여 동쪽으로는 모잠비크, 북쪽으로는 짐바브웨 국경을 따라 형성되어 있으며, 남쪽으로는 크로커다일 강을 경계로 하여 있습니다.",
+      "hypothesis": "Kruger National Park (KNP) is located in the northeast of South Africa, along the border of Mozambique to the north and the Crockerdale River to the south.",
+      "chrf": 60.9
+     },
+     {
+      "id": 1618,
+      "input": "북부 지역 또는 센티넬산맥에는 남극 대륙에서 가장 높은 산인 빈슨 산괴(Vinson Massif)가 있는데, 빈슨 산 높이는 4,892m입니다.",
+      "corrected": "북부 지역 또는 센티넬산맥에는 남극 대륙에서 가장 높은 산인 빈슨 산(Vinson Mountain)이 있는데, 빈슨 산 높이는 4,892m입니다.",
+      "hypothesis": "In the northern region or the Sentinel Mountains, Vinson Mountain, the highest mountain in Antarctica, is 4,892 metres high.",
+      "chrf": 49.7
+     },
+     {
+      "id": 1619,
+      "input": "하지만 대부분의 표지판은 법으로 초최 공식 언어로 확립된 카탈로니아어로마 기표되어 있습니다.",
+      "corrected": "하지만 대부분의 표지판은 법으로 초정 공식 언어로 확립된 카탈로니아어로 표기되어 있습니다.",
+      "hypothesis": "However, most of the signs are written in Catalan, which is an official language established by law.",
+      "chrf": 58.3
+     },
+     {
+      "id": 1620,
+      "input": "이제 군도 전체에서 폭넓게 이용할 수 있는 자바식 요리법은 다양한 단순 제철 요리가 특징적이며, 자바인들이 선호하는 즈요 향은 띵콩, 칠리, 설탕(특히 자바 코코넛 설탕)과다양한 향신료입니다.",
+      "corrected": "이제 군도 전체에서 폭넓게 이용할 수 있는 자바식 요리법은 다양한 단순 제철 요리가 특징적이며, 자바인들이 선호하는 즈요 향은 띵콩, 칠리, 설탕(특히 자바 코코넛 설탕)과 다양한 향신료입니다.",
+      "hypothesis": "Now widely available throughout the archipelago, Javanese recipes feature a variety of simple seasonal dishes, and Javanese zillots are favored with beans, chili, sugar (especially Java coconut sugar) and a variety of spices.",
+      "chrf": 60.5
+     },
+     {
+      "id": 1621,
+      "input": "초기에는 드레스가 동양의 비잔틴 문화에 크게영향을 받았습니다.",
+      "corrected": "초기에는 드레스가 동양의 비잔티누스 문화에 크게 영향을 받았습니다.",
+      "hypothesis": "Initially, the dress was heavily influenced by the Byzantine culture of the East.",
+      "chrf": 71.1
+     },
+     {
+      "id": 1622,
+      "input": "조지 W. 부시 미국 대통령은 이 같은 발표를 환영했습니다.",
+      "corrected": "조지 W. 부시 미국 대통령은 이 같은 발표를 환영했습니다.",
+      "hypothesis": "President George W. Bush welcomed the announcement.",
+      "chrf": 93.0
+     },
+     {
+      "id": 1623,
+      "input": "니 조항들은 모든 주에서 만장일치의 동의를 얻어야만 수정이 가능했으며, 중앙 정부를 무시한 주 대표들은 대부분 회의에 불참석했습니다.",
+      "corrected": "니 조항들은 모든 주에서 만장일치의 동의를 얻어야만 수정이 가능했으며, 중앙 정부를 무시한 주 대표들은 대부분 회의에 불참했습니다.",
+      "hypothesis": "Your terms had to be amended with unanimous consent from all the states, and most of the state representatives who ignored the central government were absent from the meeting.",
+      "chrf": 56.9
+     },
+     {
+      "id": 1624,
+      "input": "내륙 수로는 휴일을 보내기용으 로 좋은 주제가 될 수 있습니다.",
+      "corrected": "내륙 수로는 휴일을 보내기로 좋은 주제가 될 수 있습니다.",
+      "hypothesis": "Inland waterways can be a good topic for a holiday.",
+      "chrf": 63.6
+     },
+     {
+      "id": 1627,
+      "input": "고대 로마 식사는 며 세기가 지난후 미국이나 아시아에서 유럽으로 온 음시을 포함할 수 없었습니다.",
+      "corrected": "고대 로마 식사는 며 세기가 지난 후 미국이나 아시아에서 유럽으로 온 음식을 포함할 수 없었습니다.",
+      "hypothesis": "An ancient Roman meal is one that could not contain food that came to Europe from the United States or Asia centuries later.",
+      "chrf": 53.4
+     },
+     {
+      "id": 1628,
+      "input": "수공예 제품들은 대량 생산된 유사 제품들만큼 지낡 않을지라도 골동품으로 정의할 수 있을 것입니다.",
+      "corrected": "수공예 제품들은 대량 생산된 유사 제품들만큼 지 若要说完整点，可以是：수공예 제품들은 대량 생산된 유사 제품들만큼 지DATED하지 않을지라도 골동품으로 정의할 수 있을 것입니다.",
+      "hypothesis": "Handicrafts can be defined as antiques, even if they are not hand-dated as mass-produced similar products.",
+      "chrf": 59.1
+     },
+     {
+      "id": 1629,
+      "input": "일부 보도에 따르면 공식 사망자 수는 8명으로 계집됐으며, 공식 보도에 따르면 최대 30명이 부상을 있었다고 전해진다. 그러나 최종 사망자 수는 아지 알려지지 않았다.",
+      "corrected": "일부 보도에 따르면 공식 사망자 수는 8명으로 계산되었으며, 공식 보도에 따르면 최대 30명이 부상을 입었다고 전해진다. 그러나 최종 사망자 수는 아직 알려지지 않았다.",
+      "hypothesis": "According to some reports, the official death toll has been counted at eight, and official reports say up to 30 people have been injured, but the final death toll remains unknown.",
+      "chrf": 57.5
+     },
+     {
+      "id": 1630,
+      "input": "멕시코 선수 알리 벨라스케스는 남자 슈퍼대회전 좌식에서 15위로 끝마쳤습니다. 뉴질랜드 선수 아담 홀은 남자 슈퍼대회전 입식에서 9위로 끝마쳤습니다.",
+      "corrected": "멕시코 선수 알리 벨라스케스는 남자 슈퍼대회전 좌식에서 15위로 끝마쳤습니다. 뉴질랜드 선수 아담 홀은 남자 슈퍼대회전 입식에서 9위로 끝마쳤습니다.",
+      "hypothesis": "Mexican player Ali Velázquez finished 15th in the men's Super Bowl sit-down, while New Zealander Adam Hall finished 9th in the men's Super Bowl.",
+      "chrf": 49.9
+     },
+     {
+      "id": 1631,
+      "input": "고대 신왕국 이집트인들은 조상의 기념비적인 건축물을 보고 경탄했고 이것은 그 당시 기준으로 1000은년 족히 넘은건축물이었습니다.",
+      "corrected": "고대 신왕국 이집트인들은 조상의 기념비적인 건축물을 보고 경탄했고, 이것은 그 당시 기준으로 1000년 족히 넘은 건축물이었습니다.",
+      "hypothesis": "The ancient New Kingdom Egyptians marveled at the monumental architecture of their ancestors, which was more than 1,000 years old at that time.",
+      "chrf": 51.6
+     },
+     {
+      "id": 1632,
+      "input": "여성들은 문화적 차이로 인해 괴롭힘으로 간주되는 결과가 초래될 수 있고 팔을 잡는 등의 행위가드문 일이 아니라는 것을 알아야 합니다.",
+      "corrected": "여성들은 문화적 차이로 인해 괴롭힘으로 간주되는 결과가 초래될 수 있고, 팔을 잡는 등의 행위가 드문 일이 아니라는 것을 알아야 합니다.",
+      "hypothesis": "Women need to know that cultural differences can lead to harassment, and that arm-holding is not uncommon.",
+      "chrf": 40.7
+     },
+     {
+      "id": 1633,
+      "input": "이 역동적인 수송 셔틀은 어떠 식으로든 모든 사람드이 자가용을 기반으로 하는 수송시스템과연결되고 이를 지원하도록 한다.",
+      "corrected": "이 역동적인 수송 셔틀은 어떠한 식으로든 모든 사람들을 위한 자가용을 기반으로 하는 수송 시스템과 연결되고 이를 지원하도록 한다.",
+      "hypothesis": "This dynamic transport shuttle is in some way connected to and supported by a transport system based on a private vehicle for everyone.",
+      "chrf": 67.5
+     },
+     {
+      "id": 1635,
+      "input": "우리는 보다 환경친화적인 삶늘 시작할 수 있고, 환경 운동에 참여할 수도 있습니다. 또한, 미래에 겪을 고통을 어느 정도 줄이기 위해 활동가가 될 수더 있습니다.",
+      "corrected": "우리는 보다 환경친화적인 삶을 시작할 수 있고, 환경 운동에 참여할 수도 있습니다. 또한, 미래에 겪을 고통을 어느 정도 줄이기 위해 활동가가 될 수 있습니다.",
+      "hypothesis": "We can start to live more environmentally friendly lives, we can participate in environmental movements, and we can become activists to reduce some of the suffering that we're going to experience in the future.",
+      "chrf": 60.1
+     },
+     {
+      "id": 1636,
+      "input": "스페인 사람들이 3세기 동안 지속된 식민지 시대를 시작했다.",
+      "corrected": "스페인 사람들이 3세기 동안 지속된 식민지 시대를 시작했다.",
+      "hypothesis": "The Spanish began a colonial period that lasted for three centuries.",
+      "chrf": 56.7
+     },
+     {
+      "id": 1637,
+      "input": "에겁 질 린 프랑스의 왕 루이 16세, 마리 앙투아네트 여왕 그리고 그들의 두 어린아이들 (11살 마리 테레즈 그리고 4사 루이 샤를) 그리고 왕의 여동생인 엘리자베스 공주, 1789년 10월 6일에 여성노도자 집단에 의해 베르사유에서 파리로 강제추방되었다.",
+      "corrected": "에프질 린 프랑스의 왕 루이 16세, 마리 앙투아네트 여왕 그리고 그들의 두 어린아이들 (11살 마리 테레즈 그리고 4살 루이 샤를) 그리고 왕의 여동생인 엘리자베스 공주, 1789년 10월 6일에 여성 노동자 집단에 의해 베르사유에서 파리로 강제 추방되었다.",
+      "hypothesis": "King Louis XVI of France, Queen Marie-Antoinette, and their two children (11-year-old Marie Terrez and 4-year-old Louis Charles) were deported from Versailles to Paris on 6 October 1789 by a group of women workers.",
+      "chrf": 48.2
+     },
+     {
+      "id": 1638,
+      "input": "사파리는 아마도 아프리카에서 가장 멋진 관광녕소이며 마은 방문객에게 하이라이트가 될 것이다.",
+      "corrected": "사파리는 아마도 아프리카에서 가장 멋진 관광지이며 마는 방문객에게 하이라이트가 될 것이다.",
+      "hypothesis": "Safari is perhaps the most spectacular tourist destination in Africa and Ma is a highlight for visitors.",
+      "chrf": 54.9
+     },
+     {
+      "id": 1639,
+      "input": "대부분 학생들이가장 비판적인 청중이므로, 블로그 작가는 비판을 피하기 위해 글쓰기르 향상시키려고 노력하기 시작합니다.",
+      "corrected": "대부분 학생들이 가장 비판적인 청중이므로, 블로그 작가는 비판을 피하기 위해 글쓰기를 향상시키려고 노력하기 시작합니다.",
+      "hypothesis": "As most students are the most critical audience, blog writers begin to try to improve their writing in order to avoid criticism.",
+      "chrf": 67.8
+     },
+     {
+      "id": 1640,
+      "input": "얼음이 덮히거 눈이 쌓인 도로에서는 마찰력이 줄어들어서 당신은 마치 맨 아스팔트 위에 있는 것처럼 운전을 제대로 할 수가 없다.",
+      "corrected": "얼음이 덮힌 거리에서는 마찰력이 줄어들어서 당신은 마치 맨 아스팔트 위에 있는 것처럼 운전을 제대로 할 수가 없다.",
+      "hypothesis": "On iced streets, friction is reduced, so you can’t drive as if you were on top of asphalt.",
+      "chrf": 52.1
+     },
+     {
+      "id": 1642,
+      "input": "필리 핀 정복에 사용된 미국 제국주의의 전재 비용은 필리핀인 자신들에 의해 지급되었다.",
+      "corrected": "필리핀 정복에 사용된 미국 제국주의의 전쟁 비용은 필리핀인 자신들에 의해 지급되었다.",
+      "hypothesis": "The cost of the U.S. imperialist war against the Philippines was paid by the Filipinos themselves.",
+      "chrf": 54.0
+     },
+     {
+      "id": 1644,
+      "input": "\"의견을 물었을 때 밀러는 \"\"청문회 동안 마이쿠는 많은 이야기를 했습니다… 저는 준비를 하고 있 었기 때문에 그가 하는 말을 듣지 못했습니다\"\"라고 말했습니다.\"",
+      "corrected": "\"의견을 물었을 때 밀러는 \"\"청문회 동안 마이클은 많은 이야기를 했습니다… 저는 준비를 하고 있었기 때문에 그가 하는 말을 듣지 못했습니다\"\"라고 말했습니다.\"",
+      "hypothesis": "\"When asked for a comment, Miller said, \"\"He talked a lot during the hearing... I was preparing, so I didn't hear what he was saying.\"",
+      "chrf": 65.9
+     },
+     {
+      "id": 1645,
+      "input": "그것의 만연한 힘은 왕에서 평민에 이르는 모든 사란에게 영향을 미칩니다.",
+      "corrected": "그것의 만연한 힘은 왕에서 평민에 이르는 모든 사람에게 영향을 미칩니다.",
+      "hypothesis": "Its rampant power affects everyone from kings to commoners.",
+      "chrf": 59.6
+     },
+     {
+      "id": 1646,
+      "input": "오클랜드가 듀 개의항구를 가로지르고 있기 때문에 해변이 많습니다. 가장 인기 있는 곳이 세 지역 안에 있습니다.",
+      "corrected": "오클랜드가 두 개의 항구를 가로지르기 때문에 해변이 많습니다. 가장 인기 있는 곳이 세 지역 안에 있습니다.",
+      "hypothesis": "There are many beaches as Auckland crosses two ports. The most popular ones are in three areas.",
+      "chrf": 66.3
+     },
+     {
+      "id": 1647,
+      "input": "제시된 견해는 다 른 곳에서 얻을수 있는 더 상세한 정보와 비교헤 로주 피상적이고, 일반적이며, 지나치게 단순화된 모습다이.",
+      "corrected": "제시된 견해는 다른 곳에서 얻을 수 있는 더 상세한 정보와 비교하여 주 피상적이고, 일반적이며, 지나치게 단순화된 모습이다.",
+      "hypothesis": "The views presented are primarily superficial, general, and oversimplified in comparison with more detailed information that can be obtained elsewhere.",
+      "chrf": 65.3
+     },
+     {
+      "id": 1648,
+      "input": "가나안에는 큰 숲이 없었기 때문에 나무가 무척 비싸다.",
+      "corrected": "가나안에는 큰 숲이 없었기 때문에 나무가 무척 비쌌다.",
+      "hypothesis": "Because there were no large forests in Canaan, the trees were very expensive.",
+      "chrf": 57.0
+     },
+     {
+      "id": 1649,
+      "input": "일본에서 첫 벚꽃 파티가 천황의 주최로 황궁 주변에서 개최되었습니다. 이 파티에는 천황과귀족 구성원만이 참여했습니다.",
+      "corrected": "일본에서 첫 벚꽃 파티가 천황의 주최로 황궁 주변에서 개최되었습니다. 이 파티에는 천황과 귀족 구성원만이 참여했습니다.",
+      "hypothesis": "The first cherry blossom party in Japan was held around the Imperial Palace hosted by the emperor. Only the emperor and noble members participated in this party.",
+      "chrf": 56.6
+     },
+     {
+      "id": 1650,
+      "input": "다바 악어는 바다에서 살지 않으묘, 록햄프턴 북쪽 강어귀에 주로 서식한다.",
+      "corrected": "다바 악어는 바다에서 살지 않묘, 록햄프턴 북쪽 강어귀에 주로 서식한다.",
+      "hypothesis": "The Davao crocodile does not live in the sea, and is mainly found in the northern estuary of Rockhampton.",
+      "chrf": 37.6
+     },
+     {
+      "id": 1651,
+      "input": "갭이어를 여행과 공부에 사용하는 사람들이 점점 더 늘어나고 있다.",
+      "corrected": "갭이어를 여행과 공부에 사용하는 사람들이 점점 더 늘어나고 있다.",
+      "hypothesis": "The number of people who travel and study is increasing.",
+      "chrf": 29.1
+     },
+     {
+      "id": 1652,
+      "input": "몰도바의 주요 종교는 동방정교입니다.",
+      "corrected": "몰도바의 주요 종교는 동방정교입니다.",
+      "hypothesis": "The main religion in Moldova is Eastern Orthodoxy.",
+      "chrf": 60.8
+     },
+     {
+      "id": 1653,
+      "input": "NPWS와 '오스트레일리아 스포츠 슈터 협회'의 파트너쉽으로 '스포츠 슈터 협회'의 사냥 프로그램에 따라 자격을 갖춘 자원보사자를 모집했다.",
+      "corrected": "NPWS와 '오스트레일리아 스포츠 슈터 협회'의 파트너십으로 '스포츠 슈터 협회'의 사냥 프로그램에 따라 자격을 갖춘 자원보전자를 모집했다.",
+      "hypothesis": "In partnership with NPWS and the Australian Sports Shooter Association, they recruited qualified volunteers under the Sports Shooter Association’s hunting program.",
+      "chrf": 65.2
+     },
+     {
+      "id": 1654,
+      "input": "아실지 모르겠지만, 중앙아메리카에서 오 대부분의 물품은 이 나라에 면세로 들어왔습니다.",
+      "corrected": "아실지 모르겠지만, 중앙아메리카에서 오는 대부분의 물품은 이 나라에 면세로 들어왔습니다.",
+      "hypothesis": "As you may know, most of the goods from Central America have been tax-free in this country.",
+      "chrf": 52.8
+     },
+     {
+      "id": 1656,
+      "input": "경찰은 시체가 하루 정도 있어던 것으로 보인다고 말했습니다.",
+      "corrected": "경찰은 시체가 하루 정도 있은 것으로 보인다고 말했습니다.",
+      "hypothesis": "Police said the body appeared to have been there for a day.",
+      "chrf": 81.1
+     },
+     {
+      "id": 1657,
+      "input": "하지만 모든 수정이나 요처 사항이 있으면 호 텔로 직접 연락하지 말고 우선 여행사를 통 해 이를 진행해야 합니다.",
+      "corrected": "하지만 모든 수정이나 요금 사항이 있으면 호텔로 직접 연락하지 말고 우선 여행사를 통해 이를 진행해야 합니다.",
+      "hypothesis": "However, if you have any modifications or charges, you should not contact the hotel directly, but first through a travel agent.",
+      "chrf": 41.1
+     },
+     {
+      "id": 1658,
+      "input": "하루에 열여덟 개의 메달만 주어지기 때문에, 많은 국가가 메달 단상에 오르지 못했습니다.",
+      "corrected": "하루에 열여덟 개의 메달만 주어지기 때문에, 많은 국가가 메달 단상에 오르지 못했습니다.",
+      "hypothesis": "With only 18 medals given per day, many countries failed to reach the medal.",
+      "chrf": 40.4
+     },
+     {
+      "id": 1659,
+      "input": "과학자들은 돌충로 인한 폭발이 거대했다고 말한다.",
+      "corrected": "과학자들은 돌충으로 인한 폭발이 거대했다고 말한다.",
+      "hypothesis": "Scientists say the explosion was huge.",
+      "chrf": 53.4
+     }
+    ]
+   },
+   "heavy": {
+    "chrf": 52.25413763663752,
+    "input_chrf": 83.0155320778589,
+    "correction_p50": 0.5284391000168398,
+    "total_p50": 0.6192681000102311,
+    "empty_corrections": 0,
+    "failures": 0,
+    "items": [
+     {
+      "id": 1510,
+      "input": "또한 유엔은 지구 온 난화의 영향읗 받는 국가들의 대처를 돕기 한위 기금의 조을성 완료하기를 기대하고 있습니 다.",
+      "corrected": "또한 유엔은 지구 온난화의 영향을 받는 국가들의 대처를 돕기 위해 기금의 조성 완료하기를 기대하고 있습니다.",
+      "hypothesis": "The United Nations also expects to complete the creation of funds to help countries affected by global warming.",
+      "chrf": 55.0
+     },
+     {
+      "id": 1511,
+      "input": "곧, 폭동 진아 장비를 갖춘 경찰들이 마당으 로 진입해 최루 가스 를 이 용하여 수감자들을 코너로 몰아넣었습다니.",
+      "corrected": "곧, 폭동 진압 장비를 갖춘 경찰들이 마당으로 진입해 최루 가스를 이용하여 수감자들을 코너로 몰아넣었습다.",
+      "hypothesis": "Soon, police, equipped with riot equipment, entered the yard and used tear gas to drive the prisoners to the corner.",
+      "chrf": 55.0
+     },
+     {
+      "id": 1513,
+      "input": "아르헨티나는 세계 최고의 폴로 팀과 선수를보유한것으로 유명합니다.",
+      "corrected": "아르헨티나는 세계 최고의 Polo 팀과 선수를 보유한 것으로 유명합니다.",
+      "hypothesis": "Argentina is known for having the best Polo teams and players in the world.",
+      "chrf": 76.2
+     },
+     {
+      "id": 1514,
+      "input": "부상자들이 병원으로 이송되고 싸움이 중딘되자, 약 40명의수감자들은 교조소 마당 에서 버며티 각자 유치장으로 돌아가길 거부했습니다.",
+      "corrected": "부상자들이 병원으로 이송되고 싸움이 중단되자, 약 40명의 수감자들은 교도소 마당에서 버 若要继续，请提供更多的文本或者明确你的问题，我才能给出正确的帮助。不过根据你提供的信息，我已经纠正了错误。如果你的意思是结束这里的句子，那么可以这样写：\n\n부상자들이 병원으로 이송되고 싸움이 중단되자, 약 40명의 수감자들은 교도소 마당에서 버티어 각자 유치장으로 돌아가길 거부했습니다.",
+      "hypothesis": "When the wounded were taken to the hospital and the fighting was stopped, about 40 prisoners were sent to the prison yard, and about 40 were sent back to the prison.",
+      "chrf": 42.2
+     },
+     {
+      "id": 1515,
+      "input": "마텔리가 4년 만에다섯 번째 하는 CEP다.",
+      "corrected": "마텔리가 4년 만에 다섯 번째 하는 CEP다.",
+      "hypothesis": "Martelli is the fifth in four years.",
+      "chrf": 55.0
+     },
+     {
+      "id": 1516,
+      "input": "본 장소에 밎는 본엄, 엄수함, 경의를 다해 대헤 주십시오. 홀로코스트나 나치에 대하 농담을 하지 마십시오.",
+      "corrected": "본 장소에 대한 본 엄, 엄 수함, 경의를 다해 대헤 주십시오. 홀로코스트나 나치에 대한 농담을 하지 마십시오.",
+      "hypothesis": "Please pay attention to this place with all due respect. Please do not make jokes about the Holocaust or the Nazis.",
+      "chrf": 52.3
+     },
+     {
+      "id": 1517,
+      "input": "AI 연구는 기계가 지능적 행동응 요구하는 작업을 자동화하는 연구를 포함합니다.",
+      "corrected": "AI 연구는 기계가 지능적 행동을 요구하는 작업을 자동화하는 연구를 포함합니다.",
+      "hypothesis": "AI research involves automating tasks that require machines to behave intelligently.",
+      "chrf": 66.3
+     },
+     {
+      "id": 1518,
+      "input": "한 전직 필리핀 경찰관이 필리의핀 수도 마닐라에서 버 스를납치하여 홍콩 관광객들을 인 질로 삼다았.",
+      "corrected": "한 전직 필리핀 경찰관이 필리핀 수도 마닐라에서 버스를 납치하여 홍콩 관광객들을 인질로 삼았다.",
+      "hypothesis": "A former Philippine police officer kidnapped a bus in Manila and took Hong Kong tourists hostage.",
+      "chrf": 47.9
+     },
+     {
+      "id": 1519,
+      "input": "대부분의 경우,해외 갭 이어(gap-year) 코스에 등록하면 실제로 고국에서 고등 교육에 진핟할 가능성을 높일 수 있습니다.",
+      "corrected": "대부분의 경우, 해외 갭 이어(gap-year) 코스에 등록하면 실제로 고국에서 고등 교육에 진입할 가능성을 높일 수 있습니다.",
+      "hypothesis": "In most cases, enrolling in a gap-year course abroad can actually increase your chances of entering higher education in your home country.",
+      "chrf": 74.4
+     },
+     {
+      "id": 1521,
+      "input": "우주에 있는 위성은 신 호를 받고나서 거의 즉각적으로 반사해내려보낸다.",
+      "corrected": "우주에 있는 위성은 신호를 받고나서 거의 즉각적으로 반사해내려보낸다.",
+      "hypothesis": "Satellites in space receive signals and reflect back almost immediately.",
+      "chrf": 39.3
+     },
+     {
+      "id": 1522,
+      "input": "기술은 가 상 현장학습에도움을 줍니다. 학생은들 교실 에 앉은 상태로 박물관 전시푸들을 졸 수 있고, 수족관으 구경할 수 있으며, 아름다운 예 술 작품을 감상할 수 있습니다.",
+      "corrected": "기술은 가상 현장학습에도움을 줍니다. 학생들은 교실에 앉은 상태로 박물관 전시품들을 졸 수 있고, 수족관을 구경할 수 있으며, 아름다운 예술 작품을 감상할 수 있습니다.",
+      "hypothesis": "Technology is also a virtual field trip. Students can sleep in the classroom, see the aquarium, and enjoy beautiful art.",
+      "chrf": 42.2
+     },
+     {
+      "id": 1523,
+      "input": "최종 점 수는21 개 20우로 1점차 승부여으며, 올블래스(All Blacks)의 15연승으로 끝났다.",
+      "corrected": "최종 점수는 21대 20으로 1점 차 승부로 올블래스(All Blacks)의 15연승으로 끝났다.",
+      "hypothesis": "The final score was 21–20, a one-point penalty that ended in the All Blacks' 15th straight win.",
+      "chrf": 52.2
+     },
+     {
+      "id": 1524,
+      "input": "미터법 사용, 절대주의 체제에서 공화주의로의 전환, 민족주의와 국가는 한 통치자가 아민 여러 사람의 소유라는 생각의 발생과 같이, 사회및 정치인적 면에 많은 영향들을 미쳤습다니.",
+      "corrected": "미터법 사용, 절대주의 체제에서 공화주의로의 전환, 민족주의와 국가는 한 통치자가 아민 여러 사람의 소유라는 생각의 발생과 같이, 사회 및 정치적 면에 많은 영향들을 미쳤습니다.",
+      "hypothesis": "The use of the metric system, the transition from the absolutist system to republican, nationalism and the state had many effects on social and political aspects, such as the emergence of the idea that one ruler belonged to several Amin people.",
+      "chrf": 56.3
+     },
+     {
+      "id": 1525,
+      "input": "이 도시는 전통적인 터키의 모스보다 지중해 유럽의 분위기를 더 많니 가지고 있지만 넓은 댜로, 정면이 유리로 장식된 건물, 현대저인 쇼핑센터드 사이에 띄엄띄엄 전통적인 은붉 기와 지붕과 18세 기 시장 그리고 오래된 모스크와 교회들이 있습니다.",
+      "corrected": "이 도시는 전통적인 터키의 모스보다 지중해 유럽의 분위기를 더 많이 가지고 있지만 넓은 도로, 정면이 유리로 장식된 건물, 현대적인 쇼핑센터 사이에 띄엄띄엄 전통적인 붉은 기와 지붕과 18세기 시장 그리고 오래된 모스크와 교회들이 있습니다.",
+      "hypothesis": "The city has more of a Mediterranean European atmosphere than a traditional Turkish moss, but it also has wide roads, glass-clad buildings, and a contemporary shopping centre with an impressive 18th-century market with traditional red roofs and old mosques and churches.",
+      "chrf": 63.0
+     },
+     {
+      "id": 1527,
+      "input": "포란드 남자 시각 장애인 스키 선수 마키 크레젤(Maciej Krezel)과 가이드 안나 오가진스카(Anna Ogarzynska)가 슈퍼대회전(Super G)에서 13위로경기를 마쳤다. 한국의 박종 석은 남자 좌식스키 슈퍼대회전(Super G)서에 24위를 차지했다.",
+      "corrected": "포란드 남자 시각 장애인 스키 선수 마키 크레젤(Maciej Krezel)과 가이드 안나 오가진스카(Anna Ogarzynska)가 슈퍼대회전(Super G)에서 13위로 경기를 마쳤다. 한국의 박종석은 남자 좌식스키 슈퍼대회전(Super G)에서 24위를 차지했다.",
+      "hypothesis": "Men's visually impaired skier Maciej Krezel and guide Anna Ogarzynska finished 13th in the Super G, with Park Jong-seok finishing 24th in the Super G.",
+      "chrf": 58.2
+     },
+     {
+      "id": 1528,
+      "input": "부일 축제들은 어린아이들이 있는 가족들을 위한 특별한 캠핑 공간을 가지고 있습니다.",
+      "corrected": "부일 축제들은 어린이들이 있는 가족들을 위한 특별한 캠핑 공간을 가지고 있습니다.",
+      "hypothesis": "Buoys have a special camping area for families with children.",
+      "chrf": 63.1
+     },
+     {
+      "id": 1529,
+      "input": "링의 CEO인 제이미 시미노프 (Jamie Siminoff)는 차고에 이던 그의 숍에서 초인 종 소리를 들을 수 없었을 때 회사를 시작했다고 말했습니다.",
+      "corrected": "링의 CEO인 제이미 시미노프 (Jamie Siminoff)는 차고에서 그의 숍이던 곳에서 초인종 소리를 들을 수 없었을 때 회사를 시작했다고 말했습니다.",
+      "hypothesis": "Ring CEO Jamie Siminoff said he started the company when he couldn’t hear the doorbell in his garage.",
+      "chrf": 46.0
+     },
+     {
+      "id": 1530,
+      "input": "요화일에 베어 쓰러뜨릴 예절이었으나긴급 법원의 판결로 구조되었다.",
+      "corrected": "요화일에 베어 쓰러뜨릴 예절이었으나, 급 법원의 판결로 구조되었다.",
+      "hypothesis": "He was forced to resign, but was saved by a court order.",
+      "chrf": 25.5
+     },
+     {
+      "id": 1531,
+      "input": "도아프리카의 섬들은 아프리카 동부 연안읗 따라 이도양에 지리 잡고 있다.",
+      "corrected": "도아프리카의 섬들은 아프리카 동부 연안에 따라 이도양에 지리적 위치하고 있다.",
+      "hypothesis": "The islands are geographically located along the eastern coast of Africa.",
+      "chrf": 50.4
+     },
+     {
+      "id": 1532,
+      "input": "108 접시의 Chhappan Bhog(힌두교에서는 신에게 바치는 것단, 과일, 견류과, 요리 등56가지 다른 먹을거리들)가 Baba Shyam에데 차려졌습니다.",
+      "corrected": "108 접시의 Chhappan Bhog(힌두교에서는 신에게 바치는 것 단, 과일, 견류과, 요리 등 56가지 다른 먹을거리들)가 Baba Shyam에 차려졌습니다.",
+      "hypothesis": "108 dishes of Chhappan Bhog (56 different kinds of food, including fruit, nuts, and dishes) were served at Baba Shyam.",
+      "chrf": 43.7
+     },
+     {
+      "id": 1533,
+      "input": "여러 일반적인 형식(예: APS 형식)은 이 가로 세호비율과 동일하거나 의거 비슷합니다.",
+      "corrected": "여러 일반적인 형식(예: APS 형식)은 이 가로 세호비율과 동일하거나 유사합니다.",
+      "hypothesis": "Many common formats (e.g. APS formats) are the same or similar to this aspect ratio.",
+      "chrf": 47.0
+     },
+     {
+      "id": 1534,
+      "input": "상대적인 접이근 불가능한 의미를 결합하여, 'Timbuktu'는 이국적이고 머리 떨어진 역지에 대한 은유로 사용하게 되었 다.",
+      "corrected": "상대적인 접이 근 불가능한 의미를 결합하여, 'Timbuktu'는 이국적이고 머리 떨어진 역지에 대한 은유로 사용하게 되었다.",
+      "hypothesis": "Combining the immeasurable meanings of relative folding, the 'Timbuktu' was used as a metaphor for an exotic, hair-dropping region.",
+      "chrf": 42.7
+     },
+     {
+      "id": 1535,
+      "input": "이것은 종전에 지성 레이더 기 반 기술을 사용했던 것과 다리 위서 기반 기술을 이용하여 항공괌제사들이 매유 높 은 정확도로 항공기를 정특할 스있게 하 며, 조종사들에게 더 정확한 정보를 제공한다.",
+      "corrected": "이것은 종전에 지성 레이더 기반 기술을 사용했던 것과 달리 다리 위 기반 기술을 이용하여 항공기 위치를 높은 정확도로 정확히 파악하며, 조종사들에게 더 정확한 정보를 제공한다.",
+      "hypothesis": "This uses bridge-based technology, unlike conventional intelligence radar-based technology, to accurately locate aircraft with high accuracy and provide more accurate information to pilots.",
+      "chrf": 50.9
+     },
+     {
+      "id": 1536,
+      "input": "현 지 당국 은 그 발전소 근인 주민들에게 실내에 머물며 에어컨을 끄 고 수돗물을 마시지 말라고 경고하고 있다.",
+      "corrected": "현지 당국은 그 발전소 근인 주민들에게 실내에 머물며 에어컨을 끄고 수돗물을 마시지 말라고 경고하고 있다.",
+      "hypothesis": "Local authorities have warned residents to stay indoors, turn off air conditioning and not drink tap water.",
+      "chrf": 61.9
+     },
+     {
+      "id": 1537,
+      "input": "어두 속에서 피라미드를 볼 수 있소 가쇼 시 작하기 전에 고요 속에서 피라미를드 볼 수 있습니다.",
+      "corrected": "어두 속에서 피라미드를 볼 수 있습니다. 가쇼 시 작하기 전에 고요 속에서 피라미드를 볼 수 있습니다.",
+      "hypothesis": "You can see the pyramids in the dark, and you can see them in the stillness before they're small.",
+      "chrf": 70.1
+     },
+     {
+      "id": 1538,
+      "input": "고립된 산간 지형에 위치한 포이트 마리온과 페어몬트 사이의 길은 버팔로 피츠버그 고속도로 중에서 가장 운전하기 힘든 곳으로 알려져 있다.",
+      "corrected": "고립된 산간 지형에 위치한 포인트 마리온과 페어몬트 사이의 길은 버팔로 피츠버그 고속도로 중에서 가장 운전하기 힘든 곳으로 알려져 있다.",
+      "hypothesis": "The road between Point Marion and Fairmont on isolated mountain terrain is the most difficult to drive on the Buffalo Pittsburgh Highway.",
+      "chrf": 49.4
+     },
+     {
+      "id": 1539,
+      "input": "하위문화의 구성원들은 종종 패션, 매너리즘, 그리고 특저 속어를 포함하는 독특하고 상징적인 스타일을 통해 소속감을 나 타낸다.",
+      "corrected": "하위문화의 구성원들은 종종 패션, 매너리즘, 그리고 특수 속어를 포함하는 독특하고 상징적인 스타일을 통해 소속감을 내다낸다.",
+      "hypothesis": "Subculture members often have a sense of belonging through a unique and symbolic style that includes fashion, mannerisms, and special slang.",
+      "chrf": 52.7
+     },
+     {
+      "id": 1540,
+      "input": "티베투 불교는 이론상으로 매우 간단합니다. 쿤달 리니 요가, 명상 및 모두를 포용하는 사랑의 길로 구성되어 있스니다.",
+      "corrected": "티베트 불교는 이론상으로 매우 간단합니다. 쿠NFL리니 요가, 명상 및 모두를 포용하는 사랑의 길로 구성되어 있습니다.",
+      "hypothesis": "Tibetan Buddhism is very simple in theory. It consists of KuNFLini yoga, meditation and the path of love that embraces all.",
+      "chrf": 67.0
+     },
+     {
+      "id": 1541,
+      "input": "택배회사는 물건을 빨 리 배달해 주는 대가로 많은 보수르 받습니다. 종종 업무 서 류, 긴급 수리를위한 상품이나 예비 부품의 경우에는 시간이 매우 중요합니다.",
+      "corrected": "택배회사는 물건을 빠르게 배달해 주는 대가로 많은 보수를 받습니다. 종종 업무 수리, 긴급 수리를 위한 상품이나 예비 부품의 경우에는 시간이 매우 중요합니다.",
+      "hypothesis": "Couriers get a lot of pay in return for fast delivery of goods. Often, time is very important for goods or spare parts for business repairs or emergency repairs.",
+      "chrf": 42.0
+     },
+     {
+      "id": 1542,
+      "input": "\"부시의 대변인 고든 존드로는 부한의 속약에 대해 \"\"한도반의 비핵화를 달성하기 한위 주요 단계\"\"라고 평했습니다.\"",
+      "corrected": "\"부시의 대변인 고든 존드로는 부한의 속약에 대해 \"\"한도반의 비핵화를 달성하기 위한 한 가지 주요 단계\"\"라고 평했습니다.\"",
+      "hypothesis": "\"Bush spokeswoman Gordon Zondroe called the drug \"one major step toward denuclearization of the Korean peninsula.\"",
+      "chrf": 57.2
+     },
+     {
+      "id": 1543,
+      "input": "그 환자는 에볼라 바이러스 감염이 발생한 나 이지리아에 방 문한 적이있었다.",
+      "corrected": "그 환자는 에볼라 바이러스 감염이 발생한 나이지리아에 방문한 적이 있었다.",
+      "hypothesis": "The patient had been to Nigeria where the Ebola virus had spread.",
+      "chrf": 62.5
+     },
+     {
+      "id": 1544,
+      "input": "곤충은 공중에서 날수 있었던 첫 번째 동물입니다.곤충의 비행 능력은더 쉽게 적으 피하고 더 효율적으로 음식 과 짝을 찾는 데 도움을 주었스니다.",
+      "corrected": "곤충은 공중에서 날수 있었던 첫 번째 동물입니다. 곤충의 비행 능력은 더 쉽게 적을 피하고, 더 효율적으로 음식과 짝을 찾는 데 도움을 주었습니다.",
+      "hypothesis": "Insects are the first animals that have been able to fly in the air, and their ability to fly has made it easier to avoid enemies, and to find food and mates more efficiently.",
+      "chrf": 64.4
+     },
+     {
+      "id": 1545,
+      "input": "\"카는레 물의 양에따라 \"\"되직\"\"하거마 \"\"묽게\"\"될 수 있다.\"",
+      "corrected": "\"카페인 물의 양에 따라 \"\"되직\"\"하거니와 \"\"ǜ-END OF TEXT\"\" Prostithe \"\"__\":\nǜ-END OF TEXT\"\"",
+      "hypothesis": "\"\" ⁇ -END OF TEXT\"\" Prostithe \"_\":  ⁇ -END of TEXT\"",
+      "chrf": 6.2
+     },
+     {
+      "id": 1546,
+      "input": "깃털의구조는 비행 용이 아니라 체 온 조절이나 과시용으로 였쓰음을 암시 한다. 연구원들은 어린 공룡의 꼬리 에서 나온 샘플을 조사하니 유아의 곰털이 아닌 인성공룡의 깃털이라고 이야기하여다.",
+      "corrected": "깃털의 구조는 비행 용이 아니라 체 온 조절이나 과시용으로 였음을 암시 한다. 연구원들은 어린 공룡의 꼬리에서 나온 샘플을 조사하니 유아의 곰털이 아닌 인성공룡의 깃털이라고 이야기하였다.",
+      "hypothesis": "The structure of the feathers suggests that they were not for flight, but for body temperature control and display. The researchers examined samples from the tails of young dinosaurs and found that they were the feathers of the ingrown dinosaurs, not the baby's bear hair.",
+      "chrf": 53.1
+     },
+     {
+      "id": 1548,
+      "input": "수천 km(마일) 떠어진 사람과 통화한다면 인공위성을쓰고 있는 겁니다.",
+      "corrected": "수천 km(마일) 떨어진 사람과 통화한다면 인공위성을 쓰고 있는 겁니다.",
+      "hypothesis": "If you're talking to someone thousands of miles away, you're using a satellite.",
+      "chrf": 68.3
+     },
+     {
+      "id": 1550,
+      "input": "\"스키여행은 스키광(\"\"ski bums\"\")이라고 부리는 애호가이들 즐기는 여행 방식이다. 그 사람들은 휴가 일정을 어느 한 특정 장소에서 줄곧 스키를 타느 시간으로 계획한다.\"",
+      "corrected": "\"스키 여행은 스키광('ski bums'라고 부리는 애호가들)이 즐기는 여행 방식이다. 그人们似乎误解了任务要求，这是一段韩语文本，不是中文，所以不需要翻译或修改。根据指示，我将仅纠正拼写、 typo 和间距问题：\n\n\"스키 여행은 스키광('ski bums'라고 부리는 애호가들)이 즐기는 여행 방식이다. 그人们似乎误解了任务要求，这是一段韩语文本，不是中文，所以不需要翻译或修改。根据指示，我将仅纠正拼写、 typo 和间距问题：\n\n\"스키 여행은 스키광('ski bums'라고 부리는 애호가들)이 즐기는 여행 방식이다. 그人们似乎误解了任务要求，这是一段韩语文本，不是中文，所以不需要翻译或修改。根据指示，我将仅纠正拼写、 typo 和间距问题：\n\n\"스키 여행은 스키광('ski bums'라고 부리는 애호가들)이 즐기는 여행 방식이다. 그人们似乎误解了任务要求，这是一段",
+      "hypothesis": "\"Skiing is the way that the ski bums enjoy.  ⁇   ⁇ ,  ⁇   ⁇ ,  ⁇   ⁇ .  ⁇  \" ⁇ ,  ⁇ ,  ⁇ : \"Skiing is the way that the ski bums enjoy.",
+      "chrf": 16.6
+     },
+     {
+      "id": 1551,
+      "input": "그들은 여전히 충돌의 크기와 지구가 어떤 영향을 받을 것인지에 해대연구 중이다.",
+      "corrected": "그들은 여전히 충돌의 크기와 지구가 어떤 영향을 받을 것인지에 대해 연구 중이다.",
+      "hypothesis": "They are still working on the size of the collision and how the Earth will be affected.",
+      "chrf": 53.4
+     },
+     {
+      "id": 1552,
+      "input": "도표화된 분석 결과가 공개 웹사트이에 게시될 예정입니다.",
+      "corrected": "도표화된 분석 결과가 공개 웹사이트에 게시될 예정입니다.",
+      "hypothesis": "Graphiced analysis results will be posted on the public website.",
+      "chrf": 60.5
+     },
+     {
+      "id": 1553,
+      "input": "크스리마스는 기독교에서 가장 중요한 큰 명저 중하나로 례수님의 생일을 기념하늠 명절이다.",
+      "corrected": "크스리마스는 기독교에서 가장 중요한 큰 명절 중 하나로 예수님의 생일을 기념하는 명절이다.",
+      "hypothesis": "Christmas is one of the most important holidays in Christianity, celebrated on the birthday of Jesus.",
+      "chrf": 82.7
+     },
+     {
+      "id": 1555,
+      "input": "겨회 뜰에는 몇몇무덤 위에 비둘기의 흥미로운 대히석 조각들이 있다.",
+      "corrected": "겨화 뜰에는 몇몇 무덤 위에 비둘기의 흥미로운 대형석 조각들이 있다.",
+      "hypothesis": "There are interesting sculptures of the pigeons on some graves.",
+      "chrf": 45.7
+     },
+     {
+      "id": 1556,
+      "input": "그의 1,000번째 도장은 2000녀에 다비드 클뢰커 에렌슈트랄의 장대한 작품인 '스웨데역대 왕늬 위 업'을 긴새 거이다. 그리고 는이 기 네스 세계 기록에 등재되어 다있.",
+      "corrected": "그의 1,000번째 도장은 2000년에 다비드 클뢰커 에렌슈트랄의 장대한 작품인 '스웨덴 역대 왕들의 위장'을 긴급히 거各行。",
+      "hypothesis": "His 1,000th painting was an outstanding work of David Klöcker Erenstral in 2000 called \"The Undercover of the Kings of Sweden.\"",
+      "chrf": 34.1
+     },
+     {
+      "id": 1557,
+      "input": "1차 세계대전을 통해 전생 의 참상과 만행을 겪으 국가들은 미래에 그러한상황을 다시눈 지겪 않기을 기도헸습니다.",
+      "corrected": "1차 세계대전을 통해 전쟁의 참상과 만행을 겪은 국가들은 미래에 그러한 상황을 다시 겪지 않기를 기도했습니다.",
+      "hypothesis": "Nations that suffered the ravages and ravages of war during World War I prayed that they would not experience such a situation again in the future.",
+      "chrf": 56.7
+     },
+     {
+      "id": 1558,
+      "input": "조 직이 혁신적이 되려면,리더십은 혁신 문화뿐만 아니라 공유 비식 및 조직적잉 학습을창조해야 합니다.",
+      "corrected": "조직이 혁신적이 되려면, 리더십은 혁신 문화뿐만 아니라 공유 비전 및 조직적 학습을 창조해야 합니다.",
+      "hypothesis": "For an organization to be innovative, leadership must create shared vision and organizational learning, as well as an innovative culture.",
+      "chrf": 71.1
+     },
+     {
+      "id": 1559,
+      "input": "이탈리아 어는 대부분의 단 어들이 정확히 쓰여진대로 발음되기 때문에 발음이 비교 적 쉽다.",
+      "corrected": "이탈리아어는 대부분의 단어들이 정확히 쓰여진대로 발음되기 때문에 발음이 비교적 쉽다.",
+      "hypothesis": "The pronunciation is relatively easy in Italian because most words are pronounced exactly as they are written.",
+      "chrf": 84.5
+     },
+     {
+      "id": 1560,
+      "input": "해류를 벗어나기만하면, 평소처럼 수영해서 돌아는오 것 은 그다지어렵지 않디.",
+      "corrected": "해류를 벗어나기만하면, 평소처럼 수영해서 돌아오 것은 그다지 어려운 것이ไม子乎",
+      "hypothesis": "As usual, it is very difficult to swim back.",
+      "chrf": 22.6
+     },
+     {
+      "id": 1561,
+      "input": "대부분의 구역에서는 편암하고 튼튼한 형소 일제 코스터 버가스운행된다.",
+      "corrected": "대부분의 구역에서는 편암하고 튼튼한 형소 일제 코스터 버가스가 운행된다.",
+      "hypothesis": "In most areas, the narrow and sturdy Japanese coaster burgas are operated.",
+      "chrf": 32.5
+     },
+     {
+      "id": 1562,
+      "input": "이것은 일반적인 관행이 되었지만, 철은 머차의 나무 바퀴를 더 많이 마모되게 하였습니다.",
+      "corrected": "이것은 일반적인 관행이 되었지만, 철은 머차의 나무 바퀴를 더 많이 마모하게 하였습니다.",
+      "hypothesis": "This became a common practice, but iron caused more wear on the wooden wheels of the carriage.",
+      "chrf": 81.3
+     },
+     {
+      "id": 1563,
+      "input": "이것은 젊은 공룡의 꼬리이지만, 샘플을 보면 어린 개 체의 솜이털아닌 성체의 털깃임을 알 수 있다고 연구은진 말합니다.",
+      "corrected": "이것은 젊은 공룡의 꼬리이지만, 샘플을 보면 어린 개체의 솜이털이 아닌 성체의 털깃임을 알 수 있다고 연구은 진 말합니다.",
+      "hypothesis": "This is the tail of a young dinosaur, but if you look at the sample, you'll see that it's not a young individual's feather, it's an adult's hair.",
+      "chrf": 42.3
+     },
+     {
+      "id": 1564,
+      "input": "Moll 박사는 일부 환자가 병워에서 질병에 감염되었을 수 있다고 생각하며, 그 중 적어도 2명은 건한강 병원 근로자였을 것으로 생가했습니다.",
+      "corrected": "Moll 박사는 일부 환자가 병원에서 질병에 감염되었을 수 있다고 생각하며, 그 중 적어도 2명은 건한강 병원 근로자였을 것으로 추정했습니다.",
+      "hypothesis": "Dr. Moll believes that some patients may have been infected by the disease in hospitals, and at least two of them may have been hospital workers.",
+      "chrf": 49.8
+     },
+     {
+      "id": 1565,
+      "input": "학과의 주요 목적은 과학적 방법을 통 해 상세이 어떻게 움직이는지 이해하는 것이다. 이 방식이 사실 대부분의과학적 연구를 이끌어간다.",
+      "corrected": "학과의 주요 목적은 과학적 방법을 통해 어떻게 움직이는지 이해하는 것이다. 이 방식이 사실 대부분의 과학적 연구를 이끌어간다.",
+      "hypothesis": "The main purpose of the Department is to understand how it works through the scientific method, which in fact leads to most scientific research.",
+      "chrf": 54.6
+     },
+     {
+      "id": 1566,
+      "input": "비록 유리 무품의 팔십 퍼센트가 중앙아메리카 국가들에서 관세를 통해 세금이부과된다. 우라가 당신을 대접한다.",
+      "corrected": "비록 유리 무품의 팔십 퍼센트가 중앙아메리카 국가들에서 관세를 통해 세금이 부과된다. 우라가 당신을 대접한다.",
+      "hypothesis": "Even though eighty percent of the glass-free goods are taxed in Central American countries, Ura treats you well.",
+      "chrf": 58.7
+     },
+     {
+      "id": 1567,
+      "input": "그 해의 가장 규모가 튼 토너먼트 경기는 12월에 리스 카니타스의 폴로 경기장에서 열립니다.",
+      "corrected": "그 해의 가장 규모가 큰 토너먼트 경기는 12월에 리스 카니타스의 폴로 경기장에서 열립니다.",
+      "hypothesis": "The biggest tournament of the year takes place at the Polo Stadium in Lis Canitas in December.",
+      "chrf": 62.8
+     },
+     {
+      "id": 1568,
+      "input": "튿히 비(非)로마니, 사이에서는 널리 쓰이지만, 로마니,사람들에 대한 부정적인 고정관념과 부저확한 인식을 주 기 때문에 '집 시'라는 말 은 종종 불쾌 하게 여겨지고 있다.",
+      "corrected": "틈히 비(非)로마니, 사이에서는 널리 쓰이지만, 로마니, 사람人们对于非罗马尼的负面刻板印象和不准确的认识，因此“집 시”这个词有时会被不愉快地接受。",
+      "hypothesis": "It is widely used in non-Romani, but in Romani, because of \"house poems\".",
+      "chrf": 22.6
+     },
+     {
+      "id": 1569,
+      "input": "보고서는 미국의 중동 정책에 관해 공개 토론과 견의 일치 형성에 대하 탄원으로 시작한다.",
+      "corrected": "보고서는 미국의 중동 정책에 관해 공개 토론과 견의 일치 형성에 대한 탄원으로 시작한다.",
+      "hypothesis": "The report begins with a plea for open debate and a consensus on U.S. Middle East policy.",
+      "chrf": 43.4
+     },
+     {
+      "id": 1570,
+      "input": "또한 의회는 주(州) 긴의 세버과 관세를 무효화헐 권한이 없었습니다.",
+      "corrected": "또한 의회는 주(州) 긴의 세버과 관세를 무효화할 권한이 없었습니다.",
+      "hypothesis": "Congress also did not have the authority to invalidate state-long Severs and Tariffs.",
+      "chrf": 39.0
+     },
+     {
+      "id": 1571,
+      "input": "아랍인들을 통해서도이슬람교가 전해졌으며, 코모스로와 마요트 지방에서 큰 변화가 일어났습니다.",
+      "corrected": "아랍인들을 통해 이슬람교가 전해졌으며, 코모로와 마요트 지방에서 큰 변화가 일어났습니다.",
+      "hypothesis": "Islam was passed on to the Arabs, and a big change took place in Comoros and Mayotte.",
+      "chrf": 46.4
+     },
+     {
+      "id": 1572,
+      "input": "전부청사 근처에소 2시간 만네 폭탄3개가 추가로 발폭했다.",
+      "corrected": "전부청사 근처에서 2시간 만에 폭탄 3개가 추가로 발포했다.",
+      "hypothesis": "Three more bombs were fired within two hours.",
+      "chrf": 35.9
+     },
+     {
+      "id": 1573,
+      "input": "위성전화는 실외에서 위서과송수신선이 직결 된 곳서에 번화를 사용해야 하기 때문에, 보통 휴대폰을 대체할 수 어다.",
+      "corrected": "위성전화는 실외에서 위성 송수신선이 직결된 곳에서 사용해야 하기 때문에, 보통 휴대폰을 대체할 수는 없다.",
+      "hypothesis": "Satellite telephones must be used outdoors where the satellite transceiver is directly connected, so they cannot usually replace a mobile phone.",
+      "chrf": 42.0
+     },
+     {
+      "id": 1574,
+      "input": "겨울은 믿을 스 없을 만큼 쌍쌀해지기도 한다. 영하 이하로 내려가느 날은 드물지만, 바람과 습도가 하쳐져서 길제 온도다보 더 춥게 느진껴다.",
+      "corrected": "겨울은 믿을 수 없을 만큼 쌍龇해지기도 한다. 영하 이하로 내려가느 날은 드물지만, 바람과 습도가 합쳐져서 길게 보다 춥게 느껴진다.",
+      "hypothesis": "Winters can become unbelievably dizzy; they rarely descend below freezing, but wind and humidity combine to make them feel colder and longer.",
+      "chrf": 49.9
+     },
+     {
+      "id": 1575,
+      "input": "이스라엘은 협정이 이루어지자 이 구역 의 현재 주둔군 을 10년간 두는 것을 요구했고, PA는 주둔군 이 5뇬 후에 떠나느 것 에 동의했다.",
+      "corrected": "이스라엘은 협정이 이루어지자 이 구역의 현재 주둔군을 10년간 두는 것을 요구했고, PA는 주둔군이 5년 후에 떠나는 것에 동의했다.",
+      "hypothesis": "Israel demanded that the region's current garrison be held for ten years, and the PA agreed to leave five years later.",
+      "chrf": 36.4
+     },
+     {
+      "id": 1576,
+      "input": "강의 은 일적반으로 여기에서 논되의는 모든 문제에 해대훨씬 저 자세히 다루며, 보통 실무 경 험이 동반됩니다.",
+      "corrected": "강의는 일적반으로 여기에서 논의되의는 모든 문제에 해대 훨씬 자세히 다루며, 보통 실무 경험이 동반됩니다.",
+      "hypothesis": "Lectures are discussed here in part and in much more detail on all issues, usually accompanied by practical experience.",
+      "chrf": 50.1
+     },
+     {
+      "id": 1577,
+      "input": "그게 에저겐말이 안 되는 것 같았급니다. 확실히 공평하지 않았 어요.",
+      "corrected": "그게 엔진이 안 되는 것 같았습니다. 확실히 공평하지 않았어요.",
+      "hypothesis": "It didn't seem to be an engine. It certainly wasn't fair.",
+      "chrf": 61.9
+     },
+     {
+      "id": 1578,
+      "input": "그러고, 카라 깅은 바잔들을 노래히는 데 앞장섰다.",
+      "corrected": "그러고, 카라 깁은 바지를 노래하는 데 앞장섰다.",
+      "hypothesis": "Then, Kara Gibbed took the lead in singing her pants.",
+      "chrf": 51.5
+     },
+     {
+      "id": 1579,
+      "input": "이 시점에서 이라크의 행동이 종파적인 전쟁이나 폭력이 증가하는 것, 혹은 혼돈의 상태를 막을수 이다는데에 보장는 없다.",
+      "corrected": "이 시점에서 이라크의 행동이 종파적인 전쟁이나 폭력이 증가하는 것, 혹은 혼돈의 상태를 막을 수 있는 보장은 없다.",
+      "hypothesis": "At this point, there is no guarantee that Iraq’s actions will prevent sectarian wars, violence, or chaos.",
+      "chrf": 43.6
+     },
+     {
+      "id": 1581,
+      "input": "아마존은 또한 지구상에서 가장 넓은 강으로, 땨때로 폭이 6마일이 되 곤 힌다.",
+      "corrected": "아마존은 또한 지구상에서 가장 넓은 강으로, 땅때로 폭이 6마일이 된다고 한다.",
+      "hypothesis": "The Amazon is also the largest river on Earth, at six miles wide.",
+      "chrf": 77.1
+     },
+     {
+      "id": 1582,
+      "input": "히브리 가조의 삶은 거의 야외에서 이루어졌습니다.",
+      "corrected": "히브리 가조의 삶은 거의 야외에서 이루어졌습니다.",
+      "hypothesis": "The life of the Hebrew patriarch was almost outside.",
+      "chrf": 39.2
+     },
+     {
+      "id": 1583,
+      "input": "그녀는피임약이 의학적으로 꼭 필요한 것으로 여겨야 한다고 촉구하는 여성과 성남 모두의 긍정적인 의견과격려가 쇄도했기 때문에 이러 결론을 내렸다.",
+      "corrected": "그녀는 피임약이 의학적으로 꼭 필요한 것으로 여겨야 한다고 촉구하는 여성과 성인 모두의 긍정적인 의견과 격려가 쇄도했기 때문에 이런 결론을 내렸다.",
+      "hypothesis": "She came to this conclusion because of the positive opinions and encouragement of both women and adults who called for contraceptives to be considered medically necessary.",
+      "chrf": 49.9
+     },
+     {
+      "id": 1584,
+      "input": "비슈케크시가지에 버 집행관들이 나나타지 않자, 간밤에 범광위한 약틸이 계속되다었고 전해진다.",
+      "corrected": "비슈케크 시가지에 버 집행관들이 나나타지 않자, 간밤에 범행이 계속되었다고 전해진다.",
+      "hypothesis": "When Burr officers showed up in the town of Bishkek, the attack was reported to have continued overnight.",
+      "chrf": 39.5
+     },
+     {
+      "id": 1586,
+      "input": "그녀의 첫 번째 경기는 활강 경기였는데, 1회전에서 결선승을 통과하지 못했습니다. 116면의 선수 중 36명이 그경기에서 같은 결과를 얻었습니다.",
+      "corrected": "그녀의 첫 번째 경기는 활강 경기였는데, 1회전에서 결선승을 통과하지 못했습니다. 116명의 선수 중 36명이 그 경기에서 같은 결과를 얻었습니다.",
+      "hypothesis": "Her first game was a run, and she didn't finish in the first round. Of the 116 players, 36 got the same result.",
+      "chrf": 37.3
+     },
+     {
+      "id": 1587,
+      "input": "이번 시즌의 첫 발병 례사는 7월 말에 보고되었습니다.",
+      "corrected": "이번 시즌의 첫 발병 사례는 7월 말에 보고되었습니다.",
+      "hypothesis": "The first case of this season was reported in July.",
+      "chrf": 56.3
+     },
+     {
+      "id": 1588,
+      "input": "경찰에 따르면 사진기자를 친 차량의 은전자는 형사 고발을 당할가능성이 낮다.",
+      "corrected": "경찰에 따르면, 사진기자를 친 차량의 은전자는 형사 고발을 당할 가능성이 낮다.",
+      "hypothesis": "According to the police, the car’s silver electrons that hit the photographer are less likely to be charged with criminal charges.",
+      "chrf": 63.3
+     },
+     {
+      "id": 1589,
+      "input": "하위문화흘 명확하게 구분하는 특징은 어어적, 미적,종교적, 정치적, 성적, 지리적 요소가 있으며,이러한 요소들의결합일 수 도 있다.",
+      "corrected": "하위문화를 명확하게 구분하는 특징은 어휘적, 미적, 종교적, 정치적, 성적, 지리적 요소가 있으며, 이러한 요소들의 결합일 수 있다.",
+      "hypothesis": "The distinguishing features of subculture are lexical, aesthetic, religious, political, sexual, and geographical, and may be a combination of these elements.",
+      "chrf": 61.5
+     },
+     {
+      "id": 1590,
+      "input": "주 요 지역 맥주는 '넘버원(Number One)'으로, 복합적인 푼미는 아니지만 기분 좋은 상큼한 맥주입니다. 또 다른 지역 맥주로는 '만타(Manta)'가 있습니다.",
+      "corrected": "주요 지역 맥주는 '넘버원(Number One)'으로, 복합적인 푼미는 아니지만 기분 좋은 상큼한 맥주입니다. 또 다른 지역 맥주로는 '만타(Manta)'가 있습니다.",
+      "hypothesis": "The main local beer is 'Number One', which is not a compound but is a pleasant and refreshing beer. Another local beer is 'Manta'.",
+      "chrf": 69.8
+     },
+     {
+      "id": 1591,
+      "input": "뉴트 깅리치 정 하원의장, 릭 페리 텍사스 주지사, 미셸 바흐만 하원 의원이 각 각 4위, 5위, 6위를 차지했습니다.",
+      "corrected": "뉴트 깅리치 정 하원의장, 릭 페리 텍사스 주지사, 미셸 바흐만 하원 의원이 각각 4위, 5위, 6위를 차지했습니다.",
+      "hypothesis": "Newt Gingrich, Texas Gov. Rick Perry, and Michelle Bachman finished fourth, fifth, and sixth respectively.",
+      "chrf": 57.9
+     },
+     {
+      "id": 1593,
+      "input": "시간이 흘러 나무 바퀴는 철 바로퀴 대체되었다. 그 리고 1767년에 드디어 철로만만든 처도가 소개되었다.",
+      "corrected": "시간이 흘러 나무 바퀴는 철 바로퀴로 대체되었다. 그 후 1767년에 드디어 철로만 만든 차도가 소개되었다.",
+      "hypothesis": "Over time, the wooden wheels were replaced by iron baroques. In 1767, a railway-only driveway was introduced.",
+      "chrf": 55.7
+     },
+     {
+      "id": 1594,
+      "input": "코끼리나 기린처럼 일 부 동물은 자동에차 가까이 접근하는 겨향이 있으며 표준 장지를 이용하여 잘 관찰할 수 있습니다.",
+      "corrected": "코끼리나 기린처럼 일부 동물은 자동으로 가까이 접근하는 겨울이 있으며 표준 장비를 이용하여 잘 관찰할 수 있습니다.",
+      "hypothesis": "Some animals, such as elephants and giraffes, have winters that are automatically close by and can be observed well using standard equipment.",
+      "chrf": 58.8
+     },
+     {
+      "id": 1595,
+      "input": "티벳 불교는 처부님의 가르침을 기반으로 하지난, 대승불교의 사의랑 관념 미 인도 요가의 은많 기술늘 바탕으로확장되었습니다.",
+      "corrected": "티벳 불교는 처부님의 가르침을 기반으로 하지 않았습니다. 대승불교의 사의와 관념, 미 인도 요가의 은 많은 기술을 바탕으로 확장되었습니다.",
+      "hypothesis": "Tibetan Buddhism was not based on the teachings of her father-in-law; it was expanded based on the ideas and ideas of Dae Seung-Buddhistism, and the many skills of American Yoga.",
+      "chrf": 43.9
+     },
+     {
+      "id": 1596,
+      "input": "박학물자나 펄학자는 고전 텍스트와 특별히 라틴어 성경에 초점을 맞췄습니다.",
+      "corrected": "박학자나 펄학자는 고전 텍스트와 특별히 라틴어 성경에 초점을 맞췄습니다.",
+      "hypothesis": "The pedagogist or pulsar focused on classical texts and especially the Latin Bible.",
+      "chrf": 44.0
+     },
+     {
+      "id": 1598,
+      "input": "차가 집에 충돌했을 때 세 명이 에안 있었지만, 그 들 즁 한 명도 다치지 않았다.",
+      "corrected": "차가 집에 충돌했을 때 세 명이 안에 있었지만, 그들 중 한 명도 다치지 않았다.",
+      "hypothesis": "Three people were inside when the car hit the house, but not one of them was injured.",
+      "chrf": 57.7
+     },
+     {
+      "id": 1599,
+      "input": "원래 인구는 전혀 변동이 없었지만 여전히 과전 같은 적응이 필요합니다.",
+      "corrected": "원래 인구는 전혀 변동이 없었지만 여전히 과전 같은 적응이 필요합니다.",
+      "hypothesis": "The original population has not changed at all, but it still needs to adapt to the past.",
+      "chrf": 60.3
+     },
+     {
+      "id": 1600,
+      "input": "현장 활동의 예로 는 사냐, 낚시, 사진, 조 류 관찰및공원 미 생태계에 대한 연구가 있다.",
+      "corrected": "현장 활동의 예로는 사냥, 낚시, 사진, 조류 관찰 및 공원 미생태계에 대한 연구가 있다.",
+      "hypothesis": "Examples of field activities include hunting, fishing, photography, bird watching, and research into park ecosystems.",
+      "chrf": 62.5
+     },
+     {
+      "id": 1601,
+      "input": "과학자들은 오셀롯아 잡아먹을 동물(먹이)을 쫓소, 또 찾는 데 에 냄새를 사용한다고 생각합니다. 어디에 있었는지 냄새 를 맡으며서 말이지요.",
+      "corrected": "과학자들은 오셀롯을 잡아먹을 동물(먹이)을 쫓을 때, 또 찾는 데에 냄새를 사용한다고 생각합니다. 어디에 있었는지 냄새를 맡으며 말이지요.",
+      "hypothesis": "Scientists think they use smell to hunt and find animals that eat Othellots, smelling where they've been.",
+      "chrf": 52.5
+     },
+     {
+      "id": 1604,
+      "input": "그는 NSA로서 1978년 캠프 데이비드 어코드, 1970년대 후반에 미국과 중국의 계관 정상화, 1979년 이란 인질 위기로 이어진 이란 혁명, 1979년 소의련아프가니스탄 침공과 같은세계 문제를 외교적 으로 다루는 일 에서 카 터 대통령을 보좌하였습니다.",
+      "corrected": "그는 NSA로서 1978년 캠프 데이비드 약속, 1970년대 후반에 미국과 중국의 관계 정상화, 1979년 이란 인질 위기로 이어진 이란 혁명, 1979년 소련 아프가니스탄 침공과 같은 세계 문제를 외교적으로 다루는 일에서 카터 대통령을 보좌하였습니다.",
+      "hypothesis": "As an NSA, he assisted President Carter in diplomatic handling of world issues such as the 1978 Camp David Promise, normalization of relations between the United States and China in the late 1970s, the Iranian Revolution that led to the 1979 Iran hostage crisis, and the 1979 Soviet invasion of Afghanistan.",
+      "chrf": 61.6
+     },
+     {
+      "id": 1605,
+      "input": "포유는류 대륙으로부터의 몬 거리로 인해 갈라파고스의일차 방목 동인물 거대 거북이처럼 려행할 수 없었습니다.",
+      "corrected": "포유류 대륙으로부터의 멀리 거리로 인해 갈라파고스의 일차 방목 동인물 거대 거북이처럼 려행할 수 없었습니다.",
+      "hypothesis": "Because of the distance from the mammalian continent, we couldn't be more like the Galapagos' primary grazing giant turtle.",
+      "chrf": 46.6
+     },
+     {
+      "id": 1606,
+      "input": "포르투갈인들은이곳을 파괴한 다음Casa Branca라느 이름로으 재건했지만, 1755년 지진 이후에 그곳을 버리고 떠났습니다.",
+      "corrected": "포르투갈인들은 이곳을 파괴한 다음 Casa Branca라는 이름으로 재건했지만, 1755년 지진 이후에 그곳을 버리고 떠났습니다.",
+      "hypothesis": "The Portuguese destroyed it and rebuilt it under the name Casa Branca, but abandoned it after the 1755 earthquake.",
+      "chrf": 78.9
+     },
+     {
+      "id": 1607,
+      "input": "이 흥미로운 마을을 산책하는데 30분을 투자할만합니다.",
+      "corrected": "이 흥미로운 마을을 산책하는데 30분을 투자할 만합니다.",
+      "hypothesis": "It takes about 30 minutes to walk through this exciting city.",
+      "chrf": 19.2
+     },
+     {
+      "id": 1609,
+      "input": "로빈 우타파(Robin Uthappa)사 이닝 최고점을 기록했다. 4점 11개와 6점 2개로41 투구마에 70 을런 쳐 이닝 최고점을 기록했다.",
+      "corrected": "로빈 우타파(Robin Uthappa)는 이닝 최고점을 기록했다. 4점 11개와 6점 2개로 41 투구 마에 70을 쳐 이닝 최고점을 기록했다.",
+      "hypothesis": "Robin Uthappa scored an inning high of 41 innings with 11 innings and 2 in six.",
+      "chrf": 33.6
+     },
+     {
+      "id": 1611,
+      "input": ". 과학자들은 이 공룡 깃털의 윗이쪽 진갈색이고 아랫쪽은 희 거나 노람빛이었다고 밝혔다.",
+      "corrected": "과학자들은 이 공룡 깃털의 윗쪽이 진갈색이고 아랫쪽은 희거나 노랑빛이었다고 밝혔다.",
+      "hypothesis": "Scientists said the upper part of the dinosaur feathers was dark brown and the lower part was white or yellow.",
+      "chrf": 27.8
+     },
+     {
+      "id": 1612,
+      "input": "100피트 너비의 제방 너모로 물이 흘러넘칩니다.",
+      "corrected": "100피트 너비의 제방 둘레로 물이 흘러넘칩니다.",
+      "hypothesis": "It flows around a 100-foot-wide dyke.",
+      "chrf": 11.1
+     },
+     {
+      "id": 1613,
+      "input": "다 음으로 일부 안장, 특히 영국의 안장에는떨어지는 기수가 뒤로 당기 경우 자등 가죽이 안장에서 떨너질 수 있는 안바전가 있다.",
+      "corrected": "다음으로 일부 안장, 특히 영국의 안장에는 떨어지는 기수가 뒤로 당기 경우 자등 가죽이 안장에서 떨어질 수 있는 안바전가 있다.",
+      "hypothesis": "Then there are some saddles, especially in the UK, where if the falling jockey pulls back, the luminescent leather may fall from the saddle.",
+      "chrf": 31.4
+     },
+     {
+      "id": 1615,
+      "input": "수턴 년 전에 아리스다고라는 사람이 태양계가 태양을 중심으로 움직인다고 주장했다.",
+      "corrected": "수년 전에 아리스토텔레스라는 사람이 태양계가 태양을 중심으로 움직인다고 주장했다.",
+      "hypothesis": "A few years ago, Aristotle claimed that the solar system revolved around the sun.",
+      "chrf": 42.0
+     },
+     {
+      "id": 1616,
+      "input": "이 제 과학적 데이터가거대한 규모 의 아 탄소 경제는 지난 이백만 년 안동 인류릐 진화를 도왔던 안종적인 상태에서 물생권을 몰아냈음을 보여줍니다.",
+      "corrected": "이 제 과학적 데이터는 거대한 규모의 아태산 경제는 지난 이백만 년 안동 인류의 진화를 도왔던 안정적인 상태에서 물생권을 몰아냈음을 보여줍니다.",
+      "hypothesis": "This scientific data shows that the large-scale Asia-Pacific economy has driven water production out of a stable state that has helped humanity evolve in the last two million years.",
+      "chrf": 44.9
+     },
+     {
+      "id": 1617,
+      "input": "루크거 국립공원(KNP)은 남아프리카의 북동쪽에 위치하여 동쪽으는로 모잠비크, 북쪽으로는 짐바브웨 국경을 따라 형성되어 있으며, 남으쪽로는 크로커다일 강을 경계로 하고 있습니다.",
+      "corrected": "루크거 국립공원(KNP)은 남아프리카의 북동쪽에 위치하여 동쪽으로는 모잠비크, 북쪽으로는 짐바브웨 국경을 따라 형성되어 있으며, 남쪽으로는 크로커다일 강을 경계로 하고 있습니다.",
+      "hypothesis": "The Luker National Park (KNP) is located in the northeast of South Africa, along the border of Mozambique to the north and the Crockerdale River to the south.",
+      "chrf": 58.9
+     },
+     {
+      "id": 1618,
+      "input": "북부 디역 또는 센티넬 산맥에는 남극 대륙에 서 가장 높은 산인 빈슨산괴(Vinson Massif)가 있느데, 빈슨 산 높이는 4,892m입니다.",
+      "corrected": "북부 디역 또는 센티넬 산맥에는 남극 대륙에 서 가장 높은 산인 빈슨산괴(Vinson Massif)가 있습니다. 빈슨 산 높이는 4,892m입니다.",
+      "hypothesis": "In the northern part of the region, or the Sentinel Mountains, the Vinson Massif , the highest mountain in Antarctica, is 4,892 metres high.",
+      "chrf": 62.1
+     },
+     {
+      "id": 1619,
+      "input": "하지만 대부분의 표지판은 법으로 최초 공식 언어로 확입된 카탈로 니아어로만 표기되어 있습니다.",
+      "corrected": "하지만 대부분의 표지판은 법으로 최초 공식 언어로 확립된 카탈로니아어로만 표기되어 있습니다.",
+      "hypothesis": "However, most signs are only in Catalan, which is the first official language established by law.",
+      "chrf": 71.5
+     },
+     {
+      "id": 1620,
+      "input": "이제 군도 전체에서 폭넓게 이용하 수 있는자바식 요리법은 다양하 단순 제철 요리가 특지적이며, 자인바들이 선호하는 주 요 향은 땅콩, 칠리,설탕(특히 자바 코코넛 설탕)과 다양한 향신료입니다.",
+      "corrected": "이제 군도 전체에서 폭넓게 이용할 수 있는 자바식 요리법은 다양하단ly, 제철 요리가 특지적이며, 자바인바들이 선호하는 주요 향은 땅콩, 칠리, 설탕(특히 자바 코코넛 설탕)과 다양한 향신료입니다.",
+      "hypothesis": "Now widely available throughout the archipelago, Javanese recipes are varied, seasonal dishes are special, and Javanese people prefer peanuts, chili, sugar (especially Java coconut sugar) and a variety of spices.",
+      "chrf": 58.2
+     },
+     {
+      "id": 1621,
+      "input": "초기에는 드레스가 동양의 비잔틴 문화 에 크 게영향을 받았습니다.",
+      "corrected": "초기에는 드레스가 동양의 비잔티누스 문화에 크게 영향을 받았습니다.",
+      "hypothesis": "Initially, the dress was heavily influenced by the Byzantine culture of the East.",
+      "chrf": 71.1
+     },
+     {
+      "id": 1622,
+      "input": "조지 W. 부시 미국 대통령은 이 같운발표를 환영습했니다.",
+      "corrected": "조지 W. 부시 미국 대통령은 이 같은 발표를 환영했습니다.",
+      "hypothesis": "President George W. Bush welcomed the announcement.",
+      "chrf": 93.0
+     },
+     {
+      "id": 1623,
+      "input": "리 조항들은 모든 주에서 만장일치의 동의를 얻어야만 수정이 가능했으며, 중앙 종부를 무시한 주 대표들은 대분부 회의에 불참석했습니다.",
+      "corrected": "리조항들은 모든 주에서 만장일치의 동의를 얻어야만 수정이 가능했으며, 중앙 종부를 무시한 주 대표들은 대분부 회의에 불참했습니다.",
+      "hypothesis": "Resolutes had to be corrected with unanimous consent from all states, and state representatives who ignored the central end were absent from the grand council.",
+      "chrf": 46.6
+     },
+     {
+      "id": 1624,
+      "input": "내륙 수로는 휴일을 보내기용으로 봏은주제가 됭 수 있습니다.",
+      "corrected": "내륙 수로는 휴일을 보내기로 봐도 좋은 주제가 될 수 있습니다.",
+      "hypothesis": "Inland waterways can be a good topic to spend your holidays in.",
+      "chrf": 61.6
+     },
+     {
+      "id": 1627,
+      "input": "고대 로마 식사는 몇 세가기 지난 후 미국이나 아시아에서유럽으로 오 식음을 포함할 수 없습었니다.",
+      "corrected": "고대 로마 식사는 몇 세기 지난 후 미국이나 아시아에서 유럽으로 오지 않고, 식음을 포함할 수 없었습니다.",
+      "hypothesis": "Ancient Roman meals did not come to Europe from the United States or Asia centuries later, and could not contain food.",
+      "chrf": 50.1
+     },
+     {
+      "id": 1628,
+      "input": "수공예제품들은 대량 생산되 유사 제품들만큼 낡지 않을지라도 골동품으로 정의할 수 있을것입니다.",
+      "corrected": "수공예제품들은 대량 생산된 유사 제품들만큼 낡지 않을지라도 골동품으로 정의할 수 있을 것입니다.",
+      "hypothesis": "Handicrafts may not be as old as mass-produced similar products, but they can be defined as antiques.",
+      "chrf": 56.1
+     },
+     {
+      "id": 1629,
+      "input": "일부 보도에 따르명 공식 사망자 수는 8명으로 집계됐으며, 고식 도보에 따르면최대 30명이 부상을 있었다고 전해진다. 러그나 최 종 사망자 수는 아직 알랴지지 아았다.",
+      "corrected": "일부 보도에 따르면 공식 사망자 수는 8명으로 집계됐으며, 고식 도보에 따르면 최대 30명이 부상을 입었다고 전해진다. 러그나 최종 사망자 수는 아직 알려지지 않았다.",
+      "hypothesis": "According to some reports, the official death toll was eight, with up to 30 people injured on foot.",
+      "chrf": 39.8
+     },
+     {
+      "id": 1630,
+      "input": "멕시코 선수 알리 벨라스케스는 남 자 슈 퍼대회전 좌식에서 15위로 끝마쳤습니다. 뉴질랜드 선수 아담 홀은 남자슈퍼대회전 이식에서9위로 끝마쳤습니다.",
+      "corrected": "멕시코 선수 알리 벨라스케스는 남자 슈퍼대회전 좌식에서 15위로 끝마쳤습니다. 뉴질랜드 선수 아담 홀은 남자슈퍼대회전 이식에서 9위로 끝마쳤습니다.",
+      "hypothesis": "Mexican player Ali Velázquez finished 15th in the men's super-game sit-down, while New Zealander Adam Hall finished 9th in the men's super-game-play transplant.",
+      "chrf": 51.0
+     },
+     {
+      "id": 1631,
+      "input": "고대 신왕국 이집트인들은 조상의 기념비적인 건축물을 보고 겨탄했고 이것은 그 당시 기준으로 1000년은 족히 넘은 건축물이었습니다.",
+      "corrected": "고대 신왕국 이집트인들은 조상의 기념비적인 건축물을 보고 경탄했고, 이것은 그 당시 기준으로 1000년은 족히 넘은 건축물이었습니다.",
+      "hypothesis": "The ancient New Kingdom Egyptians marveled at the monumental architecture of their ancestors, which at that time was well over 1,000 years old.",
+      "chrf": 54.8
+     },
+     {
+      "id": 1632,
+      "input": "여성들은 문화적 파이로인해 괴롭힘으로 주간되는 겨과가 초래될 수 있고 팔을 잡는 증의 행위가 드문 일이 아니라는 것을 알아냐 합니다.",
+      "corrected": "여성들은 문화적 배경으로 인해 괴롭힘으로 주간되는 격과가 초래될 수 있고 팔을 잡는 증상의 행위가 드문 일이 아니라는 것을 알고 있습니다.",
+      "hypothesis": "Women know that a cultural background can lead to bullying weekly and that the practice of holding an arm is not uncommon.",
+      "chrf": 29.8
+     },
+     {
+      "id": 1633,
+      "input": "이 역동적인 수 송 셔틀은 어떤 식으로든 모든 사람들이 자가용을 기반으로 하는 수송 시스테과 연결되고 이를 지원하도록 하다.",
+      "corrected": "이 역동적인 수송 셔틀은 어떤 식으로든 모든 사람들이 자가용을 기반으로 하는 수송 시스템과 연결되고 이를 지원하도록 한다.",
+      "hypothesis": "This dynamic transport shuttle allows everyone to connect and support a vehicle-based transport system in one way or another.",
+      "chrf": 57.4
+     },
+     {
+      "id": 1635,
+      "input": "우리는 보다 환경친화적인 삶을 시작할 수 있고,환경 운동에 참여할 수도 있습니다. 또한, 미래에 겪을 고통을 어느 정도줄이기 위해 활동가가 될 수 도 있습니다.",
+      "corrected": "우리는 보다 환경친화적인 삶을 시작할 수 있고, 환경 운동에 참여할 수도 있습니다. 또한, 미래에 겪을 고통을 어느 정도 줄이기 위해 활동가가 될 수 있습니다.",
+      "hypothesis": "We can start to live more environmentally friendly lives, we can participate in environmental movements, and we can become activists to reduce some of the suffering that we're going to experience in the future.",
+      "chrf": 60.1
+     },
+     {
+      "id": 1636,
+      "input": "스페인 사람들이 3세기 동안 지된속 식민지 시대를 시작했다.",
+      "corrected": "스페인 사람들이 3세기 동안 지배된 속 식민지 시대를 시작했다.",
+      "hypothesis": "The Spanish began a colonial period dominated for three centuries.",
+      "chrf": 51.9
+     },
+     {
+      "id": 1637,
+      "input": "겁에 질린 프랑스의 왕 루이 16세, 마리 아투아네트 여왕 그리고 그들의 두 어린 아이들 (11살 마리 테레즈 그리고 4살 루리 샤를) 그리고 왕의 여생동인 엘리자베스 공주,1789년 10월 6일에 여성노동자 집단에의해 베르사유에서 파리로 강제방추되었다.",
+      "corrected": "겁에 질린 프랑스의 왕 루이 16세, 마리 아투아네트 여왕 그리고 그들의 두 어린 아이들 (11살 마리 테레즈 그리고 4살 루이 샤를) 그리고 왕의 여생동인 엘리자베스 공주, 1789년 10월 6일에 여성노동자 집단에 의해 베르사유에서 파리로 강제 방추되었다.",
+      "hypothesis": "King Louis XVI of France, Queen Marie Atoinette and their two young children (11-year-old Marie Terez and 4-year-old Louis Charles) and Princess Elizabeth, the king's daughter-in-law, were forced from Versailles to Paris by a group of women workers on 6 October 1789.",
+      "chrf": 58.4
+     },
+     {
+      "id": 1638,
+      "input": "사파리는 아마도 아프리카에서 가장 멋진 관광명소이며 많은 방문객에게 하이라이트가 될 것이다.",
+      "corrected": "사파리는 아마도 아프리카에서 가장 멋진 관광명소이며 많은 방문객에게 하이라이트가 될 것이다.",
+      "hypothesis": "Safari is perhaps the most spectacular tourist attraction in Africa and will be a highlight for many visitors.",
+      "chrf": 62.3
+     },
+     {
+      "id": 1639,
+      "input": "대부분 학생들이 가장 비판적인 청중이므로, 블로그 작가는 비을판 피하 기 위해 글쓰기를 향상시키려고 노력하기 시작 합니다.",
+      "corrected": "대부분 학생들이 가장 비판적인 청중이므로, 블로그 작가는 비판을 피하기 위해 글쓰기를 향상시키려고 노력하기 시작합니다.",
+      "hypothesis": "As most students are the most critical audience, blog writers begin to try to improve their writing in order to avoid criticism.",
+      "chrf": 67.8
+     },
+     {
+      "id": 1640,
+      "input": "얼음이 덮히고 눈이 쌓인 도로에서는 마찰력이 둘어들어서 당 신은마치 맨 아스팔트 위에 있는 것처럼 운전을 제대로 할 수가 없다.",
+      "corrected": "얼음이 덮히고 눈이 쌓인 도로에서는 마찰력이 떨어져서 당신은 마치 맨 아스팔트 위에 있는 것처럼 운전을 제대로 할 수가 없다.",
+      "hypothesis": "On ice-covered, snow-covered roads, friction is off, and you can't drive as if you were on top of asphalt.",
+      "chrf": 57.2
+     },
+     {
+      "id": 1642,
+      "input": "필리핀 정복에 사용된 미굿 제국주의의 쟁전 비용 은 필리핀인 자들신에 의해 지급되었다.",
+      "corrected": "필리핀 정복에 사용된 미군 제국주의의 전쟁 비용은 필리핀인들에게由中国网民提出的一个问题，似乎被截断了。根据上下文，应该是想表达关于菲律宾被美国殖民时期战争费用的问题。正确的句子应该是：\n\n\"필리핀 정복에 사용된 미국 제국주의의 전쟁 비용은 필리핀인들에게 지급되었다.\"",
+      "hypothesis": "The cost of U.S. imperialism in the conquest of the Philippines was paid to the Filipinos.",
+      "chrf": 59.5
+     },
+     {
+      "id": 1644,
+      "input": "\"의견를 물었을 때 밀러는 \"\"청문회 동안 마이크는 많은 이애기를 했습니다… 저는준비를 하고 있었기 때문에 그가 하는 날을 듣지 못했습니다\"\"라고 말했습니다.\"",
+      "corrected": "\"의견를 물었을 때 밀러는 \"\"청문회 동안 마이크는 많은 이야기를 했습니다… 저는 준비를 하고 있었기 때문에 그가 하는 날을 듣지 못했습니다\"\"라고 말했습니다.\"",
+      "hypothesis": "\"When asked his opinion,\" Miller said, \"Mike talked a lot during the hearing... I was preparing, so I didn't hear the day he was doing it.\"",
+      "chrf": 53.9
+     },
+     {
+      "id": 1645,
+      "input": "것그의만연한 힘은 왕에서 편민에 이르는 모든 사람에게 영향을 미칩니다.",
+      "corrected": "그의만연한 힘은 왕부터 편민에 이르는 모든 사람에게 영향을 미칩니다.",
+      "hypothesis": "His power affects everyone from the king to the common people.",
+      "chrf": 50.4
+     },
+     {
+      "id": 1646,
+      "input": "오클랜드가 두 개의 항구 를 가로지르고 있기 때문에 해변이 많습니다. 가장 인기 있는 고이 세 지역안에 있습니다.",
+      "corrected": "오클랜드가 두 개의 항구를 가로지르기 때문에 해변이 많습니다. 가장 인기 있는 곳 세 지역 안에 있습니다.",
+      "hypothesis": "There are many beaches as Auckland crosses two ports. The most popular are in the three areas.",
+      "chrf": 59.7
+     },
+     {
+      "id": 1647,
+      "input": "제시된 견해는 른다 곳에서 얻을 수 있는 더 상세한 정보와 비교해 주로 피상적이고, 일반적이며, 지나치게 단순화된 모습이다.",
+      "corrected": "제시된 견해는 람다 곳에서 얻을 수 있는 더 상세한 정보와 비교해 주로 피상적이고, 일반적이며, 지나치게 단순화된 모습이다.",
+      "hypothesis": "The views presented are predominantly superficial, general, and oversimplified in comparison with the more detailed information available at Lambda.",
+      "chrf": 68.6
+     },
+     {
+      "id": 1648,
+      "input": "가나안에는 큰 숲이 없었기 때문에 나무가 무척 비쌌 다.",
+      "corrected": "가나안에는 큰 숲이 없었기 때문에 나무가 무척 비쌌다.",
+      "hypothesis": "Because there were no large forests in Canaan, the trees were very expensive.",
+      "chrf": 57.0
+     },
+     {
+      "id": 1649,
+      "input": "일본에서 첫 법꽃 파티가 천황의 주최로 황궁 주변에서 개최되었습니다. 이 파티에는 천황과 귀졷 구성원만이 참여했습니다.",
+      "corrected": "일본에서 첫 법꽃 파티가 천황의 주최로 황궁 주변에서 개최되었습니다. 이 파티에는 천황과 귀족 구성원만이 참여했습니다.",
+      "hypothesis": "The first flower party in Japan was held around the Imperial Palace hosted by the emperor. Only the emperor and noble members participated in this party.",
+      "chrf": 46.5
+     },
+     {
+      "id": 1650,
+      "input": "바자 악어는 자다에서 살지 않으며, 록햄프턴 북쪽 강어귀에 주로 서식한더.",
+      "corrected": "바자 악어는 자다에서 살지 않으며, 록햄프턴 북쪽 강어귀에 주로 서식한다.",
+      "hypothesis": "The Baja crocodile does not live in Jada, but mainly in the northern estuary of Rockhampton.",
+      "chrf": 35.3
+     },
+     {
+      "id": 1651,
+      "input": "갭이어를 여행과 공부에 사용하는사람들이 점점 더 늘나어고 있다.",
+      "corrected": "갭이어를 여행과 공부에 사용하는 사람들이 점점 더 늘고 있다.",
+      "hypothesis": "There are more and more people who study and travel.",
+      "chrf": 19.2
+     },
+     {
+      "id": 1652,
+      "input": "몰도바의 요주 종교는동방정교입니다.",
+      "corrected": "몰도바의 요주 종교는 동방정교입니다.",
+      "hypothesis": "The main religion in Moldova is Eastern Orthodoxy.",
+      "chrf": 60.8
+     },
+     {
+      "id": 1653,
+      "input": "NPWS와 '오스트레일리아 스포츠슈터 협회'의 파트너쉽으로 '스포츠 슈 터 협회'의 사냥 프 로그램에 라따 자격을 갖춘 자원봉사자를 모집 했다.",
+      "corrected": "NPWS와 '오스트레일리아 스포츠슈터 협회'의 파트너십으로 '스포츠 슈터 협회'의 사냥 프로그램에 라따 자격을 갖춘 자원봉사자를 모집했다.",
+      "hypothesis": "In partnership with NPWS and the Australian Sports Shooter Association, we have recruited qualified volunteers from the Sports Shooter Association’s hunting program.",
+      "chrf": 63.0
+     },
+     {
+      "id": 1654,
+      "input": "아실 지 모르겠지만, 중앙아메리카에서 온 대부분의 물 품은 이 나라에 면세로 들어왔습니다.",
+      "corrected": "아실지 모르겠지만, 중앙아메리카에서 온 대부분의 물품은 이 나라에 면세로 들어왔습니다.",
+      "hypothesis": "As you may know, most of the goods from Central America have been tax-free in this country.",
+      "chrf": 52.8
+     },
+     {
+      "id": 1656,
+      "input": "경찰는 시체가 하루 정도 있었던 것으로 보인다고 말했습니다.",
+      "corrected": "경찰은 시체가 하루 정도 있었던 것으로 보인다고 말했습니다.",
+      "hypothesis": "Police said the body appeared to have been there for a day.",
+      "chrf": 81.1
+     },
+     {
+      "id": 1657,
+      "input": "하지만 모든 수정이나 청요 사항이 있으면 호텔로 직접 연락하지 말고 우선 여행사 를 통해 이를 진행해야 합니다.",
+      "corrected": "하지만 모든 수정이나 청구 사항이 있으면 호텔로 직접 연락하지 말고 우선 여행사 через 이를 진행해야 합니다.",
+      "hypothesis": "However, if you have any modifications or claims, please do not contact the hotel directly, first you will need to proceed with your travel agent.",
+      "chrf": 35.0
+     },
+     {
+      "id": 1658,
+      "input": "하루에 열 여덟 개의 메달만주어지기 때문에, 많은 국 가가 메달 단상에 오르지못했습니다.",
+      "corrected": "하루에 열여덟 개의 메달만 주어지기 때문에, 많은 국가가 메달 단상에 오르지 못했습니다.",
+      "hypothesis": "With only 18 medals given per day, many countries failed to reach the medal.",
+      "chrf": 40.4
+     },
+     {
+      "id": 1659,
+      "input": "과학자들은 충돌로 한인 폭발이 거대했다고 말한다.",
+      "corrected": "과학자들은 충돌로 인한 폭발이 거대했다고 말한다.",
+      "hypothesis": "Scientists say the explosion was huge.",
+      "chrf": 53.4
+     }
+    ]
+   }
+  },
+  "ollama": {
+   "ollama": "0.35.1",
+   "model": "qwen2.5:7b-instruct",
+   "digest": "845dbda0ea48ed749caafd9e6037047aa19acfcfd82e704d7ca97d631a0b697e",
+   "size_vram_mb": 4528,
+   "context_length": 4096
+  }
+ }
+]
