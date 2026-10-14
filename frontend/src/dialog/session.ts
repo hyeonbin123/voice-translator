@@ -75,7 +75,7 @@ export class DialogSession {
   private controller = new AbortController()
   private microphone?: Microphone
   private endpointer?: SpeechEndpointer
-  // Signed in: the live connection that detects and prepares each turn at a pause (T77). Example mode uploads.
+  // 로그인 상태: 쉼에서 마디마다 언어를 판별하고 미리 처리하는 동시통역 연결(T77). 예시 모드는 업로드한다.
   private channel?: SpeculativeChannel<DialogTranslationResult>
   private captureEpoch = 0
   private jobs: Job[] = []
@@ -85,7 +85,7 @@ export class DialogSession {
   private playbackPending = false
   private previousLang?: Language
   private lastProcessedTurnId?: number
-  private lastProcessedUtterance?: number // its id on the live connection, which keeps the language too
+  private lastProcessedUtterance?: number // 동시통역 연결에서의 그 마디 번호. 연결도 그 언어를 기억한다
   private nextId = 1
   private readonly api: Pick<TranslationApi, 'dialog' | 'speech' | 'removeHistory' | 'liveToken' | 'expireLiveAuthentication'>
   private readonly open: OpenMicrophone
@@ -117,7 +117,7 @@ export class DialogSession {
     this.stop()
     const signal = this.controller.signal
     this.update({ active: true, permission: true, error: '', notice: '' })
-    // A new connection (a new token) starts from the last turn so an unsure next turn is guessed as before.
+    // 새 연결(새 토큰)도 직전 마디에서 시작해, 다음 확신 낮은 마디를 전과 같이 추측하게 한다.
     const channel = this.speculative ? new SpeculativeChannel(this.api, () => ({ mode: 'dialog',
       ...(this.previousLang && this.lastProcessedUtterance !== undefined
         ? { previous_lang: this.previousLang, previous_id: this.lastProcessedUtterance } : {}) }), {
@@ -205,7 +205,7 @@ export class DialogSession {
     } else this.channel?.event(event)
   }
 
-  /** The live connection is ready again, or reconnecting with a new token (it dropped what it held). */
+  /** 동시통역 연결이 다시 준비됐거나, 새 토큰으로 다시 연결하는 중이다(가지고 있던 것은 버렸다). */
   // 연결이 준비를 잃으면(재연결) 말하던 소리를 버리고 다시 말해 달라고 알린다. 마이크는 준비된 동안에만 연다.
   private connected(ready: boolean) {
     if (!ready) {
@@ -224,7 +224,7 @@ export class DialogSession {
     this.recordings.set(id, audio)
     while (this.recordings.size > RECORDING_LIMIT) this.recordings.delete(this.recordings.keys().next().value!)
     this.update({ turns: [...this.state.turns, { id, state: 'queued' }] })
-    // Over HTTP the last turn's language is read when the request goes out, after the turn before is done.
+    // HTTP로 보낼 때는 앞 마디가 끝난 뒤 요청이 나가는 순간에 직전 마디의 언어를 읽는다.
     this.jobs.push(commit ? { id, utterance: commit.utterance, run: () => commit.result }
       : { id, run: (signal) => this.api.dialog(audio, this.previousLang, signal) })
     void this.drainRequests()
@@ -289,7 +289,7 @@ export class DialogSession {
       if (signal.aborted) return
       if (this.lastProcessedTurnId === id) {
         this.previousLang = replacement.source_lang
-        // The live connection keeps the last turn's language itself; it takes this only for that turn.
+        // 동시통역 연결은 직전 마디의 언어를 스스로 기억하므로, 이 알림은 바로 그 마디에 대해서만 받는다.
         if (this.lastProcessedUtterance !== undefined) {
           this.channel?.send({ type: 'previous', id: this.lastProcessedUtterance, lang: replacement.source_lang })
         }

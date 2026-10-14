@@ -1,9 +1,9 @@
-"""Download the pinned Supertonic 3 files into data/models/supertonic-3 (T78, docs/experiments.md 12).
+"""고정한 Supertonic 3 파일을 data/models/supertonic-3에 내려받는다(T78, docs/experiments.md 12절).
 
-The upstream project is archived (2026-09-09), so every file is fetched at one fixed revision of the archive's
-Hugging Face repository and checked against its SHA-256 in app/services/supertonic.py. The files are about
-400 MB and are not committed. The model is under OpenRAIL-M: read the use restrictions in the downloaded
-LICENSE (Attachment A) and in the README before using it. From backend/:
+원 프로젝트는 보관(archive) 상태(2026-09-09)라, 모든 파일을 그 Hugging Face 저장소의 고정된 한 리비전에서
+받고 app/services/supertonic.py에 적힌 SHA-256과 견준다. 파일은 약 400MB이며 커밋하지 않는다. 모델은
+OpenRAIL-M 라이선스다: 쓰기 전에 내려받은 LICENSE(Attachment A)와 README의 사용 제한을 읽는다.
+backend/에서:
 
     uv run python -m eval.supertonic_download
 """

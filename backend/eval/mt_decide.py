@@ -1,10 +1,10 @@
-"""Decision rules of the Hy-MT2 trial (task T83, docs/experiments.md 15), applied to stored reports.
+"""저장된 리포트에 Hy-MT2 시험의 판단 규칙(docs/experiments.md 15절)을 적용한다.
 
-Nothing runs a translation model here: the inputs are eval.mt_eval and eval.typo_eval reports, COMET-22 scores
-from eval/comet_score.py (its own environment) and MetricX-24 QE scores from eval/metricx_score.py. The
-intervals are the paired bootstrap of eval/significance.py (10,000 resamples, seed 12345), as in section 13.
+여기서는 번역 모델을 돌리지 않는다: 입력은 eval.mt_eval과 eval.typo_eval의 리포트, eval/comet_score.py(별도
+환경)의 COMET-22 점수, eval/metricx_score.py의 MetricX-24 QE 점수다. 구간은 13절과 같이
+eval/significance.py의 짝지은 붓스트랩(10,000번 재표본, 시드 12345)이다.
 
-From backend/ with the eval group:
+backend/에서 eval 그룹으로:
     uv run --no-sync python -m eval.mt_decide comet-input --reports R1.json R2.json \
         [--typo-split validation] --output ../work/vt-n1/comet_input.jsonl
     uv run --no-sync python -m eval.mt_decide validation --report eval/reports/mt_t83_dev_<stamp>.json \
@@ -42,27 +42,25 @@ import numpy as np
 from eval.common import DATA, REPORTS
 from eval.significance import ROUNDS, SEED, Interval, mean_difference
 
-# The registered comparisons (docs/experiments.md 15). The baseline is the server's setting per direction.
+# 미리 등록한 비교(docs/experiments.md 15절).
 # BASELINE: 방향별 기준(서버의 현재 설정: 한→영 통째로, 영→한 문장 단위). ARMS: 시험 팔(Q8_0; 영→한은 통째로와
 # 문장 단위 둘). FALLBACK: Q8_0 팔이 지연에서만 떨어졌을 때 대신 재는 Q4_K_M 팔.
 BASELINE = {"ko-en": "opus-mt-tc-big-ko-en", "en-ko": "opus-mt-tc-big-en-ko/split"}
 ARMS = {"ko-en": ["hy-mt2-q8"], "en-ko": ["hy-mt2-q8", "hy-mt2-q8/split"]}
-FALLBACK = {"hy-mt2-q8": "hy-mt2-q4", "hy-mt2-q8/split": "hy-mt2-q4/split"}  # only after a latency-only miss
+FALLBACK = {"hy-mt2-q8": "hy-mt2-q4", "hy-mt2-q8/split": "hy-mt2-q4/split"}
 # 규칙의 문턱: (b) 다른 문자·설명형 출력 129개 중 1개 이하·빈 출력 0개, (c) 지연 p50 ≤ 0.35초·p95 ≤ 0.8초, (d)
 # 고른 빌드의 메모리 − 대신하는 것 ≤ +512MB.
-MAX_FLAGGED = 1  # (b) other scripts or explanatory outputs, of 129
+MAX_FLAGGED = 1  # (b) 129개 중 다른 문자·설명형 출력
 MAX_EMPTY = 0
 MAX_P50_S = 0.35  # (c)
 MAX_P95_S = 0.8
-MAX_NET_VRAM_MB = 512  # (d) +0.5 GB against what the pick replaces (MB = MiB, as elsewhere in the document)
-# What opus takes on the GPU, from docs/experiments.md 2 (T3 validation; both loaded after the CUDA context
-# existed, so the numbers are the models alone). The api process keeps its CUDA context for Whisper
-# either way.
-# Hy-MT2가 대신하는 opus 모델의 GPU 메모리(MB, 2절 validation 표의 값). TYPO_MARGIN: Hy-MT2 혼자의 오타 평균
-# chrF가 '교정기 + opus' − 0.5 이상이면 교정기를 은퇴시킨다.
+MAX_NET_VRAM_MB = 512  # (d) 고른 것이 대신하는 것보다 +0.5GB까지(문서의 다른 곳처럼 MB = MiB)
+# OPUS_VRAM_MB: Hy-MT2가 대신하는 opus 모델이 GPU에서 차지하는 메모리(MB, docs/experiments.md 2절 validation
+# 표의 값). 둘 다 CUDA 컨텍스트가 이미 있을 때 올려 잰 값이라 모델만의 크기다. api 프로세스는 어느 쪽이든
+# Whisper를 위해 CUDA 컨텍스트를 그대로 가진다.
 OPUS_VRAM_MB = {"en-ko": 512, "ko-en": 514}
 TYPO_MARGIN = (
-    0.5  # the corrector retires if Hy-MT2 alone reaches (corrector + opus) - 0.5 on the typo average
+    0.5  # Hy-MT2 혼자의 오타 평균 chrF가 (교정기 + opus) − 0.5 이상이면 교정기를 은퇴시킨다(15절 판단 규칙)
 )
 
 
@@ -95,10 +93,11 @@ def load_typo_rows(split: str) -> dict[int, dict]:
     }
 
 
-# 오타 리포트의 (원문, 번역, 참조) 세 쌍. COMET의 원문은 오타 입력이 아니라 깨끗한 원문이다(참조가 깨끗한
-# 원문의 번역이므로, 13절과 같게).
 def _typo_triples(result: dict, rows: dict[int, dict]) -> list[tuple[str, str, str]]:
-    """COMET's source is the clean original (its reference translates that), as in docs/experiments.md 13."""
+    """오타 리포트의 (원문, 번역, 참조) 세 쌍. COMET의 원문은 오타 입력이 아니라 깨끗한 원문이다.
+
+    참조가 깨끗한 원문의 번역이기 때문이다(docs/experiments.md 13절과 같게).
+    """
     source, target = result["direction"].split("-")
     return [
         (rows[item["id"]][source], item["hypothesis"], rows[item["id"]][target])
@@ -107,10 +106,12 @@ def _typo_triples(result: dict, rows: dict[int, dict]) -> list[tuple[str, str, s
     ]
 
 
-# 여러 리포트에서 COMET으로 채점할 문장을 모은다. 같은 (원문, 번역, 참조)는 키가 같으므로 한 번만 넣어 채점
-# 시간을 아낀다. 오타 리포트(levels가 있음)는 --typo-split으로 원문 세트를 알아야 한다.
 def comet_input(reports: list[Path], typo_split: str | None) -> list[dict]:
-    """Unique (source, translation, reference) triples of mt_eval and typo_eval reports, first seen first."""
+    """mt_eval·typo_eval 리포트에서 겹치지 않는 (원문, 번역, 참조) 세 쌍을 처음 나온 순서대로 모은다.
+
+    COMET으로 채점할 문장이다. 같은 세 쌍은 키가 같으므로 한 번만 넣어 채점 시간을 아낀다. 오타
+    리포트(levels가 있음)는 --typo-split으로 원문 세트를 알아야 한다.
+    """
     rows = load_typo_rows(typo_split) if typo_split else None
     seen: dict[str, dict] = {}
     for path in reports:
@@ -143,14 +144,14 @@ def _comet(comet: dict[str, float], items: list[dict]) -> np.ndarray:
     return values * 100
 
 
-# 한 방향에서 한 팔을 기준과 견준다. 두 실행이 같은 문장을 같은 순서로 가졌는지 먼저 확인한다(짝지은 비교의
-# 전제).
-# chrF 차이는 문장 통계를 다시 더하는 corpus 점수의 짝지은 구간, COMET 차이는 문장 점수 평균의 짝지은
-# 구간이다.
-# (a) 두 구간의 하한이 모두 0보다 큼(두 지표 모두 유의하게 나음), (b) 출력 점검, (c) 지연. latency_only_miss는
-# (a)·(b)는 통과하고 (c)에서만 떨어진 경우로, Q4_K_M 대체 팔을 잴지 정한다.
 def compare(arm: dict, base: dict, comet: dict[str, float], rounds: int = ROUNDS) -> dict:
-    """One arm against the baseline in one direction: rules (a), (b) and (c)."""
+    """한 방향에서 한 팔을 기준과 견준다: 규칙 (a), (b), (c).
+
+    두 실행이 같은 문장을 같은 순서로 가졌는지 먼저 확인한다(짝지은 비교의 전제). chrF 차이는 문장 통계를
+    다시 더하는 corpus 점수의 짝지은 구간, COMET 차이는 문장 점수 평균의 짝지은 구간이다. (a) 두 구간의
+    하한이 모두 0보다 큼(두 지표 모두 유의하게 나음), (b) 출력 점검, (c) 지연. latency_only_miss는 (a)·(b)는
+    통과하고 (c)에서만 떨어진 경우로, Q4_K_M 대체 팔을 잴지 정한다.
+    """
     from sacrebleu.metrics import CHRF
 
     from eval.significance import corpus_difference
@@ -188,10 +189,12 @@ def compare(arm: dict, base: dict, comet: dict[str, float], rounds: int = ROUNDS
     }
 
 
-# 모든 규칙을 통과한 팔 중 chrF가 가장 높은 팔. 가장 높은 값과 0.1점 안이면 지연 p50이 짧은 팔을 고른다.
-# 통과한 팔이 없으면 None(opus 유지).
 def pick(arms: dict[str, dict]) -> str | None:
-    """The passing arm with the higher chrF; on equal chrF (within 0.1) the faster one."""
+    """모든 규칙을 통과한 팔 중 chrF가 더 높은 팔. chrF가 같으면(0.1점 안) 더 빠른 팔.
+
+    가장 높은 값과 0.1점 안인 팔들 중에서는 지연 p50이 짧은 팔을 고른다. 통과한 팔이 없으면 None(opus
+    유지).
+    """
     passing = [(name, r) for name, r in arms.items() if r["passes"]]
     if not passing:
         return None
@@ -211,7 +214,7 @@ def validation(results: list[dict], comet: dict[str, float], rounds: int = ROUND
         base = by_name[base_name]["directions"][direction]
 
         def measured(name: str, direction: str = direction) -> bool:
-            # A Q4_K_M run may hold only the direction whose Q8_0 arm needed it.
+            # Q4_K_M 실행에는 Q8_0 팔이 대체 팔을 필요로 한 방향만 들어 있을 수 있다.
             return name in by_name and direction in by_name[name]["directions"]
 
         arm_names = [n for n in ARMS[direction] + [FALLBACK[a] for a in ARMS[direction]] if measured(n)]
@@ -224,25 +227,26 @@ def validation(results: list[dict], comet: dict[str, float], rounds: int = ROUND
         q8 = {name: arm for name, arm in arms.items() if "-q8" in name}
         fallback = sorted(FALLBACK[name] for name, arm in q8.items() if arm["latency_only_miss"])
         q4 = {name: arm for name, arm in arms.items() if name in fallback}
-        # One pick over the Q8_0 arms and the Q4_K_M arms that stand in for a Q8_0 arm that missed only on
-        # latency (section 15: the passing arm with the higher chrF; T85). Other Q4_K_M runs are not arms.
+        # Q8_0 팔들과, 지연에서만 떨어진 Q8_0 팔을 대신하는 Q4_K_M 팔들 가운데서 한 번에 고른다(15절: 통과한
+        # 팔 중 chrF가 높은 팔). 그 밖의 Q4_K_M 실행은 팔이 아니다.
         chosen = pick({**q8, **q4})
         out["directions"][direction] = {
             "baseline": base_name,
             "arms": arms,
             "pick": chosen,
-            # Q4_K_M is measured only for Q8_0 arms that passed (a) and (b) and missed only (c).
+            # Q4_K_M은 (a)·(b)를 통과하고 (c)에서만 떨어진 Q8_0 팔에 대해서만 잰다.
             "fallback_needed": [name for name in fallback if not measured(name)],
         }
     return out
 
 
-# 영→한 오타 판정: 교정기 없는 Hy-MT2(후보 A)와 지금 설정인 교정기 + opus(후보 C)를 같은 오타 세트에서 견준다.
-# 두 리포트의 모든 수준(가벼움·심함·깨끗)이 같은 문장 순서인지 먼저 확인한다.
-# 판정(retire_corrector)은 점 추정 규칙(오타 평균 chrF 차이 ≥ −0.5)이고, 오타 평균·깨끗한 입력의 chrF 차이
-# 구간과 COMET 차이 구간은 함께 적기만 한다(15절).
 def typo(opus: dict, hymt: dict, rows: dict[int, dict], comet: dict[str, float] | None, rounds: int = ROUNDS):
-    """Hy-MT2 alone (candidate A with the Hy-MT2 translator) against the corrector with opus (candidate C)."""
+    """Hy-MT2 혼자(Hy-MT2 번역기를 쓴 후보 A)를 지금 설정인 교정기 + opus(후보 C)와 견준다.
+
+    같은 오타 세트에서 영→한을 비교한다. 두 리포트의 모든 수준(가벼움·심함·깨끗)이 같은 문장 순서인지 먼저
+    확인한다. 판정(retire_corrector)은 점 추정 규칙(오타 평균 chrF 차이 ≥ −0.5)이고, 오타 평균·깨끗한
+    입력의 chrF 차이 구간과 COMET 차이 구간은 함께 적기만 한다(15절).
+    """
     from sacrebleu.metrics import CHRF
 
     from eval.significance import corpus_difference
@@ -309,13 +313,14 @@ def typo(opus: dict, hymt: dict, rows: dict[int, dict], comet: dict[str, float] 
     return out
 
 
-# (d) GPU 메모리: 고른 팔들의 빌드별 메모리를 합하고(같은 빌드는 한 번, 큰 값으로), 대신하는 것(바꾼 방향의
-# opus, 교정기를 은퇴시키면 교정기)을 빼서 +512MB 이하인지 본다. 고른 팔이 없으면 판정하지 않는다(passes
-# None). 교정기는 영→한을 바꿀 때만 은퇴할 수 있다.
 def vram(decision: dict, typo_decision: dict | None) -> dict:
-    """(d): what the picked Hy-MT2 builds take against what they replace. A build (hy-mt2-q8, hy-mt2-q4; the
-    whole and sentence-by-sentence arms are one Ollama model) counts once even when it serves both
-    directions, at the larger of its readings; two different builds are both loaded and both count (T85)."""
+    """(d): 고른 Hy-MT2 빌드가 차지하는 GPU 메모리를 그것이 대신하는 것과 견준다.
+
+    빌드(hy-mt2-q8, hy-mt2-q4. 통째로 팔과 문장 단위 팔은 같은 Ollama 모델이다)는 두 방향을 모두 맡아도
+    한 번만, 읽은 값 중 큰 값으로 센다. 서로 다른 두 빌드는 둘 다 올라가므로 둘 다 센다. 대신하는 것(바꾼
+    방향의 opus, 교정기를 은퇴시키면 교정기)을 빼서 +512MB 이하인지 본다. 고른 팔이 없으면 판정하지
+    않는다(passes None). 교정기는 영→한을 바꿀 때만 은퇴할 수 있다.
+    """
     picks = {d: v["pick"] for d, v in decision["directions"].items() if v["pick"]}
     if not picks:
         return {"picks": {}, "passes": None}
@@ -340,13 +345,12 @@ def vram(decision: dict, typo_decision: dict | None) -> dict:
     }
 
 
-# 오염 거부권: 고정 세트에서 방향마다 Hy-MT2 − opus의 MetricX 평균 차이와 짝지은 구간을 낸다(영어 문장 →
-# 영→한, 한국어 문장 → 한→영). MetricX는 오류 점수라 구간 전체가 0보다 크면 opus가 뚜렷이 나은 것이고, 그
-# 방향은 거부한다. Hy-MT2가 번역하지 않은 방향은 건너뛴다.
 def contam(frozen: list[dict], outputs: dict, metricx: dict[str, float], rounds: int = ROUNDS) -> dict:
-    """MetricX-24 QE (an error score, lower is better) of Hy-MT2 minus opus on the frozen set, per direction.
+    """오염 거부권: 고정 세트에서 방향마다 Hy-MT2 − opus의 MetricX-24 QE 차이(오류 점수, 낮을수록 좋음).
 
-    A direction is vetoed when the whole interval is above 0 (opus better) there; this check can only veto.
+    방향마다 평균 차이와 짝지은 구간을 낸다(영어 문장 → 영→한, 한국어 문장 → 한→영). 구간 전체가 0보다
+    크면(opus가 뚜렷이 나음) 그 방향을 거부한다. 이 점검은 거부만 할 수 있다. Hy-MT2가 번역하지 않은 방향은
+    건너뛴다.
     """
     out = {}
     for direction, language in (("en-ko", "en"), ("ko-en", "ko")):
@@ -368,10 +372,11 @@ def contam(frozen: list[dict], outputs: dict, metricx: dict[str, float], rounds:
     return out
 
 
-# eval/contam_set.py가 쓴 번역 결과에서 MetricX 입력 행을 만든다. 키는 "시스템/방향/문장 id"로, contam이 같은
-# 키로 점수를 찾는다.
 def metricx_input(frozen: list[dict], outputs: dict) -> list[dict]:
-    """One QE segment per system, direction and sentence, keyed system/direction/id."""
+    """시스템·방향·문장마다 QE 문장 하나. 키는 "시스템/방향/id"다.
+
+    eval/contam_set.py가 쓴 번역 결과에서 MetricX 입력 행을 만든다. contam이 같은 키로 점수를 찾는다.
+    """
     rows = []
     for system, by_direction in outputs.items():
         for direction, translations in by_direction.items():
@@ -445,12 +450,12 @@ def main() -> None:
     c.add_argument("--typo-split", choices=("validation", "test"))
     c.add_argument("--output", type=Path, required=True)
     v = commands.add_parser("validation")
-    v.add_argument("--report", type=Path, nargs="+", required=True, help="mt_eval reports (Q8 run, Q4 run)")
+    v.add_argument("--report", type=Path, nargs="+", required=True, help="mt_eval 리포트(Q8 실행, Q4 실행)")
     v.add_argument("--comet", type=Path, required=True)
     v.add_argument("--tag", default="t83_dev")
     t = commands.add_parser("typo")
-    t.add_argument("--opus", type=Path, required=True, help="typo_eval report with candidate C on opus")
-    t.add_argument("--hymt", type=Path, required=True, help="typo_eval report with candidate A on Hy-MT2")
+    t.add_argument("--opus", type=Path, required=True, help="opus로 후보 C를 잰 typo_eval 리포트")
+    t.add_argument("--hymt", type=Path, required=True, help="Hy-MT2로 후보 A를 잰 typo_eval 리포트")
     t.add_argument("--comet", type=Path)
     t.add_argument("--split", choices=("validation", "test"), default="validation")
     t.add_argument("--tag", default="t83_typo")

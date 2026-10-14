@@ -1,9 +1,9 @@
-"""Fix typing mistakes before translation (T32, docs/experiments.md 6).
+"""번역 전에 입력 오타를 고친다(docs/experiments.md 6절).
 
-Only typed English is corrected. In the measurement a small LLM raised en->ko chrF on text with typos from
-27.0 to 34.6 for 0.3 on clean text; for Korean input every candidate cost clean text more than the rule
-allowed. Correction is a helper step: when Ollama is down, slow or answers oddly, the text is translated
-as typed, as before, and the server never waits for Ollama to start (T37).
+글자로 입력한 영어만 교정한다. 측정에서 작은 LLM이 오타를 섞은 글의 영→한 chrF를 27.0에서 34.6으로
+올렸고, 그 대가로 깨끗한 글의 chrF는 0.3 내려갔다. 한국어 입력은 모든 후보가 깨끗한 글을 규칙이 허용한
+것보다 더 망가뜨렸다. 교정은 보조 단계다: Ollama가 꺼져 있거나 느리거나 이상하게 답하면 예전처럼 입력
+그대로 번역하고, 서버는 Ollama가 시작되기를 기다리지 않는다.
 """
 
 # [파일 역할] 글자로 입력한 영어의 오타·띄어쓰기를 번역 전에 Ollama의 작은 LLM(qwen2.5 1.5B)으로 고치는
@@ -31,43 +31,42 @@ from app.services.interfaces import Language
 
 logger = logging.getLogger(__name__)
 
-# 지시문에 넣을 언어 이름. SYSTEM은 측정에 쓴 지시문 그대로이고, eval/typo_eval.py와 함께 바꿔야
-# 한다(tests/test_correction.py가 둘이 같은지 확인).
+# 지시문에 넣을 언어 이름.
 LANGUAGE_NAMES: dict[Language, str] = {"ko": "Korean", "en": "English"}
-# The instruction measured in docs/experiments.md 6 (eval/typo_eval.py); change both together.
+# SYSTEM: docs/experiments.md 6절에서 측정한 지시문 그대로다(eval/typo_eval.py). 둘을 함께 바꿔야
+# 한다(tests/test_correction.py가 둘이 같은지 확인).
 SYSTEM = (
     "You fix typing mistakes. Correct only the spelling, typos and spacing in the user's {language} text. "
     "Do not change the meaning, do not translate and do not add anything. Reply with the corrected text only."
 )
-# The safeguard for replies that are not a correction (T38, docs/experiments.md 6). On the saved validation
-# and test corrections it rejected no real correction, and caught one "The text is correct as it stands.".
-# 교정이 아닌 답을 거르는 안전장치(docs/experiments.md 6절): 영어 입력의 답에 한글(자모·완성형)이 섞였으면
-# 번역해 버린 것으로 본다. MIN_SIMILARITY 0.5: 입력과 답의 글자 유사도가 이보다 낮으면 거절문·설명·다른
-# 문장으로 본다(docs/experiments.md 6절).
+# 교정이 아닌 답을 거르는 안전장치(docs/experiments.md 6절). 저장해 둔 validation·test 교정 결과에서 실제
+# 교정은 하나도 거절하지 않았고, "The text is correct as it stands." 같은 답 하나를 잡아냈다.
+# HANGUL: 영어 입력의 답에 한글(자모·완성형)이 섞였으면 번역해 버린 것으로 본다. MIN_SIMILARITY 0.5: 입력과
+# 답의 글자 유사도가 이보다 낮으면 거절문·설명·다른 문장으로 본다.
 HANGUL = re.compile("[ㄱ-ㆎ가-힣]")
 MIN_SIMILARITY = 0.5
 
 
-# 답이 입력의 교정처럼 보이는지 판단한다. 오타 교정은 글자 대부분을 그대로 두므로 SequenceMatcher의 ratio(같은
-# 글자 비율, 0~1)가 높다. autojunk=False의 이유는 아래 docstring: 기본값에서는 200자 넘는 문장의 정상 교정 두
-# 개가 0.152, 0.423으로 낮게 나와 버려졌다(docs/experiments.md 6절).
 def looks_like_a_correction(text: str, reply: str, language: Language) -> bool:
-    """Same language and at least half the characters kept: a refusal, an explanation or a translation fails.
+    """답이 입력과 같은 언어이고 글자의 절반 이상을 그대로 두었으면 교정으로 본다.
 
-    autojunk=False: by default difflib ignores frequent characters in 200+ character texts, which rated good
-    corrections of long sentences as unlike.
+    거절문·설명·번역은 이 검사에서 걸러진다. 오타 교정은 글자 대부분을 그대로 두므로 SequenceMatcher의
+    ratio(같은 글자 비율, 0~1)가 높다.
+    autojunk=False: 기본값에서는 difflib가 200자 넘는 글에서 자주 나오는 글자를 무시해, 긴 문장의 정상
+    교정을 다르다고 평가했다(정상 교정 두 개가 0.152, 0.423으로 낮게 나와 버려졌다, docs/experiments.md
+    6절).
     """
     if language == "en" and HANGUL.search(reply):
         return False
     return difflib.SequenceMatcher(None, text, reply, autojunk=False).ratio() >= MIN_SIMILARITY
 
 
-# temperature 0(가장 확률 높은 토큰을 고름)이라 같은 입력에는 같은 교정이 나오도록 했다.
 class OllamaCorrector:
-    """An instruction-tuned LLM served by Ollama with one fixed instruction, temperature 0.
+    """Ollama가 서비스하는 지시 학습 LLM에 고정된 지시문 하나를 temperature 0으로 주는 교정기.
 
-    start() prepares the model on a background thread and retries until it succeeds; until then
-    corrects() is False, so requests translate the text as typed instead of waiting for Ollama.
+    temperature 0(가장 확률 높은 토큰을 고름)이라 같은 입력에는 같은 교정이 나온다. start()가 백그라운드
+    스레드에서 모델을 준비하고 성공할 때까지 다시 시도한다. 그 전까지 corrects()는 False라, 요청은 Ollama를
+    기다리지 않고 입력 그대로 번역한다.
     """
 
     def __init__(
@@ -93,8 +92,8 @@ class OllamaCorrector:
         self._ready = threading.Event()
         self._closed = threading.Event()
         self._worker: threading.Thread | None = None
-        # Pairs close() with the worker's end, so exactly one of them closes the client and the model never
-        # turns on after shutdown (T41).
+        # close()와 준비 스레드의 끝을 짝지어, 둘 중 정확히 한쪽만 클라이언트를 닫고 종료 뒤에 모델이 켜지는
+        # 일이 없게 한다.
         self._lock = threading.Lock()
         self._worker_done = False
 
@@ -104,20 +103,20 @@ class OllamaCorrector:
         return language in self.languages and self._ready.is_set() and not self._closed.is_set()
 
     def correct(self, text: str, language: Language) -> str | None:
-        """The corrected text, or None when the model gave none; the caller then keeps the original.
+        """교정한 글을 돌려준다. 모델이 교정을 주지 못하면 None이고, 그러면 호출한 쪽이 원래 글을 쓴다.
 
-        The log never carries the text itself.
+        로그에는 글 자체를 절대 남기지 않는다.
         """
         if self._closed.is_set():
             return None
         # /api/chat을 한 번 부른다. 연결 실패·시간 초과·HTTP 오류·JSON 형식 이상은 모두 None(입력 그대로
-        # 번역). 로그에는 입력 글을 남기지 않는다.
+        # 번역).
         try:
             response = self._client.post("/api/chat", json=self._payload(text, language))
             response.raise_for_status()
             body = response.json()
             content = body["message"]["content"]
-            # Anything but a normal finish ("length": cut off at num_predict) would drop part of the text.
+            # 정상 종료가 아니면("length": num_predict에서 잘림) 글의 일부를 잃게 된다.
             finished = body.get("done") is True and body.get("done_reason") == "stop"
         except (httpx.HTTPError, ValueError, KeyError, TypeError, AttributeError) as exc:
             logger.warning("Typo correction failed; translating the text as typed: %s", describe(exc))
@@ -144,14 +143,12 @@ class OllamaCorrector:
         self._worker.start()
         return self._worker
 
-    # 종료 신호를 켜고, 준비 스레드가 없거나 이미 끝났으면 여기서 HTTP 클라이언트를 닫는다. 준비 스레드가 돌고
-    # 있으면 그 스레드가 끝날 때 닫는다(_prepare_until_ready의 finally). Lock으로 둘 중 정확히 한쪽만 닫게
-    # 한다.
     def close(self) -> None:
-        """Turn correction off for good and stop preparing (T39, called when the app shuts down).
+        """교정을 영구히 끄고 준비를 멈춘다(앱이 종료될 때 부른다).
 
-        Never waits: a preparation call already sent ends within its time limit, and the worker then closes
-        the HTTP client; with no worker running, close() closes it here.
+        기다리지 않는다: 이미 보낸 준비 요청은 제한 시간 안에 끝나고, 그 뒤 준비 스레드가 끝나면서 HTTP
+        클라이언트를 닫는다(_prepare_until_ready의 finally). 준비 스레드가 없거나 이미 끝났으면 close()가
+        여기서 닫는다. Lock으로 둘 중 정확히 한쪽만 닫게 한다.
         """
         with self._lock:
             self._closed.set()
@@ -168,9 +165,9 @@ class OllamaCorrector:
             while not self._closed.is_set():
                 try:
                     self.prepare()
-                except Exception as exc:  # noqa: BLE001 - any failure leaves correction off until a later try works
+                except Exception as exc:  # noqa: BLE001 - 어떤 실패든 다음 시도가 성공할 때까지 교정은 꺼져 있다
                     failures += 1
-                    if failures == 1 and not self._closed.is_set():  # once, not every retry
+                    if failures == 1 and not self._closed.is_set():  # 재시도마다가 아니라 한 번만
                         logger.warning(
                             "Typo correction model %s is not ready; typed text is translated as is. "
                             "Trying again every %.0f s: %s",
@@ -180,7 +177,7 @@ class OllamaCorrector:
                         )
                     self._closed.wait(self._retry_s)
                     continue
-                with self._lock:  # a preparation that ends after shutdown stays off
+                with self._lock:  # 종료 뒤에 끝난 준비는 교정을 켜지 않는다
                     if not self._closed.is_set():
                         self._ready.set()
                         logger.info("Typo correction model %s is ready", self._model)
@@ -191,15 +188,15 @@ class OllamaCorrector:
                 if self._closed.is_set():
                     self._client.close()
 
-    # 모델 준비 세 단계: (1) /api/show로 모델이 있는지 보고 404면 /api/pull로 내려받는다(첫 compose 시작, 약
-    # 1GB) (2) 프롬프트 없는 /api/generate로 모델만 올리고 keep_alive -1로 계속 올려 둔다 (3) 교정을 한 번 해
-    # 둔다. 실패하면 raise_for_status 예외가 _prepare_until_ready로 올라가 재시도된다.
     def prepare(self) -> None:
-        """Pull the model if Ollama lacks it (the first compose start), load it to stay, and correct once.
+        """Ollama에 모델이 없으면 내려받고, 계속 올라가 있게 적재한 뒤, 교정을 한 번 해 둔다.
 
-        Every call has a time limit (prepare_timeout_s for the slow ones), so a stalled Ollama cannot hold
-        the thread forever. By default Ollama unloads a model after five idle minutes and the next request
-        waits for it to load again; keep_alive -1 keeps it until Ollama stops (`ollama stop <model>`).
+        세 단계: (1) /api/show로 모델이 있는지 보고 404면 /api/pull로 내려받는다(첫 compose 시작, 약 1GB)
+        (2) 프롬프트 없는 /api/generate로 모델만 올리고 keep_alive -1로 계속 올려 둔다 (3) 교정을 한 번 해
+        둔다. 실패하면 raise_for_status 예외가 _prepare_until_ready로 올라가 재시도된다.
+        모든 호출에 제한 시간이 있어(느린 호출은 prepare_timeout_s) 멈춘 Ollama가 스레드를 영원히 붙잡지
+        못한다. Ollama는 기본으로 5분 동안 쓰이지 않은 모델을 내리고 다음 요청이 다시 적재를 기다리게
+        하는데, keep_alive -1은 Ollama가 멈출 때까지(`ollama stop <model>`) 모델을 올려 둔다.
         """
         slow = self._prepare_timeout_s
         shown = self._client.post("/api/show", json={"model": self._model})
@@ -211,13 +208,13 @@ class OllamaCorrector:
             pulled.raise_for_status()
         else:
             shown.raise_for_status()
-        # A request without a prompt only loads the model.
+        # 프롬프트 없는 요청은 모델을 올리기만 한다.
         loaded = self._client.post(
             "/api/generate", json={"model": self._model, "keep_alive": -1}, timeout=slow
         )
         loaded.raise_for_status()
-        # Loading alone was not enough: in the first compose start the first three corrections each ran past
-        # the 10 s timeout, and later ones took 0.1-0.2 s (T32, cause not found). Pay for it here.
+        # 적재만으로는 부족했다: 첫 compose 시작에서 처음 세 번의 교정이 각각 10초 제한을 넘겼고, 이후
+        # 교정은 0.1~0.2초 걸렸다(원인은 찾지 못함). 그 비용을 요청 대신 여기서 치른다.
         first = self._client.post("/api/chat", json=self._payload("Hello.", "en"), timeout=slow)
         first.raise_for_status()
 

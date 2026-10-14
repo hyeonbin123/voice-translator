@@ -45,7 +45,7 @@ function HistoryListing({ api, offset }: { api: HistoryApi; offset: number }) {
     const controller = new AbortController()
     void api.list(offset, controller.signal).then((next) => {
       if (controller.signal.aborted) return
-      // Another tab or the detail page may have removed the last item on this page.
+      // 다른 탭이나 상세 화면이 이 쪽의 마지막 항목을 지웠을 수 있다.
       if (offset > 0 && offset >= next.total) {
         const last = Math.max(0, Math.floor((next.total - 1) / PAGE_SIZE) * PAGE_SIZE)
         void navigate(listPath(last), { replace: true })

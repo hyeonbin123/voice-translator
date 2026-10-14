@@ -41,8 +41,10 @@ DbSession = Annotated[AsyncSession, Depends(get_db)]
 # 세션 대신 세션 팩토리를 주입한다. routers/live.py가 기록을 저장할 때만 짧게 세션을 연다. 테스트는 이 함수를
 # 테스트 DB 팩토리로 바꿔 끼운다.
 def get_sessions() -> async_sessionmaker[AsyncSession]:
-    """For a handler that opens a session only when it needs one: the live WebSocket stays open for as long
-    as a person keeps talking and must not hold a database connection all that time."""
+    """필요할 때만 세션을 여는 핸들러를 위한 세션 팩토리를 돌려준다.
+
+    동시통역 웹소켓은 사람이 말하는 동안 계속 열려 있으므로, 그 시간 내내 DB 연결을 붙잡고 있으면 안 된다.
+    """
     return SessionLocal
 
 
@@ -71,9 +73,9 @@ async def user_from_token(token: str, kind: TokenKind, db: AsyncSession) -> User
 # 보호된 경로의 로그인 사용자. access 토큰만 받는다.
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: DbSession) -> User:
     user = await user_from_token(token, "access", db)
-    # End the lookup's transaction, so a translation does not hold a pooled connection while it waits for
-    # and runs on the model thread (docs/api.md: other requests are not blocked). expire_on_commit=False
-    # keeps `user` loaded, and the handler's next query (pipeline.save) begins a fresh, short transaction.
+    # 사용자 조회 트랜잭션을 여기서 끝낸다. 그래야 번역이 모델 스레드를 기다리고 그 위에서 도는 동안 풀의
+    # 연결을 붙잡지 않는다(docs/api.md: 다른 요청이 막히지 않음). expire_on_commit=False라 `user`의 값은
+    # 그대로 남고, 핸들러의 다음 쿼리(pipeline.save)는 새롭고 짧은 트랜잭션을 연다.
     await db.commit()
     return user
 
@@ -84,8 +86,8 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 # app/main.py의 lifespan이 올려 둔 모델 묶음을 꺼낸다. LOAD_MODELS=false(테스트·CI)라 app.state.models가
 # 없으면 인식·번역이 None인 빈 묶음을 돌려주고, 번역 경로는 이를 보고 503으로 답한다.
 def get_models(connection: HTTPConnection) -> PipelineModels:
-    # T11 assigns PipelineModels to app.state.models during lifespan startup. HTTPConnection, not Request:
-    # the live WebSocket needs the models too.
+    # lifespan 시작 단계가 app.state.models에 PipelineModels를 넣는다. Request가 아니라 HTTPConnection을
+    # 받는 이유: 동시통역 웹소켓도 모델이 필요하다.
     return getattr(connection.app.state, "models", PipelineModels(stt=None, translator=None))
 
 

@@ -1,7 +1,7 @@
-"""Text translation (task T3).
+"""글 번역.
 
-The candidates and the selection rule are in docs/experiments.md. Seq2seq models (opus-mt, NLLB) run on
-CTranslate2, the same engine as speech recognition, after a one-off conversion (eval/mt_convert.py).
+후보와 선택 규칙은 docs/experiments.md에 있다. seq2seq 모델(opus-mt, NLLB)은 한 번 변환한
+뒤(eval/mt_convert.py) 음성 인식과 같은 엔진인 CTranslate2로 돈다.
 """
 
 # [파일 역할] 번역 모델 구현 모음. 서비스가 쓰는 것은 opus-mt-tc-big(MarianTranslator, 방향별 모델 하나씩)과
@@ -36,10 +36,9 @@ LANGUAGE_NAMES = {"ko": "Korean", "en": "English"}
 NLLB_CODES = {"ko": "kor_Hang", "en": "eng_Latn"}
 EOS = "</s>"
 
-# 전각·중국어식 문장부호와 숫자를 ASCII로 바꾸는 문자 대응표(str.maketrans). 학습 때 입력과 같게 하려고 원본
-# preprocess.sh의 규칙을 그대로 옮겼다(docs/experiments.md 2절).
-# The character rules of OPUS-MT's preprocess.sh, which the Marian models were trained with.
-# Its "１" -> '"' rule looks like a typo but is what training saw, so it is kept.
+# 전각·중국어식 문장부호와 숫자를 ASCII로 바꾸는 문자 대응표(str.maketrans). Marian 모델이 학습 때 쓴
+# OPUS-MT preprocess.sh의 문자 규칙을 그대로 옮겨 학습 때 입력과 같게 한다(docs/experiments.md 2절). 그
+# 규칙의 "１" -> '"'는 오타처럼 보이지만 학습이 본 그대로라 남겨 둔다.
 _OPUS_CHARS = str.maketrans(
     {
         "，": ",", "、": ",", "”": '"', "“": '"', "∶": ":", "：": ":", "？": "?", "《": '"', "》": '"',
@@ -50,40 +49,43 @@ _OPUS_CHARS = str.maketrans(
 )  # fmt: skip
 
 
-# opus-mt 입력 전처리: (1) 전각 마침표 뒤를 ". "로 (2) 위 대응표 적용 (3) 줄바꿈을 뺀 유니코드 C
-# 범주(제어·서식) 문자를 공백으로 (4) 연속 공백을 하나로 줄이고 양끝 공백 제거. schemas/translate.py가 C 범주
-# 문자만 있는 입력을 422로 거절하는 것은 이 단계 뒤에 번역할 글자가 남지 않기 때문이다.
 def opus_preprocess(text: str) -> str:
-    """Python port of OPUS-MT's preprocess.sh: ASCII punctuation, no control characters, single spaces."""
+    """OPUS-MT preprocess.sh의 파이썬 이식: ASCII 문장부호, 제어 문자 없음, 공백 하나.
+
+    순서: (1) 전각 마침표 뒤를 ". "로 (2) 위 대응표 적용 (3) 줄바꿈을 뺀 유니코드 C 범주(제어·서식) 문자를
+    공백으로 (4) 연속 공백을 하나로 줄이고 양끝 공백 제거. schemas/translate.py가 C 범주 문자만 있는 입력을
+    422로 거절하는 것은 이 단계 뒤에 번역할 글자가 남지 않기 때문이다.
+    """
     text = re.sub(r"[。．] *", ". ", text).translate(_OPUS_CHARS)
-    # Unicode "other" characters (control, format such as zero-width space) become spaces.
+    # 유니코드 "기타"(C 범주) 문자(제어, 폭 없는 공백 같은 서식)는 공백이 된다.
     text = "".join(" " if unicodedata.category(c).startswith("C") and c != "\n" else c for c in text)
     return re.sub(r" +", " ", text).strip(" ")
 
 
-# 문장 나누기 규칙(docs/experiments.md 2-1절 B): 문장 끝 부호 뒤에 공백·줄바꿈이 오면 나눈다.
-# lookbehind(?<=...)라 부호는 앞 문장에 남는다. 이니셜·"U.N." 같은 점 찍힌 대문자와 흔한 약어 뒤에서는 나누지
-# 않는다.
-# Sentence ends: . ? ! (and full-width forms) followed by white space (docs/experiments.md 2-1, T17).
+# 문장 나누기 규칙(docs/experiments.md 2-1절 B): 문장 끝 부호(. ? !와 그 전각 형태) 뒤에 공백·줄바꿈이 오면
+# 나눈다. lookbehind(?<=...)라 부호는 앞 문장에 남는다. 이니셜·"U.N." 같은 점 찍힌 대문자와 흔한 약어
+# 뒤에서는 나누지 않는다.
 _SENTENCE_END = re.compile(r"(?<=[.?!。？！])\s+")
 _ABBREVIATIONS = {"mr", "mrs", "ms", "dr", "st", "vs", "etc", "e.g", "i.e"}
 
 
-# 단어가 약어로 끝나는지: 점으로 끝나고, '대문자+점'의 반복이거나 약어 목록(소문자로 비교)에 있으면 참.
+# 단어가 약어로 끝나는지: 점으로 끝나고, 이니셜·점 찍힌 대문자('대문자+점'의 반복, 예: "J.", "U.N.")이거나
+# 흔한 약어 목록(소문자로 비교, 예: "Dr.", "e.g.")에 있으면 참.
 def _is_abbreviation(word: str) -> bool:
-    # Initials and dotted capitals ("J.", "U.N.") or a common abbreviation ("Dr.", "e.g.").
     return word.endswith(".") and (
         re.fullmatch(r"(?:[A-Z]\.)+", word) is not None or word[:-1].lower() in _ABBREVIATIONS
     )
 
 
-# 먼저 문장 끝 규칙으로 자른 뒤, 앞 조각의 마지막 단어가 약어면 다시 이어 붙인다. 빈 조각은 버린다.
-# MarianTranslator(by_sentence)와 HyMtTranslator(hy-mt2-split)가 쓴다.
 def split_sentences(text: str) -> list[str]:
-    """Split before each sentence, but not after an abbreviation; a number such as 3.5 has no space."""
+    """문장마다 나누되 약어 뒤에서는 나누지 않는다. 3.5 같은 숫자는 공백이 없어 나뉘지 않는다.
+
+    먼저 문장 끝 규칙으로 자른 뒤, 앞 조각의 마지막 단어가 약어면 다시 이어 붙인다. 빈 조각은 버린다.
+    MarianTranslator(by_sentence)와 HyMtTranslator(hy-mt2-split)가 쓴다.
+    """
     sentences: list[str] = []
     for piece in _SENTENCE_END.split(text.strip()):
-        # The last word whatever white space precedes it: a newline or tab before "Dr." too (T27).
+        # 앞에 어떤 공백이 오든 마지막 단어를 본다: "Dr." 앞이 줄바꿈이나 탭이어도 마찬가지다.
         if sentences and _is_abbreviation(sentences[-1].split()[-1]):
             sentences[-1] = f"{sentences[-1]} {piece}"
         elif piece:
@@ -96,20 +98,20 @@ def split_sentences(text: str) -> list[str]:
 def load_sentencepiece(path: Path):
     import sentencepiece
 
-    # Pass the bytes: SentencePiece's own file loader can't open non-ASCII paths on Windows.
+    # 바이트를 넘긴다: SentencePiece 자체 파일 로더는 Windows에서 ASCII가 아닌 경로(한글 경로 등)를 열지
+    # 못한다.
     return sentencepiece.SentencePieceProcessor(model_proto=path.read_bytes())
 
 
 # opus-mt 입력 토큰: 전처리 → SentencePiece 조각 → 끝에 </s>. transformers의 MarianTokenizer와 같은 결과가
 # 되게 맞췄다(eval/mt_convert.py가 변환 뒤 비교에 쓴다).
 def marian_source_tokens(processor, text: str) -> list[str]:
-    # preprocess.sh, then what transformers' MarianTokenizer does: SentencePiece pieces and end-of-sentence.
     return processor.encode(opus_preprocess(text), out_type=str) + [EOS]
 
 
-# NLLB 입력 토큰: [출발 언어 코드, 조각들, </s>]. 비교 후보 전용.
+# NLLB 입력 토큰: [출발 언어 코드, 조각들, </s>]. transformers의 NllbTokenizer(legacy가 아닌 동작)와 같다.
+# 비교 후보 전용.
 def nllb_source_tokens(processor, text: str, language: Language) -> list[str]:
-    # Same as transformers' NllbTokenizer (non-legacy): language code, pieces, end-of-sentence token.
     return [NLLB_CODES[language], *processor.encode(text, out_type=str), EOS]
 
 
@@ -130,16 +132,16 @@ def _nonempty(translation: object) -> str:
 
 
 def _guarded(run: Callable[[], T]) -> T:
-    """Run an engine or tokenizer call; any failure inside it becomes a ModelError.
+    """엔진이나 토크나이저 호출을 실행하고, 그 안의 어떤 실패든 ModelError로 바꾼다.
 
-    CTranslate2 raises RuntimeError for CUDA errors such as running out of memory. Callers (the
-    pipeline) only need to know that translation failed, to answer 503 without a history record.
+    CTranslate2는 메모리 부족 같은 CUDA 오류에 RuntimeError를 낸다. 호출하는 쪽(번역 흐름)은 번역이
+    실패했다는 것만 알면 되고, 기록 없이 503으로 답한다.
     """
     try:
         return run()
     except ModelError:
         raise
-    except Exception as exc:  # noqa: BLE001 - the boundary around third-party engines
+    except Exception as exc:  # noqa: BLE001 - 외부 엔진을 감싸는 예외 경계
         raise ModelError(f"the translation model failed: {type(exc).__name__}") from exc
 
 
@@ -165,14 +167,13 @@ class _Ct2Model:
         return results[0].hypotheses[0]
 
 
-# Hugging Face에 올라온 tc-big 변환본은 어휘가 깨져 있어, Helsinki의 원본 배포본을 eval/mt_convert.py로
-# CTranslate2로 바꾼 폴더(model_dir)를 읽는다(README). 원문·번역문 어휘가 따로라 source.spm과 target.spm을
-# 각각 읽는다.
 class MarianTranslator:
-    """One opus-mt model, which translates in one direction only.
+    """opus-mt 모델 하나. 한 방향으로만 번역한다.
 
-    With by_sentence, the input is split into sentences, each translated on its own and joined with a
-    space: opus-mt was trained on single sentences (docs/experiments.md 2-1, T17).
+    by_sentence를 켜면 입력을 문장으로 나눠 따로 번역하고 공백 하나로 잇는다: opus-mt는 한 문장 단위로
+    학습됐다(docs/experiments.md 2-1절). Hugging Face에 올라온 tc-big 변환본은 어휘가 깨져 있어,
+    Helsinki의 원본 배포본을 eval/mt_convert.py로 CTranslate2로 바꾼 폴더(model_dir)를 읽는다(README).
+    원문·번역문 어휘가 따로라 source.spm과 target.spm을 각각 읽는다.
     """
 
     def __init__(
@@ -208,10 +209,11 @@ class MarianTranslator:
         return _nonempty(_guarded(lambda: self._target_sp.decode(pieces)))
 
 
-# 비교 후보(서비스에서 쓰지 않음). 한 모델이 두 방향을 모두 번역하므로 도착 언어 코드를 target_prefix로 주고,
-# 출력의 첫 토큰(그 코드)은 빼고 복원한다.
 class NllbTranslator:
-    """NLLB-200 translates in both directions with one model."""
+    """NLLB-200은 모델 하나로 두 방향을 모두 번역한다(비교 후보, 서비스에서 쓰지 않음).
+
+    도착 언어 코드를 target_prefix로 주고, 출력의 첫 토큰(그 코드)은 빼고 복원한다.
+    """
 
     def __init__(
         self, model_dir: Path, device: str = "cuda", compute_type: str = "float16", beam_size: int = 4
@@ -224,13 +226,14 @@ class NllbTranslator:
         _check_text(text, source, target)
         tokens = _guarded(lambda: nllb_source_tokens(self._sp, text, source))
         pieces = _guarded(lambda: self._model.generate(tokens, target_prefix=[NLLB_CODES[target]]))
-        return _nonempty(_guarded(lambda: self._sp.decode(pieces[1:])))  # drop the target language code
+        return _nonempty(_guarded(lambda: self._sp.decode(pieces[1:])))  # 도착 언어 코드는 뺀다
 
 
-# 비교 후보(qwen2.5 7B 등, 서비스에서 쓰지 않음). 지시문으로 번역문만 답하게 하고 temperature 0으로 부른다.
-# 통신·형식 오류는 ModelError.
 class OllamaTranslator:
-    """An instruction-tuned LLM served by Ollama, prompted to return the translation only."""
+    """Ollama가 서비스하는 지시 학습 LLM. 번역문만 답하도록 지시한다.
+
+    비교 후보(qwen2.5 7B 등, 서비스에서 쓰지 않음). temperature 0으로 부르고, 통신·형식 오류는 ModelError.
+    """
 
     def __init__(self, model: str, base_url: str = "http://localhost:11434", timeout_s: float = 60) -> None:
         self.model_name = f"ollama/{model}"
@@ -258,32 +261,30 @@ class OllamaTranslator:
         return _nonempty(content)
 
 
-# Hy-MT2 (T83, docs/experiments.md 15): the model card's "Default Translation" English prompt, as the only
-# message (the model has no default system prompt), with the target language's English name.
-# Hy-MT2 설정(비교용, 서비스 기본은 opus). 프롬프트는 모델 카드의 기본 번역 프롬프트 그대로, 옵션은 위 영어
-# 주석의 이유대로 고정한다. HY_MT_OPTIONS는 eval/hymt_setup.py가 Ollama Modelfile의 PARAMETER로도 써 넣어
+# Hy-MT2 설정(비교용, 서비스 기본은 opus. docs/experiments.md 15절). 프롬프트는 모델 카드의 "Default
+# Translation" 영어 프롬프트 그대로이고(도착 언어의 영어 이름을 넣음), 모델에 기본 시스템 프롬프트가 없으므로
+# 유일한 메시지로 보낸다. HY_MT_OPTIONS는 eval/hymt_setup.py가 Ollama Modelfile의 PARAMETER로도 써 넣어
 # 서비스와 모델 빌드가 같은 값을 쓴다.
 HY_MT_PROMPT = (
     "Translate the following text into {target}. Note that you should only output the translated result "
     "without any additional explanation:\n\n{text}"
 )
-# Greedy (the card samples at 0.7; the service needs the same output for the same input), the card's
-# repetition penalty, opus's output cap of 256 tokens, and a fixed context size: the longest request (500
-# characters, docs/api.md) with the prompt and the cap fits well inside 2048 tokens.
+# 탐욕 디코딩(temperature 0. 카드는 0.7로 샘플링하지만 서비스는 같은 입력에 같은 출력이 필요하다), 카드의
+# 반복 벌점, opus와 같은 출력 상한 256토큰, 고정 문맥 크기: 가장 긴 요청(500자, docs/api.md)에 프롬프트와
+# 출력 상한을 더해도 2048토큰 안에 넉넉히 들어간다.
 HY_MT_OPTIONS = {"temperature": 0, "repeat_penalty": 1.05, "num_predict": 256, "num_ctx": 2048}
-# A request that starts with no time left before prepare's deadline still gets a valid limit (T87).
+# prepare의 마감까지 남은 시간이 없을 때 시작한 요청도 유효한 제한을 받게 하는 최소값(초).
 HY_MT_MIN_REQUEST_S = 0.01
 
 
-# Hy-MT2-1.8B를 Ollama로 부르는 번역기(비교용 시험 설정). 시험 결과 COMET-22는 opus보다 높았지만 chrF 차이가
-# 유의하지 않아 채택하지 않았다(README 알려진 한계, docs/experiments.md 15절). model_name에 "/split"을 붙여
-# 문장 단위 설정을 기록에서 구분한다.
 class HyMtTranslator:
-    """Tencent's Hy-MT2 (Apache-2.0), a translation model served by Ollama, a trial (T83).
+    """Tencent의 Hy-MT2(Apache-2.0). Ollama가 서비스하는 번역 모델로, 시험 설정이다.
 
-    Ollama runs the official GGUF through a Modelfile with the model's own chat template and its end-of-turn
-    token as the stop (eval/hymt_setup.py). With by_sentence the input is split as for opus en->ko (T17).
-    `calls` keeps what Ollama reported for each call of the last translation, for the evaluation tools.
+    Ollama는 공식 GGUF를 Modelfile로 돌리며, 모델 자체의 채팅 템플릿과 턴 끝 토큰을 stop으로
+    쓴다(eval/hymt_setup.py). by_sentence를 켜면 opus 영→한처럼 입력을 문장으로 나눈다. `calls`는 마지막
+    번역의 호출마다 Ollama가 알려 준 값을 평가 도구용으로 남긴다. 시험 결과 COMET-22는 opus보다 높았지만
+    chrF 차이가 유의하지 않아 채택하지 않았다(README 알려진 한계, docs/experiments.md 15절). model_name에
+    "/split"을 붙여 문장 단위 설정을 기록에서 구분한다.
     """
 
     def __init__(
@@ -331,22 +332,19 @@ class HyMtTranslator:
         except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
             raise ModelError(f"the translation model is unavailable: {type(exc).__name__}") from exc
         self.calls.append({key: body.get(key) for key in ("done_reason", "prompt_eval_count", "eval_count")})
-        # A reply cut at the output cap ("length") is kept, as opus keeps one cut at 256 tokens.
+        # 출력 상한에서 잘린 답("length")도 그대로 쓴다. opus가 256토큰에서 잘린 번역을 그대로 쓰는 것과 같다.
         return _nonempty(content)
 
-    # 서버 시작 때 services/models._wait_until_ready가 되풀이해 부른다. 순서: /api/show로 모델 존재 확인 →
-    # /api/tags에서 그 모델의 digest를 찾음 → 기대한 빌드인지 비교 → 프롬프트 없는 /api/generate로
-    # 적재(keep_alive -1).
-    # 기다릴 가치가 있는 실패(Ollama가 아직 안 떴거나 모델이 없음)는 ModelError라 재시도되고, 다른 빌드는
-    # 기다려도 바뀌지 않으므로 RuntimeError로 바로 시작을 멈춘다.
     def prepare(self, timeout_s: float | None = None) -> str:
-        """Check that Ollama has the model, and the expected build of it; load it to stay; return its digest.
+        """Ollama에 모델의 기대한 빌드가 있는지 확인하고 계속 올라가 있게 적재한 뒤 digest를 돌려준다.
 
-        `timeout_s`, what is left of the startup wait, sets a deadline: each request here (show, tags, the
-        load) gets at most the time left when it starts (T86, T87), so slow checks leave the load only the
-        rest. Without it the checks wait up to the request limit, the load up to `prepare_timeout_s`.
-        Raises ModelError while Ollama or the model is not there (worth waiting for), and RuntimeError for
-        another build (not worth waiting for).
+        서버 시작 때 services/models._wait_until_ready가 되풀이해 부른다. 순서: /api/show로 모델 존재 확인
+        → /api/tags에서 그 모델의 digest를 찾음 → 기대한 빌드인지 비교 → 프롬프트 없는 /api/generate로
+        적재(keep_alive -1). `timeout_s`(서버 시작 대기의 남은 시간)를 주면 마감이 생긴다: 여기의 각
+        요청(show, tags, 적재)은 그 요청이 시작될 때 남은 시간까지만 받으므로, 확인이 느리면 적재는 나머지
+        시간만 받는다. 주지 않으면 확인은 요청 제한까지, 적재는 `prepare_timeout_s`까지 기다린다.
+        Ollama나 모델이 아직 없으면(기다릴 가치가 있음) ModelError라 재시도되고, 다른 빌드는 기다려도 바뀌지
+        않으므로 RuntimeError로 바로 시작을 멈춘다.
         """
         deadline = None if timeout_s is None else time.monotonic() + timeout_s
 
@@ -383,7 +381,7 @@ class HyMtTranslator:
         if self._expected_digest and digest != self._expected_digest:
             raise RuntimeError(f"{self._model} is build {digest}, not the measured {self._expected_digest}")
         try:
-            # A request without messages only loads the model; keep_alive -1 keeps it until Ollama stops.
+            # 메시지 없는 요청은 모델을 올리기만 한다. keep_alive -1은 Ollama가 멈출 때까지 모델을 올려 둔다.
             loaded = self._client.post(
                 "/api/generate",
                 json={"model": self._model, "keep_alive": -1},
@@ -396,10 +394,12 @@ class HyMtTranslator:
         return digest
 
 
-# 방향(출발, 도착)마다 다른 번역기로 보내는 라우터. 서비스는 한→영·영→한 opus 모델 두 개를 이것으로 묶어
-# Translator 하나처럼 쓴다. model_name은 "ko->en: ..., en->ko: ..." 형태로 기록과 /api/health에 나간다.
 class DirectionalTranslator:
-    """Routes each direction to its own model, since the best model may differ by direction."""
+    """방향마다 그 방향의 모델로 보낸다. 가장 좋은 모델이 방향마다 다를 수 있기 때문이다.
+
+    서비스는 한→영·영→한 opus 모델 두 개를 이것으로 묶어 Translator 하나처럼 쓴다. model_name은
+    "ko->en: ..., en->ko: ..." 형태로 기록과 /api/health에 나간다.
+    """
 
     def __init__(self, by_direction: dict[tuple[Language, Language], Translator]) -> None:
         self._by_direction = by_direction

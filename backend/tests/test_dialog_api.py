@@ -1,4 +1,4 @@
-"""POST /api/translate/dialog: two people, one screen (T35), with fake models."""
+"""POST /api/translate/dialog: 한 화면의 두 사람 대화(T35)를 가짜 모델로 검증한다."""
 
 # [파일 역할] 두 사람 대화 API(POST /api/translate/dialog, routers/translate.py의 translate_dialog)를 가짜
 # 모델로 검증한다.

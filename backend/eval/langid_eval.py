@@ -1,12 +1,11 @@
-"""T35: which language was spoken, Korean or English (docs/experiments.md 10).
+"""말한 언어가 한국어인지 영어인지 판별한다(docs/experiments.md 10절).
 
   uv run python -m eval.langid_eval --split validation --tag t35_dev
   uv run python -m eval.langid_eval --split test --tag t35_test --thresholds 0.6
 
-Each FLEURS recording, brought to the same level as in section 7, is cut as the browser cuts it (Silero,
-section 8: from 192 ms before speech to 192 ms after it), then three ways: its first second of speech,
-its first two, and all of it. Whisper's language detection keeps the Korean and English probabilities
-only: the larger one decides, and its share of the two is the confidence.
+FLEURS 녹음마다 7절과 같은 음량으로 맞춘 뒤 브라우저가 자르는 대로 자르고(Silero, 8절: 말 앞 192ms부터
+말 뒤 192ms까지), 다시 세 가지로 자른다: 말소리의 처음 1초, 처음 2초, 전체. Whisper 언어 판별에서 한국어와
+영어 확률만 남긴다: 큰 쪽이 결정하고, 둘 중 그쪽이 차지하는 몫이 확신이다.
 """
 
 # [파일 역할] 두 사람 대화 모드의 언어 판별(한국어인가 영어인가)과 확신 문턱 τ를 고르는 측정
@@ -14,7 +13,7 @@ only: the larger one decides, and its share of the two is the confidence.
 # [설계 이유] 짧은 대답도 흉내 내려고 같은 녹음에서 앞 1초·2초·전체 세 길이를 만든다. 조각은 브라우저가 실제로
 # 보내는 대로(Silero로 자른 한 마디, 말 앞 192ms부터) 자른다: 처음에는 Whisper 단어 시각으로 말 시작을
 # 잡았는데, 대부분 녹음에서 첫 단어가 0초로 나와 '1초' 조각이 앞의 조용한 부분을 판별하는 문제가 있어
-# 바꿨다(10절 1차 측정, 아래 run의 영어 주석).
+# 바꿨다(10절 1차 측정, 아래 run의 주석).
 # [판단 규칙] 확신이 τ 이상인 판별의 정확도가 모든 조건(두 언어 × 1초·2초·전체)에서 99% 이상인 τ 중 가장 작은
 # 것. validation에서 0.6을 골랐다(DIALOG_LANGUAGE_THRESHOLD).
 # [연결] 판별 계산은 서버(app/services/stt.WhisperSpeechToText.detect_language)와 같고, 녹음 읽기·Silero는
@@ -40,7 +39,7 @@ from eval.stream_eval import PAD_FRAMES, cut
 # 512표본 = 192ms. REQUIRED_ACCURACY: 판단 규칙의 99%.
 LENGTHS = {"1s": 1.0, "2s": 2.0, "full": None}
 THRESHOLDS = (0.6, 0.7, 0.8, 0.9, 0.95)
-PREROLL_S = PAD_FRAMES * 512 / RATE  # the browser's clip starts 192 ms before speech (section 7)
+PREROLL_S = PAD_FRAMES * 512 / RATE  # 브라우저 조각은 말 192ms 앞에서 시작한다(7절)
 REQUIRED_ACCURACY = 0.99
 
 
@@ -54,10 +53,12 @@ def load_model():
     return WhisperModel("large-v3-turbo", device="cuda", compute_type="float16")
 
 
-# 서버의 detect_language와 같은 규칙(VAD 켬, 한국어·영어 확률만 남겨 큰 쪽, 확신 = 큰 쪽 ÷ 둘의 합, 둘 다
-# 0이면 한국어 0.5)에 판별 시간을 더해 돌려준다.
 def korean_or_english(model, audio: np.ndarray) -> tuple[str, float, float]:
-    """(the language, its share of the two probabilities, seconds taken)."""
+    """(언어, 두 확률 중 그 언어의 몫, 걸린 초).
+
+    서버의 detect_language와 같은 규칙(VAD 켬, 한국어·영어 확률만 남겨 큰 쪽, 확신 = 큰 쪽 ÷ 둘의 합, 둘 다
+    0이면 한국어 0.5)에 판별 시간을 더해 돌려준다.
+    """
     began = time.perf_counter()
     _, _, probabilities = model.detect_language(audio, vad_filter=True)
     took = time.perf_counter() - began
@@ -68,9 +69,11 @@ def korean_or_english(model, audio: np.ndarray) -> tuple[str, float, float]:
     return ("ko" if ko >= en else "en"), max(ko, en) / (ko + en), took
 
 
-# 한 마디에서 앞 192ms + 1초, 192ms + 2초, 전체를 잘라 낸다(마디가 그보다 짧으면 슬라이스가 전체가 된다).
 def pieces(clip: np.ndarray) -> dict[str, np.ndarray]:
-    """The first second and two of speech, and all of it, from the clip the browser would send."""
+    """브라우저가 보낼 조각에서 말소리 처음 1초와 2초, 그리고 전체를 잘라 낸다.
+
+    앞 192ms + 1초, 192ms + 2초, 전체다(마디가 그보다 짧으면 슬라이스가 전체가 된다).
+    """
     return {
         name: clip[: int((PREROLL_S + seconds) * RATE)] if seconds else clip
         for name, seconds in LENGTHS.items()
@@ -86,11 +89,11 @@ def run(args: argparse.Namespace) -> None:
     guesses, skipped = [], {}
     for lang in LANGS:
         clips = load_clips(lang, args.split)
-        korean_or_english(model, clips[0][1])  # warm-up, not counted
+        korean_or_english(model, clips[0][1])  # 예열, 세지 않음
         skipped[lang] = 0
         for index, (key, clip) in enumerate(clips):
-            # Cut as the browser cuts it (section 8): the Whisper word times of section 7 put the first word
-            # at 0 s in most recordings, so they cannot show where speech starts.
+            # 브라우저가 자르는 대로 자른다(8절): 7절의 Whisper 단어 시각은 대부분 녹음에서 첫 단어를 0초에
+            # 두어 말이 어디서 시작하는지 알려 주지 못한다.
             utterance = cut(silero, clip, seed=SEED[args.split] * 1000 + index)
             if utterance is None:
                 skipped[lang] += 1
@@ -203,14 +206,14 @@ def write_report(guesses: list[dict], skipped: dict, args: argparse.Namespace) -
     print(f"written to {base.with_suffix('.md')}")
 
 
-# --split으로 validation/test, --thresholds로 볼 τ를 고른다. test에는 고른 τ 하나만 적용한다(위 영어 주석).
+# --split으로 validation/test, --thresholds로 볼 τ를 고른다.
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("--split", choices=("validation", "test"), default="validation")
     parser.add_argument("--tag", required=True)
-    # The test split gets only the chosen threshold (docs/experiments.md 10).
+    # test 분할에는 고른 τ 하나만 적용한다(docs/experiments.md 10절).
     parser.add_argument("--thresholds", nargs="+", type=float, default=list(THRESHOLDS))
     run(parser.parse_args())
 

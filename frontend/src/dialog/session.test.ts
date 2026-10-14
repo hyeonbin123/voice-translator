@@ -56,7 +56,7 @@ function setup(create?: CreateEndpointer) {
     const task = deferred<void>(); played.push({ result: translation, begin, task, signal }); return task.promise
   })
   const run = vi.fn(async (input: Float32Array) => ({ probability: input[64], h: new Float32Array(128), c: new Float32Array(128) }))
-  // Example mode (VITE_TRANSLATION_MOCK=true; the page still needs a login) uploads each turn over HTTP after its end.
+  // 예시 모드(VITE_TRANSLATION_MOCK=true, 페이지는 여전히 로그인이 필요)는 마디가 끝난 뒤 HTTP로 올린다.
   const session = new DialogSession(new TranslationApi({ request }, true), open, play,
     create ?? (async () => new SileroEndpointer(run)))
   sessions.push(session)
@@ -183,8 +183,8 @@ it('shows the replacement and tells the user when deleting the wrong record fail
   })
 })
 
-// Signed in, each turn streams over the live connection in dialog mode: the server detects its language and
-// prepares it at a 192 ms pause, and keeps the last turn's language itself (T77, docs/experiments.md 11).
+// 로그인하면 마디마다 dialog 모드의 동시통역 연결로 흘러간다: 서버가 언어를 판별해 192 ms 쉼에서 미리
+// 처리하고, 직전 마디의 언어를 스스로 기억한다(T77, docs/experiments.md 11절).
 // 실제 모드 세션 도구. liveToken은 처음 'access', 거절된 토큰을 받으면 'fresh'. 소켓은 열 때마다 sockets에
 // 쌓인다.
 function streaming() {
@@ -231,7 +231,7 @@ it('streams turns in dialog mode and starts a new connection from the last turn 
   expect(s.sockets[0].messages()[0]).toEqual({ type: 'start', token: 'access', mode: 'dialog' })
   await s.emit(onset, audio, { type: 'pause' }, end)
   expect(s.sockets[0].messages().slice(1)).toEqual([{ type: 'utterance', id: 1 }, 'audio', { type: 'pause', id: 1 }, { type: 'end', id: 1 }])
-  s.sockets[0].message({ type: 'final', id: 1, result: speechResult('plain', 'ko') }) // no language fields: not a dialog answer
+  s.sockets[0].message({ type: 'final', id: 1, result: speechResult('plain', 'ko') }) // 언어 필드가 없어 두 사람 대화 답이 아니다
   s.sockets[0].message({ type: 'final', id: 1, result: result('one', 'ko') })
   await vi.waitFor(() => expect(s.session.getSnapshot().turns[0]).toMatchObject({ state: 'done', result: { id: 'one' } }))
   expect(s.request).not.toHaveBeenCalled()

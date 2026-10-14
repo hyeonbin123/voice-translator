@@ -1,4 +1,4 @@
-"""Paired intervals for error rates and segment-score means; numpy only, so these run in CI as well."""
+"""오류율과 문장 점수 평균의 짝지은 구간을 검증한다. numpy만 쓰므로 CI에서도 돈다."""
 
 # [파일 역할] eval/significance.py의 짝지은 붓스트랩 구간 함수 중 numpy만 쓰는 부분(오류율 차이, 문장 점수
 # 평균 차이, 재표집 횟수 행렬, 문장별 묶기, 문턱 대비 분류)을 검증한다.
@@ -43,7 +43,6 @@ def test_resample_counts_are_sacrebleus_draws():
 # 짝지음 확인: 모든 발화에서 a가 b보다 10글자당 편집 1개 많으면, 어떤 문장을 뽑든 차이가 정확히 0.1이므로
 # 구간도 [0.1, 0.1]이어야 한다. 두 시스템을 따로 뽑았다면 구간이 넓어진다.
 def test_rate_difference_is_paired():
-    # whisper-ko-ft tests/test_metrics.py: 2 vs 1 edit in every 10-character utterance -> exactly 0.1.
     lengths = np.full(100, 10)
     interval = rate_difference([(np.full(100, 2), np.full(100, 1), lengths)], rounds=500)
     assert [interval.point, interval.low, interval.high] == pytest.approx([0.1] * 3, abs=1e-12)
@@ -52,7 +51,6 @@ def test_rate_difference_is_paired():
 # 오류율은 문장별 비율의 평균이 아니라 '전체 편집 수 ÷ 전체 정답 길이'(말뭉치 단위)다. 2글자 중 1개 틀림과
 # 8글자 중 0개 틀림은 0.5와 0의 평균 0.25가 아니라 1/10 = 0.1이다.
 def test_rate_difference_is_corpus_level():
-    # 1 edit in 2 characters and 0 in 8 against 0 everywhere: 1/10, not the mean of 0.5 and 0.
     interval = rate_difference([(np.array([1, 0]), np.array([0, 0]), np.array([2, 8]))], rounds=10)
     assert interval.point == pytest.approx(0.1)
 
@@ -60,8 +58,8 @@ def test_rate_difference_is_corpus_level():
 # 층(예: 한국어 CER과 영어 WER)은 따로 재표집하고 두 층의 차이를 평균한다. 한국어는 늘 +0.1, 영어는 늘 0이라
 # 결과는 정확히 0.05다. 두 언어를 한 표본으로 섞어 뽑으면 언어 비율이 재표집마다 달라진다.
 def test_rate_difference_averages_strata_resampled_apart():
-    korean = (np.full(50, 2), np.full(50, 1), np.full(50, 10))  # always +0.1
-    english = (np.full(80, 3), np.full(80, 3), np.full(80, 20))  # always 0
+    korean = (np.full(50, 2), np.full(50, 1), np.full(50, 10))  # 늘 +0.1
+    english = (np.full(80, 3), np.full(80, 3), np.full(80, 20))  # 늘 0
     interval = rate_difference([korean, english], rounds=300)
     assert [interval.point, interval.low, interval.high] == pytest.approx([0.05] * 3, abs=1e-12)
 
@@ -89,7 +87,7 @@ def test_rate_difference_rejects_empty_references():
 def test_by_group_sums_the_recordings_of_a_sentence():
     ids = [7, 3, 7, 9, 3]
     edits, lengths = by_group(ids, np.array([1, 2, 3, 4, 5]), np.array([10, 20, 30, 40, 50]))
-    assert edits.tolist() == [4, 7, 4]  # ids 7, 3, 9 in first-seen order
+    assert edits.tolist() == [4, 7, 4]  # 처음 나온 순서대로 id 7, 3, 9
     assert lengths.tolist() == [40, 70, 40]
 
 
@@ -122,12 +120,12 @@ def test_mean_difference_uses_the_same_resamples_as_corpus_difference():
 @pytest.mark.parametrize(
     ("interval", "threshold", "label"),
     [
-        (Interval(0.5, -0.4, 1.3), -1.0, "robust"),  # whole interval above the threshold, like the point
+        (Interval(0.5, -0.4, 1.3), -1.0, "robust"),  # 점 추정처럼 구간 전체가 문턱 위
         (Interval(0.5, -1.2, 1.3), -1.0, "straddles"),
         (Interval(-1.2, -1.9, -0.4), -0.5, "straddles"),
-        (Interval(-1.2, -1.9, -0.7), -0.5, "robust"),  # whole interval below, like the point
+        (Interval(-1.2, -1.9, -0.7), -0.5, "robust"),  # 점 추정처럼 구간 전체가 문턱 아래
         (Interval(0.27, -0.1, 0.6), 1.0, "robust"),
-        (Interval(-1.0, -1.5, -1.0), -1.0, "straddles"),  # touching the threshold is not clear of it
+        (Interval(-1.0, -1.5, -1.0), -1.0, "straddles"),  # 문턱에 닿기만 해도 벗어난 것이 아니다
         (Interval(0.5, -0.4, 1.3), None, None),
     ],
 )
@@ -145,7 +143,6 @@ def test_classify_flags_an_interval_on_the_other_side_of_the_point():
 # sys.modules에 None을 넣으면 그 모듈 import가 실패하므로, 모듈 맨 위에서 sacrebleu를 불러오는 회귀가 생기면
 # 이 테스트가 실패한다(check=True).
 def test_the_intervals_import_without_the_eval_group():
-    # CI has no sacrebleu or jiwer (eval group): the rate and mean intervals must still import there.
     code = (
         "import sys; sys.modules['sacrebleu'] = None; sys.modules['jiwer'] = None; import eval.significance"
     )

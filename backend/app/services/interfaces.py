@@ -1,10 +1,8 @@
-"""What the translation pipeline needs from the speech recognition, translation and
-speech synthesis models.
+"""번역 흐름이 음성 인식·번역·음성 합성 모델에 기대하는 것.
 
-The pipeline and the API are built and tested against these interfaces with the fakes
-in tests/fakes.py, while the real models are still being chosen by measurement.
-Implementations are synchronous and hold the CPU or GPU, so callers run them through
-app.services.inference.run_model instead of calling them on the event loop.
+실제 모델을 아직 측정으로 고르는 동안, 번역 흐름과 API를 이 인터페이스에 맞춰 tests/fakes.py의 가짜
+구현으로 만들고 테스트했다. 구현은 동기 함수이고 CPU나 GPU를 쥐므로, 호출하는 쪽은 이벤트 루프에서 직접
+부르지 않고 app.services.inference.run_model을 거쳐 실행한다.
 """
 
 # [파일 역할] 번역 흐름이 모델에 기대하는 약속(Protocol)과 주고받는 값(Transcript, SynthesizedAudio), 모델
@@ -25,22 +23,22 @@ Language = Literal["en", "ko"]
 # 모델 오류의 뿌리. 라우터는 ModelError를 503 "Translation service is unavailable"로 바꾼다(docs/api.md). 그
 # 아래 InvalidAudioError 갈래는 사용자의 음성 문제라 422로 구분해 답한다.
 class ModelError(Exception):
-    """The model could not produce a result for this input."""
+    """모델이 이 입력에 대한 결과를 만들지 못했다."""
 
 
 class InvalidAudioError(ModelError):
-    """The audio could not be decoded, or holds no sound to recognize.
+    """음성을 디코딩할 수 없거나, 인식할 소리가 없다.
 
-    Raise one of the two subclasses; the API answers each with its own fixed message (docs/api.md).
+    두 하위 클래스 중 하나를 raise한다. API는 각각을 고정된 문구로 답한다(docs/api.md).
     """
 
 
 class UndecodableAudioError(InvalidAudioError):
-    """The upload is empty or is not audio that can be decoded."""
+    """업로드가 비었거나 디코딩할 수 있는 음성이 아니다."""
 
 
 class NoSpeechError(InvalidAudioError):
-    """The audio decodes, but no speech was recognized in it."""
+    """음성은 디코딩되지만 그 안에서 말소리를 인식하지 못했다."""
 
 
 # 인식 결과. frozen=True라 만든 뒤 바뀌지 않는다. duration_ms는 인식한 음성의 길이(ms).
@@ -48,7 +46,7 @@ class NoSpeechError(InvalidAudioError):
 class Transcript:
     text: str
     language: Language
-    duration_ms: int  # length of the recognized audio
+    duration_ms: int
 
 
 # 합성 결과: WAV 파일 바이트(헤더 포함), 표본 추출률, 길이(ms). wav는 그대로 디스크에 저장되고 GET
@@ -67,9 +65,9 @@ class SpeechToText(Protocol):
     model_name: str
 
     def transcribe(self, audio: bytes, language: Language) -> Transcript:
-        """Recognize speech in `audio` (an encoded file such as wav or webm) spoken in `language`.
+        """`language`로 말한 `audio`(wav·webm 같은 인코딩된 파일)의 말소리를 인식한다.
 
-        The caller passes the language the user picked, so implementations don't detect it.
+        호출하는 쪽이 사용자가 고른 언어를 넘기므로 구현은 언어를 판별하지 않는다.
         """
         ...
 
@@ -79,9 +77,9 @@ class SpeechToText(Protocol):
 @runtime_checkable
 class LiveSpeechToText(SpeechToText, Protocol):
     def transcribe_live(self, pcm: bytes, language: Language) -> str:
-        """Recognize 16 kHz mono 16-bit little-endian PCM, an utterance so far, for live subtitles (T34).
+        """동시통역 자막용으로, 지금까지의 한 마디(16kHz 모노 16비트 little-endian PCM)를 인식한다.
 
-        Returns an empty string where transcribe would raise NoSpeechError.
+        transcribe라면 NoSpeechError를 낼 상황에서는 빈 문자열을 돌려준다.
         """
         ...
 
@@ -91,9 +89,9 @@ class LiveSpeechToText(SpeechToText, Protocol):
 @runtime_checkable
 class LanguageDetector(Protocol):
     def detect_language(self, audio: bytes) -> tuple[Language, float]:
-        """Korean or English, from an encoded audio file, and its share of the two probabilities (T35).
+        """인코딩된 음성 파일이 한국어인지 영어인지와, 두 확률 중 그 언어가 차지하는 몫을 돌려준다.
 
-        Raises UndecodableAudioError or NoSpeechError as transcribe does.
+        transcribe처럼 UndecodableAudioError나 NoSpeechError를 낸다.
         """
         ...
 
@@ -117,10 +115,10 @@ class TextToSpeech(Protocol):
 # 언어이고, 모델 준비가 끝났고, 닫히지 않았을 때만 True).
 @runtime_checkable
 class TypoCorrector(Protocol):
-    """Fixes typing mistakes in typed text before translation (T32).
+    """글자로 입력한 글의 오타를 번역 전에 고친다.
 
-    correct() is blocking network I/O, not model work in this process, so the pipeline runs it with
-    run_correction (a thread of its own, one call at a time) instead of run_model.
+    correct()는 이 프로세스 안의 모델 작업이 아니라 막는(blocking) 네트워크 입출력이므로, 번역 흐름은
+    run_model 대신 run_correction(전용 스레드, 한 번에 한 호출)으로 실행한다.
     """
 
     model_name: str
@@ -128,9 +126,9 @@ class TypoCorrector(Protocol):
     def corrects(self, language: Language) -> bool: ...
 
     def correct(self, text: str, language: Language) -> str | None:
-        """The corrected text, or None on any failure: the caller then translates the text as typed."""
+        """교정한 글을 돌려준다. 어떤 실패든 None이고, 그러면 호출한 쪽이 입력 그대로 번역한다."""
         ...
 
     def close(self) -> None:
-        """Called once when the app shuts down; must not block."""
+        """앱이 종료될 때 한 번 불린다. 막으면(기다리면) 안 된다."""
         ...

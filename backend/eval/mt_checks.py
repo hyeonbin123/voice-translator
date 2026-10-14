@@ -1,9 +1,8 @@
-"""Output checks for an LLM translator (task T83, docs/experiments.md 15, decision rule (b)).
+"""LLM 번역기의 출력 점검(docs/experiments.md 15절, 판단 규칙 (b)).
 
-A translation fails the check when it has letters of another script or when it looks explanatory: a label, a
-note, more lines than the input, quotes the input did not have, or more than twice the reference's length
-(added text or repetition). Both are counted per output, with the rule written before any run. Empty outputs
-are counted apart (the translator raised, so the evaluation stored ""). No model runs here.
+번역이 다른 문자 계열의 글자를 담았거나 설명처럼 보이면 점검에 걸린다: 꼬리표, 메모, 입력보다 많은 줄,
+입력에 없던 따옴표, 참조보다 2배 넘는 길이(덧붙인 글이나 반복). 둘 다 출력마다 세며, 규칙은 실행 전에
+적었다. 빈 출력은 따로 센다(번역기가 예외를 내 평가가 ""를 저장한 경우). 여기서는 모델을 돌리지 않는다.
 
     uv run --no-sync python -m eval.mt_checks eval/reports/mt_t83_dev_<stamp>.json
 """
@@ -24,9 +23,9 @@ import re
 import unicodedata
 from pathlib import Path
 
-# Scripts a translation may use: Latin in both (names, abbreviations; English left in a Korean output is
-# counted by eval/mt_failures.py), Hangul only in Korean. Any other script (Han, Kana, Cyrillic, ...) counts,
-# unless that very character is in the input (a Greek letter or a Hanja in the source may be kept).
+# 번역이 쓸 수 있는 문자 계열: 라틴 문자는 두 언어 모두(이름, 약어. 한국어 출력에 남은 영어는
+# eval/mt_failures.py가 센다), 한글은 한국어에서만. 그 밖의 문자 계열(한자, 가나, 키릴 등)은 센다. 단 그
+# 글자가 입력에 그대로 있으면 세지 않는다(원문의 그리스 문자나 한자는 그대로 둘 수 있다).
 # ALLOWED: 도착 언어별로 허용하는 문자 계열(유니코드 문자 이름의 앞부분). LABEL: 출력 앞에 붙은 '번역:'·'Here
 # is the translation' 같은 꼬리표. NOTE: 메모·역주 표시. QUOTES: 출력 전체를 감싼 따옴표로 볼 문자.
 # LONG_RATIO: 참조보다 2배 넘게 길면 덧붙임·반복으로 본다.
@@ -41,11 +40,13 @@ QUOTES = "\"'“”‘’「」『』«»"
 LONG_RATIO = 2.0
 
 
-# 출력의 글자(L 범주) 중 도착 언어가 쓰지 않는 문자 계열을 모아 돌려준다. 입력에 있던 바로 그 글자(그리스
-# 문자, 한자 등)는 옮겨 적은 것으로 보고 봐준다. 단 영어 출력의 한글은 입력에 있었더라도 늘 센다(번역하지 않고
-# 남긴 것이므로).
 def foreign_letters(output: str, source: str, target: str) -> str:
-    """Letters of a script the target language does not use and the input does not have."""
+    """도착 언어가 쓰지 않고 입력에도 없는 문자 계열의 글자들.
+
+    출력의 글자(L 범주) 중 도착 언어가 쓰지 않는 문자 계열을 모아 돌려준다. 입력에 있던 바로 그
+    글자(그리스 문자, 한자 등)는 옮겨 적은 것으로 보고 봐준다. 단 영어 출력의 한글은 입력에 있었더라도 늘
+    센다(번역하지 않고 남긴 것이므로).
+    """
     allowed = ALLOWED[target]
     found = []
     for char in output:
@@ -54,7 +55,7 @@ def foreign_letters(output: str, source: str, target: str) -> str:
         name = unicodedata.name(char, "")
         if name.startswith(allowed):
             continue
-        if char in source and not name.startswith("HANGUL"):  # Hangul in an English output always counts
+        if char in source and not name.startswith("HANGUL"):  # 영어 출력의 한글은 늘 센다
             continue
         found.append(char)
     return "".join(found)
@@ -70,10 +71,12 @@ def _letters(text: str) -> int:
     return len("".join(text.split()))
 
 
-# 설명형 출력의 표시를 모두 모은다: 입력보다 줄이 많음(lines), 꼬리표(label), 입력에 없던 메모(note), 입력에
-# 없던 전체 따옴표(quotes), 참조보다 2배 넘게 김(long). 입력에 원래 있던 메모·따옴표는 세지 않는다.
 def explanation_signs(output: str, source: str, reference: str) -> list[str]:
-    """Which explanatory signs an output shows (empty list: none)."""
+    """출력이 보이는 설명형 표시들(빈 목록이면 없음).
+
+    입력보다 줄이 많음(lines), 꼬리표(label), 입력에 없던 메모(note), 입력에 없던 전체 따옴표(quotes),
+    참조보다 2배 넘게 김(long). 입력에 원래 있던 메모·따옴표는 세지 않는다.
+    """
     signs = []
     if output.count("\n") > source.count("\n"):
         signs.append("lines")
@@ -88,11 +91,13 @@ def explanation_signs(output: str, source: str, reference: str) -> list[str]:
     return signs
 
 
-# 한 방향 평가 항목 전체를 점검한다. 빈 출력(번역기가 예외를 내 평가가 ""를 저장한 경우)은 따로 센다. 다른
-# 문자와 설명형은 한 출력에 둘 다 있을 수 있어, flagged(둘 중 하나라도)와 각각의 수를 함께 낸다. 걸린 항목의
-# id와 이유를 남겨 사람이 다시 볼 수 있게 한다.
 def check_items(items: list[dict], direction: str) -> dict:
-    """Counts over an evaluation's items (source, reference, hypothesis), with the flagged ids."""
+    """한 방향 평가 항목(원문, 참조, 가설) 전체에 대한 개수와 걸린 항목의 id.
+
+    빈 출력(번역기가 예외를 내 평가가 ""를 저장한 경우)은 따로 센다. 다른 문자와 설명형은 한 출력에 둘 다
+    있을 수 있어, flagged(둘 중 하나라도)와 각각의 수를 함께 낸다. 걸린 항목의 id와 이유를 남겨 사람이 다시
+    볼 수 있게 한다.
+    """
     target = direction.split("-")[1]
     flagged, empty = [], []
     for item in items:
@@ -119,7 +124,7 @@ def check_items(items: list[dict], direction: str) -> dict:
 # 옮겨 적는 형식).
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("report", type=Path, help="a mt_*.json report written by eval.mt_eval")
+    parser.add_argument("report", type=Path, help="eval.mt_eval이 쓴 mt_*.json 리포트")
     args = parser.parse_args()
     print("| 후보 | 방향 | 다른 문자 | 설명형 | 둘 중 하나 | 빈 출력 |")
     print("|---|---|---|---|---|---|")

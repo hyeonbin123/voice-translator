@@ -1,8 +1,8 @@
-"""Describe a failure for the log without the messages of the exceptions behind it (T49).
+"""실패를 그 뒤에 있는 예외들의 메시지 없이 로그용으로 설명한다.
 
-A model library's message can quote the text it was given, and a traceback prints the whole chain of
-causes. Logs therefore name only the exception types along the chain and where the innermost one was
-raised, which is enough to tell which stage failed and why.
+모델 라이브러리의 메시지에는 입력받은 글이 그대로 들어갈 수 있고, traceback은 원인 사슬 전체를 찍는다.
+그래서 로그에는 사슬을 따라 예외 종류와 가장 안쪽 예외가 난 위치만 남긴다. 이것만으로도 어느 단계가 왜
+실패했는지 알 수 있다.
 """
 
 # [파일 역할] 예외를 로그에 남길 때 메시지 없이 '예외 종류의 사슬 + 가장 안쪽 예외가 난 위치'만으로 요약하는
@@ -16,9 +16,11 @@ import traceback
 from pathlib import Path
 
 
-# 입력: 예외 객체. 출력: "바깥 예외 <- 원인 예외 ... (at 파일:줄 in 함수)" 형태의 한 줄 문자열.
 def describe(exc: BaseException) -> str:
-    """For example "ModelError <- ValueError (at sentencepiece.py:123 in encode)". Never the messages."""
+    """예: "ModelError <- ValueError (at sentencepiece.py:123 in encode)". 메시지는 절대 넣지 않는다.
+
+    입력은 예외 객체, 출력은 "바깥 예외 <- 원인 예외 ... (at 파일:줄 in 함수)" 형태의 한 줄 문자열이다.
+    """
     names: list[str] = []
     seen: set[int] = set()
     current: BaseException | None = exc

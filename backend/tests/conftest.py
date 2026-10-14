@@ -42,10 +42,10 @@ BACKEND = Path(__file__).resolve().parents[1]
 # 테스트 세션 전체에서 한 번: 임의 이름의 테스트 DB를 만들고 마이그레이션을 끝까지(head) 적용한 뒤 그 DB
 # 주소를 돌려준다. 끝나면(실패해도 finally로) DB를 지운다.
 # 관리 주소는 TEST_DATABASE_ADMIN_URL 또는 앱 기본 DB 주소에서 호스트·계정만 빌리고, 그 DB 자체는 절대
-# 건드리지 않는다(아래 영어 주석). 이름에 uuid를 넣어 여러 실행이 같은 서버에서 겹쳐도 충돌하지 않는다.
+# 건드리지 않는다. 이름에 uuid를 넣어 여러 실행이 같은 서버에서 겹쳐도 충돌하지 않는다.
 @pytest.fixture(scope="session")
 def migrated_database():
-    # This URL supplies host/admin credentials only. Never migrate or clear that database.
+    # 이 주소에서는 호스트와 관리 계정 정보만 쓴다. 그 DB를 마이그레이션하거나 비우는 일은 절대 하지 않는다.
     admin_url = make_url(os.getenv("TEST_DATABASE_ADMIN_URL", get_settings().database_url))
     name = "vt_test_" + uuid4().hex
     test_url = admin_url.set(drivername="postgresql+asyncpg", database=name)
@@ -58,7 +58,7 @@ def migrated_database():
             admin_url.set(drivername="postgresql", database="postgres").render_as_string(hide_password=False)
         )
         try:
-            # name is generated here, never taken from input or an environment variable.
+            # name은 여기서 만든 값이고, 입력이나 환경 변수에서 오지 않는다.
             assert name.startswith("vt_test_") and len(name) == 40
             if create:
                 await connection.execute(f'CREATE DATABASE "{name}"')

@@ -177,7 +177,7 @@ it('refreshes and reconnects on each 4401 after ready, cancels old turns and rej
   ws.message({ type: 'ready' })
   await s.emit(onset, audio, end)
   expect(ws.messages().at(-1)).toEqual({ type: 'end', id: 2 })
-  // The next access token expires mid-connection too; the server closes with 4401 each time.
+  // 다음 접근 토큰도 연결 도중 만료된다. 서버는 그때마다 4401로 닫는다.
   ws.closed(4401)
   await vi.waitFor(() => expect(s.sockets).toHaveLength(3))
   expect(s.liveToken).toHaveBeenCalledTimes(3)

@@ -69,7 +69,10 @@ def decode_token(token: str, kind: TokenKind) -> UUID:
 
 
 def decode_token_with_expiry(token: str, kind: TokenKind) -> tuple[UUID, datetime]:
-    """The user, and when the token stops being valid: a WebSocket outlives the token it opened with."""
+    """토큰의 사용자 ID와 토큰이 무효가 되는 시각을 함께 돌려준다.
+
+    웹소켓 연결은 그 연결을 연 토큰보다 오래 살 수 있어서 만료 시각이 따로 필요하다.
+    """
     # 서명·만료(exp)를 검증하고, 다섯 클레임이 모두 있어야 통과시킨다(require). algorithms를 HS256 하나로
     # 고정해 토큰 머리의 알고리즘 값(예: none)으로 검증을 우회하지 못하게 한다.
     payload = jwt.decode(

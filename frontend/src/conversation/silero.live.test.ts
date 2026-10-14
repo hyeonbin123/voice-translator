@@ -39,7 +39,7 @@ it.each([
   const live = new SileroEndpointer(runner(probabilities), true)
   const expected = (await normal.push(input)).filter((event) => event.type === 'end')
   const events: LiveEndpointEvent[] = []
-  // Arbitrary worklet chunk boundaries must not change event order or samples.
+  // 워클릿 조각 경계가 어디에 오든 이벤트 순서와 표본이 바뀌면 안 된다(그래서 719표본씩 넣는다).
   for (let i = 0; i < input.length; i += 719) events.push(...await live.push(input.slice(i, i + 719)))
   const legacy = events.filter((event) => ['start', 'end', 'discard'].includes(event.type))
   const reference = new SileroEndpointer(runner(probabilities))

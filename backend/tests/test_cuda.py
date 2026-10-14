@@ -17,7 +17,7 @@ from app.services import cuda, stt
 # 테스트에서 실제로 다시 실행되게 하고 다른 테스트에 결과가 남지 않게 한다.
 @pytest.fixture
 def windows_without_gpu_packages(monkeypatch):
-    """Windows where not even the parent `nvidia` package is installed, so find_spec raises."""
+    """부모 패키지 `nvidia`조차 설치되지 않아 find_spec이 예외를 내는 Windows."""
 
     def missing(name):
         raise ModuleNotFoundError(f"No module named {name.split('.')[0]!r}")

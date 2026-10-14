@@ -32,7 +32,7 @@ from tests.fakes import FakeTranslator
 
 # SentencePiece 대역: 공백으로 나눈 단어를 조각으로 쓰고, 공백으로 다시 잇는다.
 class SplitProcessor:
-    """Stands in for SentencePiece: one piece per word."""
+    """SentencePiece 대신 쓰인다: 단어 하나가 조각 하나."""
 
     def encode(self, text, out_type):
         assert out_type is str
@@ -44,7 +44,7 @@ class SplitProcessor:
 
 # CTranslate2 대역: 정해 준 조각을 돌려주거나 정해 준 예외를 던진다.
 class FakeEngine:
-    """Stands in for the CTranslate2 model: returns fixed pieces or raises."""
+    """CTranslate2 모델 대신 쓰인다: 정해 둔 조각을 돌려주거나 예외를 던진다."""
 
     def __init__(self, result=None, error=None):
         self.result, self.error = result, error
@@ -58,21 +58,21 @@ class FakeEngine:
 # 엔진에 들어온 토큰을 기록하고, 끝 토큰을 뺀 조각을 대문자로 돌려주는 대역. 문장 단위 번역이 엔진을 몇 번,
 # 어떤 입력으로 부르는지 확인할 때 쓴다.
 class EchoEngine:
-    """Returns the source pieces in capitals as the translation and records each call."""
+    """원문 조각을 대문자로 바꿔 번역으로 돌려주고, 호출마다 기록한다."""
 
     def __init__(self):
         self.calls = []
 
     def generate(self, tokens, target_prefix=None):
         self.calls.append(tokens)
-        return [piece.upper() for piece in tokens[:-1]]  # without the end-of-sentence token
+        return [piece.upper() for piece in tokens[:-1]]  # 문장 끝 토큰은 뺀다
 
 
 # 실제 MarianTranslator·NllbTranslator 클래스를 모델 파일 없이 만들 수 있게, 엔진 생성과 SentencePiece 적재를
 # 가짜로 바꾼다. 돌려주는 함수로 테스트마다 쓸 가짜 엔진을 정한다.
 @pytest.fixture
 def engine(monkeypatch):
-    """Build the real translator classes around a fake engine and tokenizer, without model files."""
+    """모델 파일 없이, 가짜 엔진과 토크나이저로 실제 번역기 클래스를 만든다."""
     holder = {}
     monkeypatch.setattr(translation, "_Ct2Model", lambda *args: holder["engine"])
     monkeypatch.setattr(translation, "load_sentencepiece", lambda path: SplitProcessor())
@@ -114,7 +114,7 @@ def test_nllb_engine_failures_become_model_errors(engine, fake):
 def test_opus_preprocess_follows_the_training_script():
     assert opus_preprocess("“안녕”，  세상！") == '"안녕", 세상!'
     assert opus_preprocess("끝。다음") == "끝. 다음"
-    assert opus_preprocess(" a​b\tc ") == "a b c"  # zero-width and control characters become spaces
+    assert opus_preprocess(" a​b\tc ") == "a b c"  # 폭 없는 문자와 제어 문자는 공백이 된다
 
 
 # 문장 나누기 사례: 문장 끝 부호(. ? ! 。 ？ ！) 뒤 공백·줄바꿈에서 나누되, 약어(U.N., Mr., e.g.)와 이니셜(J.)
@@ -163,7 +163,6 @@ def test_marian_by_sentence_translates_each_sentence_on_its_own(engine):
     ],
 )
 def test_marian_by_sentence_keeps_abbreviations_after_any_white_space(engine, text, calls):
-    # T27/T31: what reaches the engine, sentence by sentence, through the real adapter.
     echo = EchoEngine()
     engine(echo)
     translation.MarianTranslator(Path("model"), "en", "ko", by_sentence=True).translate(text, "en", "ko")
@@ -254,7 +253,7 @@ def test_ollama_connection_error_becomes_model_error():
         translator.translate("hello", "en", "ko")
 
 
-# Hy-MT2 served by Ollama (T83, docs/experiments.md 15)
+# 여기부터 Ollama가 제공하는 Hy-MT2 번역기(T83, docs/experiments.md 15절)
 
 # 모델 카드의 기본 번역 프롬프트(목표 언어가 Korean일 때). 요청 본문과 글자 하나까지 비교할 기대값이다.
 HY_MT_ENGLISH_PROMPT = (
@@ -298,12 +297,12 @@ def test_hymt_sends_the_model_card_prompt_as_the_only_message():
     assert translator.translate("Hello.", "en", "ko") == "안녕하세요."
     path, payload = sent[0]
     assert path == "/api/chat"
-    # The model card's "Default Translation" English prompt, no system prompt (the model has no default one).
+    # 모델 카드의 "Default Translation" 영어 프롬프트. 모델에 기본 시스템 프롬프트가 없어 넣지 않는다.
     assert payload["messages"] == [{"role": "user", "content": HY_MT_ENGLISH_PROMPT + "Hello."}]
     assert payload["model"] == "hy-mt2:1.8b-q8_0"
     assert payload["stream"] is False
     assert payload["keep_alive"] == -1
-    # Greedy, the card's repetition penalty, the opus output cap of 256 tokens, a fixed context size.
+    # 탐욕 디코딩, 카드의 반복 벌점, opus와 같은 출력 상한 256토큰, 고정 문맥 길이.
     assert payload["options"] == {
         "temperature": 0,
         "repeat_penalty": 1.05,
@@ -344,9 +343,8 @@ def test_hymt_keeps_the_details_of_the_last_translation_for_evaluation():
 
 
 # 출력 상한에서 잘린 답(done_reason "length")도 버리지 않고 번역으로 쓰고, 잘렸다는 사실은 calls에 남긴다.
-# opus가 최대 디코딩 길이 256에서 잘려도 번역으로 쓰는 것과 같게 맞춘 것이다(테스트 주석).
+# opus가 최대 디코딩 길이 256에서 잘려도 번역으로 쓰는 것과 같게 맞춘 것이다.
 def test_hymt_keeps_a_reply_cut_at_the_output_cap():
-    # Like opus at max_decoding_length 256: a cut translation is still the translation.
     translator, _ = hymt_with(lambda _: chat_reply("아주 긴 번역", done_reason="length"))
     assert translator.translate("A very long text.", "en", "ko") == "아주 긴 번역"
     assert translator.calls[0]["done_reason"] == "length"
@@ -415,7 +413,6 @@ def test_hymt_prepare_loads_the_model_to_stay_and_reports_its_build():
 # 적재 한도(120초)를 쓰고, timeout_s=5를 주면 세 요청 모두 약 5초로 줄어든다. 요청마다 httpx에 넘긴 read
 # 제한을 기록해 확인한다.
 def test_hymt_prepare_keeps_each_request_within_the_time_left():
-    # Startup passes what is left of HYMT_PREPARE_TIMEOUT_S; no request inside prepare may wait longer (T86).
     server, limits = ollama_server(), {}
 
     def handle(request: httpx.Request) -> httpx.Response:
@@ -434,8 +431,6 @@ def test_hymt_prepare_keeps_each_request_within_the_time_left():
 # 시계로 바꾸고 show·tags가 4초씩 쓰게 하면 10초 중 10 → 6 → 2초가 된다. 남은 시간이 없어도 적재 요청은 0이나
 # 음수가 아닌 아주 작은 제한(최소 0.01초)을 받는다.
 def test_hymt_prepare_takes_the_time_left_again_before_each_request(monkeypatch):
-    # Slow checks that succeed use up part of the time left, and the load gets only the rest: one try must not
-    # last up to three times what is left (T87). show and tags take 4 s each of the 10 s left here.
     server, limits, clock = ollama_server(), {}, [100.0]
 
     def handle(request: httpx.Request) -> httpx.Response:
@@ -450,7 +445,7 @@ def test_hymt_prepare_takes_the_time_left_again_before_each_request(monkeypatch)
     assert limits == pytest.approx({"/api/show": 10, "/api/tags": 6, "/api/generate": 2})
     clock[0] = 100.0
     limits.clear()
-    translator.prepare(timeout_s=7)  # nothing left for the load: it still gets a valid, tiny limit
+    translator.prepare(timeout_s=7)  # 적재에 남은 시간이 없어도 유효한 아주 작은 제한을 받는다
     assert 0 < limits["/api/generate"] <= 0.01
 
 

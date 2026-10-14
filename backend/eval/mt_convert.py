@@ -1,14 +1,14 @@
-"""Convert the seq2seq translation candidates to CTranslate2 (task T3).
+"""seq2seq 번역 후보를 CTranslate2로 변환한다.
 
-Usage, from backend/ with the eval group installed (it brings transformers and torch for the conversion):
+backend/에서 eval 그룹을 설치한 뒤 쓰는 법(변환에 필요한 transformers와 torch가 그 그룹에 있다):
     uv run python -m eval.mt_convert
 
-Writes data/models/ct2/<name> (git-ignored). The server itself needs only ctranslate2 and sentencepiece.
-- opus-mt-ko-en and NLLB are converted from their Hugging Face repositories, then the tokens made by
-  app/services/translation.py are compared with the Hugging Face tokenizer on the FLEURS sentences.
-- The tc-big models are converted from Helsinki's original MarianNMT releases, because their Hugging Face
-  ports are broken (docs/experiments.md): they use separate source and target vocabularies, but the ports
-  keep one, so most Korean pieces become <unk>.
+data/models/ct2/<name>에 쓴다(git이 무시함). 서버 자체에는 ctranslate2와 sentencepiece만 필요하다.
+- opus-mt-ko-en과 NLLB는 Hugging Face 저장소에서 변환한 뒤, app/services/translation.py가 만드는 토큰을
+  FLEURS 문장에서 Hugging Face 토크나이저와 비교한다.
+- tc-big 모델은 Hugging Face 이식본이 깨져 있어 Helsinki의 원본 MarianNMT 배포본에서
+  변환한다(docs/experiments.md): 원문과 번역문 어휘를 따로 쓰는데 이식본은 하나만 두어, 한국어 조각
+  대부분이 <unk>가 된다.
 """
 
 # [파일 역할] 번역 후보 seq2seq 모델을 CTranslate2 형식(float16)으로 바꿔 data/models/ct2/<이름>에 두는 일회성
@@ -48,13 +48,13 @@ from eval.common import DATA, FLEURS_CONFIG, MODELS
 
 # HF_MODELS: Hugging Face 저장소에서 바로 바꾸는 후보(opus-mt-ko-en, NLLB). OPUS_RELEASE·OPUS_MODELS: tc-big
 # 원본 배포본 주소와 언어 쌍(원문·번역문 어휘를 따로 쓰는 sepvoc 모델).
-# name: (Hugging Face repo, files kept next to the converted model, source language or None for NLLB)
+# 이름: (Hugging Face 저장소, 변환된 모델 옆에 둘 파일, 원문 언어. NLLB는 None)
 HF_MODELS = {
     "opus-mt-ko-en": ("Helsinki-NLP/opus-mt-ko-en", ["source.spm", "target.spm"], "ko"),
     "nllb-200-distilled-600M": ("facebook/nllb-200-distilled-600M", ["sentencepiece.bpe.model"], None),
 }
 OPUS_RELEASE = "https://object.pouta.csc.fi/Tatoeba-MT-models/{pair}/opusTCv20210807-sepvoc_transformer-big_2022-07-28.zip"
-# name: (language pair in the release URL, source language)
+# 이름: (배포본 주소의 언어 쌍, 원문 언어)
 OPUS_MODELS = {"opus-mt-tc-big-ko-en": ("kor-eng", "ko"), "opus-mt-tc-big-en-ko": ("eng-kor", "en")}
 
 
@@ -75,11 +75,13 @@ def source_vocabulary(model_dir: Path) -> set[str]:
     raise FileNotFoundError(f"no vocabulary in {model_dir}")
 
 
-# 우리 토큰화(app/services/translation.py)가 Hugging Face 토크나이저와 같은지 모든 문장에서 비교해 다른 문장
-# 수를 돌려준다. Hugging Face 쪽은 어휘에 없는 조각을 <unk>로 바꿔 내므로, 우리 쪽도 변환된 어휘에 없는 조각을
-# <unk>로 바꾼 뒤 비교한다. opus-mt는 한 방향(source), NLLB는 두 언어 모두 본다.
 def check_hf_tokens(name: str, snapshot: str, output: Path, source: str | None) -> str:
-    """CTranslate2 maps pieces missing from the vocabulary to <unk>, so compare after that step."""
+    """CTranslate2는 어휘에 없는 조각을 <unk>로 바꾸므로, 그 단계 뒤의 토큰으로 비교한다.
+
+    우리 토큰화(app/services/translation.py)가 Hugging Face 토크나이저와 같은지 모든 문장에서 비교해 다른
+    문장 수를 돌려준다. Hugging Face 쪽은 어휘에 없는 조각을 <unk>로 바꿔 내므로, 우리 쪽도 변환된 어휘에
+    없는 조각을 <unk>로 바꾼 뒤 비교한다. opus-mt는 한 방향(source), NLLB는 두 언어 모두 본다.
+    """
     vocabulary = source_vocabulary(output)
     mismatches = total = 0
     for language in [source] if source else ["ko", "en"]:
@@ -111,10 +113,12 @@ def convert_hf(name: str, output: Path) -> str:
     return check_hf_tokens(name, snapshot, output, source)
 
 
-# 배포본의 어휘 파일(한 줄에 토큰 하나, 줄 번호가 색인)을 MarianConverter가 읽는 YAML("토큰": 번호) 형식으로
-# 바꾼다. 역슬래시와 큰따옴표는 YAML 문자열 안에서 이스케이프한다. 마지막 빈 줄은 토큰이 아니므로 뺀다.
 def write_yaml_vocabulary(plain: Path, target: Path) -> None:
-    """The releases list one token per line (index = line number); the converter reads Marian's YAML form."""
+    """배포본은 한 줄에 토큰 하나를 적고(줄 번호가 색인), 변환기는 Marian의 YAML 형식을 읽는다.
+
+    그래서 MarianConverter가 읽는 YAML("토큰": 번호) 형식으로 바꾼다. 역슬래시와 큰따옴표는 YAML 문자열
+    안에서 이스케이프한다. 마지막 빈 줄은 토큰이 아니므로 뺀다.
+    """
     tokens = plain.read_text(encoding="utf-8").split("\n")
     if tokens and tokens[-1] == "":
         tokens.pop()
@@ -165,7 +169,7 @@ def main() -> None:
     names = [*HF_MODELS, *OPUS_MODELS]
     parser = argparse.ArgumentParser()
     parser.add_argument("--models", nargs="+", choices=names, default=names)
-    parser.add_argument("--force", action="store_true", help="convert again even if the output exists")
+    parser.add_argument("--force", action="store_true", help="결과가 이미 있어도 다시 변환한다")
     args = parser.parse_args()
 
     for name in args.models:

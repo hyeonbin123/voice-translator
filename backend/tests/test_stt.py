@@ -27,9 +27,9 @@ from tests.fakes import silent_wav
 # 시도의 결과, 던질 예외를 정하고, 받은 옵션(calls)과 입력(inputs)을 기록해 테스트가 무엇이 엔진에 넘어갔는지
 # 확인하게 한다. 실제 엔진처럼 조각을 생성기로, 정보 객체(duration)와 함께 돌려준다.
 class FakeWhisperModel:
-    """Stands in for faster-whisper: returns fixed segment texts, or raises when decoding.
+    """faster-whisper 대신 쓰인다: 정해 둔 조각 글자를 돌려주거나, 디코딩할 때 예외를 던진다.
 
-    segments_without_no_speech, when set, is what a pass with the no-speech check off returns.
+    segments_without_no_speech를 정해 두면, 무음 판정을 끈 인식이 그 값을 돌려준다.
     """
 
     segments: list[str] = []
@@ -75,9 +75,8 @@ def whisper(make_whisper):
 
 # CTranslate2가 transcribe 호출에서 RuntimeError(CUDA 오류 등)를 던지면 ModelError로 바뀌고, 원래
 # 메시지("private words")는 새 예외 메시지에 들어가지 않는지 확인한다(커밋 544f8d6). 메시지에는 예외 종류만
-# 남는다.
+# 남는다. ModelError로 바뀌어야 API가 500이 아니라 503으로 답한다.
 def test_an_engine_error_on_the_call_becomes_a_model_error(make_whisper, monkeypatch):
-    # T48: CTranslate2 raises RuntimeError (CUDA errors among others); the API answers 503, not 500.
     monkeypatch.setattr(FakeWhisperModel, "error", RuntimeError("CUDA failed on private words"))
     with pytest.raises(ModelError) as caught:
         make_whisper().transcribe(silent_wav(100), "en")
@@ -87,7 +86,6 @@ def test_an_engine_error_on_the_call_becomes_a_model_error(make_whisper, monkeyp
 # faster-whisper는 조각을 생성기로 돌려주고 실제 계산은 조각을 읽을 때 일어나므로, 읽는 도중 난 예외도
 # ModelError로 바뀌는지 확인한다. 예외 경계가 호출만 감싸고 읽기를 빠뜨리는 회귀를 잡는다.
 def test_an_engine_error_while_reading_the_segments_becomes_a_model_error(make_whisper, monkeypatch):
-    # faster-whisper returns a generator; the model runs, and fails, while the segments are read.
     def segments():
         yield SimpleNamespace(text="partial")
         raise RuntimeError("CUDA failed on private words")
@@ -135,7 +133,7 @@ def test_audio_without_speech_is_reported_as_no_speech(whisper):
     FakeWhisperModel.segments = ["  "]
     with pytest.raises(NoSpeechError):
         whisper.transcribe(silent_wav(1000), "en")
-    assert len(FakeWhisperModel.calls) == 1  # no second pass unless asked for
+    assert len(FakeWhisperModel.calls) == 1  # 요청하지 않으면 두 번째 인식은 없다
 
 
 # retry_without_no_speech를 켜면 첫 결과가 비었을 때 무음 판정(no_speech_threshold)을 끄고 한 번 더
@@ -165,7 +163,7 @@ def test_retry_that_still_finds_nothing_is_no_speech(make_whisper):
 
 # 8 kHz 440 Hz 사인파 WAV. 16 kHz가 아니라서 디코딩할 때 리샘플링 단계까지 거치게 하려는 입력이다.
 def tone_wav(seconds: float = 1.5, rate: int = 8000) -> bytes:
-    """A 440 Hz tone at a rate other than 16 kHz, so decoding has to resample."""
+    """16 kHz가 아닌 표본화율의 440 Hz 사인파. 디코딩이 리샘플링을 거쳐야 한다."""
     t = np.arange(int(rate * seconds)) / rate
     buffer = io.BytesIO()
     with wave.open(buffer, "wb") as out:
@@ -187,7 +185,7 @@ def test_own_decode_gives_faster_whispers_samples_without_collecting_garbage(mon
     monkeypatch.setattr(gc, "collect", lambda *args: collections.append(args) or 0)
     samples = stt.decode_audio(audio)
     assert samples.dtype == np.float32
-    assert len(samples) == 24000  # 1.5 s at 16 kHz
+    assert len(samples) == 24000  # 16 kHz로 1.5초
     assert np.array_equal(samples, expected)
     assert collections == []
 
@@ -219,7 +217,7 @@ def test_vad_and_threshold_options_reach_faster_whisper(make_whisper):
 # faster-whisper의 기본(복제 하나)을 그대로 쓰고, num_workers를 받지 않는 가짜 모델들도 계속 동작한다(커밋
 # 685f965: 이 인자 때문에 다른 테스트가 깨졌던 일을 고침).
 def test_recognition_replicas_reach_faster_whisper_only_when_asked(monkeypatch):
-    """STT_NUM_WORKERS (T61): the default leaves faster-whisper's own default of one replica."""
+    """STT_NUM_WORKERS(T61): 기본값이면 faster-whisper 자체 기본값인 복제 하나를 그대로 쓴다."""
     from app.services import stt as stt_module
 
     made = []

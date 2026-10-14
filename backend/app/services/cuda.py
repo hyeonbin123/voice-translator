@@ -1,4 +1,4 @@
-"""CUDA library lookup for the CTranslate2-based services (speech recognition and translation)."""
+"""CTranslate2 기반 서비스(음성 인식과 번역)가 CUDA 라이브러리를 찾게 한다."""
 
 # [파일 역할] Windows에서 CTranslate2(faster-whisper 음성 인식, opus-mt 번역)가 pip로 설치된 CUDA
 # 라이브러리(cuBLAS, cuDNN)를 찾게 해 주는 도우미 하나.
@@ -17,16 +17,14 @@ from importlib.util import find_spec
 _CUDA_WHEELS = ("nvidia.cublas", "nvidia.cudnn")
 
 
-# functools.cache로 프로세스당 한 번만 실행한다(여러 모델이 불러도 PATH에 같은 폴더를 거듭 붙이지 않음).
-# 테스트는 cache_clear()로 다시 실행한다.
 @functools.cache
 def add_cuda_dll_dirs() -> None:
-    """Let CTranslate2 find the CUDA libraries installed from pip on Windows.
+    """Windows에서 CTranslate2가 pip로 설치한 CUDA 라이브러리를 찾게 한다.
 
-    CTranslate2 loads cuBLAS and cuDNN by name, and Windows doesn't search the folders
-    that the nvidia-* wheels install into, so it fails with "cublas64_12.dll is not
-    found". Linux resolves these through the wheels' rpath entries and needs nothing.
-    Cached because every model service calls it and each call would prepend to PATH again.
+    CTranslate2는 cuBLAS와 cuDNN을 이름으로 불러오는데, Windows는 nvidia-* wheel이 설치한 폴더를
+    검색하지 않아 "cublas64_12.dll is not found"로 실패한다. Linux는 wheel의 rpath 항목으로 찾으므로
+    아무것도 할 필요가 없다. 모든 모델 서비스가 이 함수를 부르고 부를 때마다 PATH 앞에 같은 폴더를 다시
+    붙이게 되므로, functools.cache로 프로세스당 한 번만 실행한다(테스트는 cache_clear()로 다시 실행한다).
     """
     if sys.platform != "win32":
         return
@@ -36,9 +34,9 @@ def add_cuda_dll_dirs() -> None:
         try:
             spec = find_spec(package)
         except ModuleNotFoundError:
-            spec = None  # not even the parent "nvidia" package is installed
+            spec = None  # 상위 "nvidia" 패키지조차 설치되지 않았다
         if spec is None or not spec.submodule_search_locations:
-            continue  # the gpu dependency group isn't installed; CPU use still works
+            continue  # gpu 의존성 그룹이 설치되지 않았다. CPU로는 그대로 쓸 수 있다
         for root in spec.submodule_search_locations:
             # 두 가지 방법으로 등록한다: os.add_dll_directory(Python 3.8+의 Windows DLL 검색 경로)와 PATH 앞에
             # 붙이기. 라이브러리가 DLL을 어떤 방식으로 불러도 찾게 하려는 것이다.

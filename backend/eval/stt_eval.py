@@ -1,10 +1,10 @@
-"""Speech recognition evaluation on FLEURS (tasks T2 and T14).
+"""FLEURS로 음성 인식을 평가한다(작업 T2와 T14).
 
-Usage, from backend/ with the gpu and eval groups installed (`uv sync --group gpu --group eval`):
+사용법(backend/에서, gpu·eval 그룹을 설치한 상태로: `uv sync --group gpu --group eval`):
     uv run python -m eval.stt_eval --split validation --models small large-v3-turbo large-v3 --tag t2_dev
     uv run python -m eval.stt_eval --split validation --models large-v3-turbo --variants a b c d --tag t14_dev
 
-The candidates and the selection rule are written in docs/experiments.md before any run.
+후보와 선택 규칙은 실행 전에 docs/experiments.md에 먼저 적었다.
 """
 
 # [파일 역할] 음성 인식 모델·디코딩 설정을 FLEURS로 재는 측정 스크립트다(T2: 모델 고르기, T14: 빈 결과를
@@ -46,7 +46,7 @@ from eval.text_norm import normalize
 SAMPLE_RATE = 16_000
 # T14 후보(1-1절): a 기본값(기준), b vad_filter=True(Silero VAD로 말소리 구간만 넘김), c 결과가 비었을 때만
 # 무음 판정 없이 한 번 더 인식, d 무음 판정을 늘 끔. 판정은 b였고 서버는 STT_VAD_FILTER(기본 켬)로 쓴다.
-# Decoding variants compared in T14 (docs/experiments.md 1-1). "a" is faster-whisper's defaults, as in T2.
+# "a"는 T2와 같은 faster-whisper 기본값이다.
 VARIANTS: dict[str, dict] = {
     "a": {},
     "b": {"vad_filter": True},
@@ -68,14 +68,13 @@ def load_split(language: str, split: str, limit: int | None) -> list[dict]:
 # 한국어는 CER(글자), 영어는 WER(단어). 문장별 오류율의 평균이 아니라 전체 편집 수 ÷ 전체 참조 길이다(1절
 # 지표). 긴 문장과 짧은 문장이 길이만큼 반영된다.
 def error_rate(language: str, references: list[str], hypotheses: list[str]) -> float:
-    # Corpus-level: total edits over total reference length, not a mean of per-sentence rates.
     return jiwer.cer(references, hypotheses) if language == "ko" else jiwer.wer(references, hypotheses)
 
 
 # 3초짜리 무음 또는 진폭 0.01의 백색 잡음을 16비트 모노 WAV 바이트로 만든다. 잡음은 시드 0으로 고정해 실행마다
 # 같은 입력이 된다.
 def no_speech_wav(kind: str, seconds: float = 3.0) -> bytes:
-    """Audio without speech: digital silence, or quiet white noise (peak amplitude 0.01, fixed seed)."""
+    """말이 없는 음성: 디지털 무음, 또는 작은 백색 잡음(최대 진폭 0.01, 고정 시드)."""
     count = int(SAMPLE_RATE * seconds)
     samples = np.zeros(count) if kind == "silence" else np.random.default_rng(0).uniform(-0.01, 0.01, count)
     buffer = io.BytesIO()
@@ -90,7 +89,7 @@ def no_speech_wav(kind: str, seconds: float = 3.0) -> bytes:
 # 인식 결과 글자를 돌려주되, 말을 찾지 못해 InvalidAudioError(NoSpeechError 포함)가 나면 빈 문자열로 둔다.
 # 서버가 '말 없음'으로 알리는 경우를 빈 결과로 세기 위해서다.
 def recognize(stt: WhisperSpeechToText, audio: bytes, language: str) -> str:
-    """The recognized text, or "" when nothing was found (what the server reports as no speech)."""
+    """인식한 글. 아무것도 찾지 못하면(서버가 '말 없음'으로 알리는 경우) ""."""
     try:
         return stt.transcribe(audio, language).text
     except InvalidAudioError:
@@ -116,7 +115,7 @@ def evaluate_model(
 
     for language in languages:
         rows = load_split(language, split, limit)
-        recognize(stt, rows[0]["audio"]["bytes"], language)  # warm-up, not timed
+        recognize(stt, rows[0]["audio"]["bytes"], language)  # 준비용 호출, 시간을 재지 않는다
         references, hypotheses, seconds_per_second, items = [], [], [], []
         for row in rows:
             # 발화마다 처리 시간 ÷ 음성 길이(음성 1초당 처리 초)를 잰다. 오류는 정답·결과를 같은 규칙으로
@@ -148,14 +147,14 @@ def evaluate_model(
             "metric": "CER" if language == "ko" else "WER",
             "error": error_rate(language, references, hypotheses),
             "empty": sum(not hypothesis for _, hypothesis in pairs),
-            # More than twice the reference's length: likely made-up text (T14's hallucination signal).
+            # 참조 길이의 2배를 넘으면 지어낸 글일 가능성이 크다(T14의 환각 신호).
             "long": sum(len(hypothesis) > 2 * len(reference) for reference, hypothesis in pairs),
             "speed_p50": statistics.median(seconds_per_second),
             "speed_p95": statistics.quantiles(seconds_per_second, n=20)[18],
             "count": len(rows),
             "items": items,
         }
-        # Inputs without speech must come back empty; anything else is text the model made up.
+        # 말이 없는 입력은 빈 결과로 돌아와야 한다. 무엇이든 글이 나오면 모델이 지어낸 것이다.
         for kind in NO_SPEECH_INPUTS:
             result["no_speech"][f"{language}/{kind}"] = recognize(stt, no_speech_wav(kind), language)
 
@@ -236,7 +235,7 @@ def main() -> None:
     parser.add_argument("--models", nargs="+", default=["small", "large-v3-turbo", "large-v3"])
     parser.add_argument("--variants", nargs="+", choices=list(VARIANTS), default=["a"])
     parser.add_argument("--languages", nargs="+", choices=["ko", "en"], default=["ko", "en"])
-    parser.add_argument("--limit", type=int, default=None, help="first N utterances per language")
+    parser.add_argument("--limit", type=int, default=None, help="언어마다 앞에서부터 N개 발화만 쓴다")
     parser.add_argument("--beam", type=int, default=5)
     parser.add_argument("--tag", default="run")
     args = parser.parse_args()

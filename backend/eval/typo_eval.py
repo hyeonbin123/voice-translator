@@ -1,16 +1,16 @@
-"""Translation of text with typing mistakes (task T32).
+"""오타가 섞인 글자 입력의 번역(작업 T32).
 
-Usage, from backend/ with the gpu and eval groups installed, and the FLEURS files (eval.fleurs_download),
-the translation models (eval.mt_convert) and the typo sets (eval.typo_noise) in place:
-    uv run python -m eval.typo_eval convert                      # the correction models to CTranslate2
+사용법(backend/에서, gpu·eval 그룹을 설치하고 FLEURS 파일(eval.fleurs_download), 번역 모델(eval.mt_convert),
+오타 세트(eval.typo_noise)를 준비한 상태로):
+    uv run python -m eval.typo_eval convert                      # 교정 모델을 CTranslate2로 변환
     uv run python -m eval.typo_eval run --split validation --tag t32_dev
     uv run python -m eval.typo_eval run --split test --directions ko-en --candidates B --tag t32_test
     uv run python -m eval.typo_eval run --split validation --directions en-ko --candidates A \
         --translator hy-mt2-q8/split --tag t83_typo_dev                  (T83, docs/experiments.md 15)
 
-The candidates and the selection rule are in docs/experiments.md 6, written before any run. The
-translation side is the server's setting by default: opus-mt-tc-big, English to Korean one sentence at a time.
-With --translator it is one of eval.mt_eval's Hy-MT2 candidates instead (T83, docs/experiments.md 15).
+후보와 선택 규칙은 실행 전에 docs/experiments.md 6절에 적었다. 번역 쪽은 기본으로 서버 설정과 같다:
+opus-mt-tc-big, 영→한은 문장 단위. --translator를 주면 대신 eval.mt_eval의 Hy-MT2 후보 하나를 쓴다(T83,
+docs/experiments.md 15절).
 """
 
 # [파일 역할] 오타가 섞인 글자 입력의 번역 품질을 재고, 번역 전에 오타를 고치는 교정 후보를 비교하는 측정
@@ -53,7 +53,7 @@ LEVELS = ("clean", "light", "heavy")
 DIRECTIONS: dict[str, tuple[Language, Language]] = {"ko-en": ("ko", "en"), "en-ko": ("en", "ko")}
 # 후보 B의 교정 모델(6절 후보): 한국어 j5ng/et5-typos-corrector(입력 앞에 '맞춤법을 고쳐주세요: '를 붙이도록
 # 학습됨), 영어 oliverguhr/spelling-correction-english-base.
-# language: (Hugging Face repository, converted folder, text put before the input)
+# 형식: 언어: (Hugging Face 저장소, 변환한 폴더 이름, 입력 앞에 붙이는 글)
 SEQ2SEQ = {
     "ko": ("j5ng/et5-typos-corrector", "et5-typos-corrector", "맞춤법을 고쳐주세요: "),
     "en": ("oliverguhr/spelling-correction-english-base", "spelling-correction-english-base", ""),
@@ -70,7 +70,7 @@ SYSTEM = (
 # 후보 B: 교정 모델을 CTranslate2로 변환해 번역 모델처럼 GPU float16으로 돌리는 교정기. 토크나이저는 Hugging
 # Face 원본을 쓴다.
 class Seq2SeqCorrector:
-    """A correction model converted to CTranslate2, on the GPU like the translation models."""
+    """CTranslate2로 변환한 교정 모델. 번역 모델처럼 GPU에서 돈다."""
 
     def __init__(self, language: Language) -> None:
         import ctranslate2
@@ -95,7 +95,7 @@ class Seq2SeqCorrector:
 
 # 후보 C·D: Ollama의 지시 따름 LLM에 고정 지시문(system)과 입력(user)을 보내 교정문을 받는 교정기.
 class OllamaCorrector:
-    """An instruction-tuned LLM served by Ollama with one fixed instruction (docs/experiments.md 6)."""
+    """Ollama가 제공하는 지시 따름 LLM에 고정 지시문 하나를 주어 쓰는 교정기(docs/experiments.md 6절)."""
 
     def __init__(self, model: str, language: Language) -> None:
         self.name = f"ollama/{model}"
@@ -126,7 +126,7 @@ class OllamaCorrector:
 # 기다린다(eval/mt_eval.py와 같은 방식).
 def unload_ollama(model: str) -> None:
     httpx.post(f"{OLLAMA_URL}/api/generate", json={"model": model, "keep_alive": 0}, timeout=60)
-    time.sleep(3)  # let the runner release its memory before the next reading
+    time.sleep(3)  # 다음 메모리 읽기 전에 러너가 메모리를 놓을 시간을 준다
 
 
 # 후보 이름 → 언어를 받아 교정기를 만드는 함수(A는 교정 없음이라 None).
@@ -149,7 +149,7 @@ def load_rows(split: str, limit: int | None) -> list[dict]:
 # 후보 표에서 Hy-MT2 후보를 가져오고, 그 후보가 이 방향을 번역하지 않으면 멈춘다. Hy-MT2는 prepare에서 기록된
 # 빌드인지 확인한다(T83).
 def translator_for(direction: str, name: str = "opus") -> Translator:
-    """The server's opus setting, or a Hy-MT2 candidate of eval.mt_eval (T83), prepared and checked."""
+    """서버의 opus 설정, 또는 준비·확인을 마친 eval.mt_eval의 Hy-MT2 후보(T83)."""
     source, target = DIRECTIONS[direction]
     if name == "opus":
         folder = CT2 / f"opus-mt-tc-big-{source}-{target}"
@@ -161,7 +161,7 @@ def translator_for(direction: str, name: str = "opus") -> Translator:
         raise SystemExit(f"{name} does not translate {direction}")
     translator = factory()
     if isinstance(translator, HyMtTranslator):
-        translator.prepare()  # refuses another build than the recorded one
+        translator.prepare()  # 기록된 것과 다른 빌드면 거부한다
     return translator
 
 
@@ -175,11 +175,11 @@ def evaluate(direction: str, candidate: str, rows: list[dict], translator: Trans
     # VRAM은 교정 모델을 올리기 전후의 GPU 전체 사용량 차이다. Ollama 후보는 먼저 모델을 내린 상태에서 재고,
     # 첫 교정 호출(시간에 넣지 않는 준비)로 모델을 올린 뒤 다시 읽는다.
     if factory is not None and candidate in ("C", "D"):
-        unload_ollama(factory(source).model)  # read VRAM without the model loaded
+        unload_ollama(factory(source).model)  # 모델을 내린 상태에서 VRAM을 읽는다
     _, before = gpu_memory_mb()
     corrector = factory(source) if factory else None
     if corrector is not None:
-        corrector.correct(rows[0][source])  # loads the model (Ollama) and warms it up, not timed
+        corrector.correct(rows[0][source])  # 모델을 올리고(Ollama) 준비시킨다. 시간은 재지 않는다
     _, after = gpu_memory_mb()
     result: dict = {
         "direction": direction,
@@ -198,7 +198,7 @@ def evaluate(direction: str, candidate: str, rows: list[dict], translator: Trans
             start = time.perf_counter()
             corrected = corrector.correct(row[key]) if corrector else row[key]
             if not corrected.strip():
-                empty, corrected = empty + 1, row[key]  # a correction that returns nothing falls back
+                empty, corrected = empty + 1, row[key]  # 빈 교정이면 원래 입력으로 되돌린다
             middle = time.perf_counter()
             try:
                 hypothesis = translator.translate(corrected, source, target)
@@ -220,7 +220,7 @@ def evaluate(direction: str, candidate: str, rows: list[dict], translator: Trans
             )
         result["levels"][level] = {
             "chrf": sacrebleu.corpus_chrf(hypotheses, [references]).score,
-            # Reference only (not in the rule): how close the corrected input comes to the clean original.
+            # 참고용(규칙에 없음): 교정한 입력이 깨끗한 원문에 얼마나 가까워졌는지.
             "input_chrf": sacrebleu.corpus_chrf(corrected_texts, [[row[source] for row in rows]]).score,
             "correction_p50": statistics.median(correction_s),
             "total_p50": statistics.median(total_s),
@@ -232,7 +232,7 @@ def evaluate(direction: str, candidate: str, rows: list[dict], translator: Trans
     if isinstance(corrector, OllamaCorrector):
         from eval.mt_eval import ollama_state
 
-        result["ollama"] = ollama_state(corrector.model)  # read while the corrector is still loaded
+        result["ollama"] = ollama_state(corrector.model)  # 교정기가 아직 올라가 있을 때 읽는다
     if corrector is not None:
         corrector.close()
     gc.collect()
@@ -312,13 +312,13 @@ def main() -> None:
     run_parser.add_argument("--split", choices=["validation", "test"], default="validation")
     run_parser.add_argument("--directions", nargs="+", choices=list(DIRECTIONS), default=list(DIRECTIONS))
     run_parser.add_argument("--candidates", nargs="+", choices=list(CANDIDATES), default=list(CANDIDATES))
-    run_parser.add_argument("--limit", type=int, default=None, help="first N sentence pairs")
+    run_parser.add_argument("--limit", type=int, default=None, help="앞에서부터 N개 문장 쌍만 쓴다")
     run_parser.add_argument("--tag", default="run")
     run_parser.add_argument(
         "--translator",
         default="opus",
         choices=["opus", "hy-mt2-q8", "hy-mt2-q8/split", "hy-mt2-q4", "hy-mt2-q4/split"],
-        help="the server's opus setting, or a Hy-MT2 candidate of eval.mt_eval (T83)",
+        help="서버의 opus 설정, 또는 eval.mt_eval의 Hy-MT2 후보(T83)",
     )
     args = parser.parse_args()
 
@@ -331,7 +331,7 @@ def main() -> None:
     for direction in args.directions:
         translator = translator_for(direction, args.translator)
         source, target = DIRECTIONS[direction]
-        translator.translate(rows[0][source], source, target)  # warm-up, not timed
+        translator.translate(rows[0][source], source, target)  # 준비용 호출, 시간을 재지 않는다
         for candidate in args.candidates:
             print(f"evaluating {direction} / {candidate} ...", flush=True)
             results.append(evaluate(direction, candidate, rows, translator))

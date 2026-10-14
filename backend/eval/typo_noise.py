@@ -1,14 +1,13 @@
-"""Add typing mistakes to the FLEURS sentence pairs (task T32).
+"""FLEURS 문장 쌍에 자판 오타를 섞는다(작업 T32).
 
-Usage, from backend/ with the eval group installed (it reads the FLEURS parquet files):
+사용법(backend/에서, eval 그룹을 설치한 상태로. FLEURS parquet 파일을 읽는다):
     uv run python -m eval.typo_noise --split validation
 
-Writes data/typo/<split>.jsonl (git-ignored): each sentence pair with its clean text and a light and a
-heavy typo version of both sides. The rules are in docs/experiments.md 6: every word (space-separated
-chunk) gets one mistake with probability p. Korean mistakes: a jamo typed with the neighbouring key on
-the 2-set (dubeolsik) keyboard, a dropped final consonant, a missing or extra space, two neighbouring
-syllables swapped. English mistakes: a neighbouring QWERTY key, a dropped letter, a doubled letter, two
-neighbouring letters swapped, a missing space. The seed is fixed, so the same files come out every time.
+data/typo/<split>.jsonl(git이 무시함)을 쓴다: 문장 쌍마다 깨끗한 원문과, 두 언어 각각의 가벼운 오타판·심한
+오타판. 규칙은 docs/experiments.md 6절에 있다: 단어(공백으로 나뉜 덩어리)마다 확률 p로 오타 하나를 넣는다.
+한국어 오타: 두벌식 자판에서 옆 키로 친 자모, 받침 빠짐, 공백 빠짐 또는 덧붙음, 이웃한 두 음절 순서 바뀜.
+영어 오타: QWERTY 옆 키, 글자 빠짐, 글자 두 번, 이웃한 두 글자 순서 바뀜, 공백 빠짐. 시드를 고정해 매번
+같은 파일이 나온다.
 """
 
 # [파일 역할] FLEURS 병렬 문장에 규칙으로 자판 오타를 섞어 '오타 입력 번역' 평가
@@ -44,7 +43,6 @@ JUNG = "ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ"
 JONG = ["", *"ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ"]
 # 두벌식 자판에서 자모 → 영문 키 표와 그 역표. 기본 자모 26개만 있고, 쌍자음·겹모음·겹받침(Shift나 두 번
 # 누름)은 표에 없다.
-# The key each jamo sits on in the 2-set layout, and the reverse.
 DUBEOLSIK = dict(
     zip("ㅂㅈㄷㄱㅅㅛㅕㅑㅐㅔㅁㄴㅇㄹㅎㅗㅓㅏㅣㅋㅌㅊㅍㅠㅜㅡ", "qwertyuiopasdfghjklzxcvbnm", strict=True)
 )
@@ -57,7 +55,7 @@ ROWS = ("qwertyuiop", "asdfghjkl", "zxcvbnm")
 # 검사라 빈 문자열('')이 모든 줄에 포함된 것으로 판정돼 첫 줄의 'q' 위치로 보고 ['w']를 돌려주었다(2026-10-13
 # 고침, docs/experiments.md 16절).
 def neighbours(key: str) -> list[str]:
-    """Keys to the left and right on the same keyboard row."""
+    """같은 자판 줄에서 왼쪽·오른쪽에 있는 키."""
     for row in ROWS:
         if len(key) == 1 and key in row:
             i = row.index(key)
@@ -108,7 +106,7 @@ def _korean_neighbour_key(word: str, rng: random.Random) -> str | None:
                 elif slot == 2 and typed in JONG:
                     parts[2] = JONG.index(typed)
                 else:
-                    continue  # the neighbouring key types the other kind of jamo
+                    continue  # 옆 키가 다른 종류의 자모를 친다
                 options.append(word[:i] + compose(*parts) + word[i + 1 :])
     return rng.choice(options) if options else None
 
@@ -177,7 +175,7 @@ def _english_doubled(word: str, rng: random.Random) -> str | None:
 # add_typos가 처리한다.
 # WORD_TYPOS: 언어별 오타 종류 목록(6절 평가 세트의 종류와 같음). 람다는 공통 함수에 언어별 글자 조건을 묶은
 # 것이다.
-MERGE = "merge"  # joined to the previous word: handled in add_typos
+MERGE = "merge"
 WORD_TYPOS: dict[str, list] = {
     "ko": [
         _korean_neighbour_key,
@@ -199,7 +197,7 @@ WORD_TYPOS: dict[str, list] = {
 # 문장의 단어(공백으로 나뉜 덩어리)마다 확률 rate로 오타 하나를 넣는다. 종류는 무작위 순서로 시도해 처음
 # 적용되는 것을 쓴다(6절). 입력: 원문, 언어, 확률, 난수 생성기. 출력: 오타 문장.
 def add_typos(text: str, language: str, rate: float, rng: random.Random) -> str:
-    """Give each word one mistake with probability `rate`; types are tried in random order."""
+    """단어마다 확률 `rate`로 오타 하나를 넣는다. 오타 종류는 무작위 순서로 시도한다."""
     words = text.split(" ")
     out: list[str] = []
     for index, word in enumerate(words):
@@ -227,7 +225,7 @@ def add_typos(text: str, language: str, rate: float, rng: random.Random) -> str:
 # 분할의 FLEURS 병렬 문장(eval/mt_eval.py의 load_pairs, 번역 평가와 같은 문장 묶음)마다 두 언어 × 두 수준의
 # 오타 판을 만든다.
 def build(split: str) -> list[dict]:
-    # Imported here: it needs the eval group (pyarrow, sacrebleu), the typo rules and their tests don't.
+    # 여기서 가져온다: load_pairs는 eval 그룹(pyarrow, sacrebleu)이 필요하지만 오타 규칙과 테스트는 아니다.
     from eval.mt_eval import load_pairs
 
     rows = []
@@ -235,7 +233,7 @@ def build(split: str) -> list[dict]:
         row = {"id": pair["id"], "ko": pair["ko"], "en": pair["en"]}
         for level, rate in LEVELS.items():
             for language in ("ko", "en"):
-                # A string seed per sentence keeps every row reproducible on its own.
+                # 문장마다 문자열 시드를 따로 주어, 각 행이 다른 행과 관계없이 그 자체로 재현되게 한다.
                 rng = random.Random(f"{SEEDS[split]}:{pair['id']}:{language}:{level}")
                 row[f"{language}_{level}"] = add_typos(pair[language], language, rate, rng)
         rows.append(row)

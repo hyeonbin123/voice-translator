@@ -9,11 +9,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { MAX_AUDIO_BYTES } from './api'
 
-// The server rejects more than 30 s of decoded audio. The stop timer only fires late (hidden pages wake
-// timers once per second), so stop a second early, like the conversation modes' 29 s limit.
-// 위 영어 주석의 요지: 서버는 30초 넘는 음성을 거절하는데, 숨겨진 탭에서는 타이머가 1초 가까이 늦게 깨어날 수
-// 있어 30초 타이머로는 30.0~31.0초에 멈춰 422가 났다. 그래서 1초 일찍 29초에 멈춘다(dfc251d). 화면 문구와
-// 카운터는 서버 한도인 30초를 그대로 보인다.
+// 서버는 디코딩한 길이가 30초를 넘는 음성을 거절한다. 정지 타이머는 늦게만 울릴 수 있어(숨겨진 탭은 타이머를
+// 1초에 한 번쯤 깨움) 30초 타이머로는 30.0~31.0초에 멈춰 422가 났다. 그래서 대화 모드의 29초 한도처럼 1초 일찍
+// 29초에 멈춘다(dfc251d). 화면 문구와 카운터는 서버 한도인 30초를 그대로 보인다.
 export const MAX_RECORDING_MS = 29_000
 // 진행 중인 녹음 한 건이 쥐고 있는 자원: 녹음기, 마이크 스트림, 29초 정지 타이머, 경과 초 갱신 타이머.
 type Recording = {

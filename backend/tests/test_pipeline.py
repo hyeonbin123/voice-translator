@@ -60,7 +60,7 @@ async def test_models_run_off_loop_and_queue_wait_is_excluded(db_session, user, 
     blocker = asyncio.create_task(run_model(occupy_worker))
     while not entered.is_set():
         await asyncio.sleep(0.005)
-    # Deterministic clock measures only inside each model call; waiting must not consume clock ticks.
+    # 정해진 값을 내는 시계로 모델 호출 안쪽만 잰다. 기다리는 시간이 시계 값을 쓰면 안 된다.
     ticks = iter([1.0, 1.012, 2.0, 2.023, 3.0, 3.034])
     monkeypatch.setattr(pipeline, "perf_counter", lambda: next(ticks))
     task = asyncio.create_task(
@@ -104,7 +104,7 @@ async def test_typed_english_is_corrected_before_translation(db_session, user, t
     result = await translate_with(models, db_session, user, tmp_path, text="I hvae a cat.")
     assert corrector.calls == [("I hvae a cat.", "en")]
     assert result.translated_text == "[en->ko] I have a cat."
-    # The record keeps what the user typed, and names both models.
+    # 기록에는 사용자가 입력한 글이 그대로 남고, 두 모델 이름이 함께 적힌다.
     assert result.source_text == "I hvae a cat."
     assert result.mt_model == "fake-mt + fake-corrector"
 
@@ -113,8 +113,8 @@ async def test_typed_english_is_corrected_before_translation(db_session, user, t
 # 스레드에서 돈다. 교정이 멈춰 있는 동안 다른 사람의 음성 번역이 2초 안에 끝나고(교정은 아직 풀려나지 않음),
 # 교정이 끝난 뒤 글자 요청도 정상 결과를 내는지 확인한다.
 async def test_a_slow_correction_does_not_hold_the_model_thread():
-    """The correction is an HTTP call to Ollama that can take up to CORRECTION_TIMEOUT_S: speech from other
-    requests must not wait behind it on the model thread."""
+    """교정은 CORRECTION_TIMEOUT_S까지 걸릴 수 있는 Ollama HTTP 호출이다. 다른 요청의 음성이 모델 스레드에서
+    그 뒤에 줄 서서 기다리면 안 된다."""
 
     class BlockingCorrector(FakeCorrector):
         def __init__(self) -> None:
@@ -158,11 +158,11 @@ async def test_a_slow_correction_does_not_hold_the_model_thread():
 # 시작될 때마다 세마포어 허가를 하나 내어, 테스트가 '교정이 시작됐는가'를 시간 제한을 두고 기다릴 수 있게
 # 한다.
 class GatedCorrector(FakeCorrector):
-    """Holds every correction until released and counts how many run at the same time."""
+    """풀어 줄 때까지 모든 교정을 붙잡고, 동시에 몇 개가 도는지 센다."""
 
     def __init__(self) -> None:
         super().__init__("I have a cat.")
-        self.started = threading.Semaphore(0)  # one permit per correction that has begun
+        self.started = threading.Semaphore(0)  # 시작한 교정마다 허가 하나
         self.release = threading.Event()
         self.lock = threading.Lock()
         self.running = self.most = 0
@@ -199,8 +199,8 @@ def typed_request(corrector: FakeCorrector) -> asyncio.Task:
 # 하나씩만 돈다(교정 전용 스레드 1개). 첫 교정이 붙잡힌 동안 두 번째는 0.3초 안에 시작하지 않아야 하고, 동시
 # 실행 최댓값은 1이다.
 async def test_typed_requests_are_corrected_one_at_a_time():
-    """Each correction is Ollama work on the GPU the models use: one at a time, as when it ran on the model
-    thread, not one per typed request at once (T73)."""
+    """교정은 모델과 같은 GPU를 쓰는 Ollama 작업이다. 모델 스레드에서 돌던 때처럼 하나씩 돌아야 하며,
+    글자 요청마다 동시에 하나씩 돌면 안 된다."""
     corrector = GatedCorrector()
     first, second = typed_request(corrector), typed_request(corrector)
     try:
@@ -216,8 +216,6 @@ async def test_typed_requests_are_corrected_one_at_a_time():
 # 요청이 취소돼도 이미 시작한 스레드 속 Ollama 호출은 멈출 수 없으므로 끝까지 돈다. 그다음 요청의 교정이 그
 # 호출과 겹치지 않고 기다리는지 확인한다.
 async def test_the_next_correction_waits_for_a_cancelled_requests_correction():
-    # A thread cannot be stopped: the cancelled request's call to Ollama runs to its end, and the next
-    # correction must not overlap it.
     corrector = GatedCorrector()
     first = typed_request(corrector)
     assert await corrector.begins_within(5)
@@ -243,7 +241,7 @@ async def test_a_correction_cancelled_while_waiting_never_runs():
     try:
         assert await corrector.begins_within(5)
         waiting = typed_request(corrector)
-        await asyncio.sleep(0.1)  # queued behind the first correction
+        await asyncio.sleep(0.1)  # 첫 교정 뒤에 줄 서 있다
         waiting.cancel()
         with pytest.raises(asyncio.CancelledError):
             await waiting
@@ -273,8 +271,8 @@ FINISHED = {"done": True, "done_reason": "stop"}
 # 테스트가 끝나면 만든 교정기를 모두 닫는다(백그라운드 스레드·HTTP 클라이언트 정리).
 @pytest.fixture
 def ready_corrector():
-    """Makes the real corrector, prepared, with only Ollama's HTTP answer to the typed text replaced (T38,
-    T40), and closes each one after the test (T41)."""
+    """준비를 마친 실제 교정기를 만들되 입력 글에 대한 Ollama HTTP 답만 바꾸고(T38), 테스트가 끝나면 만든
+    교정기를 하나씩 닫는다."""
     made: list[OllamaCorrector] = []
 
     def make(reply: httpx.Response) -> OllamaCorrector:
@@ -420,7 +418,7 @@ async def test_audio_store_never_reads_or_deletes_outside_directory(tmp_path, ca
         assert await store.read(path) is None
         await store.delete(path)
         assert outside.read_bytes() == b"private"
-    # Logged as the exception's type and place, not its message (T54): the refusal in resolve().
+    # 로그에는 예외 메시지가 아니라 예외 종류와 위치만 남는다: resolve()에서 거부한 것.
     assert "ValueError (at audio_store.py" in caplog.text and "in resolve)" in caplog.text
 
 
@@ -465,7 +463,7 @@ async def test_partial_write_is_removed(tmp_path, monkeypatch, failure_stage):
 # 기록도 남지 않아야 한다.
 # 방법: 저장소의 resolve를 붙잡아 쓰기가 진행 중일 때 취소를 보내고, 그 뒤에 쓰기를 풀어 준다.
 async def test_a_save_cancelled_while_writing_leaves_neither_record_nor_file(db_session, user, tmp_path):
-    """A live connection that closes mid-save cancels it while the worker thread writes the file (T59)."""
+    """저장 도중 닫힌 동시통역 연결은 작업자 스레드가 파일을 쓰는 동안 저장을 취소한다."""
     entered, release = threading.Event(), threading.Event()
     store = AudioStore(tmp_path / "audio")
     resolve = store.resolve
@@ -493,7 +491,7 @@ async def test_a_save_cancelled_while_writing_leaves_neither_record_nor_file(db_
     )
     assert await asyncio.to_thread(entered.wait, 5)
     saving.cancel()
-    await asyncio.sleep(0)  # the cancellation reaches save() while the write is still held
+    await asyncio.sleep(0)  # 쓰기가 아직 붙잡혀 있는 동안 취소가 save()에 닿는다
     release.set()
     with pytest.raises(asyncio.CancelledError):
         await saving
@@ -516,8 +514,8 @@ class ThreadRecordingTTS(FakeTextToSpeech):
 # 밖의 언어(GPU의 영어 Kokoro)는 모델 스레드에서 도는지 스레드 이름으로 확인한다. CPU 합성이 GPU 모델들의 줄을
 # 막지 않게 하려는 배치다(inference.run_synthesis docstring).
 async def test_cpu_synthesis_runs_on_the_synthesis_thread_and_the_rest_on_the_model_thread():
-    """Korean synthesis on the CPU (Supertonic, T78) leaves the model thread to the GPU models; English
-    synthesis (Kokoro on the GPU) stays on it."""
+    """CPU의 한국어 합성(Supertonic, T78)은 모델 스레드를 GPU 모델들에게 비워 두고, 영어 합성(GPU의
+    Kokoro)은 모델 스레드에 남는다."""
     tts = ThreadRecordingTTS()
     bundle = pipeline.PipelineModels(
         FakeSpeechToText(), FakeTranslator(), tts=tts, synthesis_off_model_thread=frozenset({"ko"})

@@ -1,11 +1,11 @@
-"""Download the FLEURS parquet files the evaluations read (task T2).
+"""평가가 읽는 FLEURS parquet 파일을 내려받는다.
 
-Usage, from backend/ (needs only httpx, a main dependency):
-    uv run python -m eval.fleurs_download            # validation and test, Korean and English, about 1 GB
-    uv run python -m eval.fleurs_download --dry-run  # compare the remote sizes with the local files
+backend/에서 쓰는 법(주 의존성인 httpx만 필요):
+    uv run python -m eval.fleurs_download            # validation과 test, 한국어와 영어, 약 1GB
+    uv run python -m eval.fleurs_download --dry-run  # 원격 파일 크기를 로컬 파일과 비교
 
-Writes data/fleurs/<config>/<split>.parquet (git-ignored). The files are the parquet conversion Hugging Face
-serves for google/fleurs (CC-BY-4.0), the same files docs/experiments.md was measured on.
+data/fleurs/<config>/<split>.parquet에 쓴다(git이 무시함). 파일은 Hugging Face가 google/fleurs(CC-BY-4.0)에
+대해 제공하는 parquet 변환본으로, docs/experiments.md의 측정에 쓴 것과 같은 파일이다.
 """
 
 # [파일 역할] 모든 측정이 읽는 Google FLEURS(한국어·영어, validation·test) parquet 파일을 받는 스크립트.
@@ -59,8 +59,8 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--languages", nargs="+", choices=list(FLEURS_CONFIG), default=list(FLEURS_CONFIG))
     parser.add_argument("--splits", nargs="+", choices=SPLITS, default=list(SPLITS))
-    parser.add_argument("--dry-run", action="store_true", help="compare sizes only, download nothing")
-    parser.add_argument("--force", action="store_true", help="download even if the file exists")
+    parser.add_argument("--dry-run", action="store_true", help="크기만 비교하고 아무것도 받지 않는다")
+    parser.add_argument("--force", action="store_true", help="파일이 이미 있어도 다시 받는다")
     args = parser.parse_args()
 
     for language in args.languages:

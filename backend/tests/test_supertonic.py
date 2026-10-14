@@ -1,5 +1,5 @@
-"""Supertonic 3 on ONNX Runtime (T78, docs/experiments.md 12), with fake ONNX sessions: the real model files
-are a 400 MB download (eval.supertonic_download) that tests and CI do not have."""
+"""ONNX Runtime 위의 Supertonic 3(T78, docs/experiments.md 12절)을 가짜 ONNX 세션으로 검증한다. 실제 모델
+파일은 400MB를 내려받아야 해서(eval.supertonic_download) 테스트와 CI에는 없다."""
 
 # [파일 역할] 한국어 합성 비교용 설정(KO_TTS=supertonic) Supertonic 3 엔진(app/services/supertonic.py)과
 # 서비스 포장(tts.py의 SupertonicTextToSpeech)을 가짜 ONNX 세션으로 검증한다. 실제 모델 파일(약 400MB)은
@@ -34,7 +34,7 @@ CONFIG = {
     "ttl": {"latent_dim": 2, "chunk_compress_factor": 3},
 }
 # 잠재 프레임 하나가 만드는 표본 수(base_chunk_size × chunk_compress_factor = 10 × 3).
-CHUNK = 30  # samples per latent frame: base_chunk_size * chunk_compress_factor
+CHUNK = 30
 
 
 # 실제 unicode_indexer.json을 대신하는 색인표: 유니코드 코드값 % 1000을 색인으로 주고, UNSUPPORTED만 -1로
@@ -63,7 +63,7 @@ class FakeSession:
 
 
 class ZeroNoise:
-    """Stands in for the random generator, so the flow-matching steps can be counted in the output."""
+    """난수 생성기 대신 0을 내어, flow matching 단계 수를 출력에서 셀 수 있게 한다."""
 
     def standard_normal(self, shape, dtype):
         return np.zeros(shape, dtype=dtype)
@@ -77,7 +77,6 @@ def fake_sessions(seconds: float = 0.5) -> dict[str, FakeSession]:
         "text_encoder": FakeSession(
             lambda feeds: np.zeros((1, 256, feeds["text_ids"].shape[1]), dtype=np.float32)
         ),
-        # Each step adds 1, so the vocoder sees the number of steps that ran.
         "vector_estimator": FakeSession(lambda feeds: feeds["noisy_latent"] + 1),
         "vocoder": FakeSession(
             lambda feeds: np.full(
@@ -100,7 +99,6 @@ def engine(sessions=None) -> SupertonicEngine:
 # 확인한다. 이미 물음표로 끝나면 마침표를 더 붙이지 않는다. 두 번째 값은 버린 글자 수(0)다.
 def test_korean_text_is_decomposed_ended_and_tagged():
     assert TextProcessor(indexer()).prepare("안녕하세요", "ko") == (f"<ko>{nfkd('안녕하세요.')}</ko>", 0)
-    # Text that already ends with punctuation gets no extra period.
     assert TextProcessor(indexer()).prepare("정말요?", "ko") == (f"<ko>{nfkd('정말요?')}</ko>", 0)
 
 
@@ -150,12 +148,10 @@ def test_long_korean_text_is_cut_at_sentence_ends_into_120_character_chunks():
 def test_each_chunk_is_trimmed_to_its_predicted_length_and_joined_by_silence():
     sessions = fake_sessions(seconds=0.5)
     audio = engine(sessions).synthesize("가" * 70 + ". " + "나" * 70 + ".", "ko", steps=2)
-    # 0.5 s predicted, divided by the default speed 1.05: int(476.19) samples at 1000 Hz per chunk.
     assert audio.dtype == np.float32
     assert audio.shape == (476 + 300 + 476,)
-    assert np.all(audio[476:776] == 0)  # 0.3 s between the chunks
-    assert np.allclose(audio[:476], 0.02) and np.allclose(audio[776:], 0.02)  # 2 steps -> latent 2 -> 2/100
-    # The noise covers ceil(476 / 30) = 16 latent frames of 2 * 3 channels.
+    assert np.all(audio[476:776] == 0)
+    assert np.allclose(audio[:476], 0.02) and np.allclose(audio[776:], 0.02)
     assert sessions["vector_estimator"].calls[0]["noisy_latent"].shape == (1, 6, 16)
 
 
@@ -213,8 +209,8 @@ def write_model_dir(path):
 # 경로·옵션·제공자로 만들어졌는지와 CUDA DLL 미리 불러오기 호출을 기록한다. active를 주면 세션이 실제로 얻은
 # 제공자를 다르게 보고하게 할 수 있다(CPU로 넘어간 경우 흉내).
 def recording_runtime(monkeypatch, available=("CUDAExecutionProvider", "CPUExecutionProvider"), active=None):
-    """Stands in for ONNX Runtime's sessions: records what each session was asked for and reports `active`
-    as the providers it got (by default the ones it was asked for)."""
+    """ONNX Runtime 세션 대신 쓰인다: 세션마다 무엇을 요청받았는지 기록하고, 실제로 얻은 제공자로
+    `active`를 보고한다(기본은 요청받은 제공자 그대로)."""
     import onnxruntime
 
     built, preloaded = [], []
@@ -252,16 +248,14 @@ def test_sessions_run_on_the_cpu_with_a_fixed_number_of_threads(tmp_path, monkey
     )
     assert loaded.sample_rate == 1000
     assert loaded.providers == {part: ["CPUExecutionProvider"] for part in supertonic.ONNX_PARTS}
-    assert preloaded == []  # the CPU needs no CUDA libraries
+    assert preloaded == []
 
 
 # CUDA 설정: 측정 전에 정한 제공자 옵션(GPU 0번, 합성곱 알고리즘 HEURISTIC 탐색, 요청한 만큼만 메모리 늘리기,
 # 메모리 한도 1GB)과 CPU 예비 제공자로 세션을 만들고, 세션을 만들기 전에 pip 패키지의 CUDA·cuDNN 라이브러리를
 # 한 번 불러오는지 확인한다. HEURISTIC은 기본값 EXHAUSTIVE가 입력 모양이 바뀔 때마다(문장마다) 다시 탐색하기
-# 때문이다(테스트 주석, docs/experiments.md 14절).
+# 때문이다(T82, docs/experiments.md 14절).
 def test_cuda_sessions_get_the_provider_options_fixed_before_measuring(tmp_path, monkeypatch):
-    # T82 (docs/experiments.md 14): ORT's default EXHAUSTIVE convolution search would search again for every
-    # new input shape, and speech changes shape with every sentence.
     write_model_dir(tmp_path)
     built, preloaded = recording_runtime(monkeypatch)
     loaded = SupertonicEngine.load(tmp_path, threads=3, verify=False, provider="cuda")
@@ -275,7 +269,7 @@ def test_cuda_sessions_get_the_provider_options_fixed_before_measuring(tmp_path,
     assert all(
         providers == [("CUDAExecutionProvider", options), "CPUExecutionProvider"] for _, _, providers in built
     )
-    assert len(preloaded) == 1  # the CUDA and cuDNN libraries of the pip packages, before any session
+    assert len(preloaded) == 1
     assert loaded.providers == {
         part: ["CUDAExecutionProvider", "CPUExecutionProvider"] for part in supertonic.ONNX_PARTS
     }
@@ -284,7 +278,6 @@ def test_cuda_sessions_get_the_provider_options_fixed_before_measuring(tmp_path,
 # ONNX Runtime은 CUDA 제공자를 시작하지 못하면 경고만 하고 CPU로 돌린다. 그러면 'GPU 측정'이 실제로는 CPU
 # 측정이 되므로, 세션 하나라도 CUDA가 아니면 적재를 RuntimeError로 멈추는지 확인한다.
 def test_a_session_that_fell_back_to_the_cpu_stops_the_cuda_load(tmp_path, monkeypatch):
-    # ONNX Runtime only warns when the CUDA provider cannot start and runs the graph on the CPU instead.
     write_model_dir(tmp_path)
     recording_runtime(monkeypatch, active=["CPUExecutionProvider"])
     with pytest.raises(RuntimeError, match="CUDAExecutionProvider"):
@@ -342,5 +335,4 @@ def test_the_service_wrapper_names_the_gpu_and_reports_the_session_providers(tmp
     on_gpu = SupertonicTextToSpeech(tmp_path, steps=2, verify=False, provider="cuda")
     assert on_gpu.model_name == "supertonic-3/F1/2-step/cuda"
     assert on_gpu.providers["vocoder"][0] == "CUDAExecutionProvider"
-    # The CPU name stays what T78 recorded.
     assert SupertonicTextToSpeech(tmp_path, steps=2, verify=False).model_name == "supertonic-3/F1/2-step"

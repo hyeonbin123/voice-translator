@@ -1,22 +1,22 @@
-"""The frozen contamination-check set of the Hy-MT2 trial (task T83, docs/experiments.md 15).
+"""Hy-MT2 시험의 고정된 오염 점검 세트(docs/experiments.md 15절).
 
-FLEURS reuses FLORES sentences, which the vendor's report evaluates on, and the report has no statement that
-they were kept out of training. So before any run, 100 Korean and 100 English sentences published after the
-model's release (2026-05-21) are frozen and hashed, and Hy-MT2 and opus are scored on them without a
-reference (MetricX-24 QE, eval/metricx_score.py). That check can only veto adoption, never support it.
+FLEURS는 FLORES 문장을 다시 쓰는데, 개발사 보고서는 FLORES로 평가하면서도 그 문장을 학습에서 뺐다는 말이
+없다. 그래서 어떤 실행보다 먼저, 모델 공개일(2026-05-21) 뒤에 게시된 한국어 100문장과 영어 100문장을
+고정하고 해시한 뒤, Hy-MT2와 opus를 참조 번역 없이 채점한다(MetricX-24 QE, eval/metricx_score.py). 이
+점검은 채택을 거부할 수만 있고, 채택을 뒷받침할 수는 없다.
 
-- Korean: 정책브리핑 (korea.kr) policy news; only articles whose page says the text is under 공공누리 제1유형
-  (KOGL Type 1: free use with the source named).
-- English: Global Voices English posts, published under CC BY 3.0 (its attribution policy); posts republished
-  from partners (other terms) are left out. English Wikinews, named in the plan, closed on 2026-05-03.
+- 한국어: 정책브리핑(korea.kr) 정책 뉴스. 페이지에 본문이 공공누리 제1유형(KOGL Type 1: 출처를 밝히면 자유
+  이용)이라고 적힌 기사만 쓴다.
+- 영어: CC BY 3.0으로 게시되는 Global Voices 영어 글(그 저작자 표시 정책). 협력 매체에서 옮겨 실은 글(다른
+  조건)은 뺀다. 계획에 적었던 영어 위키뉴스는 2026-05-03에 문을 닫았다.
 
-One sentence per article: the first body sentence that passes `usable`. The file stays in data/contam (not
-committed); its SHA-256 is recorded in docs/experiments.md 15. From backend/:
+기사당 한 문장: 본문에서 `usable`을 통과하는 첫 문장. 파일은 data/contam에 두고(커밋하지 않음), 그 SHA-256은
+docs/experiments.md 15절에 기록한다. backend/에서:
 
     uv run --no-sync python -m eval.contam_set build --out ../data/contam/v1.jsonl
     uv run --no-sync python -m eval.contam_set hash ../data/contam/v1.jsonl
     uv run --no-sync python -m eval.contam_set translate --set ../data/contam/v1.jsonl --system hymt \
-        --en-ko hy-mt2-split --ko-en hy-mt2 --out ../work/vt-n1/contam_outputs.json       (GPU step)
+        --en-ko hy-mt2-split --ko-en hy-mt2 --out ../work/vt-n1/contam_outputs.json       (GPU 단계)
     uv run --no-sync python -m eval.contam_set translate --set ../data/contam/v1.jsonl --system opus \
         --out ../work/vt-n1/contam_outputs.json
 """
@@ -47,7 +47,7 @@ from pathlib import Path
 # RELEASED: 이 날짜보다 뒤에 게시된 글만 쓴다. PER_LANGUAGE: 언어별 문장 수. USER_AGENT: 사이트에 누가 왜
 # 요청하는지 밝히는 머리글(연구용, 저장소 주소). 이어서 두 출처의 목록·기사 주소와 공공누리 제1유형 표시
 # 문자열.
-RELEASED = date(2026, 5, 21)  # Hy-MT2 open-sourced (model card News); sentences must be published after it
+RELEASED = date(2026, 5, 21)  # Hy-MT2 공개일(모델 카드 News). 문장은 그 뒤에 게시돼야 한다
 PER_LANGUAGE = 100
 USER_AGENT = "voice-translator-eval/1.0 (research; https://github.com/hyeonbin123/voice-translator)"
 KOREA_LIST = "https://www.korea.kr/news/policyNewsList.do?pageIndex={page}"
@@ -58,9 +58,9 @@ GV_FEED = "https://globalvoices.org/feed/?paged={page}"
 GV_PARTNER = re.compile(
     r"originally (?:published|appeared)|first appeared|republished|content[- ]sharing|partnership", re.I
 )
-# Every Global Voices post carries an "Originally published on Global Voices" line, which must not read as a
-# partner's republication note (those are italic editor's notes, checked before they are dropped). That line,
-# the tagline, image captions and italic notes are not the article's prose.
+# 모든 Global Voices 글에는 "Originally published on Global Voices" 줄이 붙는데, 이것을 협력 매체에서 옮겨
+# 실은 글의 표시로 읽으면 안 된다(그런 표시는 기울임체 편집자 안내이고, 지우기 전에 확인한다). 그 줄,
+# 머리말(tagline), 그림 설명, 기울임체 안내는 기사 본문이 아니다.
 GV_OWN_LINE = re.compile(r"<p class='originally-published'>.*?</p>", re.S)
 GV_BOILERPLATE = re.compile(
     r"<p><big class='tagline'>.*?</p>"
@@ -70,7 +70,7 @@ GV_BOILERPLATE = re.compile(
 # SENTENCE_END: . ? ! 뒤의 공백에서 문장을 나눈다. TAG: HTML 태그.
 SENTENCE_END = re.compile(r"(?<=[.?!])\s+")
 TAG = re.compile(r"<[^>]+>")
-# Captions, credits, bullets, datelines, links and contact lines are not sentences a person would say.
+# 사진 설명·출처 표시·글머리 기호·날짜 줄·링크·연락처 줄은 사람이 말할 법한 문장이 아니다(NOT_PROSE).
 NOT_PROSE = re.compile(r"https?://|www\.|@|ⓒ|©|사진|자료|출처|문의|=|▲|△|▶|►|■|□|◆|◇|●|○|※|☞|☎|\[|\]|\||…")
 # 영어 글에서 본문 문장이 아닌 것(사진 설명, 구독·후원 안내, 'By ...' 같은 필자 줄 등)을 거르는 표현.
 EN_NOT_PROSE = re.compile(
@@ -91,28 +91,31 @@ def _hangul_share(text: str) -> float:
     return sum("가" <= c <= "힣" for c in letters) / max(1, len(letters))
 
 
-# 사람이 말할 법한 평범한 문장인지: 주소·기호·사진 출처 같은 표시가 없고 문장 끝 부호로 끝나야 한다. 한국어는
-# 20~200자이고 한글 비율 80% 이상, 영어는 40~300자이고 비본문 표현이 없으며 라틴 글자가 ASCII뿐이어야
-# 한다(15절에 적은 조건).
 def usable(sentence: str, language: str) -> bool:
-    """A plain prose sentence of ordinary length that ends like a sentence."""
+    """문장처럼 끝나는, 보통 길이의 평범한 본문 문장인지(사람이 말할 법한 문장).
+
+    주소·기호·사진 출처 같은 표시가 없고 문장 끝 부호로 끝나야 한다. 한국어는 20~200자이고 한글 비율 80%
+    이상, 영어는 40~300자이고 비본문 표현이 없으며 라틴 글자가 ASCII뿐이어야 한다(15절에 적은 조건).
+    """
     if NOT_PROSE.search(sentence) or not sentence.endswith((".", "?", "!")):
         return False
     if language == "ko":
         return 20 <= len(sentence) <= 200 and _hangul_share(sentence) >= 0.8
-    latin = all(c.isascii() for c in sentence if c.isalpha())  # typographic quotes are fine
+    latin = all(c.isascii() for c in sentence if c.isalpha())  # 둥근 따옴표 같은 부호는 괜찮다
     return 40 <= len(sentence) <= 300 and not EN_NOT_PROSE.search(sentence) and latin
 
 
-# HTML 조각에서 <p> 문단의 글자만 뽑는다. 인용·그림·표 안은 기사 본문이 아니므로 먼저 지운다. HTML 엔티티를
-# 풀고, 공백을 하나로 줄이고, 태그를 지우며 생긴 '부호 앞 공백'을 붙인다.
 def paragraphs(fragment: str) -> list[str]:
-    """Text of each <p>, outside blockquotes and figures (quoted posts and captions are not the article)."""
+    """각 <p> 문단의 글. blockquote·figure 밖의 것만 뽑는다(인용한 글과 그림 설명은 기사가 아니다).
+
+    인용·그림·표 안을 먼저 지운다. HTML 엔티티를 풀고, 공백을 하나로 줄이고, 태그를 지우며 생긴 '부호 앞
+    공백'을 붙인다.
+    """
     fragment = re.sub(r"<(blockquote|figure|figcaption|table)\b.*?</\1>", " ", fragment, flags=re.S | re.I)
     texts = [
         html.unescape(TAG.sub(" ", p)) for p in re.findall(r"<p\b[^>]*>(.*?)</p>", fragment, re.S | re.I)
     ]
-    # Removed tags leave a space before punctuation ("Urumqi , the capital"); close it up.
+    # 지운 태그가 부호 앞에 공백을 남기므로("Urumqi , the capital") 그 공백을 없앤다.
     return [re.sub(r" ([,.;:!?])", r"\1", " ".join(text.split())) for text in texts if text.strip()]
 
 
@@ -125,10 +128,11 @@ def first_sentence(fragment: str, language: str) -> str | None:
     return None
 
 
-# 정책브리핑 기사 페이지에서 게시일(메타 태그), 공공누리 제1유형 표시가 있는지, 본문 HTML을 뽑는다. 구조가
-# 다르면 None.
 def korea_article(page: str) -> tuple[date, bool, str] | None:
-    """Publication date, whether the text is KOGL Type 1, and the body of a korea.kr article page."""
+    """korea.kr 기사 페이지의 게시일, 본문이 공공누리 제1유형인지, 본문 HTML을 뽑는다.
+
+    게시일은 메타 태그에서 읽는다. 페이지 구조가 다르면 None.
+    """
     published = re.search(r'property="article:published_time" content="(\d{4}-\d{2}-\d{2})', page)
     body = re.search(r'<div class="view_cont">(.*?)<div class="article_footer">', page, re.S)
     if not published or not body:
@@ -136,10 +140,11 @@ def korea_article(page: str) -> tuple[date, bool, str] | None:
     return date.fromisoformat(published.group(1)), KOGL_TYPE_1 in page, body.group(1)
 
 
-# Global Voices RSS 피드 한 쪽에서 글마다 (게시 시각, 주소, 본문 HTML)을 뽑는다. 셋 중 하나라도 없는 항목은
-# 건너뛴다.
 def gv_items(feed: str) -> list[tuple[datetime, str, str]]:
-    """(publication time, link, content) of each item of a Global Voices feed page."""
+    """Global Voices RSS 피드 한 쪽에서 항목마다 (게시 시각, 주소, 본문 HTML)을 뽑는다.
+
+    셋 중 하나라도 없는 항목은 건너뛴다.
+    """
     items = []
     for item in re.findall(r"<item>(.*?)</item>", feed, re.S):
         link = re.search(r"<link>(.*?)</link>", item, re.S)
@@ -154,7 +159,7 @@ def gv_items(feed: str) -> list[tuple[datetime, str, str]]:
 
 # 요청마다 0.5초 쉬어 두 사이트에 부담을 주지 않는다. HTTP 오류는 예외로 올려 세트 만들기를 멈춘다.
 def _get(client, url: str) -> str:
-    time.sleep(0.5)  # be polite to both sites
+    time.sleep(0.5)
     response = client.get(url)
     response.raise_for_status()
     return response.text
@@ -258,13 +263,14 @@ def print_hash(path: Path) -> str:
     return digest
 
 
-# 서버와 같은 설정 경로(Settings → load_translation)로 번역기를 만든다. Hy-MT2 모델 이름과 기대 digest는
-# hymt_setup.QUANTS에서 가져와 측정한 빌드만 쓰게 하고, 요청 제한은 120초로 넉넉히 준다.
-# hymt 시스템이면 그 설정에서 Hy-MT2가 맡는 방향만 번역하고(영어 문장 → 영→한, 한국어 문장 → 한→영), opus는 두
-# 방향 모두 번역한다. 결과 파일에 시스템 이름으로 더하고, 어떤 번역기·어떤 세트(해시)로 만들었는지 _meta에
-# 남긴다.
 def translate(args: argparse.Namespace) -> None:
-    """Translate the frozen set with one system and add it to the outputs file (GPU step)."""
+    """고정된 세트를 한 시스템으로 번역해 결과 파일에 더한다(GPU 단계).
+
+    서버와 같은 설정 경로(Settings → load_translation)로 번역기를 만든다. Hy-MT2 모델 이름과 기대 digest는
+    hymt_setup.QUANTS에서 가져와 측정한 빌드만 쓰게 하고, 요청 제한은 120초로 넉넉히 준다. hymt 시스템이면
+    그 설정에서 Hy-MT2가 맡는 방향만 번역하고(영어 문장 → 영→한, 한국어 문장 → 한→영), opus는 두 방향 모두
+    번역한다. 결과 파일에 시스템 이름으로 더하고, 어떤 번역기·어떤 세트(해시)로 만들었는지 _meta에 남긴다.
+    """
     from app.config import Settings
     from app.services.models import load_translation
     from eval.hymt_setup import QUANTS
@@ -285,7 +291,7 @@ def translate(args: argparse.Namespace) -> None:
     hymt_directions = {"en-ko": args.en_ko != "opus", "ko-en": args.ko_en != "opus"}
     for direction, language in (("en-ko", "en"), ("ko-en", "ko")):
         if args.system == "hymt" and not hymt_directions[direction]:
-            continue  # only the directions Hy-MT2 translates in this setting
+            continue  # 이 설정에서 Hy-MT2가 번역하는 방향만
         source, target = direction.split("-")
         system[direction] = {
             row["id"]: translator.translate(row["text"], source, target)

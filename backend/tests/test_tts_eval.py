@@ -1,5 +1,5 @@
-"""The speech synthesis trial tools (T78, docs/experiments.md 12): sentence export for the container, the
-recognition load, the digit-sentence sub-metric, the timing summary and the blind A/B pages. No model runs."""
+"""음성 합성 시험 도구(T78, docs/experiments.md 12절)를 검증한다: 컨테이너용 문장 내보내기, 인식 부하,
+숫자 문장 부지표, 시간 요약, 블라인드 A/B 페이지. 모델은 돌리지 않는다."""
 
 # [파일 역할] 음성 합성 시험 도구 eval/tts_eval.py와 eval/tts_ab.py를 모델 없이 검증한다(docs/experiments.md
 # 12·14절).
@@ -47,10 +47,9 @@ def read_wav(path) -> tuple[np.ndarray, int]:
         return data, clip.getframerate()
 
 
-# CI와 API 컨테이너에는 pyarrow·jiwer가 없으므로, 두 모듈 import를 막은 새 프로세스에서도 세 도구를 불러올 수
-# 있는지 확인한다. 합성은 컨테이너 안에서 돌기 때문이다.
+# CI와 API 컨테이너에는 pyarrow·jiwer(FLEURS 읽기와 채점에 필요)가 없으므로, 두 모듈 import를 막은 새
+# 프로세스에서도 세 도구를 불러올 수 있는지 확인한다. 합성은 컨테이너 안에서 돌기 때문이다.
 def test_the_tools_import_without_the_eval_group():
-    # CI and the API container have neither pyarrow nor jiwer: they are needed to read FLEURS and to score.
     code = (
         "import sys; sys.modules['pyarrow'] = None; sys.modules['pyarrow.parquet'] = None; "
         "sys.modules['jiwer'] = None; import eval.tts_eval, eval.tts_ab, eval.tts_candidates"
@@ -99,7 +98,7 @@ def edits(a: str, b: str) -> int:
 
 # jiwer 없이 말뭉치 CER(전체 편집 수 ÷ 전체 정답 길이)을 계산해 score_language에 넘길 대역 함수.
 def corpus_cer(language: str, references: list[str], hypotheses: list[str]) -> float:
-    """Total character edits over total reference length, as jiwer.cer (the eval group, not in CI)."""
+    """전체 글자 편집 수 ÷ 전체 정답 길이. jiwer.cer(eval 그룹이라 CI에는 없음)와 같은 계산이다."""
     return sum(map(edits, references, hypotheses)) / sum(map(len, references))
 
 
@@ -126,7 +125,6 @@ def test_score_counts_failures_as_fully_wrong_and_reports_digit_sentences():
     result = tts_eval.score_language(
         "ko", values, rows, lambda item: heard[item["id"]], error_rate=corpus_cer
     )
-    # 1 of 3 characters wrong in the digit sentence; the failed sentence's 2 characters are all missing.
     assert result["error"] == pytest.approx(3 / 8)
     assert (result["error_digits"], result["count_digits"]) == (pytest.approx(1 / 3), 1)
     assert result["failures"] == 1 and result["count"] == 3
@@ -166,14 +164,14 @@ def test_the_recognition_load_runs_back_to_back_until_stopped():
     stt = CountingStt()
     load = tts_eval.SttLoad(stt, [(b"a", "en"), (b"b", "ko")])
     load.start(timeout=5)
-    assert stt.calls  # warm: at least one recognition finished before synthesis is timed
+    assert stt.calls  # 준비됨: 합성 시간을 재기 전에 인식이 한 번 이상 끝났다
     time.sleep(0.05)
     summary = load.stop()
     assert summary["calls"] >= 4 and summary["errors"] == 0 and summary["call_s_p50"] > 0
     assert stt.calls[:4] == ["en", "ko", "en", "ko"]
     count = len(stt.calls)
     time.sleep(0.02)
-    assert len(stt.calls) == count  # stopped for good
+    assert len(stt.calls) == count  # 완전히 멈췄다
     assert not any(thread.name == "stt-load" for thread in threading.enumerate())
 
 
@@ -185,7 +183,7 @@ def test_a_recognition_load_that_cannot_run_stops_the_measurement():
     load = tts_eval.SttLoad(CountingStt(fail_all=True), [(b"a", "en")])
     with pytest.raises(RuntimeError, match="recognition load"):
         load.start(timeout=5)
-    # A later failure is counted, not fatal.
+    # 첫 인식 뒤의 실패는 세기만 하고 측정을 멈추지 않는다.
     stt = CountingStt(fail_later=True)
     load = tts_eval.SttLoad(stt, [(b"a", "en")])
     load.start(timeout=5)
@@ -265,13 +263,12 @@ class FakeSpeech:
 
 # 합성 단계 기록: 적재 시간과 첫 호출 시간을 문장 통계와 따로 재고, 세션의 제공자를 남기며, GPU 메모리를 적재
 # 뒤(+500MB)뿐 아니라 마지막 문장 뒤(+700MB)에도 읽는지 확인한다. ONNX Runtime의 메모리 영역은 최고치를
-# 유지하므로 실행 뒤 값이 최대치가 된다(docstring).
+# 유지하므로 실행 뒤 값이 최대치가 된다(T82, docs/experiments.md 14절).
 # 후보 목록·음성 폴더·보고서 폴더·GPU 메모리 읽기는 monkeypatch로 바꾼다. 메모리 값은 적재 전·적재 뒤·실행 뒤
 # 순서로 1000·1500·1700을 준다. 이어서 timing 보고서에도 같은 값과 제공자가 옮겨지는지 본다.
 def test_synth_reports_load_and_first_call_times_providers_and_memory_after_the_run(tmp_path, monkeypatch):
-    """T82 (docs/experiments.md 14): the first call and the load are timed apart from the sentences, the
-    sessions' providers are kept, and GPU memory is read after the run too (ONNX Runtime's arena keeps its
-    high-water mark, so that is the peak)."""
+    """T82(docs/experiments.md 14절): 첫 호출과 적재는 문장과 따로 시간을 재고, 세션의 제공자를 남기며,
+    GPU 메모리를 실행 뒤에도 읽는다(ONNX Runtime의 arena는 최고치를 유지하므로 그 값이 최대치다)."""
     from eval import tts_candidates
 
     rows = [{"id": i, "raw_transcription": f"문장 {i}.", "transcription": f"문장 {i}"} for i in (1, 2, 3)]
@@ -279,7 +276,7 @@ def test_synth_reports_load_and_first_call_times_providers_and_memory_after_the_
     monkeypatch.setattr(tts_candidates, "CANDIDATES", {"fake": (FakeSpeech, ["ko"])})
     monkeypatch.setattr(tts_eval, "AUDIO", tmp_path / "audio")
     monkeypatch.setattr(tts_eval, "REPORTS", tmp_path)
-    readings = iter([1000.0, 1500.0, 1700.0])  # before the load, after it, after the last sentence
+    readings = iter([1000.0, 1500.0, 1700.0])  # 적재 전, 적재 뒤, 마지막 문장 뒤
     monkeypatch.setattr(tts_eval, "gpu_memory_mb", lambda: next(readings))
     args = Namespace(
         candidate="fake",
@@ -323,8 +320,7 @@ def speeds(values: dict) -> tuple:
 # 회귀 테스트(커밋 fdfb911): 성공한 문장이 0개면 속도는 비어 있고(None, 표에는 '-'), 1개면 그 값이 p50이자
 # p95다. 예전에는 성공 0·1개에서 통계 함수가 멈춰, 정작 보여야 할 실패 수가 보고서에 나오지 않았다.
 def test_timing_reports_a_candidate_whose_synthesis_mostly_failed(tmp_path, monkeypatch):
-    """The failures are what the report must show: no success leaves the speed empty, one success is it
-    (T79)."""
+    """보고서가 보여야 할 것은 실패다: 성공이 없으면 속도는 비고, 성공이 하나면 그 값이 속도다."""
     monkeypatch.setattr(tts_eval, "REPORTS", tmp_path)
     done = {"id": 2, "synth_s": 0.6, "audio_s": 3.0, "per_audio_second": 0.2}
     for candidate, items in (
@@ -413,11 +409,11 @@ def test_blind_pairs_hide_the_models_match_loudness_and_keep_the_key_apart(tmp_p
             samples, rate = read_wav(out / "clips" / f"{pair['pair']:02d}-{side}.wav")
             assert rate == 1000
             levels.append(20 * np.log10(np.sqrt(np.mean(samples[np.abs(samples) > 0.003] ** 2))))
-            # Lead and tail silence is trimmed to about 0.1 s.
+            # 앞뒤 무음은 약 0.1초로 잘린다.
             assert np.abs(samples[: int(0.08 * rate)]).max() < 0.003
             assert len(samples) < (1.0 + pair["id"] / 10 + 0.25) * rate
         assert levels[0] == pytest.approx(levels[1], abs=0.5)
-    # The same seed gives the same pages.
+    # 같은 시드면 같은 페이지가 나온다.
     again = tmp_path / "again-key.json"
     tts_ab.build(tmp_path / "audio", "t_dev", "alpha", "beta", ids, texts, tmp_path / "ab2", again)
     assert json.loads(again.read_text(encoding="utf-8"))["pairs"] == key["pairs"]

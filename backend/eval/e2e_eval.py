@@ -1,13 +1,13 @@
-"""End-to-end latency of the running server with the real models (task T11).
+"""실제 모델을 올리고 실행 중인 서버의 전체 흐름 지연을 잰다.
 
-1. prepare, with the eval group (reads the FLEURS parquet files):
+1. prepare, eval 그룹 환경에서(FLEURS parquet 파일을 읽음):
        uv run python -m eval.e2e_eval prepare --split validation
-   writes data/e2e/<split>/<language>_<id>.wav and manifest.json: per language, in ID order, the first
-   30 recordings that last 8 to 12 seconds, one per sentence ID.
-2. run, with any environment that has httpx, against a server started with LOAD_MODELS=true:
+   data/e2e/<split>/<language>_<id>.wav와 manifest.json을 쓴다: 언어마다 ID 순으로, 8~12초 길이의
+   녹음을 문장 ID당 하나씩 처음 30개.
+2. run, httpx가 있는 아무 환경에서나, LOAD_MODELS=true로 띄운 서버를 대상으로:
        uv run python -m eval.e2e_eval run --split validation --concurrency 1 --tag t11_dev_threads1
 
-The settings compared and the rule are written in docs/experiments.md before any run.
+비교한 설정과 판단 규칙은 실행 전에 docs/experiments.md에 적었다.
 """
 
 # [파일 역할] 실제 모델을 올린 서버에 FLEURS 음성을 보내 전체 흐름(업로드 → 인식 → 번역 → 합성 → 저장)의 지연,
@@ -56,7 +56,7 @@ def prepare(args: argparse.Namespace) -> None:
         path = DATA / "fleurs" / config / f"{args.split}.parquet"
         rows = pq.read_table(path, columns=["id", "num_samples", "audio"]).to_pylist()
         chosen, seen = [], set()
-        for row in sorted(rows, key=lambda r: r["id"]):  # stable: keeps file order within one ID
+        for row in sorted(rows, key=lambda r: r["id"]):  # 안정 정렬: 한 ID 안에서는 파일 순서를 지킨다
             seconds = row["num_samples"] / SAMPLE_RATE
             if row["id"] in seen or not MIN_SECONDS <= seconds <= MAX_SECONDS:
                 continue
@@ -94,7 +94,7 @@ async def run(args: argparse.Namespace) -> None:
     folder = E2E / args.split
     manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
     async with httpx.AsyncClient(base_url=args.base_url, timeout=300) as client:
-        # A throwaway account; its records are deleted at the end.
+        # 한 번 쓰고 버리는 계정. 그 기록은 끝에 지운다.
         email, password = f"e2e-{uuid.uuid4().hex[:12]}@example.com", uuid.uuid4().hex
         account = {"email": email, "password": password}
         (await client.post("/api/auth/register", json=account)).raise_for_status()
@@ -118,7 +118,7 @@ async def run(args: argparse.Namespace) -> None:
             }
 
         first_of = {lang: next(i for i in manifest if i["language"] == lang) for lang in ("ko", "en")}
-        warmups = [await translate(item) for item in first_of.values()]  # not recorded
+        warmups = [await translate(item) for item in first_of.values()]  # 기록하지 않음
         health: list[float] = []
         vram = [gpu_used_mib()]
         done = asyncio.Event()
@@ -217,12 +217,12 @@ def write_report(args: argparse.Namespace, results: list[dict], health: list[flo
 # 묶음 뒤의 전용 메모리 차이, 두 번째 묶음 뒤부터 마지막까지의 차이(초기화 뒤에도 계속 느는지)를 낸다. README
 # 알려진 한계의 '메모리 기준 미달'이 이 측정 결과다.
 async def memory(args: argparse.Namespace) -> None:
-    """T24: server memory across batches after a fixed warm-up (rule in docs/experiments.md 5절).
+    """정해진 예열 뒤 묶음마다 서버 메모리를 잰다(판단 규칙은 docs/experiments.md 5절).
 
-    Warm-up: 10 sequential requests (5 per language) and 5 concurrent ko+en pairs. Baseline: 5 s later, the
-    median of 3 readings 1 s apart. Then `--batches` batches of 120 requests (the 60 recordings one by one,
-    then 30 concurrent ko+en pairs), each followed by the same settle-and-read step. Health is polled every
-    0.2 s and memory every 2 s throughout; every raw sample is saved so the tables can be recomputed.
+    예열: 순차 요청 10개(언어별 5개)와 한·영 동시 요청 5쌍. 기준점: 5초 뒤 1초 간격으로 세 번 읽은 값의
+    중앙값. 그다음 120개 요청 묶음을 `--batches`번 보낸다(녹음 60개를 하나씩, 이어서 한·영 동시 요청
+    30쌍). 묶음마다 같은 방식으로 기다렸다가 읽는다. 처음부터 끝까지 health는 0.2초마다, 메모리는 2초마다
+    재고, 표를 다시 계산할 수 있게 원자료를 모두 저장한다.
     """
     import psutil
 
@@ -239,7 +239,7 @@ async def memory(args: argparse.Namespace) -> None:
     # 작업 집합(rss)과 전용 메모리(Windows의 private bytes, 없으면 rss)를 MB로 읽는다.
     def read_memory() -> dict:
         info = server.memory_info()
-        private = getattr(info, "private", info.rss)  # Windows reports private bytes; elsewhere fall back
+        private = getattr(info, "private", info.rss)  # Windows는 private bytes, 그 밖은 rss
         return {
             "t": clock(),
             "working_set_mb": round(info.rss / 2**20, 1),
@@ -377,14 +377,14 @@ async def memory(args: argparse.Namespace) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     phases = parser.add_subparsers(dest="phase", required=True)
-    prep = phases.add_parser("prepare", help="extract the recordings from FLEURS")
+    prep = phases.add_parser("prepare", help="FLEURS에서 녹음을 뽑아 둔다")
     prep.add_argument("--split", choices=["validation", "test"], default="validation")
-    go = phases.add_parser("run", help="send them to a running server")
+    go = phases.add_parser("run", help="뽑은 녹음을 실행 중인 서버에 보낸다")
     go.add_argument("--split", choices=["validation", "test"], default="validation")
     go.add_argument("--base-url", default="http://127.0.0.1:8000")
     go.add_argument("--concurrency", type=int, choices=[1, 2], default=1)
     go.add_argument("--tag", default="run")
-    mem = phases.add_parser("memory", help="server memory across batches after a warm-up (T24)")
+    mem = phases.add_parser("memory", help="예열 뒤 묶음마다 서버 메모리를 잰다")
     mem.add_argument("--split", choices=["validation", "test"], default="validation")
     mem.add_argument("--base-url", default="http://127.0.0.1:8010")
     mem.add_argument("--server-pid", type=int, required=True)

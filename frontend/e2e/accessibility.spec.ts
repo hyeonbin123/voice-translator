@@ -28,8 +28,7 @@ const item = {
 
 // tabTo: 대상에 포커스가 갈 때까지 Tab을 최대 90번 누른다. 마우스 클릭이나 focus() 대신 실제 Tab 순서로만
 // 닿을 수 있는지 확인하고, 포커스가 닿았을 때 3px 실선 테두리(styles.css의 :focus-visible)가 보이는지도 함께
-// 본다. 끝까지 닿지 못하면 실패한다.
-// Reach every control using the browser's Tab order, never locator.focus/click.
+// 본다. 끝까지 닿지 못하면 실패한다. locator.focus나 click은 절대 쓰지 않는다.
 async function tabTo(page: Page, target: Locator) {
   for (let i = 0; i < 90; i++) {
     if (await target.evaluate((el) => el === document.activeElement)) {
@@ -82,8 +81,7 @@ test.beforeEach(async ({ page }) => {
   })
   // /api/ 아래 요청에 정해진 가짜 응답을 준다: 사용자 정보(아주 긴 이메일로 좁은 폭 배치를 시험), 가입 201,
   // 로그인·갱신 토큰, 번역 201, 빈 기록, 기록 상세. 목록에 없는 API를 부르면 예외를 던져 검사가 모르는 요청을
-  // 놓치지 않게 한다.
-  // Match API paths only; Vite also serves source modules under /src/api/.
+  // 놓치지 않게 한다. 경로가 /api/로 시작하는 요청만 잡는다: Vite는 /src/api/ 아래 소스 모듈도 내보내기 때문이다.
   await page.route((url) => url.pathname.startsWith('/api/'), async (route) => {
     const path = new URL(route.request().url()).pathname
     let body: unknown = {}
@@ -115,8 +113,8 @@ async function login(page: Page) {
 // 대화 모드: 키보드로 시작·멈춤, 상태 안내(듣는 중, 말소리 감지, 번역 중, 재생 중), 한 마디가 실패해도 대화가
 // 이어지는지, 재생 중에는 듣지 않는지(README), 360px 배치를 확인한다.
 test('conversation keyboard controls, live states, turn error recovery and 360px layout', async ({ page }) => {
-  // Only the inference/device boundaries are replaced. The real detector, session, UI and API run.
-  // No ONNX model is loaded in this test; the real-browser model check belongs to Claude.
+  // 추론·장치 경계만 가짜로 바꾸고, 실제 판정기·세션·화면·API 코드가 돈다. 이 테스트는 ONNX 모델을 올리지
+  // 않으며, 실제 브라우저에서 모델을 돌려 보는 확인은 이 테스트의 범위가 아니다.
   // 말소리 판정 모델 실행기 모듈(sileroRuntime.ts)을 가짜 모듈로 바꾸고 불러온 횟수를 센다. 가짜 실행기는
   // 입력의 65번째 표본(앞 문맥 64표본 뒤 현재 조각의 첫 표본) 값을 말소리 확률로 돌려준다. 그래서 진폭 .8로
   // 채운 조각은 말소리, 0인 조각은 조용함으로 판정된다.
@@ -617,7 +615,7 @@ test('keyboard recording start, cancel, stop, upload chooser and long file name'
   await tabTo(page, fileButton)
   const chooser = page.waitForEvent('filechooser')
   await page.keyboard.press('Enter')
-  // Only the operating system file picker is replaced; the button is activated with Enter.
+  // 운영체제의 파일 고르기 창만 가짜로 바꾸고, 단추는 Enter로 누른다.
   const file = { name: `${'long-filename-'.repeat(20)}.wav`, mimeType: 'audio/wav', buffer: Buffer.from('recording') }
   await (await chooser).setFiles(file)
   // 실제 파일 입력은 숨기고 단추로 연다. 선택 표시 영역은 aria-atomic이라 바뀔 때 전체가 한 번에 읽힌다.
@@ -626,7 +624,7 @@ test('keyboard recording start, cancel, stop, upload chooser and long file name'
   await expect(page.locator('#audio-selection')).toContainText(file.name)
   await expect(page.locator('#audio-selection')).toHaveAttribute('aria-atomic', 'true')
   await audit(page, 'audio-file-360')
-  // Change direction to clear the clip, then pick the exact same file again.
+  // 방향을 바꿔 고른 음성을 비운 뒤, 똑같은 파일을 다시 고른다.
   await tabTo(page, page.getByLabel('말하거나 입력할 언어'))
   await page.keyboard.press('ArrowDown')
   await expect(page.locator('#audio-selection')).toHaveText('선택한 음성이 없습니다.')

@@ -1,5 +1,5 @@
-"""Paired intervals for corpus chrF and BLEU (needs sacrebleu, from the eval group: CI runs this module in a
-step of its own that adds it, T88)."""
+"""말뭉치 chrF와 BLEU의 짝지은 구간을 검증한다(eval 그룹의 sacrebleu가 필요하다. CI는 sacrebleu를 더한
+별도 단계에서 이 모듈을 돌린다)."""
 
 # [파일 역할] eval/significance.py 중 sacrebleu가 필요한 말뭉치 지표(chrF·BLEU) 구간 함수를 검증한다: 문장별
 # 통계로 말뭉치 점수 다시 만들기, 차이 구간, sacrebleu의 짝지은 붓스트랩과 같은 결과, 여러 묶음(오타 수준)의
@@ -76,7 +76,6 @@ def test_corpus_difference_point_is_the_corpus_score_difference():
 # 재표집마다 점수를 '뽑힌 문장들의 통계 합'으로 다시 계산하는지(expected와 같음), 그리고 그것이 문장 chrF의
 # 평균과는 다른지 확인한다. 문장 점수 평균으로 바꾸는 회귀를 잡는다.
 def test_corpus_difference_resamples_statistics_not_sentence_scores():
-    # Resampling sums the n-gram statistics, so a resample's score is not the mean of sentence chrF.
     metric = CHRF()
     stats = segment_statistics(metric, SYS_A, REFS)
     counts = resample_counts(len(REFS), rounds=3)
@@ -108,7 +107,6 @@ def test_corpus_difference_is_reproducible():
 # 열이 (b, a) 결과 쌍이다.
 @pytest.mark.parametrize("metric", [CHRF(), BLEU()], ids=["chrF", "BLEU"])
 def test_system_interval_equals_sacrebleus_paired_bootstrap(metric):
-    # Same seed and size: the resamples here are the ones sacrebleu's paired bootstrap draws.
     rounds = 300
     _, scores = PairedTest(
         [("b", SYS_B), ("a", SYS_A)], {"m": metric}, [REFS], test_type="bs", n_samples=rounds
@@ -117,7 +115,8 @@ def test_system_interval_equals_sacrebleus_paired_bootstrap(metric):
     counts = resample_counts(len(REFS), rounds=rounds)
     for hypotheses, result in [(SYS_A, result_a), (SYS_B, result_b)]:
         mean, ci = estimate_ci(corpus_scores(metric, segment_statistics(metric, hypotheses, REFS), counts))
-        # sacrebleu scores its resamples from float32 statistics; other resamples would differ far more.
+        # sacrebleu는 재표집 점수를 float32 통계로 계산해 작은 차이가 남는다. 재표집이 달랐다면 차이가 훨씬
+        # 컸을 것이다.
         assert mean == pytest.approx(result.mean, abs=1e-4)
         assert ci == pytest.approx(result.ci, abs=1e-4)
 
@@ -126,8 +125,6 @@ def test_system_interval_equals_sacrebleus_paired_bootstrap(metric):
 # 시스템이 같으면 차이가 늘 0이라, 결과는 첫 묶음 구간을 정확히 반으로 줄인 값이어야 한다. 묶음마다 따로
 # 뽑았다면 반이 정확히 나오지 않는다.
 def test_groups_share_one_resample_of_sentences():
-    # Two groups (e.g. light and heavy typos) of the same sentences: the point is the mean of the group
-    # differences, and a group whose systems agree adds nothing to the spread.
     one = corpus_difference(CHRF(), [(SYS_A, SYS_B, REFS)], rounds=200)
     two = corpus_difference(CHRF(), [(SYS_A, SYS_B, REFS), (SYS_A, SYS_A, REFS)], rounds=200)
     assert two.point == pytest.approx(one.point / 2, abs=1e-9)

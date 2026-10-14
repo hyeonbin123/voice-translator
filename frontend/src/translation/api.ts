@@ -40,7 +40,7 @@ export interface DialogTranslationResult extends TranslationResult {
 // 업로드 크기 한도. 서버는 10MiB(10×1024×1024바이트)까지 받지만 화면은 그보다 조금 작은 10,000,000바이트로
 // 미리 막아, 한도 근처 파일이 올라가서 413이 되는 일을 피한다. 30초 길이 제한은 서버가 디코딩해서 확인한다.
 // 쓰는 곳: TranslatePage.tsx(파일 선택), useRecorder.ts(녹음 중 크기).
-export const MAX_AUDIO_BYTES = 10_000_000 // Conservative decimal MB; server validates decoded duration.
+export const MAX_AUDIO_BYTES = 10_000_000
 // 글자 수 세기. 서버 규칙(앞뒤 공백을 자른 뒤 유니코드 문자 1~500자)과 같게 trim한 뒤 코드 포인트 단위로
 // 센다. 번역 화면의 글자 수 표시와 500자 검사에 쓴다.
 export const characterCount = (text: string) => Array.from(text.trim()).length

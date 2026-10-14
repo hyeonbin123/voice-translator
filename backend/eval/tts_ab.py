@@ -1,10 +1,10 @@
-"""Blind A/B listening for the Korean speech synthesis trial (T78, docs/experiments.md 12).
+"""한국어 음성 합성 시험(T78, docs/experiments.md 12절)을 위한 블라인드 A/B 청취 도구.
 
-`build` turns the validation audio of two candidates into a local folder: index.html with 20 numbered pairs in
-a shuffled order, each pair's two clips in a random order named only by number, both trimmed and
-loudness-matched the same way. The answer key is written to a separate file outside that folder. The listener
-opens index.html in a browser, marks each pair, and copies the result text it makes. `unblind` reads that text
-with the key and counts, per model, the pairs preferred and the clips marked unacceptable. From backend/:
+`build`는 두 후보의 validation 음성으로 로컬 폴더를 만든다: 섞은 순서로 번호를 매긴 20쌍이 든 index.html과,
+쌍마다 무작위 순서로 번호만 붙인 두 클립. 두 클립은 같은 방식으로 앞뒤를 자르고 음량을 맞춘다. 정답 열쇠는
+그 폴더 밖의 별도 파일에 쓴다. 듣는 사람은 브라우저에서 index.html을 열어 쌍마다 표시하고, 페이지가 만든 결과
+글을 복사한다. `unblind`는 그 글을 열쇠와 함께 읽어 모델마다 선호된 쌍 수와 '받아들일 수 없음'으로 표시된
+클립 수를 센다. backend/에서:
 
     uv run python -m eval.tts_ab build --tag t78_dev --a melo --b supertonic-fast \\
         --out ../work/t78/ab --key ../work/t78/ab-key.json
@@ -41,9 +41,8 @@ import numpy as np
 from eval.common import REPORTS
 
 # 청취할 20문장 ID. 합성하기 전에 정해 docs/experiments.md 12절에 같은 목록을 적었다. 결과를 보고 문장을
-# 고르지 못하게 하려는 사전 고정이다.
-# The 20 sentences, fixed before any synthesis: random.Random(78).sample of the 129 validation sentence IDs
-# (sorted), then sorted. 8 of them contain digits.
+# 고르지 못하게 하려는 사전 고정이다. 뽑은 방법: validation 문장 ID 129개를 정렬해 random.Random(78).sample로
+# 20개를 뽑고 다시 정렬했다. 그중 8개에 숫자가 들어 있다.
 AB_IDS = (
     1513,
     1519,
@@ -66,12 +65,12 @@ AB_IDS = (
     1637,
     1650,
 )
-# SEED: 쌍 순서와 좌우 섞기 시드(12절). TARGET_DBFS: 말소리 프레임 RMS를 맞출 목표 −23dBFS. FLOOR_DBFS: 이보다
-# 조용한 20ms 프레임은 말소리가 아닌 것으로 본다. PAD_S: 앞뒤에 남길 조용한 부분 0.1초. PEAK: 키운 뒤 봉우리가
-# 넘지 않을 상한(찌그러짐 방지).
+# SEED: 쌍 순서와 좌우 섞기 시드(12절). TARGET_DBFS: 자른 뒤 말소리 프레임 RMS를 맞출 목표 −23dBFS.
+# FLOOR_DBFS: 이보다 조용한 20ms 프레임은 말소리가 아닌 것으로 본다. PAD_S: 앞뒤에 남길 조용한 부분 0.1초.
+# PEAK: 키운 뒤 봉우리가 넘지 않을 상한(찌그러짐 방지).
 # _ANSWER: 청취 페이지가 만드는 결과 한 줄 형식(쌍 번호 두 자리, 선호 1·2·same·none, 부자연 표시 -·1·2·1,2).
-SEED = 7802  # pair order and the side of each model
-TARGET_DBFS = -23.0  # RMS of the frames above the floor, after trimming
+SEED = 7802
+TARGET_DBFS = -23.0
 FLOOR_DBFS = -50.0
 PAD_S = 0.1
 PEAK = 0.98
@@ -104,8 +103,8 @@ def _write(path: Path, samples: np.ndarray, rate: int) -> None:
 # 말소리 프레임만으로 음량을 재는 것은 문장 사이 쉼의 길이가 평균 음량을 바꾸지 않게 하려는 것이다. 키운 뒤
 # 봉우리가 0.98을 넘으면 이득을 그만큼 줄인다.
 def loudness_match(samples: np.ndarray, rate: int) -> tuple[np.ndarray, float]:
-    """Trim lead and tail quiet to PAD_S and scale the speech frames' RMS to TARGET_DBFS (peak kept under
-    PEAK), so loudness and silence length do not tell the models apart. Returns the clip and its gain in dB.
+    """앞뒤 조용한 부분을 PAD_S만 남기고 자르고, 말소리 프레임의 RMS를 TARGET_DBFS로 맞춘다(봉우리는 PEAK
+    아래로 유지). 그래서 음량과 쉼 길이로 모델을 구별할 수 없다. 맞춘 클립과 그 이득(dB)을 돌려준다.
     """
     frame = max(1, int(0.02 * rate))
     count = len(samples) // frame
@@ -258,7 +257,7 @@ def build(
     key_path: Path,
     seed: int = SEED,
 ) -> dict:
-    """Write the listening folder and the answer key; the key never goes into the folder."""
+    """청취 폴더와 정답 열쇠를 쓴다. 열쇠는 절대 그 폴더 안에 두지 않는다."""
     out, key_path = Path(out), Path(key_path)
     if key_path.resolve().is_relative_to(out.resolve()):
         raise ValueError("the answer key must be outside the listening folder")
@@ -345,11 +344,11 @@ def main() -> None:
     phases = parser.add_subparsers(dest="phase", required=True)
     build_parser = phases.add_parser("build")
     build_parser.add_argument("--tag", required=True)
-    build_parser.add_argument("--a", required=True, help="one candidate, e.g. melo")
-    build_parser.add_argument("--b", required=True, help="the other candidate")
+    build_parser.add_argument("--a", required=True, help="한쪽 후보, 예: melo")
+    build_parser.add_argument("--b", required=True, help="다른 쪽 후보")
     build_parser.add_argument("--out", type=Path, required=True)
     build_parser.add_argument("--key", type=Path, required=True)
-    build_parser.add_argument("--sentences-dir", type=Path, help="export JSON instead of the FLEURS parquet")
+    build_parser.add_argument("--sentences-dir", type=Path, help="FLEURS parquet 대신 읽을 export JSON 폴더")
     unblind_parser = phases.add_parser("unblind")
     unblind_parser.add_argument("--key", type=Path, required=True)
     unblind_parser.add_argument("--answers", type=Path, required=True)

@@ -19,7 +19,7 @@ class Recorder {
   onerror: (() => void) | null = null
   stop = vi.fn(() => {
     this.state = 'inactive'
-    // Real MediaRecorder queues final data and stop events, even after a cancel.
+    // 실제 MediaRecorder는 취소한 뒤에도 마지막 데이터와 stop 이벤트를 줄 세워 보낸다.
     const data = this.ondataavailable; const stop = this.onstop
     queueMicrotask(() => { data?.({ data: new Blob(['recorded audio']) }); stop?.() })
   })
@@ -66,7 +66,6 @@ it('records until stopped, releases the microphone, and returns a typed blob', a
 // 확인: 자동 정지 시각에 1초 늦음을 더해도 서버 한도 30초를 넘지 않는다. 숨겨진 탭의 늦은 타이머 때문에 422가
 // 나던 문제(dfc251d)를 숫자로 고정한다.
 it('stops early enough that a timer up to a second late stays within the server 30 s limit', () => {
-  // Hidden pages wake timers about once per second, so the stop can come up to 1 s late.
   expect(MAX_RECORDING_MS + 1000).toBeLessThanOrEqual(30_000)
 })
 

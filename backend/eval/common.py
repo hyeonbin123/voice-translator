@@ -1,4 +1,4 @@
-"""Paths and GPU measurement shared by the evaluation scripts."""
+"""측정 스크립트들이 함께 쓰는 경로와 GPU 측정."""
 
 # [파일 역할] 측정 스크립트(backend/eval/)가 함께 쓰는 경로 상수와 GPU 메모리 측정 함수.
 # [왜 필요한가] 데이터·모델·리포트 위치를 한곳에서 정해 스크립트마다 경로가 어긋나지 않게 한다. 측정 결과는
@@ -20,11 +20,12 @@ REPORTS = Path(__file__).resolve().parent / "reports"
 FLEURS_CONFIG = {"ko": "ko_kr", "en": "en_us"}
 
 
-# GPU 이름과 장치 전체(모든 프로세스)의 사용 중 메모리(MB). 측정에서 모델을 올리기 전후의 차이로 VRAM 사용량을
-# 기록하는 데 쓴다. pynvml(NVIDIA 관리 라이브러리)은 GPU 측정 때만 필요해 함수 안에서 import한다. 오래된
-# pynvml은 이름을 bytes로 돌려주므로 문자열로 바꾼다.
 def gpu_memory_mb() -> tuple[str, float]:
-    """GPU name and memory in use on the whole device (all processes), in MB."""
+    """GPU 이름과 장치 전체(모든 프로세스)의 사용 중 메모리(MB).
+
+    측정에서 모델을 올리기 전후의 차이로 VRAM 사용량을 기록하는 데 쓴다. pynvml(NVIDIA 관리 라이브러리)은
+    GPU 측정 때만 필요해 함수 안에서 import한다. 오래된 pynvml은 이름을 bytes로 돌려주므로 문자열로 바꾼다.
+    """
     import pynvml
 
     pynvml.nvmlInit()

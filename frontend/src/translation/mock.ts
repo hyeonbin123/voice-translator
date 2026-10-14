@@ -8,7 +8,7 @@
 import { ApiError } from '../api/client'
 import { TranslationApi, type TranslationResult, type Direction } from './api'
 
-// Development-only contract fixture. No requests, recordings or history are stored.
+// 개발 전용 계약 예시. 요청·녹음·기록은 어디에도 저장하지 않는다.
 export const mockTranslationApi = new TranslationApi({
   // 가짜 request: 실제 네트워크 요청 없이 Response 객체를 만들어 돌려준다. 취소된 요청은 실제 fetch처럼
   // AbortError로 끝낸다. 기록 삭제(DELETE)는 언제나 204로 성공한다.

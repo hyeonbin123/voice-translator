@@ -24,11 +24,11 @@ from pydantic_settings import BaseSettings
 # 서버 설정 전체. 인스턴스를 만들 때 환경 변수를 읽고 검증한다. 테스트는 Settings(load_models=True, ...)처럼
 # 직접 만들어 원하는 조합을 넣는다(tests/test_model_loading.py).
 class Settings(BaseSettings):
-    # Environment variables override defaults; no .env file is loaded implicitly.
-    # 127.0.0.1, not localhost: the compose DB listens on IPv4 only (T50), and on Windows "localhost" tries
-    # ::1 first, which cost about 2 s per new connection.
+    # 환경 변수가 기본값을 덮어쓴다. .env 파일은 암묵적으로 읽지 않는다.
     # 기본 DB 주소: docker compose의 개발 DB. 호스트 포트 55442는 Windows가 예약하는 5432~5631 범위를 피한
     # 값이다(README 로컬 개발). 운영·다른 환경은 DATABASE_URL 환경 변수로 바꾼다.
+    # localhost가 아니라 127.0.0.1을 쓰는 이유: compose DB는 IPv4로만 연결을 받는데, Windows에서
+    # "localhost"는 ::1(IPv6)을 먼저 시도해 새 연결마다 약 2초를 잃었다.
     database_url: str = "postgresql+asyncpg://vtuser:vtpass@127.0.0.1:55442/voicetranslator"
     # JWT 서명 키. 환경 변수가 없으면 프로세스마다 임의 키(48바이트)를 만든다. 이 경우 서버를 다시 시작하면
     # 기존 토큰이 모두 무효가 되고, 여러 worker를 쓰면 worker마다 키가 달라진다. 그래서 운영에서는 같은 키를
@@ -41,28 +41,24 @@ class Settings(BaseSettings):
     # <저장소>/work/audio(커밋하지 않는 폴더)다. Docker 이미지는 /data/audio를 쓴다(docs/api.md).
     audio_dir: Path = Path(__file__).resolve().parents[2] / "work" / "audio"
 
-    # Models (T11, chosen in docs/experiments.md). Off by default so tests and CI need no GPU or model
-    # files; the server sets LOAD_MODELS=true. Without them every translation answers 503.
-    # 모델을 올릴지. 기본 False라 pytest·CI는 GPU·모델 파일 없이 API만 띄우고, 번역 요청은 503이 된다. Docker
-    # 이미지와 서버 실행은 LOAD_MODELS=true를 준다.
+    # 모델 설정(각 모델은 docs/experiments.md의 측정으로 골랐다).
+    # load_models: 모델을 올릴지. 기본 False라 pytest·CI는 GPU·모델 파일 없이 API만 띄우고, 이때 번역
+    # 요청은 모두 503이 된다. Docker 이미지와 서버 실행은 LOAD_MODELS=true를 준다.
     load_models: bool = False
-    # Threads that run the model calls (app/services/inference.py). 1 was kept by measurement
-    # (docs/experiments.md 4): the models share one GPU.
     # 모델 호출 스레드 수(services/inference.py의 ThreadPoolExecutor 크기). 1 미만이면 시작 때 멈춘다. 세
-    # 모델이 GPU 하나를 나눠 쓰므로 스레드를 늘려도 서로 GPU를 다투기만 해서 측정으로 1을 골랐다.
+    # 모델이 GPU 하나를 나눠 쓰므로 스레드를 늘려도 서로 GPU를 다투기만 해서, 측정으로 1을 유지했다
+    # (docs/experiments.md 4절).
     model_threads: int = Field(default=1, ge=1)
     # 모델을 돌릴 장치. services/models.py가 cuda면 float16, cpu면 int8 연산 형식을 고른다. stt_model은
     # faster-whisper 모델 이름, ct2_dir은 eval.mt_convert가 CTranslate2로 변환해 둔 번역 모델 폴더다.
     model_device: Literal["cuda", "cpu"] = "cuda"
     stt_model: str = "large-v3-turbo"
     ct2_dir: Path = Path(__file__).resolve().parents[2] / "data" / "models" / "ct2"
-    # Translation per direction: opus-mt-tc-big (chosen in T3; en->ko one sentence at a time, T17) or
-    # Hy-MT2-1.8B served by Ollama, a trial adopted only by its measurement (T83, docs/experiments.md 15). The
-    # Ollama model is created from the official GGUF with eval.hymt_setup; startup waits for it (translation
-    # must load) and stops when it is not the expected build (HYMT_DIGEST, the digest in /api/tags).
-    # 방향별 번역 모델 선택. 기본 opus(측정으로 고름). hy-mt2는 Ollama에서 도는 번역 LLM으로, 시험에서
-    # 채택되지 않아 비교용 설정으로만 남았다(docs/experiments.md 15절). hy-mt2-split은 Hy-MT2를 문장 단위로
-    # 부르는 변형이다.
+    # 방향별 번역 모델 선택. 기본은 opus-mt-tc-big(측정으로 고름, 영→한은 한 문장씩 번역)이다. hy-mt2는
+    # Ollama에서 도는 번역 LLM Hy-MT2-1.8B로, 측정 결과가 좋을 때만 채택하기로 한 시험 설정이었고 채택되지
+    # 않아 비교용으로만 남았다(docs/experiments.md 15절). hy-mt2-split은 Hy-MT2를 문장 단위로 부르는 변형이다.
+    # Ollama 모델은 eval.hymt_setup이 공식 GGUF로 만든다. 번역 모델은 반드시 올라와야 하므로 서버 시작이 이
+    # 모델을 기다리고, 기대한 빌드가 아니면 시작을 멈춘다(HYMT_DIGEST와 /api/tags의 digest를 비교).
     # hymt_digest: 기대하는 모델 빌드의 digest. 주면 다른 빌드가 올라와 있을 때 시작을 멈춰, 측정한 것과 다른
     # 모델로 서비스하는 일을 막는다. hymt_timeout_s는 번역 요청 하나의 제한, hymt_prepare_timeout_s는 시작할
     # 때 Ollama와 모델을 기다리는 최대 시간(초)이다.
@@ -74,61 +70,54 @@ class Settings(BaseSettings):
     hymt_prepare_timeout_s: float = Field(default=300, gt=0)
     # 끄면 음성 합성 모델을 올리지 않고, 번역 응답에 tts_error가 들어가 화면이 브라우저 내장 음성으로 읽는다.
     tts_enabled: bool = True
-    # Korean speech synthesis: MeloTTS on the GPU (chosen in T4) or Supertonic 3 on the CPU, a trial that is
-    # adopted only by its measurement and a blind listening test (T78, docs/experiments.md 12). Supertonic
-    # runs on a synthesis thread of its own, beside the model thread; eval.supertonic_download gets its files.
-    # 한국어 합성 모델 선택. 기본 MeloTTS. supertonic은 두 번의 시험(CPU, GPU)에서 채택되지 않은 비교용
-    # 설정이다(docs/experiments.md 12·14절).
+    # 한국어 합성 모델 선택. 기본은 GPU에서 도는 MeloTTS(측정으로 고름)다. supertonic(Supertonic 3, CPU)은
+    # 측정과 블라인드 청취 시험을 통과해야만 채택하기로 한 시험 설정으로, 두 번의 시험(CPU, GPU)에서 채택되지
+    # 않아 비교용으로만 남았다(docs/experiments.md 12·14절). Supertonic은 모델 스레드 옆의 전용 합성
+    # 스레드에서 돌고, 모델 파일은 eval.supertonic_download가 내려받는다.
     # supertonic_steps: 흐름 정합 단계 수(1~100, 적을수록 빠르고 음질이 낮음). supertonic_threads: ONNX
     # Runtime intra-op 스레드 수.
     ko_tts: Literal["melo", "supertonic"] = "melo"
     supertonic_dir: Path = Path(__file__).resolve().parents[2] / "data" / "models" / "supertonic-3"
     supertonic_steps: int = Field(default=8, ge=1, le=100)
     supertonic_threads: int = Field(default=2, ge=1)
-    # ONNX Runtime provider for Supertonic: the CPU (T78), or the GPU's CUDA provider, a trial that needs the
-    # onnxruntime-gpu package in place of onnxruntime (T82, docs/experiments.md 14).
+    # Supertonic을 돌릴 ONNX Runtime provider: CPU, 또는 GPU의 CUDA provider. cuda는 onnxruntime 대신
+    # onnxruntime-gpu 패키지가 있어야 하는 시험 설정이다(docs/experiments.md 14절).
     supertonic_provider: Literal["cpu", "cuda"] = "cpu"
-    # Freeze the loaded models out of the garbage collector's reach (T23). Off only to measure without it.
-    # 모델을 올린 직후 gc.freeze()를 부를지. faster-whisper가 업로드를 풀 때마다 부르는 전체 가비지 컬렉션이
+    # 모델을 올린 직후 gc.freeze()를 불러 올린 모델 객체를 가비지 컬렉터가 훑는 대상에서 뺄지. 끄는 것은
+    # 이것 없이 측정할 때뿐이다. faster-whisper가 업로드를 풀 때마다 부르는 전체 가비지 컬렉션이
     # 모델의 수많은 객체를 훑으며 GIL을 쥐어 다른 요청이 약 0.3초씩 막혔고, freeze로 0.33초 → 0.03초가
     # 됐다(README 설계 판단, docs/experiments.md 5절).
     gc_freeze: bool = True
-    # Pass only the speech parts to Whisper (T14, docs/experiments.md 1-1): no empty results on speech, and
-    # silence comes back as "no speech" instead of made-up text.
-    # VAD를 켜기 전에는 무음에서 "Thank you." 같은 문장을 지어냈다(README 설계 판단). 켜면 말소리가 없을 때
-    # NoSpeechError가 되어 422 "No speech was recognized"로 답한다.
+    # Whisper에 말소리 구간만 넘긴다(VAD, docs/experiments.md 1-1절). 그러면 말소리에서 빈 결과가 나오지 않고,
+    # 무음은 지어낸 글 대신 "말소리 없음"으로 돌아온다. VAD를 켜기 전에는 무음에서 "Thank you." 같은 문장을
+    # 지어냈다(README 설계 판단). 켜면 말소리가 없을 때 NoSpeechError가 되어 422 "No speech was
+    # recognized"로 답한다.
     stt_vad_filter: bool = True
-    # Decode uploads in app/services/stt.py instead of inside faster-whisper (T23 candidate C).
-    # 비교용으로만 남긴 설정(docs/experiments.md 5절 후보 C). 기본은 faster-whisper가 직접 디코딩한다.
+    # 업로드 음성을 faster-whisper 안이 아니라 app/services/stt.py에서 직접 디코딩할지. 비교용으로만 남긴
+    # 설정이다(docs/experiments.md 5절 후보 C). 기본은 faster-whisper가 직접 디코딩한다.
     stt_own_decode: bool = False
-    # Live subtitles over the WebSocket (T34, docs/experiments.md 8): the least time between the starts of two
-    # updates of one utterance, and how an update recognizes. Chosen by measurement: every 1000 ms, with the
-    # final recognition's settings (the least flicker). The final result always uses the settings above, as
-    # conversation mode does.
-    # 동시통역 자막 갱신 설정. live_update_ms는 한 마디 안의 두 갱신 시작 사이 최소 간격(ms)이다. 250·500ms
-    # 갱신보다 1000ms가 덜 흔들려 골랐다(README). 자막 갱신의 beam 크기와 temperature fallback은 최종 인식과
-    # 같은 값(5, 켬)이 기본이다.
+    # 웹소켓 동시통역 자막 갱신 설정(docs/experiments.md 8절). live_update_ms는 한 마디 안의 두 갱신 시작
+    # 사이 최소 간격(ms)이고, live_beam_size·live_temperature_fallback은 자막 갱신이 인식하는 방식이다.
+    # 측정으로 1000ms 간격과 최종 인식과 같은 설정(beam 5, temperature fallback 켬)을 골랐다. 250·500ms
+    # 갱신보다 덜 흔들렸다(README). 최종 결과는 대화 모드처럼 늘 위의 인식 설정을 쓴다.
     live_update_ms: int = Field(default=1000, ge=0)
     live_beam_size: int = Field(default=5, ge=1)
     live_temperature_fallback: bool = True
-    # Updates on a thread of their own, and recognition replicas so they can run beside a final (T61).
-    # 자막 갱신을 모델 스레드 대기열 대신 전용 스레드(inference.run_live_model)에서 돌릴지. 인식 호출이 실제로
+    # 자막 갱신을 모델 스레드 대기열 대신 전용 스레드(inference.run_live_model)에서 돌려 최종 인식과
+    # 나란히 돌 수 있게 할지, 그리고 그때 쓸 인식 복제 수(stt_num_workers). 인식 호출이 실제로
     # 동시에 돌려면 stt_num_workers(faster-whisper 복제 수)도 2 이상이어야 한다. 시험했지만 자막이 빨라지지
     # 않아 기본은 끔이다(README 알려진 한계).
     live_update_thread: bool = False
     stt_num_workers: int = Field(default=1, ge=1)
-    # Two-person conversation (T35, docs/experiments.md 10): below this confidence in the detected language,
-    # an utterance is taken as the language opposite to the previous one. 0.6 was chosen on validation.
-    # 판별 확신은 한국어·영어 확률 중 큰 쪽의 몫(큰 쪽 ÷ 둘의 합)이라 늘 0.5 이상이다. 그래서 문턱은 0.5보다
-    # 커야 의미가 있고(gt=0.5), 1.0을 넘을 수 없다.
+    # 두 사람 대화(docs/experiments.md 10절): 판별한 언어의 확신이 이 값보다 낮으면 그 마디를 직전 마디와
+    # 반대 언어로 본다. 0.6은 validation으로 골랐다. 판별 확신은 한국어·영어 확률 중 큰 쪽의 몫(큰 쪽 ÷
+    # 둘의 합)이라 늘 0.5 이상이다. 그래서 문턱은 0.5보다 커야 의미가 있고(gt=0.5), 1.0을 넘을 수 없다.
     dialog_language_threshold: float = Field(default=0.6, gt=0.5, le=1.0)
-    # Run every model once after loading, so the first request does not pay for lazy loading (T25).
-    # 모델을 올린 뒤 번역·합성·인식을 한 번씩 돌려 둔다(services/models.warm_up). 컨테이너에서 첫 합성이
-    # 5~20초, 이후 약 0.2초였다(models.py docstring).
+    # 모델을 올린 뒤 번역·합성·인식을 한 번씩 돌려 둔다(services/models.warm_up). 첫 요청이 지연 적재
+    # 비용을 치르지 않게 하려는 것이다. 컨테이너에서 첫 합성이 5~20초, 이후 약 0.2초였다(models.py docstring).
     warm_up: bool = True
-    # Fix typos in typed English before translating it, with a small LLM served by Ollama (T32,
-    # docs/experiments.md 6). When Ollama cannot be reached, text is translated as typed.
-    # 글자로 입력한 영어만 번역 전에 Ollama의 qwen2.5 1.5B로 오타·띄어쓰기를 고친다. 오타를 섞은 영→한 chrF가
+    # 글자로 입력한 영어만 번역 전에 Ollama가 서비스하는 작은 LLM(qwen2.5 1.5B)으로 오타·띄어쓰기를
+    # 고친다(docs/experiments.md 6절). 오타를 섞은 영→한 chrF가
     # 27.5 → 34.8로 올랐다(README). correction_timeout_s(10초)를 넘거나 Ollama가 없으면 입력 그대로 번역한다.
     # correction_prepare_timeout_s는 첫 시작의 내려받기·적재·첫 교정 요청마다의 제한이고, 실패하면 다시
     # 시도한다(services/correction.py).
@@ -136,7 +125,6 @@ class Settings(BaseSettings):
     ollama_url: str = "http://localhost:11434"
     correction_model: str = "qwen2.5:1.5b-instruct"
     correction_timeout_s: float = Field(default=10, gt=0)
-    # Limit for each slow preparation call (download, load, first correction); a failed try repeats (T37).
     correction_prepare_timeout_s: float = Field(default=600, gt=0)
 
     # JWT 키가 UTF-8 기준 32바이트(256비트) 미만이면 시작을 멈춘다. HS256은 SHA-256 기반이라 그보다 짧은 키는

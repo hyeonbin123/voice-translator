@@ -1,9 +1,8 @@
-"""Protocol-only translation orchestration; model loading belongs to the app lifespan.
+"""Protocol만으로 번역 흐름을 조립한다. 모델 적재는 앱 lifespan이 맡는다.
 
-A translation is first prepared (recognition, translation, synthesis) and then saved as a history record.
-The HTTP API does both in one go. The live WebSocket prepares when the speaker pauses and saves only once
-the pause turns out to be the end of the utterance (T56), so a prepared translation touches neither the
-disk nor the database.
+번역은 먼저 준비(인식, 번역, 합성)된 뒤 기록으로 저장된다. HTTP API는 둘을 한 번에 한다. 동시통역
+웹소켓은 말하는 사람이 멈출 때 준비하고, 그 쉼이 마디의 끝으로 드러났을 때만 저장한다. 그래서 준비만 한
+번역은 디스크도 DB도 건드리지 않는다.
 """
 
 # [파일 역할] 번역 한 건의 흐름을 조립한다: 음성 검사 → 음성 인식 → (영어 글자 입력이면 오타 교정) → 번역 →
@@ -68,17 +67,17 @@ class PipelineModels:
     translator: Translator | None
     tts: TextToSpeech | None = None
     corrector: TypoCorrector | None = None
-    # Target languages whose synthesis runs on the CPU: on the synthesis thread, not the model thread (T78).
+    # 합성이 CPU에서 도는 도착 언어들. 이 언어의 합성은 모델 스레드가 아니라 합성 전용 스레드에서 돈다.
     synthesis_off_model_thread: frozenset[Language] = frozenset()
 
 
-# 준비는 끝났지만 아직 저장하지 않은 번역. 합성 음성(speech)이 메모리에만 있어, 동시통역에서 말이
-# 이어지면(resume) 디스크·DB를 건드리지 않고 그냥 버릴 수 있다.
-# tts_error의 기본값은 '합성 모델이 없음'이고, 합성에 성공하면 None, 실패하면 "Speech synthesis failed"로
-# 바뀐다.
 @dataclass
 class Prepared:
-    """A finished translation that is not a record yet: its speech is still in memory."""
+    """준비는 끝났지만 아직 기록이 아닌 번역. 합성 음성(speech)이 아직 메모리에만 있다.
+
+    그래서 동시통역에서 말이 이어지면(resume) 디스크·DB를 건드리지 않고 그냥 버릴 수 있다. tts_error의
+    기본값은 '합성 모델이 없음'이고, 합성에 성공하면 None, 실패하면 "Speech synthesis failed"로 바뀐다.
+    """
 
     mode: Literal["text", "speech"]
     source: Language
@@ -95,14 +94,15 @@ class Prepared:
     tts_error: str | None = "Speech synthesis is not available"
 
 
-# 업로드가 풀리는 음성인지, 30초 이하인지 확인한다. 컨테이너 머리에 적힌 길이는 꾸며낼 수 있으므로 믿지 않고,
-# 실제로 프레임을 풀며 표본 수 ÷ 표본 추출률을 더한다. Fraction(정확한 분수)으로 더해 부동소수점 오차 없이
-# 30초 경계를 판단한다.
-# 30초를 넘는 순간 멈춰(최대 30초 + 프레임 하나만 풂) 아주 긴 파일로 CPU를 오래 쓰지 않게 한다. 음성 스트림이
-# 없거나, 풀린 표본이 0이거나, FFmpeg 오류가 나면 UndecodableAudioError(→ 422 "Audio could not be decoded").
-# 모델 스레드에서 돈다(호출하는 쪽이 run_model로 부름).
 def validate_audio(audio: bytes) -> None:
-    """Decode at most 30 seconds plus one frame, without trusting container duration."""
+    """컨테이너에 적힌 길이를 믿지 않고, 최대 30초 + 프레임 하나까지만 풀어 본다.
+
+    업로드가 풀리는 음성인지, 30초 이하인지 확인한다. 컨테이너 머리에 적힌 길이는 꾸며낼 수 있으므로 실제로
+    프레임을 풀며 표본 수 ÷ 표본 추출률을 더한다. Fraction(정확한 분수)으로 더해 부동소수점 오차 없이 30초
+    경계를 판단한다. 30초를 넘는 순간 멈춰 아주 긴 파일로 CPU를 오래 쓰지 않게 한다. 음성 스트림이 없거나,
+    풀린 표본이 0이거나, FFmpeg 오류가 나면 UndecodableAudioError(→ 422 "Audio could not be decoded").
+    모델 스레드에서 돈다(호출하는 쪽이 run_model로 부름).
+    """
     try:
         with av.open(io.BytesIO(audio)) as container:
             if not container.streams.audio:
@@ -149,12 +149,12 @@ async def prepare(
         stt_model = models.stt.model_name
     if models.translator is None:
         raise ModelError("Translation model is unavailable")
-    # Typed text only: speech recognition output has no keyboard typos, and spoken replies should not wait
-    # for another model. The record keeps the text as typed; mt_ms includes the correction.
+    # 글자 입력만 교정한다: 음성 인식 결과에는 키보드 오타가 없고, 음성 답은 다른 모델을 더 기다리면 안
+    # 된다. 기록은 입력한 그대로의 글을 남기고, mt_ms에는 교정 시간이 들어간다.
     corrector = models.corrector if audio is None else None
-    # The correction is an HTTP call to Ollama, not a model call in this process: it runs on a thread of its
-    # own, one at a time, so a slow Ollama (up to CORRECTION_TIMEOUT_S) does not hold the model thread that
-    # speech, dialog and live requests queue on (T71, T73).
+    # 교정은 이 프로세스 안의 모델 호출이 아니라 Ollama에 보내는 HTTP 호출이다. 그래서 전용 스레드에서 한
+    # 번에 하나씩 돌려, Ollama가 느려도(최대 CORRECTION_TIMEOUT_S) 음성·두 사람 대화·동시통역 요청이 줄 서는
+    # 모델 스레드를 붙잡지 않게 한다.
     corrected, correction_ms = None, 0
     if corrector is not None and corrector.corrects(source):
         corrected, correction_ms = await run_correction(_timed, corrector.correct, text, source)
@@ -189,7 +189,7 @@ async def prepare(
             prepared.tts_model = models.tts.model_name
             prepared.tts_error = None
         except (ModelError, OSError) as exc:
-            # Types and place only: a synthesis error's message can quote the translation (T49).
+            # 예외 종류와 위치만 남긴다: 합성 오류의 메시지에 번역문이 그대로 들어갈 수 있다.
             logger.error("Speech synthesis or audio storage failed: %s", describe(exc))
             prepared.tts_error = "Speech synthesis failed"
     return prepared
@@ -220,11 +220,11 @@ async def save(
     saved_path = None
     if prepared.speech is not None:
         audio_id = uuid4()
-        # The write runs in a worker thread that a cancellation cannot stop: a live connection that closes
-        # mid-save would leave a file no record points to (T59). So wait for it, then remove what it wrote.
-        # asyncio.shield: 이 코루틴이 취소돼도(웹소켓이 끊김) 파일 쓰기 작업 자체는 끝까지 가게 한다. 취소되면
-        # 쓰기가 끝나길 기다렸다가 쓴 파일을 지우고 취소를 다시 올린다. 파일 쓰기가 OSError로 실패하면 기록은
-        # 음성 없이 저장하고 tts_error를 "Speech synthesis failed"로 바꾼다.
+        # 파일 쓰기는 취소로 멈출 수 없는 워커 스레드에서 돈다. 그래서 저장 도중 동시통역 연결이 닫히면 어느
+        # 기록도 가리키지 않는 파일이 남을 수 있다. asyncio.shield로 이 코루틴이 취소돼도(웹소켓이 끊김) 쓰기
+        # 작업 자체는 끝까지 가게 하고, 취소되면 쓰기가 끝나길 기다렸다가 쓴 파일을 지우고 취소를 다시
+        # 올린다. 파일 쓰기가 OSError로 실패하면 기록은 음성 없이 저장하고 tts_error를 "Speech synthesis
+        # failed"로 바꾼다.
         writing = asyncio.ensure_future(store.save(audio_id, prepared.speech.wav))
         try:
             saved_path = await asyncio.shield(writing)
@@ -244,7 +244,6 @@ async def save(
     try:
         db.add(item)
         await db.flush()
-        # Validate before commit, so serialization errors cannot leave an invisible record.
         result = TranslationResponse(**HistoryItem.model_validate(item).model_dump(), tts_error=tts_error)
         await db.commit()
     except BaseException:

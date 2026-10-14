@@ -1,6 +1,6 @@
-"""Two people, one screen (T35): which language a turn is in (docs/experiments.md 10).
+"""두 사람이 한 화면으로 대화할 때 한 마디가 어느 언어인지 정한다(docs/experiments.md 10절).
 
-The HTTP dialog API and the dialog mode of the live WebSocket (T77) both decide with this rule.
+HTTP 두 사람 대화 API와 동시통역 웹소켓의 두 사람 대화 모드가 모두 이 규칙으로 정한다.
 """
 
 # [파일 역할] 두 사람 대화 모드에서 한 마디가 어느 언어인지 최종 결정하는 규칙 하나를 둔다.
@@ -16,15 +16,17 @@ from app.services.interfaces import Language
 OTHER: dict[Language, Language] = {"ko": "en", "en": "ko"}
 
 
-# 입력: 판별한 언어, 그 확신(0.5~1.0), 직전 마디의 언어(첫 마디면 None), 문턱. 출력: (처리할 언어,
-# 추측했는지).
-# 첫 마디는 비교할 직전 마디가 없으므로 확신이 낮아도 판별 결과를 그대로 쓴다. 추측(True)이면 화면이 방향
-# 바꾸기 단추를 보여 준다.
 def choose_language(
     detected: Language, confidence: float, previous: Language | None, threshold: float
 ) -> tuple[Language, bool]:
-    """The turn's language and whether it was guessed. When the detection is unsure and an earlier turn is
-    known, the conversation is taken to alternate: the turn is in the language opposite to that turn's."""
+    """한 마디의 언어와 그것을 추측했는지를 돌려준다.
+
+    판별이 애매하고(확신이 문턱보다 낮고) 앞 마디가 알려져 있으면 대화가 번갈아 이어진다고 보고, 이 마디를
+    앞 마디와 반대 언어로 본다.
+    입력: 판별한 언어, 그 확신(0.5~1.0), 직전 마디의 언어(첫 마디면 None), 문턱. 출력: (처리할 언어,
+    추측했는지). 첫 마디는 비교할 직전 마디가 없으므로 확신이 낮아도 판별 결과를 그대로 쓴다.
+    추측(True)이면 화면이 방향 바꾸기 단추를 보여 준다.
+    """
     if previous is not None and confidence < threshold:
         return OTHER[previous], True
     return detected, False

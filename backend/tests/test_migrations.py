@@ -25,6 +25,6 @@ async def test_migration_matches_models_and_roundtrips(db_engine):
         command.upgrade(cfg, "head")
         command.check(cfg)
 
-    # This engine only ever points at the randomly named test database from conftest.
+    # 이 엔진은 conftest가 임의 이름으로 만든 테스트 DB만 가리킨다.
     async with db_engine.begin() as connection:
         await connection.run_sync(check)

@@ -1,4 +1,4 @@
-"""Generated WAV files only. Original uploads are never retained here."""
+"""합성한 WAV 파일만 다룬다. 업로드한 녹음 원본은 여기에 절대 남기지 않는다."""
 
 # [파일 역할] 합성한 번역 음성(WAV)을 AUDIO_DIR 폴더에 파일로 저장·읽기·삭제하는 작은 저장소다.
 # [설계 이유] 음성 바이트는 DB 대신 디스크에 두고 DB(audio_files.path)에는 파일 이름만 둔다. 파일 입출력은
@@ -38,7 +38,7 @@ class AudioStore:
         def write():
             self.directory.mkdir(parents=True, exist_ok=True)
             path = self.resolve(name)
-            # A generated UUID never overwrites an existing file.
+            # 새로 만든 UUID 이름이므로 기존 파일을 덮어쓰지 않는다.
             output = path.open("xb")
             try:
                 with output:

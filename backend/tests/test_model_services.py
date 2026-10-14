@@ -58,7 +58,6 @@ def test_fake_speech_to_text_keeps_the_language_and_rejects_empty_audio():
 # 음성 오류를 둘로 나눈 뒤에도(커밋 35ddbe4) 두 오류가 여전히 InvalidAudioError와 ModelError의 하위 클래스인지
 # 확인한다. 부모 클래스로 잡던 기존 코드가 계속 동작하게 하려는 것이다.
 def test_audio_errors_are_still_invalid_audio_and_model_errors():
-    # Code that catches the parent classes keeps working after the split.
     for error in (UndecodableAudioError, NoSpeechError):
         assert issubclass(error, InvalidAudioError)
         assert issubclass(error, ModelError)
@@ -109,7 +108,7 @@ async def test_model_calls_run_off_the_event_loop():
             last = now
 
     beat = asyncio.create_task(heartbeat())
-    await run_model(time.sleep, 0.3)  # stands in for a model holding its thread
+    await run_model(time.sleep, 0.3)  # 스레드를 붙잡고 있는 모델 대신
     done.set()
     await beat
 
@@ -136,23 +135,23 @@ class Audio:
 # 참조가 비었는지 본다. inference._run은 취소되면 대기 중인 작업 칸(job[0])을 None으로 비워 인수를 놓는다.
 # gate.set()은 finally에서 불러 테스트가 실패해도 스레드를 풀어 준다.
 async def test_a_cancelled_waiting_call_lets_go_of_its_arguments():
-    """A live pause queues a whole utterance's audio for the model thread, and the resume that follows
-    cancels it; the audio must not stay in the thread's queue until the thread gets there."""
+    """동시통역의 pause는 한 마디 전체 소리를 모델 스레드 대기열에 넣고, 뒤따르는 resume이 그 호출을
+    취소한다. 그 소리가 스레드 차례가 올 때까지 대기열에 남아 있으면 안 된다."""
     gate = threading.Event()
-    blocker = asyncio.create_task(run_model(gate.wait, 5))  # a model call holds the only thread
+    blocker = asyncio.create_task(run_model(gate.wait, 5))  # 모델 호출 하나가 하나뿐인 스레드를 잡고 있다
     await asyncio.sleep(0.05)
     try:
         audio = Audio()
         released = weakref.ref(audio)
         waiting = asyncio.create_task(run_model(id, audio))
-        await asyncio.sleep(0)  # the call now waits in the thread's queue
+        await asyncio.sleep(0)  # 이제 이 호출은 스레드 대기열에서 기다린다
         del audio
         waiting.cancel()
         await asyncio.sleep(0.05)
         assert waiting.cancelled()
         # 취소된 작업은 예외 traceback을 들고 있고 그 프레임이 호출 인수를 참조하므로, 작업 객체까지 지운 뒤
         # gc.collect()로 순환 참조를 정리하고 확인한다.
-        del waiting  # a cancelled task keeps its traceback, and with it the call's arguments
+        del waiting
         gc.collect()
         assert released() is None
     finally:

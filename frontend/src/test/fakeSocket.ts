@@ -7,7 +7,7 @@
 import { vi } from 'vitest'
 import type { LiveSocket } from '../live/socket'
 
-/** A WebSocket the test drives: open it, deliver server messages, close it with a code. */
+/** 테스트가 조종하는 WebSocket: 열고, 서버 메시지를 전하고, 코드와 함께 닫는다. */
 export class FakeSocket implements LiveSocket {
   // readyState 0은 연결 중(CONNECTING), 1은 열림(OPEN), 3은 닫힘(CLOSED)이다. bufferedAmount는 0으로 두어
   // 전송 지연 검사에 걸리지 않게 한다.
@@ -24,7 +24,7 @@ export class FakeSocket implements LiveSocket {
   opened() { this.readyState = 1; this.onopen?.call(this as unknown as WebSocket, new Event('open')) }
   message(data: unknown) { this.onmessage?.call(this as unknown as WebSocket, new MessageEvent('message', { data: JSON.stringify(data) })) }
   closed(code: number) { this.readyState = 3; this.onclose?.call(this as unknown as WebSocket, new CloseEvent('close', { code })) }
-  /** Everything sent, JSON messages parsed and audio frames as 'audio'. */
+  /** 보낸 모든 것. JSON 메시지는 풀고, 소리 조각은 'audio'로 나타낸다. */
   // 보낸 것 목록: 글 메시지는 JSON으로 풀고, 소리(바이너리)는 내용 대신 'audio'로 바꿔 순서만 비교하기 쉽게
   // 한다.
   messages(): unknown[] { return this.send.mock.calls.map(([data]) => typeof data === 'string' ? JSON.parse(data) : 'audio') }

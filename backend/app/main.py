@@ -22,15 +22,14 @@ from app.services.models import load_models, warm_up
 logger = logging.getLogger(__name__)
 
 
-# 로그 레코드에 예외 정보가 붙어 있으면 그 예외를 'describe()' 요약(예외 종류의 사슬과 위치)으로 바꾸고
-# traceback·메시지를 지우는 필터다. 라이브러리 예외 메시지에 사용자 입력이 그대로 들어갈 수 있어서
-# 둔다(tests/test_log_privacy.py가 확인).
 class WithoutExceptionMessages(logging.Filter):
-    """Log an exception as its chain of types and place, never its messages or traceback (T49, T54).
+    """예외를 종류의 사슬과 위치로만 기록하고 메시지나 traceback은 남기지 않는 로그 필터.
 
-    A library's message can quote the user's text or the translation. The app's own logs already use
-    describe(); this catches the rest: an unexpected error that uvicorn logs as "Exception in ASGI
-    application" (Starlette always re-raises it), and any app record logged with exc_info.
+    로그 레코드에 예외 정보가 붙어 있으면 그 예외를 describe() 요약(예외 종류의 사슬과 위치)으로 바꾸고
+    traceback·메시지를 지운다. 라이브러리 예외 메시지에는 사용자가 입력한 글이나 번역문이 그대로 들어갈 수
+    있기 때문이다. 앱 자체 로그는 이미 describe()를 쓰고, 이 필터는 나머지를 잡는다: uvicorn이 "Exception
+    in ASGI application"으로 남기는 예상하지 못한 오류(Starlette는 늘 다시 raise함)와, exc_info를 붙여
+    남긴 앱 로그 레코드다. tests/test_log_privacy.py가 확인한다.
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
@@ -48,15 +47,15 @@ class WithoutExceptionMessages(logging.Filter):
 # 모듈을 불러올 때 로그 설정을 한 번 한다. 테스트처럼 같은 모듈을 여러 번 불러도 핸들러·필터가 중복으로 붙지
 # 않게 '이미 있으면 건너뛰기'로 짰다.
 _without_messages = WithoutExceptionMessages()
-# uvicorn configures only its own loggers, so without a handler the app's INFO lines (model loading and
-# warm-up times) were dropped (T30). Propagation stays on, so pytest's caplog still receives them.
+# uvicorn은 자기 로거만 설정하므로, 핸들러를 따로 붙이지 않으면 앱의 INFO 줄(모델 적재·예열 시간)이
+# 버려졌다. 전파(propagate)는 켠 채로 두어 pytest의 caplog도 계속 이 줄을 받는다.
 _app_logger = logging.getLogger("app")
 if not _app_logger.handlers:
     _handler = logging.StreamHandler()
     _handler.setFormatter(logging.Formatter("%(levelname)s:     %(name)s: %(message)s"))
     _app_logger.addHandler(_handler)
 for _handler in _app_logger.handlers:
-    # On the handler, so it also covers records from app.* child loggers.
+    # 필터를 로거가 아니라 핸들러에 붙여, app.* 하위 로거에서 올라온 레코드에도 적용되게 한다.
     if not any(isinstance(f, WithoutExceptionMessages) for f in _handler.filters):
         _handler.addFilter(_without_messages)
 _app_logger.setLevel(logging.INFO)
@@ -77,16 +76,16 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     if settings.load_models:
         logger.info("Loading the models (about a minute on the first start)")
-        # Loading holds the CPU and GPU for tens of seconds; keep it off the event loop.
-        # app.state에 둔 모델 묶음을 dependencies.get_models가 모든 요청에 넘겨준다.
+        # 적재는 CPU와 GPU를 수십 초 동안 쥐므로 이벤트 루프 밖 스레드에서 한다. app.state에 둔 모델
+        # 묶음을 dependencies.get_models가 모든 요청에 넘겨준다.
         app.state.models = await asyncio.to_thread(load_models, settings)
-        # The first call of each model loads more (MeloTTS's BERT among others); pay for it here (T25).
-        # Before the freeze below, so what it creates is frozen too.
+        # 각 모델의 첫 호출은 추가로 더 올린다(MeloTTS의 BERT 등). 그 비용을 첫 요청 대신 여기서 치른다.
+        # 아래 freeze보다 먼저 해야 예열이 만든 객체도 함께 얼려진다.
         if settings.warm_up:
             await asyncio.to_thread(warm_up, app.state.models)
-        # faster-whisper runs a full gc.collect() on every decoded upload; with the models' millions of
-        # objects that held the GIL ~0.4 s and stalled every other request (docs/experiments.md, T23).
-        # Freezing moves everything alive now out of the collector's reach, so that collection stays short.
+        # faster-whisper는 디코딩한 업로드마다 전체 gc.collect()를 부른다. 모델의 수백만 객체 때문에 이것이
+        # GIL을 약 0.4초 쥐어 다른 모든 요청이 멈췄다(docs/experiments.md 5절). freeze는 지금 살아 있는
+        # 객체를 모두 컬렉터가 훑는 대상에서 빼므로 그 수집이 짧게 끝난다.
         if settings.gc_freeze:
             gc.freeze()
         logger.info("Models loaded")
@@ -97,19 +96,18 @@ async def lifespan(app: FastAPI):
         # 참조를 놓는다.
         models = getattr(app.state, "models", None)
         if models is not None:
-            # Stop the typo correction model's background preparation (T39); close() does not wait.
             corrector = getattr(models, "corrector", None)
             if corrector is not None:
                 corrector.close()
             del app.state.models
 
 
-# 모든 라우터를 /api 아래에 둔다. Docker에서는 nginx가 화면과 `/api` 프록시를 함께 맡고(README 배포), 개발
-# 중에는 Vite 개발 서버가 /api를 이 앱(8000번)으로 넘긴다.
+# FastAPI 앱 객체. 위의 lifespan으로 모델 적재·예열·정리를 건다.
 app = FastAPI(title="voice-translator API", version="0.1.0", lifespan=lifespan)
 
-# Every route lives under /api, so the built frontend and the API can share one origin
-# (the Vite dev server proxies /api to this app).
+# 모든 라우터를 /api 아래에 두어 빌드한 화면과 API가 한 출처(origin)를 함께 쓸 수 있게 한다. Docker에서는
+# nginx가 화면과 `/api` 프록시를 함께 맡고(README 배포), 개발 중에는 Vite 개발 서버가 /api를 이
+# 앱(8000번)으로 넘긴다.
 app.include_router(health.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(history.router, prefix="/api")

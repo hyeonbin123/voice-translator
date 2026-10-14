@@ -1,16 +1,16 @@
-"""Translation evaluation on FLEURS parallel sentences (tasks T3, T17 and T83).
+"""FLEURS 병렬 문장으로 번역을 평가한다.
 
-Usage, from backend/ with the gpu and eval groups installed and the models converted (eval.mt_convert):
+backend/에서 gpu·eval 그룹을 설치하고 모델을 변환한(eval.mt_convert) 뒤 쓰는 법:
     uv run python -m eval.mt_eval --split validation --tag t3_dev
     uv run python -m eval.mt_eval --split validation --tag t17_dev --models opus-mt-tc-big-ko-en \
         opus-mt-tc-big-ko-en/split opus-mt-tc-big-en-ko opus-mt-tc-big-en-ko/split
     uv run python -m eval.mt_eval --split validation --tag t83_dev --models opus-mt-tc-big-ko-en \
         opus-mt-tc-big-en-ko/split hy-mt2-q8 hy-mt2-q8/split
 
-T83: the Hy-MT2 models must be in Ollama as eval.hymt_setup builds them, and each is refused unless Ollama
-has the build recorded in docs/experiments.md 15.
+Hy-MT2 시험: Hy-MT2 모델은 eval.hymt_setup이 만드는 그대로 Ollama에 있어야 하고, Ollama에 있는 빌드가
+docs/experiments.md 15절에 기록된 빌드가 아니면 그 후보는 거부된다.
 
-The candidates and the selection rule are written in docs/experiments.md before any run.
+후보와 선택 규칙은 실행 전에 docs/experiments.md에 적었다.
 """
 
 # [파일 역할] 글자 입력 번역 모델을 FLEURS 병렬 문장으로 재는 측정 스크립트다. 후보마다 번역 품질(chrF),
@@ -72,12 +72,13 @@ EN_KO: tuple[Language, Language] = ("en", "ko")
 CT2 = MODELS / "ct2"
 
 
-# Hy-MT2 후보 번역기를 만든다. 입력: 양자화 이름(q8_0·q4_k_m)과 문장 단위 여부. 출력: HyMtTranslator.
-# expected_digest에 측정한 빌드의 digest를 넘겨, Ollama에 다른 빌드가 들어 있으면 prepare에서 멈추게 한다.
-# 같은 이름의 모델이라도 Modelfile이 다르면 결과가 달라지므로 기록된 빌드로만 재기
-# 위해서다(docs/experiments.md 15절).
 def hymt(quant: str, by_sentence: bool = False) -> HyMtTranslator:
-    """Hy-MT2 on Ollama (T83), refused unless Ollama has the build recorded in docs/experiments.md 15."""
+    """Ollama의 Hy-MT2 후보 번역기를 만든다. 기록된 빌드가 아니면 거부된다(docs/experiments.md 15절).
+
+    입력: 양자화 이름(q8_0·q4_k_m)과 문장 단위 여부. 출력: HyMtTranslator. expected_digest에 측정한 빌드의
+    digest를 넘겨, Ollama에 다른 빌드가 들어 있으면 prepare에서 멈추게 한다. 같은 이름의 모델이라도
+    Modelfile이 다르면 결과가 달라지므로 기록된 빌드로만 재기 위해서다.
+    """
     _, _, _, model, digest = QUANTS[quant]
     return HyMtTranslator(model, OLLAMA_URL, timeout_s=120, by_sentence=by_sentence, expected_digest=digest)
 
@@ -87,14 +88,13 @@ def hymt(quant: str, by_sentence: bool = False) -> HyMtTranslator:
 # - opus-mt-ko-en, opus-mt-tc-big-*, nllb, qwen2.5-7b: T3 후보(docs/experiments.md 2절).
 # - '/split' 이름: 같은 모델이 문장마다 따로 번역하는 T17 후보 B.
 # - hy-mt2-*: T83 후보. Q4_K_M은 Q8_0 팔이 지연에서만 떨어졌을 때 쓰는 대체 팔이다.
-# name: (how to load it, directions it translates)
 CANDIDATES: dict[str, tuple[Callable[[], Translator], list[tuple[Language, Language]]]] = {
     "opus-mt-ko-en": (lambda: MarianTranslator(CT2 / "opus-mt-ko-en", "ko", "en"), [KO_EN]),
     "opus-mt-tc-big-ko-en": (lambda: MarianTranslator(CT2 / "opus-mt-tc-big-ko-en", "ko", "en"), [KO_EN]),
     "opus-mt-tc-big-en-ko": (lambda: MarianTranslator(CT2 / "opus-mt-tc-big-en-ko", "en", "ko"), [EN_KO]),
     "nllb-200-distilled-600M": (lambda: NllbTranslator(CT2 / "nllb-200-distilled-600M"), [KO_EN, EN_KO]),
     "qwen2.5-7b": (lambda: OllamaTranslator(QWEN, OLLAMA_URL), [KO_EN, EN_KO]),
-    # T17: the chosen models translating one sentence at a time (docs/experiments.md 2-1)
+    # 고른 모델이 한 문장씩 번역하는 후보(docs/experiments.md 2-1절)
     "opus-mt-tc-big-ko-en/split": (
         lambda: MarianTranslator(CT2 / "opus-mt-tc-big-ko-en", "ko", "en", by_sentence=True),
         [KO_EN],
@@ -103,7 +103,7 @@ CANDIDATES: dict[str, tuple[Callable[[], Translator], list[tuple[Language, Langu
         lambda: MarianTranslator(CT2 / "opus-mt-tc-big-en-ko", "en", "ko", by_sentence=True),
         [EN_KO],
     ),
-    # T83: Hy-MT2-1.8B served by Ollama (docs/experiments.md 15); Q4_K_M only as the latency fallback arm.
+    # Ollama가 서비스하는 Hy-MT2-1.8B(docs/experiments.md 15절). Q4_K_M은 지연 대체 팔로만 쓴다.
     "hy-mt2-q8": (lambda: hymt("q8_0"), [KO_EN, EN_KO]),
     "hy-mt2-q8/split": (lambda: hymt("q8_0", by_sentence=True), [EN_KO]),
     "hy-mt2-q4": (lambda: hymt("q4_k_m"), [KO_EN, EN_KO]),
@@ -111,7 +111,6 @@ CANDIDATES: dict[str, tuple[Callable[[], Translator], list[tuple[Language, Langu
 }
 # Ollama 후보 → Ollama 안의 모델 이름. evaluate가 측정 앞뒤로 이 모델을 내려, GPU 메모리를 모델이 없는
 # 상태에서 읽고 다음 후보 측정에 메모리가 남지 않게 한다.
-# The Ollama model behind each Ollama candidate, unloaded before and after it so VRAM is read without it.
 OLLAMA_MODELS = {
     "qwen2.5-7b": QWEN,
     "hy-mt2-q8": QUANTS["q8_0"][3],
@@ -121,15 +120,16 @@ OLLAMA_MODELS = {
 }
 
 
-# FLEURS의 한국어·영어 parquet에서 같은 문장 ID의 원문 쌍을 만든다. 입력: 분할 이름, 앞에서부터 쓸
-# 개수(None이면 전부). 출력: {id, ko, en} 목록.
-# raw_transcription(문장부호가 있는 원문)을 쓰는 것은 번역 참조로 쓰기 위해서다. 음성 인식 평가용
-# transcription은 소문자·문장부호 없음이라 번역 참조로 맞지 않는다(docs/experiments.md 평가 데이터).
-# 같은 문장을 여러 화자가 읽어 행이 겹치므로 dict로 ID마다 하나만 남기고, 두 언어에 모두 있는 ID만 쓴다 →
-# validation 129쌍, test 270쌍. ID로 정렬해 실행마다 순서가 같다.
-# 호출 위치: 이 파일의 main, eval/typo_noise.py.
 def load_pairs(split: str, limit: int | None) -> list[dict]:
-    """One row per sentence ID; FLEURS repeats a sentence for each speaker."""
+    """문장 ID마다 한 행. FLEURS는 화자마다 같은 문장을 되풀이한다.
+
+    FLEURS의 한국어·영어 parquet에서 같은 문장 ID의 원문 쌍을 만든다. 입력: 분할 이름, 앞에서부터 쓸
+    개수(None이면 전부). 출력: {id, ko, en} 목록. raw_transcription(문장부호가 있는 원문)을 쓰는 것은 번역
+    참조로 쓰기 위해서다. 음성 인식 평가용 transcription은 소문자·문장부호 없음이라 번역 참조로 맞지
+    않는다(docs/experiments.md 평가 데이터). 같은 문장을 여러 화자가 읽어 행이 겹치므로 dict로 ID마다
+    하나만 남기고, 두 언어에 모두 있는 ID만 쓴다 → validation 129쌍, test 270쌍. ID로 정렬해 실행마다
+    순서가 같다. 호출 위치: 이 파일의 main, eval/typo_noise.py.
+    """
     text: dict[str, dict[int, str]] = {}
     for language, config in FLEURS_CONFIG.items():
         path = DATA / "fleurs" / config / f"{split}.parquet"
@@ -144,16 +144,17 @@ def load_pairs(split: str, limit: int | None) -> list[dict]:
 # 실제로 돌려준 다음 GPU 사용량을 읽게 한다.
 def unload_ollama(model: str = QWEN) -> None:
     httpx.post(f"{OLLAMA_URL}/api/generate", json={"model": model, "keep_alive": 0}, timeout=60)
-    time.sleep(3)  # let the runner release its memory before the next reading
+    time.sleep(3)
 
 
-# 보고서에 남길 Ollama 상태를 모은다: Ollama 버전, 모델 digest(/api/tags), 모델이 올라가 있으면 Ollama가 GPU에
-# 둔 크기와 문맥 길이(/api/ps).
-# 어떤 빌드·버전으로 쟀는지 기록해 두어야 나중에 같은 조건인지 확인할 수 있다. 모델이 올라가 있지 않으면
-# 크기는 0, 문맥은 None이 된다.
-# 호출 위치: 이 파일의 evaluate, eval/typo_eval.py.
 def ollama_state(model: str) -> dict:
-    """Ollama's version, the model's digest, and the memory Ollama places on the GPU for it (/api/ps)."""
+    """Ollama 버전, 모델 digest, Ollama가 그 모델을 위해 GPU에 둔 메모리(/api/ps).
+
+    보고서에 남길 Ollama 상태다: Ollama 버전, 모델 digest(/api/tags), 모델이 올라가 있으면 GPU에 둔 크기와
+    문맥 길이(/api/ps). 어떤 빌드·버전으로 쟀는지 기록해 두어야 나중에 같은 조건인지 확인할 수 있다.
+    모델이 올라가 있지 않으면 크기는 0, 문맥은 None이 된다. 호출 위치: 이 파일의 evaluate,
+    eval/typo_eval.py.
+    """
     version = httpx.get(f"{OLLAMA_URL}/api/version", timeout=10).json()["version"]
     tags = httpx.get(f"{OLLAMA_URL}/api/tags", timeout=10).json()["models"]
     running = httpx.get(f"{OLLAMA_URL}/api/ps", timeout=10).json()["models"]
@@ -182,11 +183,11 @@ def evaluate(name: str, pairs: list[dict]) -> dict:
     translator = factory()
     # Hy-MT2는 prepare에서 Ollama의 빌드 digest를 확인하고(다르면 예외로 측정을 멈춤) 모델을 올린다.
     if isinstance(translator, HyMtTranslator):
-        translator.prepare()  # refuses another build, then loads the model
+        translator.prepare()
     # Ollama는 첫 요청 때 모델을 올리므로, 한 번 번역을 시켜 모델이 GPU에 올라간 뒤에 메모리를 읽는다.
     if ollama_model:
         source, target = directions[0]
-        translator.translate(pairs[0][source], source, target)  # Ollama loads the model on the first call
+        translator.translate(pairs[0][source], source, target)
     _, after = gpu_memory_mb()
     result: dict = {"model": name, "model_name": translator.model_name, "vram_mb": round(after - before)}
     if ollama_model:
@@ -196,7 +197,7 @@ def evaluate(name: str, pairs: list[dict]) -> dict:
     # 방향마다 측정한다. 첫 호출은 준비(커널 준비·캐시)라 느리므로 시간에 넣지 않는다(docs/experiments.md 2절
     # 지표).
     for source, target in directions:
-        translator.translate(pairs[0][source], source, target)  # warm-up, not timed
+        translator.translate(pairs[0][source], source, target)  # 준비 호출, 시간에 넣지 않음
         hypotheses, latencies, items, failures = [], [], [], 0
         for pair in pairs:
             # 문장 하나의 번역 시간을 잰다. 문장 단위 후보는 나뉜 문장들을 모두 번역한 합이 한 입력의 시간이
@@ -236,7 +237,7 @@ def evaluate(name: str, pairs: list[dict]) -> dict:
             "latency_p95": statistics.quantiles(latencies, n=20)[18],
             "failures": failures,
             "count": len(pairs),
-            # T83 rule (b): other scripts or explanatory outputs, and empty outputs (eval/mt_checks.py).
+            # 판단 규칙 (b): 다른 문자·설명형 출력과 빈 출력(eval/mt_checks.py).
             "checks": check_items(items, f"{source}-{target}"),
             "items": items,
         }
@@ -328,7 +329,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--split", choices=["validation", "test"], default="validation")
     parser.add_argument("--models", nargs="+", choices=list(CANDIDATES), default=list(CANDIDATES))
-    parser.add_argument("--limit", type=int, default=None, help="first N sentence pairs")
+    parser.add_argument("--limit", type=int, default=None, help="앞 N개 문장 쌍만 쓴다")
     parser.add_argument("--tag", default="run")
     args = parser.parse_args()
 

@@ -26,12 +26,13 @@ export function getSileroRunner(): Promise<VadRunner> {
 
 // 세션 만들기와 실행 함수 정의.
 async function load(): Promise<VadRunner> {
-  env.wasm.numThreads = 1 // Also works without cross-origin isolation.
+  env.wasm.numThreads = 1 // 교차 출처 격리(cross-origin isolation) 없이도 동작하게 한다.
   // 런타임이 WASM과 로더를 찾을 주소를 위의 로컬 자산 주소로 정한다.
   env.wasm.wasmPaths = { wasm: wasmUrl, mjs: wasmModuleUrl }
   // WASM(CPU) 실행 제공자로 모델 세션을 만든다. 32ms 조각 하나를 처리하는 작은 모델이다.
   const session = await InferenceSession.create(modelUrl, { executionProviders: ['wasm'] })
-  // A single lazily loaded session survives stop/start. Serialize runs across old/new detectors too.
+  // 처음 쓸 때 한 번만 올린 세션 하나가 멈춤·시작 뒤에도 남는다. 옛 판정기와 새 판정기의 실행도 차례로
+  // 줄 세운다.
   let tail: Promise<unknown> = Promise.resolve()
   return (input, h, c) => {
     // 입력 텐서: input [1, 576](앞 64 + 이번 512표본), h·c [1, 1, 128](순환 상태). 출력: speech_probs(말소리

@@ -28,7 +28,7 @@ def test_wav_bytes_writes_16_bit_mono_pcm_and_clips():
         samples = np.frombuffer(clip.readframes(clip.getnframes()), dtype="<i2")
     assert samples.tolist() == [0, 16383, -16383, 32767, -32767]
     assert audio.sample_rate == 16_000
-    assert audio.duration_ms == 0  # 5 samples at 16 kHz round to 0 ms
+    assert audio.duration_ms == 0  # 16 kHz에서 5표본은 반올림하면 0ms
 
 
 # 표본화율이 다른 모델(24 kHz)도 길이를 표본 수 ÷ 표본화율로 맞게 계산하는지 본다.

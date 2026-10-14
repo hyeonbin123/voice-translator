@@ -1,4 +1,4 @@
-"""T54: exception messages stay out of the log beyond the paths T49 covered."""
+"""라우터 실패 로그 말고 나머지 로그 경로에서도 예외 메시지가 로그에 남지 않는지 검증한다."""
 
 # [파일 역할] 라우터가 describe로 직접 남기는 실패 로그 말고도, 나머지 로그 경로에서 예외 메시지와 쿼리 값이
 # 새지 않는지 확인한다(커밋 c49d841).
@@ -31,7 +31,7 @@ def raise_quoting_error():
 # 남긴다. 그 로그 줄이 'Exception in ASGI application: ValueError (at 파일:줄 ...)' 요약으로 바뀌고
 # 메시지·Traceback이 없는지 확인한다.
 def test_an_unexpected_error_logged_by_uvicorn_keeps_its_type_not_its_message(caplog):
-    # What uvicorn does when Starlette re-raises an error no handler answered.
+    # 어떤 핸들러도 답하지 않은 오류를 Starlette가 다시 던질 때 uvicorn이 하는 일을 그대로 흉내 낸다.
     try:
         raise_quoting_error()
     except ValueError:
@@ -66,7 +66,6 @@ def test_the_engine_leaves_bound_values_out_of_errors():
 # hidden' 표시만 있는지 확인한다. 옵션 값만 보는 위 테스트와 달리 실제 동작을 확인한다. db_engine fixture도
 # 같은 ENGINE_OPTIONS로 만들어진다(conftest.py).
 async def test_a_database_error_does_not_list_the_values(db_engine):
-    # The test engine is built with ENGINE_OPTIONS, like the app's.
     async with db_engine.connect() as connection:
         with pytest.raises(DBAPIError) as caught:
             await connection.execute(text("select :value from no_such_table"), {"value": MARK})

@@ -1,4 +1,4 @@
-"""Create users, translations and synthesized audio metadata."""
+"""사용자(users), 번역 기록(translations), 합성 음성 메타데이터(audio_files) 테이블을 만든다."""
 
 # [파일 역할] 첫 (그리고 지금까지 유일한) DB 스키마 마이그레이션이다. 사용자(users), 번역 기록(translations),
 # 합성 음성 파일 메타데이터(audio_files) 세 테이블을 만든다.

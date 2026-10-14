@@ -109,7 +109,7 @@ async def test_translation_round_trip(client, auth_headers, services, db_session
         assert wav.getsampwidth() == 2 and wav.getnchannels() == 1 and wav.getnframes() > 0
     row = await db_session.get(AudioFile, UUID(result["audio_id"]))
     assert store.resolve(row.path).read_bytes() == audio.content
-    assert len(list(store.directory.iterdir())) == 1  # Only synthesis; no original upload.
+    assert len(list(store.directory.iterdir())) == 1  # 합성 음성만 있고 원본 업로드는 없다
     assert "path" not in result and "user_id" not in result
 
 
@@ -122,12 +122,12 @@ async def test_translation_round_trip(client, auth_headers, services, db_session
         {},
         {"text": ""},
         {"text": " \n\t "},
-        # Only invisible format characters (zero-width space; BOM and word joiner): nothing to translate.
+        # 보이지 않는 서식 문자만(폭 없는 공백, BOM과 word joiner): 번역할 것이 없다.
         {"text": "\u200b"},
         {"text": " \ufeff\u2060 "},
-        # Private-use and unassigned characters are "other" (C*) characters too: the model would get spaces.
+        # 사용자 정의·미배정 문자도 '기타'(C*) 문자라 모델에는 공백만 간다.
         {"text": "\ue000\u0378"},
-        # PostgreSQL text cannot hold NUL: without the check it failed at the save, after the model work.
+        # PostgreSQL text는 NUL을 담지 못한다: 이 검사가 없으면 모델 작업을 다 한 뒤 저장에서 실패했다.
         {"text": "a\u0000b"},
         {"text": "가" * 501},
         {"text": 123},
@@ -151,8 +151,6 @@ async def test_invalid_text(client, auth_headers, services, db_session, body):
 # 입력은 거절하지 않고 짧은 글처럼 번역한다(docs/api.md).
 @pytest.mark.parametrize("text", ["?", "́", "️"])
 async def test_text_the_model_still_receives_is_translated(client, auth_headers, services, text):
-    # Punctuation, or a lone combining accent or variation selector: invisible or not, the model receives
-    # it, so it is translated like any short text (docs/api.md).
     response = await text_request(client, auth_headers, text=text)
     assert response.status_code == 201
     assert response.json()["translated_text"] == f"[ko->en] {text}"
@@ -166,8 +164,6 @@ async def test_text_the_model_still_receives_is_translated(client, auth_headers,
     ["​", " ﻿⁠ ", "­", "", "͸", "​\n​", "?", "́", "️", "a​b"],
 )
 def test_the_text_rule_matches_what_the_preprocessing_leaves(text):
-    # 422 exactly when OPUS-MT's preprocessing (a space for every C* character but a newline) leaves only
-    # white space, that is nothing to translate.
     blank = not translation.opus_preprocess(text.strip()).strip()
     try:
         TextRequest(text=text, source_lang="ko", target_lang="en")
@@ -217,7 +213,7 @@ async def test_missing_speech_fields(client, auth_headers, services, field):
 )
 async def test_invalid_audio_before_stt(client, auth_headers, services, db_session, content, detail):
     models, _ = services
-    # If validation calls STT, this would become 503 instead of the expected 422.
+    # 검증이 인식(STT)을 부르면 기대한 422 대신 503이 된다.
     models.stt.error = ModelError("STT must not execute")
     response = await speech_request(client, auth_headers, content)
     assert response.status_code == 422 and response.json() == {"detail": detail}
@@ -247,10 +243,10 @@ async def test_model_failures(
 ):
     models, store = services
     getattr(models, component).error = error
-    for _ in range(2):  # Fake failures must repeat, not be consumed once.
+    for _ in range(2):
         response = await speech_request(client, auth_headers)
         assert response.status_code == status and response.json() == {"detail": detail}
-    # Logged by type, never by message (T49): a library's message can quote the input.
+    # 라이브러리 메시지는 입력을 인용할 수 있으므로 로그에는 메시지가 아니라 예외 종류만 남는다.
     assert type(error).__name__ in caplog.text and str(error) not in caplog.text
     await assert_no_history(client, auth_headers, db_session)
     assert not store.directory.exists()
@@ -263,7 +259,7 @@ SOURCE_MARK, TRANSLATION_MARK = "원문표식", "translation-mark"
 # 실제 WhisperSpeechToText 안에 끼울 가짜 faster-whisper. CTranslate2처럼 호출 순간(lazy=False) 또는 조각을
 # 읽는 도중(lazy=True)에 원문 표식을 담은 RuntimeError를 낸다.
 class FailingWhisper:
-    """faster-whisper failing as CTranslate2 does: on the call, or while the segments are read (T48)."""
+    """CTranslate2처럼 실패하는 faster-whisper: 호출 순간, 또는 조각을 읽는 도중."""
 
     lazy = False
 
@@ -304,13 +300,13 @@ async def test_a_recognition_engine_error_answers_503_without_quoting_it(
 # 예외(ValueError)를 내, 예외 사슬의 두 메시지 모두 로그에서 빠지는지 보게 한다. B904 경고 끄기 표시는 암묵적
 # 문맥 연결이 시험 대상이라 일부러 둔 것이다.
 class QuotingTokenizer:
-    """A tokenizer whose error quotes the text, raised while handling another error that quotes it too."""
+    """글을 인용하는 오류를, 역시 글을 인용하는 다른 오류를 처리하는 중에 내는 토크나이저."""
 
     def encode(self, text, out_type):
         try:
             raise KeyError(f"no piece for {text}")
         except KeyError:
-            raise ValueError(f"cannot encode {text}")  # noqa: B904 - the implicit context is the point
+            raise ValueError(f"cannot encode {text}")  # noqa: B904 - 암묵적 문맥이 바로 시험 대상이다
 
     def decode(self, pieces):
         return " ".join(pieces)
@@ -322,7 +318,6 @@ class QuotingTokenizer:
 async def test_a_translation_error_quoting_the_input_is_logged_without_it(
     client, auth_headers, services, db_session, monkeypatch, caplog
 ):
-    # The real Marian adapter and its model boundary; only the tokenizer and engine are replaced (T49).
     engine = SimpleNamespace(generate=lambda tokens, target_prefix=None: ["unused"])
     monkeypatch.setattr(translation, "_Ct2Model", lambda *args: engine)
     monkeypatch.setattr(translation, "load_sentencepiece", lambda path: QuotingTokenizer())
@@ -331,7 +326,6 @@ async def test_a_translation_error_quoting_the_input_is_logged_without_it(
     app.dependency_overrides[get_models] = lambda: replace(models, translator=marian)
     response = await text_request(client, auth_headers, text=f"{SOURCE_MARK} 문장입니다")
     assert response.status_code == 503 and response.json() == {"detail": "Translation service is unavailable"}
-    # The stage and the chain of types stay visible; neither message is.
     assert "Translation pipeline failed: ModelError <- ValueError <- KeyError" in caplog.text
     assert SOURCE_MARK not in caplog.text and SOURCE_MARK not in response.text
     await assert_no_history(client, auth_headers, db_session)
@@ -347,7 +341,7 @@ class MarkingTranslator:
 
 # 실제 합성 예외 경계(tts._guarded) 안에서 번역문을 인용하며 실패하는 가짜 합성기.
 class QuotingSynthesis:
-    """Speech synthesis whose error, inside the real model boundary, quotes the translation."""
+    """실제 모델 경계 안에서 번역문을 인용하는 오류를 내는 음성 합성기."""
 
     model_name = "quoting-tts"
 
@@ -368,7 +362,6 @@ async def test_a_synthesis_error_quoting_the_translation_is_logged_without_it(
         models, translator=MarkingTranslator(), tts=QuotingSynthesis()
     )
     response = await text_request(client, auth_headers, text=f"{SOURCE_MARK} 문장입니다")
-    # Synthesis failing still keeps the translation and its record.
     assert response.status_code == 201 and response.json()["tts_error"] == "Speech synthesis failed"
     assert "Speech synthesis or audio storage failed: ModelError <- ValueError" in caplog.text
     assert TRANSLATION_MARK not in caplog.text and SOURCE_MARK not in caplog.text
@@ -420,8 +413,8 @@ async def test_synthesis_fallback_keeps_history(
 async def test_a_translation_holds_no_database_connection_during_model_work(
     client, auth_headers, services, db_engine
 ):
-    """Login and history must not wait for translations (docs/api.md): the sign-in lookup's transaction ends
-    before the request queues for the model thread, so no pooled connection sits idle meanwhile."""
+    """로그인과 기록 요청은 번역을 기다리면 안 된다(docs/api.md): 인증의 사용자 조회 트랜잭션은 요청이 모델
+    스레드에 줄 서기 전에 끝나므로, 그동안 풀의 연결이 놀며 잡혀 있지 않다."""
     models, _ = services
     held = []
 
@@ -522,7 +515,6 @@ async def test_disk_delete_failure_keeps_db_deletion(
 # 10MB면 통과(201), 1바이트 넘으면 413 "Audio file is larger than 10 MB"다.
 @pytest.mark.parametrize("oversized", [False, True])
 async def test_upload_limit_counts_file_bytes(client, auth_headers, services, oversized):
-    # A valid WAV padded with trailing bytes verifies exact file bytes, excluding multipart overhead.
     wav = silent_wav(100)
     content = wav + b"\0" * (MAX_AUDIO_BYTES + int(oversized) - len(wav))
     response = await speech_request(client, auth_headers, content)

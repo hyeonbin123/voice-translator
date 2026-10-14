@@ -62,7 +62,7 @@ class SessionChangedError extends Error {
 // 않는다(App.test.tsx가 가입 비밀번호가 화면에 나오지 않는지 확인).
 async function checked(response: Response, path = '/api/auth/login'): Promise<Response> {
   if (response.ok) return response
-  // Only known status/detail pairs select local text. Never echo response inputs.
+  // 알려진 상태 코드·detail 쌍일 때만 화면 문구를 고른다. 응답에 담긴 입력값은 절대 그대로 보여 주지 않는다.
   const auth = path.startsWith('/api/auth/')
   const messages: Record<number, string> = auth ? {
     401: '이메일 또는 비밀번호를 확인해 주세요.',
@@ -103,8 +103,8 @@ export function errorMessage(error: unknown): string {
   return '서버에 연결할 수 없습니다. 연결을 확인하고 다시 시도해 주세요.'
 }
 
-// Only a rejected credential ends the session. A proxy 5xx or a network error keeps the refresh token
-// so a later request or reload can retry (the server cannot revoke tokens, so deleting it gains nothing).
+// 인증 정보가 거절됐을 때(401·422)만 세션을 끝낸다. 프록시 5xx나 네트워크 오류에서는 갱신 토큰을 남겨 두어
+// 다음 요청이나 새로 고침에서 다시 시도할 수 있게 한다(서버가 토큰을 폐기할 수 없으므로 지워도 얻는 것이 없다).
 const authRejected = (error: unknown) => error instanceof ApiError && (error.status === 401 || error.status === 422)
 
 // 로그인 상태와 토큰을 가진 클라이언트.
@@ -192,7 +192,7 @@ export class ApiClient {
       }
     })()
     this.refreshing = pending
-    // An older request must not clear a newer session's refresh.
+    // 예전 요청이 끝나면서 더 새로운 세션의 갱신 작업을 지우면 안 된다.
     void pending.then(() => {
       if (this.refreshing === pending) this.refreshing = null
     }, () => {
@@ -219,7 +219,7 @@ export class ApiClient {
   // - 401이면 한 번만 갱신 후 다시 보낸다. 방금 갱신한 토큰으로도 401이면 더 시도하지 않고 만료 로그아웃한다
   // - 실패 응답은 checked가 path에 맞는 안내 문구로 바꾼다
   // 호출 위치: translation/api.ts, history/api.ts, 아래 initialize·login의 /api/auth/me.
-  /** Authenticated API requests, including future JSON, multipart, and audio responses. */
+  /** 인증된 API 요청. 앞으로 생길 JSON·multipart·음성 응답 요청도 모두 이것을 쓴다. */
   async request(path: string, init: RequestInit = {}): Promise<Response> {
     if (!path.startsWith('/api/')) throw new Error('API paths must start with /api/')
     const generation = this.generation
@@ -241,7 +241,7 @@ export class ApiClient {
     let response = await send()
     this.assertCurrent(generation)
     if (response.status === 401 && !refreshed) {
-      // Another concurrent request may already have replaced the rejected token.
+      // 동시에 진행된 다른 요청이 거절된 토큰을 이미 바꿨을 수 있다.
       if (this.accessToken === sentToken) await this.refresh()
       this.assertCurrent(generation)
       response = await send()

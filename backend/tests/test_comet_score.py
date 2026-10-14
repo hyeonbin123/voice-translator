@@ -1,7 +1,7 @@
-"""eval/comet_score.py checks the checkpoint it scores with, not only the one it downloaded.
+"""eval/comet_score.py는 내려받은 체크포인트만이 아니라 실제로 채점에 쓰는 체크포인트를 확인한다.
 
-The script runs in its own environment (unbabel-comet, transformers<5), so torch, yaml and comet are
-replaced with small stand-ins here; the file hashing and the refusal are the real code.
+이 스크립트는 별도 환경(unbabel-comet, transformers<5)에서 돌기 때문에 여기서는 torch, yaml, comet을 작은
+가짜로 바꾼다. 파일 해시 계산과 거절은 진짜 코드다.
 """
 
 # [파일 역할] eval/comet_score.py(COMET-22 문장 채점)가 '채점할 때 실제로 읽은 체크포인트 파일'의 SHA-256을
@@ -57,7 +57,7 @@ def model_dirs(tmp_path: Path, content: bytes = CHECKPOINT_BYTES) -> tuple[Path,
 # 0.5를 돌려준다. monkeypatch를 써서 테스트가 끝나면 sys.modules·환경 변수가 원래대로 돌아간다.
 @pytest.fixture
 def stand_ins(tmp_path, monkeypatch):
-    """Offline snapshots in tmp_path and stand-ins for the COMET environment's packages."""
+    """tmp_path 안의 오프라인 스냅숏과 COMET 환경 패키지의 가짜들."""
     loaded = []
 
     def load_from_checkpoint(**kwargs):
@@ -89,7 +89,7 @@ def stand_ins(tmp_path, monkeypatch):
     dirs = model_dirs(tmp_path)
     monkeypatch.setattr(comet_score, "snapshots", lambda offline: dirs)
     monkeypatch.setattr(comet_score, "score", lambda model, samples, device, batch_size: [0.5] * len(samples))
-    monkeypatch.setenv("HF_HUB_OFFLINE", "1")  # run() sets it; monkeypatch puts the old value back
+    monkeypatch.setenv("HF_HUB_OFFLINE", "1")  # run()이 바꾸는 값. monkeypatch가 끝나면 원래 값으로 돌린다
     return SimpleNamespace(model_dir=dirs[0], loaded=loaded)
 
 
@@ -131,13 +131,13 @@ def test_check_checkpoint_refuses_another_file(tmp_path):
 # 채점 명령 전체(run)에서도 다른 체크포인트면 멈추고, 모델을 만들기 전에(loaded가 비어 있음) 멈추며, 출력
 # 파일을 쓰지 않는지. 다른 모델로 낸 점수가 파일로 남는 것을 막는다.
 def test_scoring_refuses_a_checkpoint_that_is_not_the_pinned_one(tmp_path, stand_ins):
-    # The pinned constant is the real COMET-22 hash; the stand-in checkpoint is something else.
+    # 고정 상수는 진짜 COMET-22 해시이고, 가짜 체크포인트는 그와 다른 파일이다.
     args = score_args(tmp_path)
 
     with pytest.raises(SystemExit, match="is not the pinned"):
         comet_score.run(args)
 
-    assert stand_ins.loaded == []  # refused before the model is built
+    assert stand_ins.loaded == []  # 모델을 만들기 전에 거절했다
     assert not Path(args.output).exists()
 
 

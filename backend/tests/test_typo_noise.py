@@ -108,7 +108,6 @@ def test_rate_zero_changes_nothing(text, language):
 # 모든 단어에 오타를 넣어도(확률 1.0) 결과에 낱자모(ㄱ, ㅏ 등)가 남지 않고 완성형 음절과 공백만 있는지 50개
 # 시드로 확인한다. 오타는 자모를 바꾼 뒤 음절로 다시 합쳐 만든다.
 def test_korean_typos_keep_whole_syllables():
-    # Mistakes are made by recomposing syllables, never by leaving loose jamo behind.
     for seed in range(50):
         noisy = add_typos(KOREAN, "ko", 1.0, random.Random(seed))
         assert all(is_syllable(char) or char == " " for char in noisy)
@@ -117,7 +116,6 @@ def test_korean_typos_keep_whole_syllables():
 # 오타 한 번은 글자를 하나 빼거나, 겹치거나, 공백을 빼는 정도라 길이가 많아야 1 바뀐다. 그래서 모든 단어에
 # 오타를 넣어도 문장 길이 차이가 단어 수를 넘지 않아야 한다. 한 단어에 오타가 여러 번 들어가는 회귀를 잡는다.
 def test_typos_are_small_edits():
-    # One mistake per word: the noisy sentence keeps close to the original length.
     for seed in range(50):
         noisy = add_typos(ENGLISH, "en", 1.0, random.Random(seed))
         assert abs(len(noisy) - len(ENGLISH)) <= len(ENGLISH.split())

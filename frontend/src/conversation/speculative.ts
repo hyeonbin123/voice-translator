@@ -16,7 +16,7 @@ import { isTranslationResult, LiveTransport, utteranceError, type OpenSocket } f
 import type { LiveEndpointEvent } from './silero'
 import { encodePcm16 } from './pcm'
 
-/** An ended utterance whose result will not come: the connection stopped or reconnected with a new token. */
+/** 끝났지만 결과가 오지 않을 마디: 연결이 멈췄거나 새 토큰으로 다시 연결됐다. */
 export class CanceledUtterance extends Error {
   constructor() { super('The utterance was canceled'); this.name = 'CanceledUtterance' }
 }
@@ -29,9 +29,9 @@ type Callbacks = { ready: (ready: boolean) => void; error: (text: string) => voi
 type Waiting<T> = { resolve: (result: T) => void; reject: (error: Error) => void }
 
 /**
- * Conversation and dialog modes over the live WebSocket without subtitles (T77, docs/api.md): the
- * utterance's audio streams while it is spoken, the server prepares the translation at a 192 ms pause and
- * drops it if speech resumes, and an end commits it. The result is the HTTP API's for the same clip, sooner.
+ * 자막 없이 동시통역 웹소켓을 쓰는 대화 모드와 두 사람 대화(T77, docs/api.md): 마디를 말하는 동안 소리를
+ * 흘려보내고, 서버는 192 ms 쉼에서 번역을 미리 준비했다가 말이 이어지면 버리며, end가 오면 확정한다. 결과는
+ * 같은 클립에 대한 HTTP API의 결과와 같고, 더 빨리 나온다.
  */
 // T: 결과 타입(대화 모드는 음성 번역 결과, 두 사람 대화는 언어 판별 필드가 붙은 결과). isResult로 final의
 // result가 그 타입인지 확인한다.
@@ -58,7 +58,7 @@ export class SpeculativeChannel<T extends TranslationResult = TranslationResult>
     this.transport = new LiveTransport(api, fields, {
       ready: (ready) => {
         this.ready = ready
-        // A new token means a new connection: what the old one held is gone on the server.
+        // 새 토큰은 새 연결이라는 뜻이다: 옛 연결이 들고 있던 것은 서버에서 사라졌다.
         if (!ready) { this.current = null; this.cancelWaiting() }
         callbacks.ready(ready)
       },
@@ -70,7 +70,7 @@ export class SpeculativeChannel<T extends TranslationResult = TranslationResult>
   // 연결 시작. 서버가 ready로 답하면 풀린다. 세션은 마이크·판정기 준비와 함께 이것을 기다린다.
   start(signal: AbortSignal) { return this.transport.start(signal) }
 
-  /** Passes one endpointer event on; an end commits the utterance and returns its result to come. */
+  /** 판정기 이벤트 하나를 넘긴다. end면 마디를 확정하고, 앞으로 올 결과를 돌려준다. */
   event(event: LiveEndpointEvent): Commit<T> | undefined {
     // start: 새 마디 번호를 정해 utterance를 보낸다. 서버는 그때 진행 중인 다른 마디가 있으면
     // 버린다(docs/api.md).
@@ -89,14 +89,14 @@ export class SpeculativeChannel<T extends TranslationResult = TranslationResult>
     else if (event.type === 'end') {
       this.current = null
       const result = new Promise<T>((resolve, reject) => { this.waiting.set(id, { resolve, reject }) })
-      result.catch(() => undefined) // the session awaits it in turn; a rejection before then is not unhandled
+      result.catch(() => undefined) // 세션이 차례가 오면 기다린다. 그 전에 거절돼도 미처리 거절이 되지 않게 한다
       this.transport.send({ type: 'end', id })
       return { utterance: id, result }
     }
     return undefined
   }
 
-  /** Speech in progress is dropped (playback started, too short): the server drops what it prepared. */
+  /** 진행 중인 말을 버린다(재생 시작, 너무 짧음): 서버도 미리 준비한 것을 버린다. */
   // 진행 중인 마디가 있으면 cancel을 보내 서버가 미리 하던 처리와 받은 소리를 버리게 한다.
   interrupt() {
     if (this.current === null) return

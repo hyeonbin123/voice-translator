@@ -39,7 +39,7 @@ def corrector_with(handler, **options) -> tuple[OllamaCorrector, list[tuple[str,
         return handler(request)
 
     corrector = OllamaCorrector("qwen2.5:1.5b-instruct", **options)
-    corrector._client.close()  # replaced by a client that only reaches the handler
+    corrector._client.close()  # handler에만 닿는 클라이언트로 바꾼다
     corrector._client = httpx.Client(base_url="http://ollama.test", transport=httpx.MockTransport(record))
     return corrector, sent
 
@@ -50,7 +50,7 @@ def corrector_with(handler, **options) -> tuple[OllamaCorrector, list[tuple[str,
 # 준비 스레드의 Lock 사용: 1번째 = 준비 성공 뒤 '아직 닫히지 않았으면 준비 완료로 표시', 2번째 = 끝날 때의
 # 정리(finally).
 class SteppedLock:
-    """Pauses the preparation thread at its n-th use of the corrector's lock, to hit one interleaving."""
+    """준비 스레드가 교정기 Lock을 n번째로 쓸 때 멈춰, 정해진 끼어들기 순서 하나를 만든다."""
 
     def __init__(self, pause_at: int) -> None:
         self._lock = threading.Lock()
@@ -80,8 +80,6 @@ class SteppedLock:
     ("pause_at", "was_ready"), [(1, False), (2, True)], ids=["before-turning-on", "at-worker-end"]
 )
 def test_close_racing_the_worker_closes_the_client_and_never_turns_on_after(pause_at, was_ready, caplog):
-    # T41: close() lands while the worker is paused right before its readiness check, or right before its
-    # final clean-up (where the client used to stay open).
     caplog.set_level(logging.INFO, logger="app.services.correction")
     corrector, _ = corrector_with(
         lambda _: httpx.Response(200, json={"message": {"content": "Hello."}, **FINISHED})
@@ -112,7 +110,6 @@ def test_close_without_a_worker_closes_the_client():
 # 한다. 지시문을 바꾸면 측정 결과(오타 평균 +7.6점 등)가 더는 서버를 설명하지 못하기 때문이다. typo_eval.py는
 # eval 그룹 패키지가 필요해 import하지 않고 AST로 상수만 읽는다.
 def test_the_server_uses_the_instruction_that_was_measured():
-    # Read without importing: eval/typo_eval.py needs the eval dependency group.
     tree = ast.parse(EVAL_SCRIPT.read_text(encoding="utf-8"))
     measured = next(
         node.value.value
@@ -136,7 +133,7 @@ def test_start_does_not_wait_and_corrects_english_only_once_ready():
     corrector, _ = corrector_with(slow_ollama)
     assert corrector.model_name == "ollama/qwen2.5:1.5b-instruct"
     thread = corrector.start()
-    # Startup goes on while Ollama is still busy, and requests do not wait for it.
+    # Ollama가 아직 바쁜 동안에도 서버 시작은 진행되고, 요청은 준비를 기다리지 않는다.
     assert not corrector.corrects("en")
     gate.set()
     thread.join(5)
@@ -195,9 +192,9 @@ def test_every_preparation_call_has_a_time_limit():
         base_url="http://ollama.test", timeout=10, transport=httpx.MockTransport(record)
     )
     corrector.prepare()
-    assert len(timeouts) == 4  # show, pull, load, first correction
+    assert len(timeouts) == 4  # 모델 확인, 내려받기, 올리기, 첫 교정
     assert all(value is not None for timeout in timeouts for value in timeout.values())
-    # The download may take minutes, but a stalled Ollama cannot hold the thread forever.
+    # 내려받기는 몇 분 걸릴 수 있지만, 멈춘 Ollama가 스레드를 영원히 잡아 둘 수는 없다.
     assert [timeout["read"] for timeout in timeouts] == [10, 60, 60, 60]
 
 
@@ -229,7 +226,7 @@ def test_correction_sends_the_fixed_instruction_and_returns_the_reply():
         httpx.Response(200, json={"message": None}),
         httpx.Response(200, json={}),
         httpx.Response(200, text="not json"),
-        # Cut off at num_predict: translating it would drop the end of the text.
+        # num_predict에서 잘린 답: 이것을 번역하면 글 끝이 빠진다.
         httpx.Response(200, json={"message": {"content": "I have a"}, "done_reason": "length"}),
     ],
 )
@@ -286,7 +283,6 @@ def test_real_corrections_pass_the_safeguard(typed, fixed):
 # 0.152로 낮게 나와 좋은 교정이 버려졌다. autojunk=False로 고친 뒤 통과하는지 확인하는 회귀 테스트다(6절
 # '안전장치 확인: validation 1차').
 def test_long_corrections_are_not_rated_unlike():
-    # validation id 1524 (docs/experiments.md 6): with difflib's autojunk this good correction scored 0.152.
     typed = (
         "There arw a lot og social and political effects such as the use of metric system,a shift from "
         "absolutism to republicanism, nationalism and thebeliefthecountry belongsto the people not to one "
@@ -327,7 +323,6 @@ def test_prepare_pulls_a_missing_model_loads_it_to_stay_and_corrects_once():
     assert [path for path, _ in sent] == ["/api/show", "/api/pull", "/api/generate", "/api/chat"]
     assert sent[1][1] == {"model": "qwen2.5:1.5b-instruct", "stream": False}
     assert sent[2][1] == {"model": "qwen2.5:1.5b-instruct", "keep_alive": -1}
-    # The first correction runs at startup with the same request the server sends later.
     assert sent[3][1]["messages"][0]["content"] == correction.SYSTEM.format(language="English")
 
 

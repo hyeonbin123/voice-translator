@@ -1,4 +1,4 @@
-"""The live subtitle WebSocket (T56) with fake models, through Starlette's test client."""
+"""동시통역 자막 웹소켓을 가짜 모델과 Starlette 테스트 클라이언트로 검증한다."""
 
 # [파일 역할] 웹소켓 WS /api/translate/live(routers/live.py)를 가짜 모델과 실제 테스트 DB로, Starlette 테스트
 # 클라이언트를 통해 검증한다. 세 모드를 모두 다룬다: 동시통역(live, 말하는 동안 자막), 대화
@@ -48,7 +48,7 @@ from tests.fakes import FakeLiveSpeechToText, FakeSpeechToText, FakeTextToSpeech
 
 # 16 kHz 16비트 소리 1초(32000바이트). 가짜 실시간 인식기는 0.1초(3200바이트)마다 단어 하나를 듣는다고 치므로
 # 1초는 열 단어다. words(바이트 수)는 그 소리에서 가짜가 들을 글자를 계산한다.
-SECOND = b"\x01\x00" * 16_000  # one second of 16 kHz 16-bit audio: ten words to the fake
+SECOND = b"\x01\x00" * 16_000
 words = FakeLiveSpeechToText.words
 
 
@@ -59,8 +59,8 @@ words = FakeLiveSpeechToText.words
 # 쓴다(dependencies.py).
 @pytest.fixture
 def live(migrated_database, user, tmp_path):
-    # The test client runs the app on an event loop of its own; an engine without a pool shares no
-    # connection between that loop and the tests'.
+    # 테스트 클라이언트는 자기 이벤트 루프에서 앱을 돌린다. 풀 없는 엔진은 그 루프와 테스트 쪽 루프 사이에
+    # 연결을 나눠 쓰지 않는다.
     engine = create_async_engine(migrated_database, poolclass=NullPool, **ENGINE_OPTIONS)
     models = PipelineModels(FakeLiveSpeechToText(), FakeTranslator(), FakeTextToSpeech())
     previous = app.dependency_overrides.copy()
@@ -89,7 +89,7 @@ def start(ws, token, **changes):
 
 # 지정한 종류의 메시지가 올 때까지 받은 메시지를 모두 돌려준다.
 def until(ws, kind):
-    """Every message up to and including the first of this type."""
+    """이 종류의 첫 메시지까지(그 메시지 포함) 받은 모든 메시지."""
     seen = [ws.receive_json()]
     while seen[-1]["type"] != kind:
         seen.append(ws.receive_json())
@@ -125,7 +125,7 @@ async def test_updates_follow_the_speech_and_the_end_saves_one_record(live, db_s
         ]
         ws.send_bytes(SECOND)
         second = until(ws, "translation")
-        # What the two results share is stable, down to the word.
+        # 두 결과가 공유하는 앞부분이 단어 경계까지 확정(stable)된다.
         assert second[-2] == {
             "type": "source",
             "id": 1,
@@ -181,13 +181,13 @@ async def test_an_end_without_a_pause_uses_all_the_audio(live, db_session):
 async def test_cancelled_stale_and_stray_messages_leave_no_trace(live, db_session):
     with live.client.websocket_connect("/api/translate/live") as ws:
         start(ws, live.token)
-        ws.send_bytes(SECOND)  # outside an utterance
+        ws.send_bytes(SECOND)  # 마디 밖의 소리
         ws.send_json({"type": "utterance", "id": 1})
         ws.send_bytes(SECOND)
         ws.send_json({"type": "cancel", "id": 1})
-        ws.send_json({"type": "end", "id": 1})  # already dropped
+        ws.send_json({"type": "end", "id": 1})  # 이미 버린 마디
         ws.send_json({"type": "utterance", "id": 2})
-        ws.send_json({"type": "pause", "id": 9})  # not the current utterance
+        ws.send_json({"type": "pause", "id": 9})  # 지금 마디가 아님
         ws.send_bytes(SECOND[:16_000])
         ws.send_json({"type": "end", "id": 2})
         messages = until(ws, "final")
@@ -203,11 +203,11 @@ async def test_an_utterance_without_speech_is_an_error_and_no_record(live, db_se
     with live.client.websocket_connect("/api/translate/live") as ws:
         start(ws, live.token)
         ws.send_json({"type": "utterance", "id": 1})
-        ws.send_bytes(SECOND[:1000])  # shorter than one fake word
+        ws.send_bytes(SECOND[:1000])  # 가짜 단어 하나보다 짧다
         ws.send_json({"type": "pause", "id": 1})
         ws.send_json({"type": "end", "id": 1})
         messages = until(ws, "error")
-        # The connection goes on with the next utterance.
+        # 연결은 그대로 이어져 다음 마디를 받는다.
         ws.send_json({"type": "utterance", "id": 2})
         ws.send_bytes(SECOND)
         ws.send_json({"type": "end", "id": 2})
@@ -259,7 +259,7 @@ async def test_a_model_failure_is_reported_without_its_message(live, db_session,
         ws.send_json({"type": "pause", "id": 1})
         ws.send_json({"type": "end", "id": 1})
         messages = until(ws, "error")
-    # Failed live updates show nothing; the failed final is an error for that utterance.
+    # 실패한 자막 갱신은 아무것도 보이지 않고, 실패한 최종 처리는 그 마디의 error가 된다.
     assert messages == [{"type": "error", "id": 1, "detail": "Translation service is unavailable"}]
     assert "ModelError" in caplog.text and "secret" not in caplog.text
     assert await records(db_session) == 0
@@ -354,10 +354,10 @@ async def test_the_connection_closes_once_the_token_expires(live, user):
 
 
 # 첫 최종 인식을 모델 스레드 안에서 풀어 줄 때까지 붙잡고, 자막 갱신이 시작된 시각을 기록하는 가짜 인식기.
-# 빠른 가짜로는 서버가 모델 호출 도중인 순간을 잡을 수 없어서 만들었다(클래스 docstring).
+# 빠른 가짜로는 서버가 모델 호출 도중인 순간을 잡을 수 없어서 만들었다.
 class HeldFinal(FakeLiveSpeechToText):
-    """Holds the first final recognition in the model thread until released, and notes when each update
-    starts (T60: the fast fakes above never catch the server in the middle of a call)."""
+    """첫 최종 인식을 풀어 줄 때까지 모델 스레드 안에 붙잡고, 각 자막 갱신이 시작된 시각을 적는다(위의
+    빠른 가짜로는 서버가 호출 도중인 순간을 잡을 수 없다)."""
 
     def __init__(self, hold: bool = True) -> None:
         super().__init__()
@@ -390,14 +390,13 @@ async def test_speech_while_the_final_is_prepared_drops_that_final(live, db_sess
         ws.send_json({"type": "utterance", "id": 1})
         ws.send_bytes(SECOND)
         ws.send_json({"type": "pause", "id": 1})
-        assert stt.entered.wait(5)  # the prepared final is inside the recognition model
+        assert stt.entered.wait(5)  # 미리 처리한 최종 인식이 인식 모델 안에 있다
         ws.send_json({"type": "resume", "id": 1})
         ws.send_bytes(SECOND)
         stt.release.set()
         ws.send_json({"type": "pause", "id": 1})
         ws.send_json({"type": "end", "id": 1})
         final = until(ws, "final")[-1]
-    # Whether the resume came before or after the held call returned, only the second pause counts.
     assert final["result"]["source_text"] == words(2 * len(SECOND))
     assert await records(db_session) == 1
 
@@ -415,7 +414,7 @@ async def test_a_connection_closed_while_the_final_is_prepared_saves_nothing(liv
         ws.send_json({"type": "pause", "id": 1})
         ws.send_json({"type": "end", "id": 1})
         assert stt.entered.wait(5)
-    time.sleep(0.2)  # the server has seen the disconnect and cancelled the final
+    time.sleep(0.2)  # 서버가 연결 끊김을 보고 최종 처리를 취소할 시간
     stt.release.set()
     assert stt.left.wait(5)
     await asyncio.sleep(0.3)
@@ -435,7 +434,7 @@ async def test_updates_start_at_least_the_interval_apart(live):
         ws.send_json({"type": "utterance", "id": 1})
         began = time.perf_counter()
         while time.perf_counter() - began < 1.6:
-            ws.send_bytes(SECOND[:3200])  # 0.1 s of audio, faster than real time
+            ws.send_bytes(SECOND[:3200])  # 0.1초 소리를 실시간보다 빠르게 보낸다
             time.sleep(0.05)
         ws.send_json({"type": "end", "id": 1})
         until(ws, "final")
@@ -454,7 +453,7 @@ async def test_a_failed_save_is_an_error_and_leaves_no_file(live, db_session, tm
     def sessions():
         session = factory()
         opened.append(session)
-        if len(opened) > 1:  # the first session checks the user at the start
+        if len(opened) > 1:  # 첫 세션은 시작할 때 사용자를 확인하는 데 쓴다
 
             async def fail_commit():
                 raise RuntimeError("secret database words")
@@ -506,14 +505,14 @@ async def test_updates_can_run_on_a_thread_of_their_own(live):
     assert finals and all(name.startswith("model") for name in finals)
 
 
-# Conversation and dialog modes (T77, docs/experiments.md 11): the same prepare at a pause and save at the
-# end, without live subtitles, for the clips those modes used to upload over HTTP after the end.
+# 여기부터 대화 모드와 두 사람 대화(T77, docs/experiments.md 11절): 쉼에서 미리 처리하고 끝에서 저장하는 같은
+# 흐름을 자막 없이 쓴다. 이 모드들이 예전에 말 끝 뒤 HTTP로 올리던 클립에 쓰인다.
 
 
 # HTTP 경로도 웹소켓과 같은 테스트 DB 세션 공장을 쓰게 하는 get_db 대체. 대화 모드 결과를 같은 DB에서 HTTP
 # 음성 번역 결과와 견주려고 둔다.
 def http_db():
-    """The HTTP routes' database session on the test database, for comparing them with the WebSocket."""
+    """HTTP 경로의 DB 세션을 테스트 DB로 돌려, 웹소켓 결과와 견줄 수 있게 한다."""
     sessions = app.dependency_overrides[get_sessions]()
 
     async def db():
@@ -526,8 +525,8 @@ def http_db():
 # 두 사람 대화용 가짜 인식기: 마디마다 정해 둔 (언어, 확신)을 차례로 판별 결과로 내고, 첫 최종 인식을 붙잡아
 # 둘 수 있다.
 class Turns(FakeLiveSpeechToText):
-    """Detects each dialog turn's language from a list, in order, and can hold the first final recognition in
-    the model thread until released."""
+    """두 사람 대화의 마디마다 목록에서 차례로 언어를 판별하고, 첫 최종 인식을 풀어 줄 때까지 모델 스레드
+    안에 붙잡아 둘 수 있다."""
 
     def __init__(self, detections: list[tuple[str, float]], hold: bool = False) -> None:
         super().__init__()
@@ -614,7 +613,7 @@ async def test_conversation_mode_drops_a_prepared_final_when_speech_resumes(live
     assert [message["type"] for message in messages] == ["final"]
     assert messages[-1]["result"]["source_text"] == words(2 * len(SECOND))
     assert await records(db_session) == 1
-    assert not stt.update_starts  # no live recognition at all
+    assert not stt.update_starts  # 자막용 인식은 한 번도 없었다
 
 
 # 대화 모드는 자막을 보내지 않으므로 자막용 인식이 없는 일반 인식기로도 동작한다(docs/api.md).
@@ -637,8 +636,8 @@ async def test_dialog_mode_detects_each_turn_and_takes_an_unsure_one_as_the_othe
         start_dialog(ws, live.token)
         first = turn(ws, 1)
         second = turn(ws, 2)
-        # Turn 2 was turned around on the screen (the HTTP speech API redid it as Korean): the next unsure
-        # turn is taken as English. A note about an older turn changes nothing, as on the screen.
+        # 화면에서 마디 2의 방향을 바꿨다(HTTP 음성 API가 한국어로 다시 처리): 다음 확신 낮은 마디는 영어로
+        # 본다. 더 오래된 마디에 대한 알림은 화면에서처럼 아무것도 바꾸지 않는다.
         ws.send_json({"type": "previous", "id": 2, "lang": "ko"})
         ws.send_json({"type": "previous", "id": 1, "lang": "en"})
         third = turn(ws, 3)
@@ -667,7 +666,7 @@ async def test_a_dialog_turn_prepared_before_the_turn_ahead_was_saved_is_redone_
         ws.send_bytes(SECOND)
         ws.send_json({"type": "pause", "id": 1})
         ws.send_json({"type": "end", "id": 1})
-        assert stt.entered.wait(5)  # turn 1 is still being recognized when turn 2 pauses
+        assert stt.entered.wait(5)  # 마디 2가 쉴 때 마디 1은 아직 인식 중이다
         ws.send_json({"type": "utterance", "id": 2})
         ws.send_bytes(SECOND)
         ws.send_json({"type": "pause", "id": 2})
@@ -675,8 +674,6 @@ async def test_a_dialog_turn_prepared_before_the_turn_ahead_was_saved_is_redone_
         stt.release.set()
         messages = until(ws, "final")
         messages += until(ws, "final")
-    # Saved in order. Turn 2 was prepared before turn 1 was saved as Korean; it is unsure, so it is English,
-    # as the HTTP dialog API answers it with previous_lang=ko.
     saved = [(message["id"], message["result"]["source_lang"]) for message in messages]
     assert saved == [(1, "ko"), (2, "en")]
     assert messages[1]["result"]["language_guessed"] is True

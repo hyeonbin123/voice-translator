@@ -1,13 +1,12 @@
-"""T65: translation quality of the whole flow, speech in (docs/experiments.md 9).
+"""T65: 음성을 넣었을 때 전체 흐름(인식 → 번역)의 번역 품질을 잰다(docs/experiments.md 9절).
 
   uv run python -m eval.quality_eval --split test --tag t65_test
   uv run python -m eval.quality_eval --split test --en-ko hy-mt2-split --tag t83_quality_test   (T83)
 
-For each FLEURS sentence ID present in both languages, the first recording of it in file order is
-recognized with the server's settings and the result translated, as the speech API does. The same
-sentence's reference transcription is translated as well. Both translations are scored with chrF against
-the other language's transcription, so the difference is what recognition errors cost. --en-ko and --ko-en
-pick the translation per direction as the server's EN_KO_TRANSLATION and KO_EN_TRANSLATION do (T83).
+두 언어에 모두 있는 FLEURS 문장 ID마다, 파일 순서상 첫 녹음을 서버 설정으로 인식하고 그 결과를
+음성 API처럼 번역한다. 같은 문장의 정답 전사도 따로 번역한다. 두 번역을 다른 언어 쪽 전사를 참조로
+chrF로 채점하므로, 두 점수의 차이가 곧 인식 오류가 깎은 몫이다. --en-ko와 --ko-en은 서버의
+EN_KO_TRANSLATION·KO_EN_TRANSLATION과 같은 방식으로 방향마다 번역기를 고른다(T83).
 """
 
 # [파일 역할] 음성 → 인식 → 번역 전체 흐름의 번역 품질을 재는 확인 측정 스크립트다(T65, docs/experiments.md
@@ -52,7 +51,7 @@ EXAMPLES = 5
 # 2절(문장 ID마다 한 쌍)과 같게 맞춘다.
 # 출력: 언어별 {ID: 행}과 두 언어에 모두 있는 ID의 정렬 목록.
 def load(split: str) -> tuple[dict[str, dict[int, dict]], list[int]]:
-    """The first recording of each sentence ID per language, and the IDs both languages have."""
+    """언어별로 문장 ID마다 첫 녹음 한 행과, 두 언어에 모두 있는 ID 목록을 돌려준다."""
     rows: dict[str, dict[int, dict]] = {}
     for language, config in FLEURS_CONFIG.items():
         path = DATA / "fleurs" / config / f"{split}.parquet"
@@ -72,7 +71,7 @@ def load(split: str) -> tuple[dict[str, dict[int, dict]], list[int]]:
 def server_models(
     en_ko: str = "opus", ko_en: str = "opus", quant: str = "q8_0"
 ) -> tuple[WhisperSpeechToText, Translator]:
-    """The models and settings app/services/models.py loads; Hy-MT2 must be the recorded build (T83)."""
+    """app/services/models.py가 올리는 것과 같은 모델·설정. Hy-MT2는 기록된 빌드여야 한다(T83)."""
     stt = WhisperSpeechToText("large-v3-turbo", vad_filter=True, device="cuda", compute_type="float16")
     _, _, _, model, digest = QUANTS[quant]
     settings = Settings(
@@ -91,7 +90,7 @@ def server_models(
 # 오류면 빈 문자열을 돌려준다. 빈 번역은 chrF에서 그대로 감점되고, 인식 결과가 빈 녹음 수는 보고서에 따로
 # 센다.
 def translate(translator: Translator, text: str, source: str, target: str) -> str:
-    """The translation, or "" when there is nothing to translate or the model fails (counted apart)."""
+    """번역문. 번역할 글자가 없거나 모델이 실패하면 ""(이런 경우는 따로 센다)."""
     if not text.strip():
         return ""
     try:
@@ -200,7 +199,7 @@ def main() -> None:
     )
     parser.add_argument("--split", choices=("validation", "test"), default="test")
     parser.add_argument("--tag", required=True)
-    # T83 (docs/experiments.md 15): the translation per direction, as the server's settings name it.
+    # T83(docs/experiments.md 15절): 방향별 번역기. 값 이름은 서버 설정(EN_KO_TRANSLATION 등)과 같다.
     parser.add_argument("--en-ko", choices=("opus", "hy-mt2", "hy-mt2-split"), default="opus")
     parser.add_argument("--ko-en", choices=("opus", "hy-mt2"), default="opus")
     parser.add_argument("--hymt-quant", choices=("q8_0", "q4_k_m"), default="q8_0")

@@ -153,10 +153,9 @@ it('starts the next clip where a forced split in speech stopped, repeating none 
   expect(second.samples).toEqual(pcm.slice(910 * 512, 936 * 512))
 })
 
-// 확인: 짧은 쉼(9조각) 중에 강제로 끊기면, 앞 마디가 남긴 3조각만 다음 마디의 앞 여유가 되어 두 마디가
-// 빈틈없이 이어진다.
+// 확인: 짧은 쉼(9조각) 중에 강제로 끊기면 강제 마디는 조용한 조각 6개를 갖고 3조각을 남긴다. 그 3조각만 다음
+// 마디의 앞 여유가 되어 두 마디가 빈틈없이 이어진다.
 it('uses only the frames a forced split in a pause left out as the next pre-roll', async () => {
-  // Nine quiet frames when the limit hits: the forced clip keeps six and leaves out three.
   const vad = await detector([...Array(10).fill(0), ...Array(891).fill(1), ...Array(9).fill(0),
     ...Array(20).fill(1), ...Array(31).fill(0)])
   const pcm = Float32Array.from({ length: 961 * 512 }, (_, i) => i / (961 * 512))
@@ -166,12 +165,10 @@ it('uses only the frames a forced split in a pause left out as the next pre-roll
   expect(second.samples).toEqual(pcm.slice(907 * 512, 936 * 512))
 })
 
-// 확인: 긴 쉼(25조각) 중에 강제로 끊기면 보통의 끝처럼 다음 마디는 말 앞 6조각부터 시작하고, 그 앞의 조용한
-// 13조각은 어느 마디에도 들어가지 않는다. 말소리 조각은 빠지거나 겹치지 않는다(511b7f8에서 이 동작을 고정).
+// 확인: 긴 쉼(25조각) 중에 강제로 끊기면 강제 마디는 조용한 조각 6개를 갖고 19개를 남긴다. 보통의 끝처럼
+// 그중 마지막 6조각만 다음 마디의 앞 여유가 되고, 그 앞의 조용한 13조각은 어느 마디에도 들어가지 않는다.
+// 말소리 조각은 빠지거나 두 번 보내지지 않는다(511b7f8에서 이 동작을 고정).
 it('drops the silence between clips as a normal end does when a forced split lands in a long pause', async () => {
-  // 25 quiet frames when the limit hits: the forced clip keeps six and leaves out 19. Only the last six
-  // become the next pre-roll, as after a normal end; the 13 quiet frames before them are in neither clip.
-  // No speech frame is dropped or sent twice.
   const vad = await detector([...Array(10).fill(0), ...Array(875).fill(1), ...Array(25).fill(0),
     ...Array(20).fill(1), ...Array(31).fill(0)])
   const pcm = Float32Array.from({ length: 961 * 512 }, (_, i) => i / (961 * 512))

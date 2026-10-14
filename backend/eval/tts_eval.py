@@ -1,22 +1,22 @@
-"""Speech synthesis evaluation on FLEURS sentences (tasks T4, T78 and T82).
+"""FLEURS 문장으로 음성 합성을 평가한다(작업 T4, T78, T82).
 
-Two phases, so that candidates with conflicting dependencies (MeloTTS pins transformers 4.27) run in their
-own environments but are scored by the same speech recognition model. From backend/:
+두 단계로 나눠, 의존성이 충돌하는 후보(MeloTTS는 transformers 4.27 고정)는 각자 환경에서 돌리되 채점은 같은
+음성 인식 모델로 한다. backend/에서:
 
-1. Synthesize, with the candidate's environment:
-       <that environment's python> -m eval.tts_eval synth --candidate mms --tag t4_dev
-   writes data/tts_audio/<tag>/<candidate>/<language>/<id>.wav (git-ignored) and
-   eval/reports/tts_<tag>_<candidate>_synth.json (timing and VRAM per sentence).
-2. Score, with the backend environment (`uv sync --group gpu --group eval`):
+1. 합성, 그 후보의 환경으로:
+       <그 후보 환경의 python> -m eval.tts_eval synth --candidate mms --tag t4_dev
+   data/tts_audio/<tag>/<candidate>/<language>/<id>.wav(git이 무시함)와
+   eval/reports/tts_<tag>_<candidate>_synth.json(문장별 시간과 VRAM)을 쓴다.
+2. 채점, backend 환경으로(`uv sync --group gpu --group eval`):
        uv run python -m eval.tts_eval score --tag t4_dev
-   re-recognizes every saved wav with large-v3-turbo and writes eval/reports/tts_<tag>_<stamp>.md/.json.
+   저장된 wav를 모두 large-v3-turbo로 다시 인식하고 eval/reports/tts_<tag>_<stamp>.md/.json을 쓴다.
 
-For the T78 trial the synthesis runs inside the API's Linux container (docs/experiments.md 12), which has no
-pyarrow: `export` writes the sentences to JSON on the host first and `synth --sentences-dir` reads them.
-`synth --stt-load <folder>` keeps a recognition model busy on another thread while it times the sentences,
-and `timing` summarizes the speed of a tag without recognizing anything.
+T78 시험에서는 합성을 API의 Linux 컨테이너 안에서 돌리는데(docs/experiments.md 12절), 그 안에는 pyarrow가
+없다. 그래서 `export`가 호스트에서 먼저 문장을 JSON으로 쓰고 `synth --sentences-dir`가 그것을 읽는다.
+`synth --stt-load <folder>`는 문장 합성 시간을 재는 동안 다른 스레드에서 인식 모델을 쉬지 않고 돌리고,
+`timing`은 인식 없이 한 태그의 속도만 요약한다.
 
-The candidates and the selection rule are written in docs/experiments.md before any run.
+후보와 선택 규칙은 실행 전에 docs/experiments.md에 먼저 적었다.
 """
 
 # [파일 역할] 음성 합성 후보를 재는 측정 스크립트다(T4 3절, T78 12절, T82 14절). 합성한 음성을 음성 인식
@@ -56,7 +56,7 @@ from eval.common import gpu_memory_mb as device_memory
 
 # AUDIO: 합성 음성을 data/tts_audio/<tag>/<후보>/<언어>/<id>.wav로 남기는 폴더(사람이 들어 볼 표본, 커밋하지
 # 않음). SENTENCES: export가 문장 JSON을 쓰는 기본 폴더. _DIGIT: 아라비아 숫자.
-AUDIO = DATA / "tts_audio"  # git-ignored with the rest of data/
+AUDIO = DATA / "tts_audio"  # data/의 나머지와 함께 git이 무시한다
 SENTENCES = AUDIO / "sentences"
 _DIGIT = re.compile(r"[0-9]")
 
@@ -64,7 +64,7 @@ _DIGIT = re.compile(r"[0-9]")
 # 원문에 아라비아 숫자가 있는 문장인지. T78에서 사전 등록한 부지표 '숫자 문장 CER'(숫자·단위 읽기)을 따로 셀
 # 문장을 고른다.
 def has_digits(text: str) -> bool:
-    """The pre-registered sub-metric's sentences (T78): those written with Arabic digits."""
+    """사전 등록한 부지표(T78)의 대상 문장: 아라비아 숫자로 쓴 문장."""
     return bool(_DIGIT.search(text))
 
 
@@ -80,7 +80,7 @@ def _read_parquet(language: str, split: str) -> list[dict]:
 # 문장 ID마다 한 행(같은 문장의 여러 녹음 중 하나)만 ID 순서로 돌려준다. 합성은 문장마다 한 번이면 되므로
 # 한국어 validation 129문장, 영어 150문장이 된다(3절 데이터). sentences_dir를 주면 export JSON을 읽는다.
 def sentences(language: str, split: str, limit: int | None, sentences_dir: Path | None = None) -> list[dict]:
-    """One row per sentence ID, in ID order: the text to read and the transcription to score against."""
+    """문장 ID마다 한 행, ID 순서: 읽을 원문과 채점에 쓸 전사."""
     if sentences_dir is not None:
         rows = json.loads((Path(sentences_dir) / f"{split}_{language}.json").read_text(encoding="utf-8"))
     else:
@@ -105,7 +105,7 @@ def export(args: argparse.Namespace) -> None:
 # nvidia-smi로 장치 전체 GPU 사용 메모리(MB)를 읽는다. 컨테이너에는 nvidia-ml-py가 없어 대신 쓴다. 명령이
 # 없거나 출력이 이상하면 None. run을 인자로 받는 것은 테스트가 가짜 실행 함수를 넣기 위해서다.
 def nvidia_smi_memory_mb(run: Callable = subprocess.run) -> float | None:
-    """GPU memory in use on the whole device, from nvidia-smi (the container has no nvidia-ml-py)."""
+    """nvidia-smi로 읽은 장치 전체의 사용 중 GPU 메모리(컨테이너에는 nvidia-ml-py가 없다)."""
     try:
         result = run(
             ["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],
@@ -122,7 +122,7 @@ def nvidia_smi_memory_mb(run: Callable = subprocess.run) -> float | None:
 # NVML(pynvml)로 먼저 읽고, 패키지가 없으면 nvidia-smi로, 둘 다 없으면 None. GPU 없이 CPU 제공자만 쓰는
 # 실행(T78 0단계)도 돌 수 있게 한다.
 def gpu_memory_mb() -> float | None:
-    """GPU memory in use on the device, or None when neither nvidia-ml-py nor nvidia-smi is there."""
+    """장치의 사용 중 GPU 메모리. nvidia-ml-py도 nvidia-smi도 없으면 None."""
     try:
         return device_memory()[1]
     except ImportError:
@@ -137,7 +137,7 @@ def wav_seconds(data: bytes) -> float:
 
 # 인식 부하에 쓸 e2e 클립(<언어>_<id>.wav)을 이름순으로 읽어 (음성, 언어) 목록으로 돌려준다.
 def load_clips(folder: Path) -> list[tuple[bytes, str]]:
-    """Recognition load input: the e2e clips, named <language>_<id>.wav (eval/e2e_eval.py)."""
+    """인식 부하의 입력: <language>_<id>.wav 이름의 e2e 클립(eval/e2e_eval.py)."""
     return [(path.read_bytes(), path.name.split("_", 1)[0]) for path in sorted(Path(folder).glob("*_*.wav"))]
 
 
@@ -145,8 +145,8 @@ def load_clips(folder: Path) -> list[tuple[bytes, str]]:
 # 서버에서 모델 스레드 밖의 합성 스레드에서 돌기 때문에, 서버의 모델 스레드가 인식을 계속 돌릴 때 합성이
 # 얼마나 느려지는지 재려는 것이다(12절 방법). 호출 수·오류 수·인식 호출 시간 중앙값을 기록한다.
 class SttLoad:
-    """Keeps a speech recognition model busy on a thread of its own while sentences are synthesized: the
-    server's model thread recognizing back to back while Supertonic runs beside it (T78)."""
+    """문장을 합성하는 동안 별도 스레드에서 음성 인식 모델을 쉬지 않고 돌린다: Supertonic이 옆에서 도는
+    동안 서버의 모델 스레드가 인식을 연달아 하는 상황(T78)."""
 
     def __init__(self, stt, clips: list[tuple[bytes, str]]) -> None:
         if not clips:
@@ -168,14 +168,14 @@ class SttLoad:
             try:
                 self._stt.transcribe(audio, language)
                 self._times.append(time.perf_counter() - start)
-            except Exception as exc:  # noqa: BLE001 - counted, and the first one stops the measurement
+            except Exception as exc:  # noqa: BLE001 - 세어 두고, 첫 오류는 측정을 멈춘다
                 self._errors.append(f"{type(exc).__name__}: {exc}")
             self._first.set()
 
     # 스레드를 띄우고 첫 인식이 끝날 때까지 기다린다(모델 준비를 마친 상태에서 합성 시간을 재기 위해). 제한
     # 시간 안에 한 번도 성공하지 못하면 부하가 없는 것이므로 멈추고 예외를 낸다.
     def start(self, timeout: float = 600) -> None:
-        """Start, and return once one recognition has finished (so the model is warm)."""
+        """시작하고, 인식이 한 번 끝나면(모델이 준비되면) 돌아온다."""
         self._thread.start()
         if not self._first.wait(timeout) or not self._times:
             self.stop()
@@ -194,7 +194,7 @@ class SttLoad:
 
 # 부하에 쓸 인식기. 서버와 같은 설정(large-v3-turbo, VAD 필터, GPU면 float16·CPU면 int8)으로 만든다.
 def load_recognizer(device: str):
-    """The server's recognition settings (app/services/models.py) for the load."""
+    """부하용 인식기를 서버의 인식 설정(app/services/models.py)으로 만든다."""
     from app.services.stt import WhisperSpeechToText
 
     compute_type = "float16" if device == "cuda" else "int8"
@@ -210,7 +210,7 @@ def synth(args: argparse.Namespace) -> None:
     from eval.tts_candidates import CANDIDATES
 
     load, languages = CANDIDATES[args.candidate]
-    if args.languages:  # e.g. the test run covers only the language a candidate was chosen for
+    if args.languages:  # 예: test 실행은 후보가 뽑힌 언어만 다룬다
         languages = [language for language in languages if language in args.languages]
     record: dict = {
         "tag": args.tag,
@@ -229,7 +229,7 @@ def synth(args: argparse.Namespace) -> None:
         load_s = time.perf_counter() - start
         after = gpu_memory_mb()
         rows = sentences(language, args.split, args.limit, args.sentences_dir)
-        # Warm-up: not in the sentence statistics, but timed on its own (T82: first-call cost on the GPU).
+        # 준비 호출: 문장 통계에는 넣지 않지만 따로 시간을 잰다(T82: GPU에서 첫 호출 비용).
         start = time.perf_counter()
         model.synthesize(rows[0]["raw_transcription"], language)
         first_call_s = time.perf_counter() - start
@@ -246,7 +246,7 @@ def synth(args: argparse.Namespace) -> None:
             start = time.perf_counter()
             try:
                 audio = model.synthesize(row["raw_transcription"], language)
-            except Exception as exc:  # noqa: BLE001 - count every failure and keep going
+            except Exception as exc:  # noqa: BLE001 - 실패를 모두 세고 계속한다
                 failures += 1
                 items.append({"id": row["id"], "failure": f"{type(exc).__name__}: {exc}"})
                 continue
@@ -263,7 +263,7 @@ def synth(args: argparse.Namespace) -> None:
             )
         if stt_load is not None:
             record.setdefault("load", {})[language] = stt_load.stop()
-        # Device memory after the last sentence: ONNX Runtime's arena keeps its high-water mark (T82).
+        # 마지막 문장 뒤 장치 메모리: ONNX Runtime의 arena는 가장 많이 쓴 양을 그대로 잡고 있다(T82).
         after_run = gpu_memory_mb()
         record["languages"][language] = {
             "model_name": model.model_name,
@@ -287,7 +287,7 @@ def synth(args: argparse.Namespace) -> None:
 # 정확히 이 태그의 synth 기록만 모은다. glob 'tts_t78_dev_*'는 't78_dev_load' 태그의 파일도 잡으므로, 파일
 # 이름이 '태그_후보_synth.json'과 정확히 같은 것만 남긴다.
 def synth_records(tag: str) -> list[dict]:
-    """The synthesis records of exactly this tag: tts_t78_dev_* also matches tag t78_dev_load's files."""
+    """정확히 이 태그의 합성 기록. tts_t78_dev_*는 t78_dev_load 태그의 파일도 잡기 때문이다."""
     records = []
     for path in sorted(REPORTS.glob(f"tts_{tag}_*_synth.json")):
         record = json.loads(path.read_text(encoding="utf-8"))
@@ -299,9 +299,8 @@ def synth_records(tag: str) -> list[dict]:
 # 성공한 문장들의 속도 요약: 음성 1초당 합성 시간 p50·p95, 문장당 합성 시간 p50. 모두 실패하면 None, 성공이
 # 하나면 그 값이 p50이자 p95다(quantiles는 값이 둘 이상 필요하므로).
 def speed_stats(items: list[dict]) -> dict:
-    """Speed over the sentences that were synthesized. A candidate whose synthesis failed for all of them
-    has no speed (None), and with one success that one is its p50 and p95 (T79): its report still shows
-    the failures."""
+    """합성된 문장들의 속도. 모든 문장의 합성에 실패한 후보는 속도가 없고(None), 성공이 하나면 그 값이
+    p50이자 p95다. 어느 경우든 보고서에는 실패가 그대로 나온다."""
     speeds = [item["per_audio_second"] for item in items if item.get("per_audio_second")]
     synth_times = [item["synth_s"] for item in items if "synth_s" in item]
     return {
@@ -311,8 +310,8 @@ def speed_stats(items: list[dict]) -> dict:
     }
 
 
-# timing 보고서에 함께 싣는 실행 정보 필드(T82부터 기록, 이전 기록에는 없어 '-'로 보임).
-# Recorded per language by synth since T82; older records lack them and show "-".
+# timing 보고서에 함께 싣는 실행 정보 필드. T82부터 synth가 언어별로 기록하며, 이전 기록에는 없어 '-'로
+# 보인다.
 RUN_FIELDS = ("providers", "load_s", "first_call_s", "vram_mb", "vram_after_run_mb")
 
 
@@ -329,7 +328,7 @@ def _value(value) -> str:
 # 세션별 제공자 목록에서 첫 제공자(실제로 쓰는 것)만 이름 하나씩 모은다. ONNX Runtime은 CUDA 제공자를 못
 # 올려도 CPU로 조용히 돌기 때문에, T82 0단계 조건 ④(네 세션 모두 CUDA)를 보고서에서 확인하려고 쓴다.
 def first_providers(providers: dict[str, list[str]] | None) -> str:
-    """The provider each session runs on first, each name once ("-" when not recorded)."""
+    """세션마다 첫 번째로 쓰는 제공자 이름을 하나씩("-"는 기록 없음)."""
     names = sorted({found[0] for found in (providers or {}).values() if found})
     return ", ".join(names) if names else "-"
 
@@ -347,7 +346,7 @@ def score_language(
     recognize: Callable[[dict], str],
     error_rate: Callable[[str, list[str], list[str]], float] | None = None,
 ) -> dict:
-    """Error rate over every sentence (a failed synthesis counts as fully wrong) and over digit sentences."""
+    """모든 문장(합성 실패는 전부 틀린 것으로 셈)과 숫자 문장 각각의 오류율."""
     from eval.text_norm import normalize
 
     if error_rate is None:
@@ -397,7 +396,7 @@ def score(args: argparse.Namespace) -> None:
             # 반복 안에서 만드는 함수라 audio_dir·language를 기본값으로 묶어 둔다(늦은 바인딩으로 마지막 반복
             # 값을 쓰는 실수를 막음). 인식할 수 없는 음성은 빈 결과(전부 틀림).
             def recognize(item: dict, audio_dir: Path = audio_dir, language: str = language) -> str:
-                try:  # unrecognizable audio counts as fully wrong
+                try:  # 인식할 수 없는 음성은 전부 틀린 것으로 센다
                     return stt.transcribe((audio_dir / f"{item['id']}.wav").read_bytes(), language).text
                 except InvalidAudioError:
                     return ""
@@ -412,7 +411,7 @@ def score(args: argparse.Namespace) -> None:
 # timing 명령: 재인식 없이 synth 기록의 속도·실패·실행 정보만 요약한다. 인식 부하 아래서 합성한 음성은
 # 채점하지 않고 시간만 보기 때문이다(12·14절 방법). 동시 인식 호출 수와 인식 호출 p50도 함께 적는다.
 def timing(args: argparse.Namespace) -> None:
-    """Speed only, for runs that are not scored (the recognition-load runs, T78)."""
+    """채점하지 않는 실행(인식 부하 실행, T78)의 속도만 요약한다."""
     results = []
     for record in synth_records(args.tag):
         result: dict = {"candidate": record["candidate"], "load": record.get("load"), "languages": {}}
@@ -504,28 +503,24 @@ def write_report(results: list[dict], args: argparse.Namespace) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     phases = parser.add_subparsers(dest="phase", required=True)
-    export_parser = phases.add_parser(
-        "export", help="write the sentences to JSON for an environment without pyarrow"
-    )
+    export_parser = phases.add_parser("export", help="pyarrow가 없는 환경을 위해 문장을 JSON으로 쓴다")
     export_parser.add_argument("--split", choices=["validation", "test"], default="validation")
     export_parser.add_argument("--languages", nargs="+", choices=["ko", "en"], default=["ko"])
     export_parser.add_argument("--out", type=Path, default=SENTENCES)
-    synth_parser = phases.add_parser("synth", help="synthesize with one candidate")
+    synth_parser = phases.add_parser("synth", help="후보 하나로 합성한다")
     synth_parser.add_argument("--candidate", required=True)
     synth_parser.add_argument("--split", choices=["validation", "test"], default="validation")
-    synth_parser.add_argument("--limit", type=int, default=None, help="first N sentences per language")
-    synth_parser.add_argument("--languages", nargs="+", choices=["ko", "en"], help="default: all it speaks")
+    synth_parser.add_argument("--limit", type=int, default=None, help="언어마다 앞에서부터 N문장만 쓴다")
+    synth_parser.add_argument("--languages", nargs="+", choices=["ko", "en"], help="기본: 후보의 모든 언어")
     synth_parser.add_argument("--tag", default="run")
+    synth_parser.add_argument("--sentences-dir", type=Path, help="`export`가 쓴 JSON 파일에서 문장을 읽는다")
     synth_parser.add_argument(
-        "--sentences-dir", type=Path, help="read the sentences from `export` JSON files"
-    )
-    synth_parser.add_argument(
-        "--stt-load", type=Path, help="folder of <language>_<id>.wav clips to recognize meanwhile"
+        "--stt-load", type=Path, help="합성하는 동안 인식할 <language>_<id>.wav 클립 폴더"
     )
     synth_parser.add_argument("--stt-load-device", choices=["cuda", "cpu"], default="cuda")
-    score_parser = phases.add_parser("score", help="re-recognize every candidate's audio for a tag")
+    score_parser = phases.add_parser("score", help="한 태그의 모든 후보 음성을 다시 인식해 채점한다")
     score_parser.add_argument("--tag", default="run")
-    timing_parser = phases.add_parser("timing", help="summarize the speed of a tag without recognition")
+    timing_parser = phases.add_parser("timing", help="인식 없이 한 태그의 속도를 요약한다")
     timing_parser.add_argument("--tag", default="run")
     args = parser.parse_args()
     {"export": export, "synth": synth, "score": score, "timing": timing}[args.phase](args)

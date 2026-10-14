@@ -36,7 +36,7 @@ export default defineConfig({
   // 기본값을 대신하므로 다시 적어 둔다.
   resolve: { conditions: ['onnxruntime-web-use-extern-wasm', 'module', 'browser', 'development|production'] },
   server: {
-    // The API runs separately (uvicorn on :8000) and every API route is under /api.
+    // API 서버는 따로 돈다(uvicorn, :8000). 모든 API 경로는 /api 아래에 있다.
     // ws: true는 웹소켓 업그레이드 요청도 넘기게 한다. 동시통역과 로그인한 대화 모드·두 사람 대화가 WS
     // /api/translate/live를 쓰기 때문이다(c005648에서 추가). nginx.test.ts가 이 한 줄의 모양을 정규식으로
     // 확인하므로 줄을 나누면 그 테스트가 실패한다.

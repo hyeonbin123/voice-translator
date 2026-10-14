@@ -1,15 +1,15 @@
-"""Paired bootstrap intervals for re-analysing recorded decisions (docs/experiments.md 13, task T80).
+"""기록된 결정을 다시 분석하기 위한 짝지은 붓스트랩 구간(docs/experiments.md 13절, 작업 T80).
 
-Every function returns the difference a - b on the full data and the 2.5th and 97.5th percentiles of the
-same difference over resamples that draw the same items for both systems.
+모든 함수는 전체 데이터에서 계산한 차이 a - b와, 두 시스템에 같은 항목을 뽑는 재표집들에서 계산한
+같은 차이의 2.5·97.5 백분위를 돌려준다.
 
-- chrF and BLEU are corpus-level scores. A resample sums sacrebleu's per-sentence statistics and recomputes
-  the score, so the n-gram counts are re-aggregated instead of averaging sentence scores. The draws are the
-  ones sacrebleu's paired bootstrap (`significance.PairedTest`, `test_type="bs"`) makes for the same seed
-  and size, so the per-system intervals agree with sacrebleu's.
-- CER and WER are corpus-level rates (total edits over total reference length). A resample sums the edits
-  and lengths of the drawn utterances, or of the drawn sentences after `by_group`.
-- COMET-22 system scores are means of segment scores.
+- chrF와 BLEU는 corpus 단위 점수다. 재표집마다 sacrebleu의 문장별 통계를 더해 점수를 다시 계산하므로,
+  문장 점수를 평균하지 않고 n-gram 수를 다시 합산한다. 뽑는 표본은 같은 시드·크기에서 sacrebleu의 짝지은
+  붓스트랩(`significance.PairedTest`, `test_type="bs"`)이 뽑는 것과 같아서, 시스템별 구간이 sacrebleu와
+  일치한다.
+- CER과 WER은 corpus 단위 비율(전체 편집 수 / 전체 참조 길이)이다. 재표집마다 뽑힌 발화(또는 `by_group`
+  뒤에는 뽑힌 문장)의 편집 수와 길이를 더한다.
+- COMET-22 시스템 점수는 문장 점수의 평균이다.
 """
 
 # [파일 역할] 두 시스템(a, b)의 점수 차이에 95% 짝지은 붓스트랩 구간을 붙이는 계산 함수 모음이다. 모델을
@@ -35,15 +35,15 @@ import numpy as np
 
 # sacrebleu는 eval 그룹에만 있다. 타입 표기용으로만 가져와, sacrebleu 없이도(CI) 오류율·평균 구간 함수는 쓸 수
 # 있게 한다.
-if TYPE_CHECKING:  # sacrebleu is in the eval group; the rate and mean intervals work without it (CI)
+if TYPE_CHECKING:
     from sacrebleu.metrics.base import Metric
 
 # ROUNDS: 붓스트랩 반복 수, TRIALS: approximate randomization 시행 수(둘 다 13절에 적은 10,000번).
 # SEED: sacrebleu의 기본 SACREBLEU_SEED와 같은 값. 그래야 PairedTest가 뽑는 표본과 이 파일이 뽑는 표본이
 # 같아진다.
 ROUNDS = 10_000
-TRIALS = 10_000  # approximate randomization
-SEED = 12345  # sacrebleu's default SACREBLEU_SEED, so PairedTest draws the same resamples
+TRIALS = 10_000
+SEED = 12345
 
 
 # 구간 결과: point는 전체 데이터에서 계산한 차이(점 추정), low·high는 붓스트랩 차이의 2.5·97.5 백분위.
@@ -72,7 +72,7 @@ def _counts(rng: np.random.Generator, count: int, rounds: int) -> np.ndarray:
 # 시드로 새 난수 생성기를 만들어 _counts를 부른다. 호출마다 같은 시드면 같은 표본이 나오므로, 같은 문장 수의
 # 비교끼리는 같은 재표집을 쓴다.
 def resample_counts(count: int, rounds: int = ROUNDS, seed: int = SEED) -> np.ndarray:
-    """How often each of `count` items is drawn in each resample, shape (rounds, count)."""
+    """재표집마다 `count`개 항목이 각각 몇 번 뽑혔는지. 모양은 (rounds, count)."""
     return _counts(np.random.default_rng(seed), count, rounds)
 
 
@@ -87,14 +87,14 @@ def _interval(point: float, draws: np.ndarray) -> Interval:
 # sacrebleu의 내부 메서드(_extract_corpus_statistics)를 쓰므로 sacrebleu 버전이 바뀌면 확인이 필요하다(13절은
 # 2.6.0으로 계산).
 def segment_statistics(metric: Metric, hypotheses: Sequence[str], references: Sequence[str]) -> np.ndarray:
-    """sacrebleu's sufficient statistics, one row per sentence (one reference each)."""
+    """sacrebleu의 충분 통계. 문장마다 한 행(참조는 문장마다 하나)."""
     return np.asarray(metric._extract_corpus_statistics(list(hypotheses), [list(references)]), dtype=np.int64)
 
 
 # 재표집마다 뽑힌 문장들의 통계를 더한 뒤(counts @ stats) 그 합으로 corpus 점수를 다시 계산한다. 문장 점수의
 # 평균이 아니라 기록된 chrF와 같은 '전체 합산' 점수를 재표집마다 만드는 것이 핵심이다.
 def corpus_scores(metric: Metric, stats: np.ndarray, counts: np.ndarray) -> np.ndarray:
-    """The corpus score of every resample: the drawn sentences' statistics summed, then scored."""
+    """재표집마다의 corpus 점수: 뽑힌 문장들의 통계를 더한 뒤 그 합으로 채점한다."""
     return np.array([metric._compute_score_from_stats(row).score for row in counts @ stats])
 
 
@@ -115,11 +115,11 @@ def corpus_difference(
     rounds: int = ROUNDS,
     seed: int = SEED,
 ) -> Interval:
-    """Corpus score of a minus b, averaged over groups.
+    """a의 corpus 점수 − b의 corpus 점수를 그룹마다 구해 평균한다.
 
-    Each group is (hypotheses_a, hypotheses_b, references) over the same sentences in the same order, for
-    example one group per typo level. A resample draws sentence positions once and uses them in every group,
-    so a sentence keeps all its levels.
+    그룹 하나는 같은 문장을 같은 순서로 담은 (hypotheses_a, hypotheses_b, references)다. 예를 들어 오타
+    수준마다 한 그룹이다. 재표집은 문장 위치를 한 번만 뽑아 모든 그룹에 쓰므로, 한 문장의 모든 수준이
+    함께 뽑힌다.
     """
     count = _same_length([len(part) for group in groups for part in group])
     counts = resample_counts(count, rounds, seed)
@@ -140,7 +140,7 @@ def corpus_difference(
 def mean_difference(
     groups: Sequence[tuple[np.ndarray, np.ndarray]], rounds: int = ROUNDS, seed: int = SEED
 ) -> Interval:
-    """Mean segment score (COMET) of a minus b, averaged over groups, resampled like `corpus_difference`."""
+    """a의 평균 문장 점수(COMET) − b의 것을 그룹마다 구해 평균한다. 재표집은 `corpus_difference`와 같다."""
     count = _same_length([len(part) for group in groups for part in group])
     counts = resample_counts(count, rounds, seed)
     point, draws = 0.0, np.zeros(rounds)
@@ -160,10 +160,10 @@ def mean_difference(
 def rate_difference(
     strata: Sequence[tuple[np.ndarray, np.ndarray, np.ndarray]], rounds: int = ROUNDS, seed: int = SEED
 ) -> Interval:
-    """Corpus error rate of a minus b, averaged over strata (e.g. Korean CER and English WER).
+    """a의 corpus 오류율 − b의 것을 층(예: 한국어 CER, 영어 WER)마다 구해 평균한다.
 
-    Each stratum is (edits_a, edits_b, reference_lengths) over the same items. Strata are resampled apart,
-    in order, from one generator.
+    층 하나는 같은 항목들에 대한 (edits_a, edits_b, reference_lengths)다. 층들은 생성기 하나에서
+    차례로, 서로 따로 재표집한다.
     """
     rng = np.random.default_rng(seed)
     point, draws = 0.0, np.zeros(rounds)
@@ -184,10 +184,10 @@ def rate_difference(
 # 독립으로 세어 구간이 좁게 나오므로, 문장 단위로 묶어 한 문장의 녹음을 모두 함께 뽑는다(13절 '계획 변경 (측정
 # 전)'). 결과로는 분류가 하나도 바뀌지 않았다.
 def by_group(ids: Sequence, *columns: np.ndarray) -> tuple[np.ndarray, ...]:
-    """Columns summed over items that share an id, one row per id in first-seen order.
+    """같은 id를 가진 항목들의 열 값을 더해, 처음 나온 순서로 id마다 한 행을 만든다.
 
-    Resampling these rows draws whole sentences with all their recordings (FLEURS has several readers per
-    sentence, so recordings of one sentence are not independent).
+    이 행들을 재표집하면 문장 하나를 그 녹음 전부와 함께 뽑는다(FLEURS는 한 문장을 여러 사람이 읽어,
+    한 문장의 녹음끼리 독립이 아니다).
     """
     order = {key: index for index, key in enumerate(dict.fromkeys(ids))}
     rows = np.array([order[key] for key in ids])
@@ -203,11 +203,11 @@ def by_group(ids: Sequence, *columns: np.ndarray) -> tuple[np.ndarray, ...]:
 # - opposite: 구간 전체가 점 추정의 반대쪽. 백분위 구간은 보통 점 추정을 품으므로 예상하지 않지만 생기면
 #   보고한다.
 def classify(interval: Interval, threshold: float | None) -> str | None:
-    """Where the interval lies against a decision threshold.
+    """구간이 판단 문턱에 견줘 어디에 있는지.
 
-    "robust": the whole interval is strictly on the point estimate's side, so the recorded decision would
-    not change within the interval. "straddles": the threshold is inside the interval (touching counts).
-    "opposite": the whole interval is on the other side of the point (not expected; reported if it happens).
+    "robust": 구간 전체가 엄격하게 점 추정 쪽에 있어, 구간 안에서는 기록된 결정이 바뀌지 않는다.
+    "straddles": 문턱이 구간 안에 있다(경계에 닿기만 해도 해당). "opposite": 구간 전체가 점 추정의
+    반대쪽에 있다(예상하지 않지만 생기면 보고한다).
     """
     if threshold is None:
         return None
@@ -232,10 +232,9 @@ def paired_test(
     rounds: int = ROUNDS,
     trials: int = TRIALS,
 ) -> dict[str, dict]:
-    """sacrebleu's paired bootstrap and approximate randomization tests of a against b (the baseline).
+    """기준선 b에 대한 a의 sacrebleu 짝지은 붓스트랩·approximate randomization 검정.
 
-    Returns per metric both corpus scores, sacrebleu's 95% half-widths around the bootstrap means, and the
-    two p-values.
+    지표마다 두 corpus 점수, 붓스트랩 평균 둘레의 sacrebleu 95% 반폭, 두 p값을 돌려준다.
     """
     from sacrebleu.significance import PairedTest
 
@@ -249,7 +248,7 @@ def paired_test(
     _, bootstrap = PairedTest(systems, metrics, refs, test_type="bs", n_samples=rounds)()
     _, randomization = PairedTest(systems, metrics, refs, test_type="ar", n_samples=trials)()
     out = {}
-    # PairedTest keys its columns by the score name (e.g. chrF2), in the order of `metrics`.
+    # PairedTest는 결과 열의 키를 점수 이름(예: chrF2)으로 붙이고, `metrics`에 준 순서대로 둔다.
     for name, column in zip(names, [key for key in bootstrap if key != "System"], strict=True):
         result_b, result_a = bootstrap[column]
         out[name] = {

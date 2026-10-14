@@ -40,15 +40,17 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/translate", tags=["translate"])
 
 
-# with 블록 안에서 난 모델 예외를 API 계약의 HTTP 오류로 바꾼다. 순서가 중요하다:
-# UndecodableAudioError·NoSpeechError는 ModelError의 하위 클래스라 먼저 잡아야 422가 되고, 그 밖의
-# ModelError는 503이 된다. 로그에는 describe()로 종류와 위치만 남긴다.
 @contextmanager
 def failures_as_http():
-    """The API's fixed answers for a translation that failed (docs/api.md)."""
+    """실패한 번역을 API 계약의 고정된 HTTP 오류로 바꾼다(docs/api.md).
+
+    with 블록 안에서 난 모델 예외를 바꾼다. 순서가 중요하다: UndecodableAudioError·NoSpeechError는
+    ModelError의 하위 클래스라 먼저 잡아야 422가 되고, 그 밖의 ModelError는 503이 된다.
+    """
     try:
         yield
-    # The log names the failure but never its messages: a library's message can quote the input (T49).
+    # 로그에는 describe()로 실패의 종류와 위치만 남기고 메시지는 남기지 않는다. 라이브러리의 메시지에
+    # 사용자 입력이 그대로 들어갈 수 있기 때문이다.
     except UndecodableAudioError as exc:
         logger.warning("Undecodable audio: %s", describe(exc))
         raise HTTPException(422, "Audio could not be decoded") from exc
@@ -101,11 +103,13 @@ class AudioUploadTooLarge(MultiPartException):
     pass
 
 
-# 파일 파트의 바이트를 받는 대로 세다가 10MB를 넘으면 바로 예외를 낸다. Content-Length 헤더만 보면 chunked
-# 전송이나 거짓 헤더를 막지 못하므로, 실제로 들어온 바이트를 센다. 파트가 시작될 때마다 0으로 되돌리고, 파일이
-# 아닌 폼 필드(source_lang 등)는 세지 않는다.
 class LimitedMultipartParser(MultiPartParser):
-    """Count file bytes before Starlette spools them, including chunked requests."""
+    """Starlette가 파일을 임시 파일로 쌓기 전에 파일 바이트를 센다(chunked 요청 포함).
+
+    파일 파트의 바이트를 받는 대로 세다가 10MB를 넘으면 바로 예외를 낸다. Content-Length 헤더만 보면
+    chunked 전송이나 거짓 헤더를 막지 못하므로, 실제로 들어온 바이트를 센다. 파트가 시작될 때마다 0으로
+    되돌리고, 파일이 아닌 폼 필드(source_lang 등)는 세지 않는다.
+    """
 
     def on_part_begin(self) -> None:
         super().on_part_begin()
@@ -143,8 +147,8 @@ class LimitedUploadRoute(APIRoute):
                 raise HTTPException(413, "Audio file is larger than 10 MB") from exc
             except (MultiPartException, MultipartParseError) as exc:
                 raise HTTPException(400, "Invalid multipart request") from exc
-            # Reuse the parsed form for FastAPI's normal File/Form validation and OpenAPI.
-            # Starlette has no public setter for the request form cache.
+            # 읽은 폼을 FastAPI의 일반 File/Form 검증과 OpenAPI가 그대로 다시 쓰게 한다. Starlette에는 요청
+            # 폼 캐시의 공개 setter가 없어 내부 속성에 넣는다.
             request._form = form
             try:
                 return await handler(request)
@@ -192,7 +196,6 @@ async def translate_speech(
 # 업로드 파일을 바이트로 읽는다. 위의 파서가 이미 10MB를 막지만, 다른 경로로 만든 UploadFile이 들어와도
 # 안전하도록 크기 확인을 한 번 더 한다(한도 + 1바이트만 읽어 넘었는지 판단).
 async def read_audio(audio: UploadFile) -> bytes:
-    # Defense in depth if another caller supplies an already parsed UploadFile.
     if audio.size is not None and audio.size > pipeline.MAX_AUDIO_BYTES:
         raise HTTPException(413, "Audio file is larger than 10 MB")
     content = await audio.read(pipeline.MAX_AUDIO_BYTES + 1)
@@ -215,8 +218,11 @@ async def translate_dialog(
     audio: Annotated[UploadFile, File()],
     previous_lang: Annotated[Language | None, Form()] = None,
 ) -> DialogResponse:
-    """Two people, one screen (T35): the utterance's language is detected and it is translated into the
-    other. When the detection is unsure, the conversation is taken to alternate (docs/experiments.md 10)."""
+    """두 사람이 한 화면으로 대화한다. 한 마디의 언어를 판별해 상대 언어로 번역한다.
+
+    판별이 애매하면 두 사람이 번갈아 말한다고 보고, 직전 마디와 반대 언어로
+    처리한다(docs/experiments.md 10절).
+    """
     content = await read_audio(audio)
     if not isinstance(models.stt, LanguageDetector):
         raise HTTPException(503, "Translation service is unavailable")

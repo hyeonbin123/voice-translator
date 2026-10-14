@@ -1,5 +1,5 @@
-"""The check that swapping onnxruntime for onnxruntime-gpu leaves speech recognition as it was (T82,
-docs/experiments.md 14). No model runs: the timestamps and texts are made up."""
+"""onnxruntime을 onnxruntime-gpu로 바꿔도 음성 인식이 그대로인지 보는 확인 도구를 검증한다(T82,
+docs/experiments.md 14절). 모델은 돌리지 않고, 시각과 글은 지어낸 값이다."""
 
 # [파일 역할] eval/ort_swap_check.py(onnxruntime을 onnxruntime-gpu로 바꾼 시험 이미지에서 서버 음성 인식이
 # 그대로인지 보는 점검 도구, docs/experiments.md 14절)의 비교 규칙과 입출력을 검증한다. 모델은 돌리지 않고,
@@ -37,7 +37,6 @@ SILENT = {"ko_silence": "", "ko_noise": "", "en_silence": "", "en_noise": ""}
 # 도구가 실제로 도는 API 컨테이너에는 pyarrow·jiwer가 없으므로, 두 모듈 import를 막은 새 프로세스에서도 불러올
 # 수 있는지 확인한다.
 def test_the_tool_imports_without_the_eval_group():
-    # The API container, where it runs, has neither pyarrow nor jiwer.
     code = (
         "import sys; sys.modules['pyarrow'] = None; sys.modules['pyarrow.parquet'] = None; "
         "sys.modules['jiwer'] = None; import eval.ort_swap_check"
@@ -72,7 +71,7 @@ def test_one_changed_text_fails_and_is_named():
 # 교체 뒤 잡음 입력에서 "Thank you." 같은 문장을 지어내면 실패한다. VAD를 켜기 전 서버가 무음에서 문장을
 # 지어냈던 문제(README 설계 판단)가 교체로 되살아나지 않는지 보는 규칙이다.
 def test_speech_made_up_from_silence_after_the_swap_fails():
-    # T14's silence check: all four no-speech inputs must come back empty (4/4).
+    # T14의 무음 확인: 말이 없는 입력 네 개가 모두 빈 결과로 돌아와야 한다(4/4).
     after = record("transcribe", {"en_1.wav": "Hello."}, {**SILENT, "en_noise": "Thank you."})
     result = ort_swap_check.compare(record("transcribe", {"en_1.wav": "Hello."}, SILENT), after)
     assert result["pass"] is False and result["no_speech_empty"]["after"] == 3
@@ -105,16 +104,14 @@ def test_records_of_different_kinds_or_clips_are_not_compared():
 # 두 기록 모두 클립이 0개면(폴더를 잘못 주거나 빈 폴더) '0/0 같음'으로 통과하지 않고 거부되는지 두 종류 모두
 # 확인한다(커밋 129e1f7).
 def test_records_without_clips_are_not_compared():
-    # A wrong or empty clip folder in both runs must not pass the 60/60 gate with 0/0 (T84).
     for kind, quiet in (("vad", {"silence": [], "noise": []}), ("transcribe", SILENT)):
         with pytest.raises(ValueError, match="no clips"):
             ort_swap_check.compare(record(kind, {}, quiet), record(kind, {}, quiet))
 
 
-# 두 기록이 똑같이 무음 입력 하나를 빠뜨려도 비교를 거부한다. 무음 입력은 종류별로 정해진 전부(transcribe 넷,
-# vad 둘)가 있어야 한다.
+# 두 기록이 똑같이 무음 입력 하나를 빠뜨려도 비교를 거부한다. 무음 입력은 T14의 것으로, 종류별로 정해진
+# 전부(transcribe 넷, vad 둘)가 있어야 한다.
 def test_records_missing_a_no_speech_input_are_not_compared():
-    # The no-speech inputs are T14's: both kinds must hold all of them, even when both lack the same one.
     clips = {"en_1.wav": "Hello."}
     three = {key: value for key, value in SILENT.items() if key != "en_noise"}
     with pytest.raises(ValueError, match="no-speech"):
@@ -126,10 +123,9 @@ def test_records_missing_a_no_speech_input_are_not_compared():
         )
 
 
-# 같은 불완전한 클립 집합(59개)으로 두 번 돌리면 서로는 같지만, 관문은 validation 60클립 모두(60/60)이므로
-# expect_clips=60이면 실패해야 한다(커밋 18a43c2). 기대 수를 59로 주면 통과한다.
+# 같은 불완전한 클립 집합(59개)으로 두 번 돌리면 서로는 같지만, 관문은 validation 60클립 모두(60/60,
+# 14절)이므로 expect_clips=60이면 실패해야 한다(커밋 18a43c2). 기대 수를 59로 주면 통과한다.
 def test_records_holding_fewer_clips_than_expected_fail():
-    # Two runs on the same incomplete clip set agree, but the gate is 60/60 (docs/experiments.md 14) (T89).
     clips = {f"en_{i}.wav": "Hello." for i in range(59)}
     before, after = record("transcribe", clips, SILENT), record("transcribe", clips, SILENT)
     result = ort_swap_check.compare(before, after, expect_clips=60)

@@ -1,9 +1,9 @@
-"""Count visible failure types in a saved translation report (task T3), without running any model.
+"""저장된 번역 보고서에서 눈에 보이는 실패 유형을 센다. 모델은 돌리지 않는다.
 
-Usage, from backend/:
+backend/에서 쓰는 법:
     uv run python -m eval.mt_failures eval/reports/mt_t3_dev_20260912_231928.json
 
-The checks are rough signals for reading the results, not part of the selection rule.
+이 점검은 결과를 읽기 위한 대략의 신호이고, 선택 규칙의 일부가 아니다.
 """
 
 # [파일 역할] eval/mt_eval.py가 저장한 번역 보고서(JSON)를 다시 읽어, 눈에 보이는 실패 유형(한자 섞임, 영어로
@@ -24,7 +24,7 @@ from pathlib import Path
 
 # HAN: CJK 통합 한자 영역(U+4E00~U+9FFF)의 글자. 한국어·영어 번역문에 한자가 나오면 중국어가 섞인 것으로 본다.
 HAN = re.compile(r"[一-鿿]")
-# Five or more Latin words in a row in a Korean translation: part of the input was left in English.
+# LATIN_RUN: 한국어 번역문에 로마자 단어가 5개 이상 이어지면 입력의 일부가 영어로 남은 것으로 본다.
 LATIN_RUN = re.compile(r"(?:[A-Za-z]+[ ,.]+){5,}")
 
 
@@ -43,8 +43,8 @@ def count(items: list[dict], direction: str) -> dict[str, int]:
         "left_in_english": sum(bool(LATIN_RUN.search(item["hypothesis"])) for item in items)
         if direction == "en-ko"
         else 0,
-        "short": sum(ratio < 0.6 for ratio in ratios),  # likely dropped content
-        "long": sum(ratio > 2.0 for ratio in ratios),  # likely rambling or repetition
+        "short": sum(ratio < 0.6 for ratio in ratios),
+        "long": sum(ratio > 2.0 for ratio in ratios),
     }
 
 
@@ -52,7 +52,7 @@ def count(items: list[dict], direction: str) -> dict[str, int]:
 # docs/experiments.md에 옮겨 적기 쉽게 Markdown 형식이다.
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("report", type=Path, help="a mt_*.json report written by eval.mt_eval")
+    parser.add_argument("report", type=Path, help="eval.mt_eval이 쓴 mt_*.json 리포트")
     args = parser.parse_args()
     print("| 후보 | 방향 | 한자 섞임 | 영어로 남음 | 참조의 60% 미만 길이 | 참조의 200% 초과 길이 |")
     print("|---|---|---|---|---|---|")

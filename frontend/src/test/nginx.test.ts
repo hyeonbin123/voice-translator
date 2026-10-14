@@ -22,9 +22,9 @@ const config = configSource.replace(/#.*$/gm, '')
 // 표 전체가 그 블록으로 바뀌므로 include를 같은 단계에 함께 둬야 .js·.css·.wasm 등도 계속 올바른 형식으로
 // 나간다. types 블록이 하나뿐인지, default_type을 바꾸지 않았는지도 함께 본다.
 it('adds JavaScript modules alongside the full image MIME table at server scope', () => {
-  // Restrict the prefix to directives: a nested include would not preserve the table.
+  // 앞부분은 지시어만 허용한다: 블록 안에 들어간 include로는 표가 유지되지 않는다.
   expect(config).toMatch(/^\s*server\s*\{[^{}]*include\s+\/etc\/nginx\/mime\.types\s*;\s*types\s*\{\s*(?:application|text)\/javascript\s+mjs\s*;\s*\}/)
-  // A location-level types block would discard the server table again.
+  // location 단계의 types 블록이 있으면 server 단계의 표를 다시 버리게 된다.
   expect(config.match(/\btypes\s*\{/g)).toHaveLength(1)
   expect(config).not.toMatch(/\bdefault_type\b/)
 })

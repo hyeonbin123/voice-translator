@@ -7,7 +7,7 @@
 
 import { SAMPLE_RATE } from './endpointer'
 
-// Streaming, area-weighted resampling. Fractional input intervals survive chunk boundaries.
+// 흘려보내며 하는 면적 가중 리샘플링. 입력 구간의 소수 부분은 조각 경계를 넘어 이어진다.
 // 입력 표본 ratio(= 입력 표본화율 ÷ 16000)개마다 출력 표본 하나를 만드는데, 각 입력 표본이 출력 구간에 걸친
 // 길이만큼 가중 평균한다(구간 평균이라 간단한 저역 통과 효과도 난다). 48kHz면 3개씩, 44.1kHz면 2.75625개씩
 // 묶이고, 소수 부분(weight·sum)은 다음 조각으로 넘겨 조각 경계에서 표본이 어긋나지 않는다. 16kHz보다 낮은

@@ -1,13 +1,13 @@
-"""Live subtitles over a WebSocket (T34, T56; the contract is in docs/api.md).
+"""웹소켓 동시통역 자막(메시지 계약은 docs/api.md에 있다).
 
-While a person speaks, the browser streams the utterance's audio. Now and then the server recognizes all of
-it again, translates the result and sends both, with the start that two results in a row agree on marked
-stable. When the speaker pauses, the clip conversation mode would upload is complete: the server prepares
-the final translation right then, and saves and sends it once the browser confirms the utterance ended.
+사람이 말하는 동안 브라우저가 그 마디의 소리를 계속 보낸다. 서버는 때때로 그 마디 전체를 다시 인식하고
+결과를 번역해 둘 다 보내며, 연이은 두 결과가 같은 앞부분은 안정된(stable) 부분으로 표시한다. 말하는 사람이
+잠깐 멈추면 대화 모드가 올릴 소리가 다 모인 것이므로, 서버는 그 순간 최종 번역을 준비하기 시작하고
+브라우저가 마디가 끝났다고 확인하면 저장해서 보낸다.
 
-Conversation and dialog modes (T77) use the same connection without the subtitles: only the prepare at a
-pause and the save at the end, so their result is the HTTP speech or dialog API's for the same clip. Dialog
-turns are saved in the order they ended, since an unsure turn's language depends on the turn before.
+대화 모드와 두 사람 대화 모드도 자막 없이 같은 연결을 쓴다. 쉼에서 미리 준비하고 끝에서 저장하는 일만
+하므로, 결과는 같은 소리를 HTTP 음성 번역·두 사람 대화 API에 보냈을 때와 같다. 확신이 낮은 마디의 언어는
+앞 마디에 따라 정해지므로, 두 사람 대화의 마디는 끝난 순서대로 저장한다.
 """
 
 # [파일 역할] 웹소켓 /api/translate/live 하나로 세 모드를 처리한다: 동시통역(live, 말하는 동안 원문·번역문
@@ -62,10 +62,11 @@ from app.services.live import letters, stable_length, wav_from_pcm
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/translate", tags=["translate"])
 
-# 한 마디 소리의 최대 바이트: 30초 × 16000표본/초 × 2바이트 = 960,000바이트. HTTP API의 30초 제한과 같다.
-MAX_UTTERANCE_BYTES = 30 * 16_000 * 2  # the HTTP API's 30 s limit, in 16 kHz 16-bit audio
-# The browser starts an utterance 64 ms into speech and sends the 192 ms before it as well (T33): this much
-# audio is there when an utterance starts.
+# 한 마디 소리의 최대 바이트: 30초 × 16000표본/초 × 2바이트(16kHz 16비트) = 960,000바이트. HTTP API의 30초
+# 제한과 같다.
+MAX_UTTERANCE_BYTES = 30 * 16_000 * 2
+# 브라우저는 말이 시작되고 64ms 뒤에 마디를 시작하면서 그 앞의 192ms 소리도 함께 보낸다. 그래서 마디가
+# 시작될 때 이미 이만큼(0.256초)의 소리가 와 있다.
 PREROLL_S = 0.256
 # 웹소켓 닫힘 코드. 4000번대는 앱이 정의해 쓸 수 있는 범위라, HTTP의 401·422·503에 4000을 더해 뜻을
 # 맞췄다(docs/api.md 닫힘 코드).
@@ -78,9 +79,9 @@ LANGUAGES: tuple[Language, ...] = ("ko", "en")
 # docs/api.md). 테스트는 get_live_options를 바꿔 짧은 간격을 넣는다.
 @dataclass(frozen=True)
 class LiveOptions:
-    interval_s: float  # least time between the starts of two updates of one utterance
+    interval_s: float  # 한 마디 안에서 두 갱신 시작 사이의 최소 시간(초)
     start_timeout_s: float = 10.0
-    update_thread: bool = False  # updates on a thread of their own (LIVE_UPDATE_THREAD, T61)
+    update_thread: bool = False  # 자막 갱신을 전용 스레드에서 돌릴지(LIVE_UPDATE_THREAD)
 
 
 def get_live_options() -> LiveOptions:
@@ -91,8 +92,9 @@ def get_live_options() -> LiveOptions:
 # 진행 중인 한 마디의 상태. eq=False라 필드 값이 아니라 객체 자체로 비교된다(같은 내용의 두 마디를 같은 것으로
 # 보지 않음).
 # pcm: 지금까지 받은 소리. changed: 새 소리나 상태 변화가 있으면 켜져 자막 갱신 루프를 깨운다. paused: 192ms
-# 쉼 상태. too_long: 30초를 넘음. closed: 끝났거나 버려짐. updater: 자막 갱신 작업. final: 미리 처리 작업.
-# recognized/shown: 바로 앞 인식 결과와 마지막으로 보낸 (글, 진한 길이).
+# 쉼 상태. too_long: 30초를 넘음. closed: 끝났거나 버려짐. updater: 자막 갱신 작업. final: 쉼에서 시작한
+# 미리 처리 작업(다시 말하면 버림). recognized/shown: 바로 앞 갱신의 인식 결과와 마지막으로 보낸 (글, 진한
+# 길이).
 @dataclass(eq=False)
 class Utterance:
     id: int
@@ -103,16 +105,18 @@ class Utterance:
     too_long: bool = False
     closed: bool = False
     updater: asyncio.Task | None = None
-    final: asyncio.Task | None = None  # prepared at a pause, dropped when speech resumes
-    recognized: str | None = None  # the last update's text
-    shown: tuple[str, int] | None = None  # the text and stable length last sent
+    final: asyncio.Task | None = None
+    recognized: str | None = None
+    shown: tuple[str, int] | None = None
 
 
-# 두 사람 대화의 미리 처리 결과. 판별 결과(detected, confidence)와 그때 알던 직전 마디 언어(previous)를 함께
-# 남겨, 저장할 때 직전 마디 언어가 바뀌었으면 판별을 다시 하지 않고 언어 결정만 다시 할 수 있게 한다.
 @dataclass(frozen=True)
 class DialogFinal:
-    """A dialog turn prepared with the language of the turn before as it was known then (T77)."""
+    """그때 알던 직전 마디 언어(previous)를 기준으로 미리 처리한 두 사람 대화의 한 마디.
+
+    판별 결과(detected, confidence)와 직전 마디 언어를 함께 남겨, 저장할 때 직전 마디 언어가 바뀌었으면
+    판별을 다시 하지 않고 언어 결정만 다시 할 수 있게 한다.
+    """
 
     prepared: pipeline.Prepared
     wav: bytes
@@ -122,10 +126,12 @@ class DialogFinal:
     guessed: bool
 
 
-# 실패한 마디에 보낼 error 메시지의 detail을 고른다. 문구는 HTTP 음성 번역 API의 422·503 문구와
-# 같다(routers/translate.failures_as_http와 같은 분류). 웹소켓은 HTTP 예외를 쓸 수 없어 문자열로 돌려준다.
 def failure(exc: BaseException) -> str:
-    """The HTTP API's detail for a translation that failed; logs it without any message (T49)."""
+    """실패한 마디에 보낼 error 메시지의 detail을 고르고, 예외를 메시지 없이 로그에 남긴다.
+
+    문구는 HTTP 음성 번역 API의 422·503 문구와 같다(routers/translate.failures_as_http와 같은 분류).
+    웹소켓은 HTTP 예외를 쓸 수 없어 문자열로 돌려준다. 로그에는 예외 종류와 위치만 남긴다(describe).
+    """
     if isinstance(exc, UndecodableAudioError):
         logger.warning("Undecodable audio: %s", describe(exc))
         return "Audio could not be decoded"
@@ -164,15 +170,15 @@ class LiveConnection:
         self.store = store
         self.sessions = sessions
         self.user_id = user_id
-        # A dialog connection has no fixed direction: each turn's language is detected.
+        # 두 사람 대화 연결은 방향이 정해져 있지 않고, 마디마다 언어를 판별한다.
         self.source: Language = pair.source_lang if pair else "ko"
         self.target: Language = pair.target_lang if pair else "en"
         self.expires_at = expires_at
         self.options = options
         self.mode = mode
-        # Dialog: the language of the last turn saved (or turned around on the screen) and its id.
+        # 두 사람 대화: 마지막으로 저장한(또는 화면에서 방향을 뒤집은) 마디의 언어와 그 id.
         self.previous, self.previous_id = previous, previous_id
-        self.saving: asyncio.Task | None = None  # dialog: the last turn's save, which the next one waits for
+        self.saving: asyncio.Task | None = None  # 두 사람 대화: 앞 마디 저장 작업(다음 마디가 기다림)
         # run_update: 자막 갱신을 모델 스레드 대기열에 넣을지 전용 스레드로 돌릴지(LIVE_UPDATE_THREAD).
         # sending: 여러 작업이 동시에 send_json을 부르면 메시지가 섞일 수 있어 하나씩 보내도록 잠근다.
         self.run_update = run_live_model if options.update_thread else run_model
@@ -187,7 +193,8 @@ class LiveConnection:
         task = asyncio.create_task(coroutine)
         self.tasks.add(task)
         task.add_done_callback(self.tasks.discard)
-        # A dropped final's failure is never awaited; retrieve it so asyncio does not report it.
+        # 버린 미리 처리 작업의 실패는 아무도 await하지 않는다. 예외를 꺼내 두어 asyncio가 회수되지 않은
+        # 예외로 보고하지 않게 한다.
         task.add_done_callback(lambda done: done.cancelled() or done.exception())
         return task
 
@@ -198,7 +205,7 @@ class LiveConnection:
             try:
                 await self.websocket.send_json(message)
             except (WebSocketDisconnect, RuntimeError, OSError):
-                pass  # the browser has gone; the receive loop ends the connection
+                pass  # 브라우저가 떠났다. 연결 종료는 받기 루프가 맡는다
 
     # 받기 루프. 메시지마다 먼저 토큰 만료를 확인해, 연결 중 access 토큰이 만료되면 만료 뒤 첫 메시지에서
     # 4401로 닫는다(화면은 새 토큰으로 다시 연결). 바이너리는 소리, 글은 제어 메시지이고, 계약에 없는 메시지면
@@ -212,7 +219,7 @@ class LiveConnection:
                 if message["type"] == "websocket.disconnect":
                     return
                 if datetime.now(UTC) >= self.expires_at:
-                    await self.websocket.close(UNAUTHORIZED)  # the browser reconnects with a new token
+                    await self.websocket.close(UNAUTHORIZED)  # 브라우저가 새 토큰으로 다시 연결한다
                     return
                 if message.get("bytes") is not None:
                     self.audio(message["bytes"])
@@ -225,11 +232,13 @@ class LiveConnection:
                 task.cancel()
             await asyncio.gather(*self.tasks, return_exceptions=True)
 
-    # 제어 메시지 하나를 처리한다. type과 정수 id가 없거나 모르는 종류면 False(→ 4422). bool은 int의 하위
-    # 타입이라 isinstance 대신 type(...) is int로 true/false를 id로 받지 않는다. previous 메시지는 두 사람
-    # 대화에서만 허용한다.
     def control(self, text: str | None) -> bool:
-        """Act on one control message; False when it breaks the contract."""
+        """제어 메시지 하나를 처리한다. 계약을 어기면 False를 돌려준다(→ 4422로 닫힘).
+
+        type과 정수 id가 없거나 모르는 종류면 계약 위반이다. bool은 int의 하위 타입이라 isinstance 대신
+        type(...) is int로 확인해 true/false를 id로 받지 않는다. previous 메시지는 두 사람 대화에서만
+        허용한다.
+        """
         try:
             message = json.loads(text or "")
             kind, number = message["type"], message["id"]
@@ -239,8 +248,8 @@ class LiveConnection:
         if type(number) is not int or kind not in (*kinds, *(("previous",) if self.mode == "dialog" else ())):
             return False
         if kind == "previous":
-            # The screen turned a turn around (HTTP speech API, other direction). As in the HTTP dialog,
-            # that counts only while it is the last turn saved.
+            # 화면이 한 마디의 방향을 뒤집었다(HTTP 음성 번역 API로 반대 방향 번역). HTTP 두 사람 대화와
+            # 마찬가지로, 그 마디가 마지막으로 저장된 마디일 때만 반영한다.
             if message.get("lang") not in LANGUAGES:
                 return False
             if number == self.previous_id:
@@ -258,7 +267,7 @@ class LiveConnection:
         # 오류가 아니라 무시한다(네트워크로 순서가 엇갈릴 수 있음).
         utterance = self.current
         if utterance is None or utterance.id != number:
-            return True  # about an utterance that has already ended or been dropped
+            return True  # 이미 끝났거나 버린 마디에 대한 메시지
         if kind == "pause":
             self.pause(utterance)
         elif kind == "resume":
@@ -277,7 +286,7 @@ class LiveConnection:
     def audio(self, data: bytes) -> None:
         utterance = self.current
         if utterance is None or utterance.too_long:
-            return  # audio outside an utterance is dropped
+            return  # 마디 밖의 소리(또는 30초를 넘긴 마디의 소리)는 버린다
         if len(utterance.pcm) + len(data) > MAX_UTTERANCE_BYTES:
             utterance.too_long = True
             utterance.pcm = bytearray()
@@ -288,11 +297,13 @@ class LiveConnection:
         utterance.pcm += data
         utterance.changed.set()
 
-    # 말 끝 뒤 192ms 조용함. 지금까지의 소리가 대화 모드가 올릴 소리와 같으므로 최종 처리를 미리 시작한다.
-    # bytes()로 복사해 넘겨, 이후 들어오는 소리가 준비 중인 입력을 바꾸지 않게 한다. 두 사람 대화면 그 시점의
-    # 직전 마디 언어를 함께 넘긴다.
     def pause(self, utterance: Utterance) -> None:
-        """The clip is complete (192 ms of quiet): prepare its final translation now."""
+        """소리가 다 모였다(192ms 조용함). 지금 최종 번역 준비를 시작한다.
+
+        말 끝 뒤 192ms 동안 조용하면 지금까지의 소리가 대화 모드가 올릴 소리와 같다. bytes()로 복사해
+        넘겨 이후 들어오는 소리가 준비 중인 입력을 바꾸지 않게 한다. 두 사람 대화면 그 시점의 직전 마디
+        언어를 함께 넘긴다.
+        """
         if utterance.paused or utterance.too_long:
             return
         utterance.paused = True
@@ -306,7 +317,7 @@ class LiveConnection:
             return
         utterance.paused = False
         if utterance.final is not None:
-            utterance.final.cancel()  # a model call already running still finishes, but nothing after it
+            utterance.final.cancel()
             utterance.final = None
         utterance.changed.set()
 
@@ -323,7 +334,7 @@ class LiveConnection:
                 self.send({"type": "error", "id": utterance.id, "detail": "Audio is longer than 30 seconds"})
             )
             return
-        final = utterance.final or self.spawn(self.prepare(bytes(utterance.pcm), self.previous))  # all audio
+        final = utterance.final or self.spawn(self.prepare(bytes(utterance.pcm), self.previous))  # 소리 전체
         if self.mode == "dialog":
             self.saving = self.spawn(self.finish(utterance.id, final, after=self.saving))
         else:
@@ -343,18 +354,19 @@ class LiveConnection:
     # 최종 결과 준비(저장하지 않음). 받은 PCM을 대화 모드 업로드와 같은 WAV로 만들어 HTTP와 같은 파이프라인에
     # 넣으므로 결과가 같다(README: 두 모드 160문장 모두 판정 뒤 올린 결과와 같음).
     async def prepare(self, pcm: bytes, previous: Language | None) -> pipeline.Prepared | DialogFinal:
-        # The same WAV file and pipeline as conversation mode's upload, so the same result.
         wav = wav_from_pcm(pcm)
         if self.mode == "dialog":
             return await self.prepare_dialog(wav, previous)
         return await pipeline.prepare(models=self.models, source=self.source, target=self.target, audio=wav)
 
-    # 두 사람 대화 한 마디 준비: POST /api/translate/dialog와 같은 순서(음성 검사 → 언어 판별 → 언어 결정 →
-    # 번역 흐름). detection을 주면 판별을 건너뛰고 그 결과로 언어 결정만 다시 한다.
     async def prepare_dialog(
         self, wav: bytes, previous: Language | None, detection: tuple[Language, float] | None = None
     ) -> DialogFinal:
-        """As POST /api/translate/dialog answers it: check the audio, detect its language, translate."""
+        """POST /api/translate/dialog가 답하는 것과 같은 순서로 두 사람 대화 한 마디를 준비한다.
+
+        순서: 음성 검사 → 언어 판별 → 언어 결정 → 번역 흐름. detection을 주면 판별을 건너뛰고 그 결과로
+        언어 결정만 다시 한다.
+        """
         if detection is None:
             await run_model(pipeline.validate_audio, wav)
             detection = await run_model(self.models.stt.detect_language, wav)
@@ -372,23 +384,22 @@ class LiveConnection:
     # 점).
     async def finish(self, number: int, final: asyncio.Task, after: asyncio.Task | None = None) -> None:
         if after is not None:
-            await asyncio.wait({after})  # dialog: the turn before is saved (or has failed) first
+            await asyncio.wait({after})  # 두 사람 대화: 앞 마디의 저장(또는 실패)을 먼저 기다린다
         try:
             prepared = await final
             turn = prepared if isinstance(prepared, DialogFinal) else None
-            # 두 사람 대화: 미리 처리할 때 알던 직전 언어와 지금(앞 마디 저장 뒤) 직전 언어가 다르고 확신이
-            # 문턱보다 낮으면, 판별 결과는 그대로 두고 새 직전 언어로 다시 처리한다. 확신이 높으면 직전 언어와
-            # 상관없이 결과가 같으므로 다시 하지 않는다.
+            # 두 사람 대화: 앞 마디가 저장되거나 화면에서 방향이 뒤집히기 전에 미리 처리한 마디는, 그때 알던
+            # 직전 언어와 지금(앞 마디 저장 뒤) 직전 언어가 다를 수 있다. 확신이 문턱보다 낮은 마디의 추측은
+            # 직전 언어에 따라 정해지므로, 판별 결과는 그대로 두고 새 직전 언어로 다시 처리한다. 확신이 높으면
+            # 직전 언어와 상관없이 결과가 같으므로 다시 하지 않는다.
             threshold = get_settings().dialog_language_threshold
             if turn is not None and turn.previous != self.previous and turn.confidence < threshold:
-                # Prepared before the turn ahead was saved or turned around: an unsure turn's guess depends
-                # on that turn's language, so it is redone with it (the detection stays).
                 turn = await self.prepare_dialog(turn.wav, self.previous, (turn.detected, turn.confidence))
         except asyncio.CancelledError:
             # 취소는 오류 메시지 없이 그대로 올려 연결 종료 정리가 진행되게 한다. 그 밖의 예외는 이 마디의
             # 실패다.
             raise
-        except Exception as exc:  # noqa: BLE001 - one utterance failed; the connection goes on
+        except Exception as exc:  # noqa: BLE001 - 한 마디가 실패했을 뿐 연결은 계속된다
             await self.send({"type": "error", "id": number, "detail": failure(exc)})
             return
         # 저장은 이때만 짧게 DB 세션을 연다(연결 내내 붙잡지 않음). 저장 실패는 "The translation could not be
@@ -413,15 +424,17 @@ class LiveConnection:
             ).model_dump(mode="json")
         await self.send({"type": "final", "id": number, "result": payload})
 
-    # 동시통역 자막 갱신 루프(마디당 하나). 한 번에 한 갱신만 돌리고, 끝나면 그때까지 받은 소리 전체로 다음
-    # 갱신을 한다(밀린 갱신은 합쳐짐). 두 갱신의 시작은 interval_s 이상 떨어진다.
-    # 첫 갱신 시각: 마디가 시작될 때 이미 약 256ms(PREROLL_S) 소리가 와 있으므로, 간격에서 그만큼 뺀 시각에 첫
-    # 갱신을 해 소리가 약 interval_s만큼 쌓였을 때 인식한다.
     async def update(self, utterance: Utterance) -> None:
-        """Recognize the utterance so far again and again, one update at a time (docs/experiments.md 8)."""
+        """지금까지의 마디를 한 번에 한 갱신씩 거듭 다시 인식한다(docs/experiments.md 8절).
+
+        동시통역 자막 갱신 루프(마디당 하나). 한 갱신이 끝나면 그때까지 받은 소리 전체로 다음 갱신을
+        한다(밀린 갱신은 합쳐짐). 두 갱신의 시작은 interval_s 이상 떨어진다.
+        첫 갱신 시각: 마디가 시작될 때 이미 약 256ms(PREROLL_S) 소리가 와 있으므로, 간격에서 그만큼 뺀
+        시각에 첫 갱신을 해 소리가 약 interval_s만큼 쌓였을 때 인식한다.
+        """
         loop = asyncio.get_running_loop()
         next_at = utterance.started_at + max(0.0, self.options.interval_s - PREROLL_S)
-        seen = 0  # bytes of audio the last update recognized
+        seen = 0  # 마지막 갱신이 인식한 소리의 바이트 수
         while not utterance.closed:
             if (delay := next_at - loop.time()) > 0:
                 await asyncio.sleep(delay)
@@ -458,7 +471,7 @@ class LiveConnection:
             # 원문 글이 바뀌었을 때만 번역한다(진한 길이만 바뀐 경우는 번역하지 않음). 글자가
             # 없거나(문장부호뿐) 쉼 상태면 번역을 건너뛴다: 쉼에서는 최종 번역이 이미 준비되고 있다.
             if not changed or not letters(text) or utterance.paused:
-                continue  # at a pause the final translation is on its way
+                continue
             try:
                 translation = await self.run_update(self.translator.translate, text, self.source, self.target)
             except ModelError as exc:
@@ -466,8 +479,9 @@ class LiveConnection:
                 continue
             if utterance.closed:
                 return
-            # Nothing of a live translation is stable: as the source grows, its start changes too (16-20%
-            # of what would be shown dark changed later, docs/experiments.md 8).
+            # 동시통역 번역문은 어느 부분도 안정되지 않았다고 본다(stable 0). 원문이 길어지면 번역문의
+            # 앞부분도 바뀌기 때문이다(진하게 보였을 부분의 16~20%가 나중에 바뀌었다,
+            # docs/experiments.md 8절).
             await self.send({"type": "translation", "id": utterance.id, "text": translation, "stable": 0})
 
 
@@ -485,8 +499,8 @@ async def live(
     options: LiveOptions = Depends(get_live_options),
 ) -> None:
     await websocket.accept()
-    # A browser cannot put headers on a WebSocket, and a token in the address ends up in logs: the token
-    # comes in the first message.
+    # 브라우저는 웹소켓에 헤더를 붙일 수 없고, 주소에 넣은 토큰은 로그에 남는다. 그래서 토큰은 첫 메시지로
+    # 받는다.
     try:
         start = json.loads(await asyncio.wait_for(websocket.receive_text(), options.start_timeout_s))
         if not isinstance(start, dict) or start["type"] != "start" or not isinstance(start["token"], str):
@@ -534,15 +548,15 @@ async def live(
     ).run()
 
 
-# 첫 메시지에서 (모드, 언어 쌍, 직전 언어, 직전 id)를 꺼낸다. 동시통역·대화 모드는 source_lang·target_lang을
-# LanguagePair로 검증하고(틀리면 ValidationError → 4422), 두 사람 대화는 방향이 없는 대신 다시 연결할 때
-# previous_lang과 previous_id를 함께 받는다(한쪽만 있으면 오류).
 def parse_mode(start: dict) -> tuple[Mode, LanguagePair | None, Language | None, int | None]:
-    """The start message's mode (live when left out), with its languages, or ValueError (T77).
+    """첫 메시지에서 모드(빠지면 live)와 그 언어 정보를 꺼낸다. 형식이 틀리면 ValueError.
 
-    Live and conversation connections translate one fixed direction. A dialog connection detects each turn's
-    language; when it replaces one that ended (a new token), the browser gives the last turn's language and
-    id so that an unsure next turn and a later turnaround work as they did."""
+    돌려주는 값은 (모드, 언어 쌍, 직전 언어, 직전 id)다. 동시통역·대화 모드 연결은 정해진 한 방향으로
+    번역하므로 source_lang·target_lang을 LanguagePair로 검증한다(틀리면 ValidationError → 4422). 두 사람
+    대화 연결은 마디마다 언어를 판별한다. 끝난 연결을 새 연결이 이어받을 때(새 토큰) 브라우저가 마지막
+    마디의 언어와 id(previous_lang, previous_id)를 함께 주어, 확신이 낮은 다음 마디와 이후의 방향 뒤집기가
+    전과 같이 동작하게 한다. 둘 중 한쪽만 있으면 오류다.
+    """
     mode = start.get("mode", "live")
     if mode in ("live", "conversation"):
         pair = LanguagePair(source_lang=start["source_lang"], target_lang=start["target_lang"])

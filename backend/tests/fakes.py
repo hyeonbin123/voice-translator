@@ -1,7 +1,7 @@
-"""Deterministic stand-ins for the models, for tests of the pipeline and the API.
+"""파이프라인과 API 테스트를 위한, 결과가 정해진 가짜 모델들.
 
-They follow the interfaces in app.services.interfaces, need no GPU or downloads, and can
-be told to fail, so the "no server audio" path of the API contract can be tested too.
+app.services.interfaces의 인터페이스를 따르고, GPU나 내려받기가 필요 없으며, 일부러 실패하게 만들 수 있어
+API 계약의 "서버 음성 없음" 경로도 테스트할 수 있다.
 """
 
 # [파일 역할] 실제 모델(Whisper, opus-mt, MeloTTS/Kokoro, Ollama 교정기) 대신 쓰는 가짜 구현 모음이다.
@@ -35,7 +35,7 @@ SAMPLE_RATE = 16_000
 # 주어진 길이의 무음 WAV를 만든다. 업로드 테스트의 입력과 FakeTextToSpeech의 출력에 쓴다. 16비트 모노라 1ms당
 # 32바이트다(16,000표본/초 × 2바이트).
 def silent_wav(duration_ms: int, sample_rate: int = SAMPLE_RATE) -> bytes:
-    """A valid 16-bit mono WAV file of silence."""
+    """올바른 16비트 모노 무음 WAV 파일."""
     buffer = io.BytesIO()
     with wave.open(buffer, "wb") as out:
         out.setnchannels(1)
@@ -50,7 +50,7 @@ def silent_wav(duration_ms: int, sample_rate: int = SAMPLE_RATE) -> bytes:
 # 들어왔는지 테스트가 확인할 수 있다.
 # duration_ms는 바이트 수 ÷ 32로 대충 계산한다(16 kHz 16비트 모노 기준).
 class FakeSpeechToText:
-    """Empty audio is undecodable and `text=""` finds no speech; `error` makes every call fail with it."""
+    """빈 음성은 디코딩 불가, `text=""`는 말 없음. `error`를 주면 모든 호출이 그 예외로 실패한다."""
 
     model_name = "fake-stt"
 
@@ -65,13 +65,12 @@ class FakeSpeechToText:
             raise UndecodableAudioError("empty audio")
         if self.text == "":
             raise NoSpeechError("no speech was recognized")
-        # 16 kHz, 16-bit mono PCM is 32 bytes per millisecond; good enough for a fake.
+        # 16 kHz 16비트 모노 PCM은 1ms당 32바이트다. 가짜로는 이 정도 계산이면 충분하다.
         text = self.text if self.text is not None else f"{language} speech of {len(audio)} bytes"
         return Transcript(text=text, language=language, duration_ms=len(audio) // 32)
 
     # 두 사람 대화의 언어 판별(T35) 흉내. 테스트가 클래스 속성 language·confidence를 바꿔 '확신이 낮을 때'(0.6
-    # 미만) 같은 경우를 만든다.
-    # What detect_language answers (T35); tests set them.
+    # 미만) 같은 경우를 만든다. 아래 두 값이 detect_language의 답이다.
     language: Language = "ko"
     confidence: float = 1.0
 
@@ -87,8 +86,8 @@ class FakeSpeechToText:
 # 자막 갱신(transcribe_live)과 최종 인식(transcribe)이 같은 규칙이라, 한 마디의 최종 원문이 마지막 갱신 글과
 # 같아진다. live_error로 자막 갱신만 실패시킬 수 있다.
 class FakeLiveSpeechToText(FakeSpeechToText):
-    """Hears one word per 0.1 s of 16 kHz 16-bit audio, in live updates and finals alike, so the final text
-    of a clip is its last update's text. `live_error` makes the live updates fail."""
+    """16 kHz 16비트 소리 0.1초마다 단어 하나를 듣는다. 자막 갱신과 최종 인식이 같은 규칙이라 한 클립의
+    최종 글은 마지막 갱신 글과 같다. `live_error`를 주면 자막 갱신이 실패한다."""
 
     def __init__(
         self, text: str | None = None, error: ModelError | None = None, live_error: ModelError | None = None
@@ -111,7 +110,7 @@ class FakeLiveSpeechToText(FakeSpeechToText):
     def transcribe(self, audio: bytes, language: Language) -> Transcript:
         if self.text is not None or self.error or not audio:
             return super().transcribe(audio, language)
-        text = self.words(len(audio) - 44)  # after the 44-byte WAV header
+        text = self.words(len(audio) - 44)  # 44바이트 WAV 머리 뒤부터
         if not text:
             raise NoSpeechError("no speech was recognized")
         return Transcript(text=text, language=language, duration_ms=(len(audio) - 44) // 32)
@@ -121,7 +120,7 @@ class FakeLiveSpeechToText(FakeSpeechToText):
 # DirectionalTranslator도 모델이 없는 방향이면 ModelError를 낸다). error를 주면 모델이 죽었거나 메모리가
 # 부족한 경우처럼 모든 호출이 실패한다.
 class FakeTranslator:
-    """`error` makes every call fail with it, like a model that crashed or ran out of memory."""
+    """`error`를 주면 죽었거나 메모리가 부족한 모델처럼 모든 호출이 그 예외로 실패한다."""
 
     model_name = "fake-mt"
 
@@ -140,7 +139,7 @@ class FakeTranslator:
 # 답이고, None이면 Ollama가 꺼져 교정하지 못한 경우처럼 행동한다(파이프라인은 입력 그대로 번역해야 함).
 # calls에 받은 입력을 쌓아 교정이 불렸는지·무엇으로 불렸는지 테스트가 확인한다.
 class FakeCorrector:
-    """Corrects English only, like the server's. `fixed` is its answer; None acts like Ollama being down."""
+    """서버 교정기처럼 영어만 교정한다. `fixed`가 답이고, None이면 Ollama가 꺼진 것처럼 행동한다."""
 
     model_name = "fake-corrector"
 

@@ -1,4 +1,4 @@
-"""What the live service check sends for a clip, as the browser would (T61, T62). No models, no GPU."""
+"""실제 서비스 확인이 브라우저처럼 클립 하나에 대해 보내는 것을 검증한다(T61, T62). 모델·GPU 없이 돈다."""
 
 # [파일 역할] 실제 서비스 측정 도구 eval/stream_eval.py가 브라우저처럼 보내는 메시지 계획과, 대화 모드·두 사람
 # 대화의 '192ms 쉼에서 미리 처리' 채택 규칙(docs/experiments.md 11절)을 계산하는 함수들을 검증한다. 모델도
@@ -29,8 +29,6 @@ from eval.stream_eval import (
     turns,
 )
 
-# Six quiet frames, speech, an inner pause of eight quiet frames, speech, and the six quiet frames that end
-# the clip conversation mode would send. Speech starts at frame 6; the browser starts streaming at frame 8.
 # 조각별 말소리 판정: 조용 6, 말 10, 안쪽 쉼 8, 말 5, 조용 6(클립 끝의 여유분). 말은 조각 6부터지만 연속
 # 2조각을 들어야 시작으로 판정하므로 브라우저는 조각 8(DETECTED)에서 보내기 시작한다.
 FLAGS = np.array([False] * 6 + [True] * 10 + [False] * 8 + [True] * 5 + [False] * 6)
@@ -49,7 +47,7 @@ def test_the_final_is_asked_for_after_the_chosen_quiet_and_before_the_end(pause_
     assert plan[-1] == (end_at, "end", None)
     pauses = [at for at, kind, _ in plan if kind == "pause"]
     assert pauses[-1] == len(FLAGS) - PAD_FRAMES + pause_frames < end_at
-    inner = INNER_QUIET >= pause_frames  # only a long enough inner pause asks for a final, then resumes
+    inner = INNER_QUIET >= pause_frames
     kinds = [kind for _, kind, _ in plan]
     assert kinds.count("pause") == 1 + inner and kinds.count("resume") == inner
     assert kinds[:2] == ["utterance", "audio"] and plan[0][0] == DETECTED
@@ -63,12 +61,11 @@ def test_at_the_last_pause_the_server_has_exactly_the_clip(pause_frames):
     plan = browser_plan(FLAGS, DETECTED, pause_frames)
     last_pause = max(i for i, (_, kind, _) in enumerate(plan) if kind == "pause")
     sent = [frame for _, kind, span in plan[:last_pause] if kind == "audio" for frame in range(*span)]
-    # Every frame of the clip once, in order: the WAV conversation mode would upload.
     assert sent == list(range(len(FLAGS)))
     assert not any(kind == "audio" for _, kind, _ in plan[last_pause:])
 
 
-# T77 (docs/experiments.md 11): the two paths per clip and the rule, without a server.
+# 여기부터 T77(docs/experiments.md 11절): 클립마다의 두 경로와 판단 규칙을 서버 없이 검증한다.
 
 
 # 고정 시드의 무작위 파형(16비트 PCM 정밀도로 양자화)과 FLAGS로 클립 하나와, 192 ms 쉼(PAD_FRAMES)에서 미리
@@ -93,7 +90,6 @@ def test_the_uploaded_wav_is_the_file_the_server_builds_from_the_stream_at_the_l
         if kind == "audio"
     )
     assert clip_wav(utterance["audio"]) == wav_from_pcm(streamed)
-    # The upload goes out when the browser decides the end, as the streamed path's end message does.
     assert end_frame(utterance) == plan[-1][0] == len(FLAGS) - PAD_FRAMES + QUIET_END_FRAMES
 
 
@@ -123,7 +119,6 @@ def answer(text="안녕", lang="ko", guessed=None, audio=True):
 # 다르다.
 def test_a_clip_is_the_same_when_its_texts_languages_models_and_audio_presence_match():
     assert classify(answer(), answer(), []) == "same"
-    # Record ids, times and audio bytes differ on every call and do not count.
     other = answer()
     other["result"] |= {"id": "y", "stt_ms": 5}
     other["audio_sha256"] = "different bytes"
@@ -208,7 +203,7 @@ def test_the_rule_adopts_a_mode_only_when_both_directions_save_300_ms_and_nothin
     many = table(count=4)
     many[0]["undecidable"] = 3
     assert decide(many)["conversation"]["adopt"] is False
-    assert decide(table()[:1])["conversation"]["adopt"] is False  # one direction only
+    assert decide(table()[:1])["conversation"]["adopt"] is False  # 한 방향만 있음
     both = decide(table(modes=("conversation", "dialog"), saving_ko=0.2))
     assert set(both) == {"conversation", "dialog"} and not any(v["adopt"] for v in both.values())
 
@@ -228,13 +223,12 @@ def test_dialog_clips_take_turns_between_the_languages_on_one_connection():
 
 
 # 회귀 테스트(커밋 6a0f541): 실제 서비스 측정(service)은 이 PC의 모델로 클립과 단어 시각을 고른 뒤, 서버로
-# 흘려보내기 전에 그 모델을 놓아야 한다. 잡고 있으면 측정 중인 서버 옆에서 GPU 메모리를 차지한다.
+# 흘려보내기 전에 그 모델을 놓아야 한다. 잡고 있으면 측정 중인 서버 옆에서 GPU 메모리를 차지한다(T83: Hy-MT2
+# 시험은 서버의 Ollama에 모델을 하나 더 올린다).
 # 방법: 모델 적재·클립 고르기·GPU 기록을 가짜로 바꾸고, stream_all이 불리는 순간 gc.collect() 뒤 두 모델의
 # 약한 참조가 모두 비었는지 본다. 확인한 뒤 Stop 예외로 실제 흘려보내기와 보고서 쓰기를 건너뛴다. 마지막
 # 단언은 모델이 실제로 두 개 만들어졌는지(가짜 적재가 쓰였는지)를 확인한다.
 def test_the_service_check_releases_its_own_models_before_streaming(monkeypatch):
-    # T83: this machine's models only pick the clips and their word times; held while streaming, they took
-    # GPU memory next to the server's (the Hy-MT2 trial adds a model to the server's Ollama).
     import argparse
     import gc
     import weakref

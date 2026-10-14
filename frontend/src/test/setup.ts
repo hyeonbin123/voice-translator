@@ -7,7 +7,7 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup } from '@testing-library/react'
 import { afterEach } from 'vitest'
 
-// Vitest globals are off, so Testing Library can't register its own cleanup.
+// Vitest globals를 꺼 두었기 때문에 Testing Library가 자기 cleanup을 스스로 등록하지 못한다. 그래서 여기서 단다.
 // cleanup은 render로 붙인 컴포넌트를 모두 떼어 낸다(unmount). 떼어 낼 때 각 컴포넌트의 effect 정리 함수가
 // 돌아 마이크·소켓 같은 가짜 자원도 닫힌다.
 afterEach(() => {

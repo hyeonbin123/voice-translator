@@ -35,15 +35,13 @@ class TextRequest(LanguagePair):
     @field_validator("text")
     @classmethod
     def has_text_to_translate(cls, value: str) -> str:
-        # Runs after the strip and length limits. PostgreSQL text cannot hold NUL, and "other" (C*) characters
-        # alone (control; format such as zero-width space or BOM; private use; unassigned) leave the model
-        # nothing: opus_preprocess turns each of them except a newline into a space, so only white space is
-        # left. Punctuation, symbols and marks such as a lone combining accent reach the model and are still
-        # translated.
+        # 앞뒤 공백 자르기와 길이 제한 뒤에 실행된다. PostgreSQL text는 NUL을 담을 수 없어 먼저 거절한다.
         if "\x00" in value:
             raise ValueError("Text must not contain NUL characters")
-        # 모든 글자가 공백이거나 C 범주(제어·서식·사용자 정의·미배정)면 번역할 글자가 없다고 보고 거절한다.
-        # 문장부호 하나("?")만 있는 입력은 통과해 그대로 번역된다(docs/api.md POST /api/translate/text).
+        # 모든 글자가 공백이거나 C 범주("기타": 제어, 폭 없는 공백·BOM 같은 서식, 사용자 정의, 미배정)면
+        # 모델에 남는 것이 없다. opus_preprocess가 줄바꿈을 뺀 이런 글자를 모두 공백으로 바꿔 공백만 남기
+        # 때문이다. 그래서 번역할 글자가 없다고 보고 거절한다. 문장부호·기호, 홀로 있는 결합 악센트 같은
+        # 부호는 모델에 닿아 그대로 번역된다(예: "?" 하나만 있는 입력, docs/api.md POST /api/translate/text).
         if all(c.isspace() or unicodedata.category(c).startswith("C") for c in value):
             raise ValueError("Text has nothing to translate")
         return value
@@ -55,10 +53,11 @@ class TranslationResponse(HistoryItem):
     tts_error: str | None
 
 
-# 두 사람 대화 응답. 화면은 language_guessed가 true일 때 방향 바꾸기 단추를 보여 준다(docs/api.md, README
-# 알려진 한계).
 class DialogResponse(TranslationResponse):
-    """A two-person conversation turn (T35): source_lang is the language that was taken as spoken."""
+    """두 사람 대화 한 마디의 응답. source_lang은 말한 언어로 받아들인 언어다.
 
-    language_confidence: float  # the detected language's share of the Korean and English probabilities
-    language_guessed: bool  # too unsure: taken as the language opposite to the previous utterance
+    화면은 language_guessed가 true일 때 방향 바꾸기 단추를 보여 준다(docs/api.md, README 알려진 한계).
+    """
+
+    language_confidence: float  # 한국어·영어 확률 중 판별한 언어가 차지하는 몫
+    language_guessed: bool  # 확신이 낮아 직전 마디와 반대 언어로 본 경우 true

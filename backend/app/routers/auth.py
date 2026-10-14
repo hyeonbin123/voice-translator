@@ -24,11 +24,11 @@ from app.dependencies import CurrentUser, DbSession, unauthorized, user_from_tok
 from app.models import User
 from app.schemas.auth import RefreshRequest, RegisterRequest, TokenResponse, UserResponse
 
-# email_adapter: 로그인 폼의 username은 그냥 문자열이라 이메일 형식 검증을 따로 한다. dummy_hash: 없는
-# 사용자일 때 대신 비교할 유효한 bcrypt 해시(어떤 비밀번호와도 맞지 않음).
+# email_adapter: 로그인 폼의 username은 그냥 문자열이라 이메일 형식 검증을 따로 한다.
 router = APIRouter(prefix="/auth", tags=["auth"])
 email_adapter = TypeAdapter(EmailStr)
-# A valid bcrypt hash keeps unknown-user checks on the same expensive code path.
+# dummy_hash: 없는 사용자일 때 대신 비교할 유효한 bcrypt 해시(어떤 비밀번호와도 맞지 않음). 유효한 해시라서
+# 없는 사용자 확인도 실제 사용자와 같은 비싼 bcrypt 검증 경로를 거친다.
 dummy_hash = "$2b$12$C6UzMDM.H6dfI/f/IKcEe.5Z1QHj4FPpRqqlf9gHqVvvIx6aWS7/."
 
 
@@ -56,9 +56,8 @@ async def register(body: RegisterRequest, db: DbSession) -> User:
         await db.commit()
     except IntegrityError as exc:
         await db.rollback()
-        # Only the email unique constraint represents an expected registration conflict.
-        # 23505는 PostgreSQL의 unique_violation 코드다. 그 밖의 무결성 오류는 예상하지 못한 것이라 그대로 올려
-        # 500이 되게 한다.
+        # 예상되는 가입 충돌은 이메일 유일 제약 위반뿐이다. 23505는 PostgreSQL의 unique_violation 코드다. 그
+        # 밖의 무결성 오류는 예상하지 못한 것이라 그대로 올려 500이 되게 한다.
         if getattr(exc.orig, "sqlstate", None) == "23505":
             raise HTTPException(409, "Email already registered") from exc
         raise

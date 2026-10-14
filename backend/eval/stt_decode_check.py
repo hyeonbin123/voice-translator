@@ -1,9 +1,9 @@
-"""Candidate C check (docs/experiments.md 5): decoding in our code must not change what is recognized.
+"""후보 C 확인(docs/experiments.md 5절): 음성 디코딩을 우리 코드에서 해도 인식 결과가 바뀌면 안 된다.
 
-Recognizes each utterance twice with one loaded model, once with faster-whisper decoding the upload and once
-with app.services.stt.decode_audio, and compares the texts.
+한 번 올린 모델로 발화마다 두 번 인식한다. 한 번은 faster-whisper가 업로드된 음성을 디코딩하게 하고,
+한 번은 app.services.stt.decode_audio로 디코딩한 뒤, 두 결과 글을 견준다.
 
-Usage, from backend/ with the gpu and eval groups installed:
+사용법(backend/에서, gpu·eval 그룹을 설치한 상태로):
     uv run --no-sync python -m eval.stt_decode_check --split validation --limit 30
 """
 
@@ -35,7 +35,7 @@ from eval.stt_eval import load_split, recognize
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--split", choices=["validation", "test"], default="validation")
-    parser.add_argument("--limit", type=int, default=30, help="first N utterances per language")
+    parser.add_argument("--limit", type=int, default=30, help="언어마다 앞에서부터 N개 발화만 쓴다")
     args = parser.parse_args()
 
     stt = WhisperSpeechToText("large-v3-turbo")

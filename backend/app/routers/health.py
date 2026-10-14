@@ -1,4 +1,4 @@
-"""Health check (docs/api.md): whether the API reaches its database, and which models it serves."""
+"""상태 확인(docs/api.md): API가 DB에 닿는지와 어떤 모델을 서비스하는지 알려 준다."""
 
 # [파일 역할] 인증 없이 부르는 상태 확인 경로. DB 연결과 올라간 모델 이름, 오타 교정 준비 여부, 동시통역 가능
 # 여부를 알려 준다.
@@ -34,8 +34,8 @@ async def health(response: Response, db: DbSession, models: Models) -> dict:
     try:
         await asyncio.wait_for(db.execute(text("SELECT 1")), DB_TIMEOUT_S)
         database = "ok"
-    except Exception as exc:  # noqa: BLE001 - whatever the failure, the database cannot be used
-        # Types and place only, as everywhere in the log (T49): a driver's message can name the host.
+    except Exception as exc:  # noqa: BLE001 - 실패 이유가 무엇이든 DB를 쓸 수 없다
+        # 로그의 다른 곳처럼 예외 종류와 위치만 남긴다. 드라이버의 메시지에는 DB 호스트 이름이 들어갈 수 있다.
         logger.warning("Health check could not reach the database: %s", describe(exc))
         database = "unavailable"
         response.status_code = 503
@@ -49,7 +49,7 @@ async def health(response: Response, db: DbSession, models: Models) -> dict:
             "speech_synthesis": _name(models.tts),
             "typo_correction": _name(corrector),
         },
-        # The corrector prepares in the background and is not waited for (T37).
+        # 오타 교정기는 백그라운드에서 준비되고 서버 시작이 그것을 기다리지 않으므로, 준비됐는지 따로 알린다.
         "typo_correction_ready": corrector is not None and corrector.corrects("en"),
         # 동시통역 웹소켓은 자막용 인식(transcribe_live가 있는 LiveSpeechToText)과 번역 모델이 둘 다 있어야 쓸
         # 수 있다. runtime_checkable Protocol이라 isinstance로 메서드가 있는지 확인한다.

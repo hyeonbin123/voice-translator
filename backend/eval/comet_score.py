@@ -1,8 +1,8 @@
-"""COMET-22 segment scores for the re-analysis of recorded decisions (docs/experiments.md 13, task T80).
+"""기록된 결정의 재분석을 위한 COMET-22 문장 점수(docs/experiments.md 13절).
 
-This script runs in its own environment, not backend/.venv: unbabel-comet 2.2.7 needs transformers<5 and
-numpy<2 while the eval group has transformers 5 and numpy 2. It imports only the standard library at the top
-so ruff and the backend tests can read it. From backend/:
+이 스크립트는 backend/.venv가 아니라 자기만의 환경에서 돈다: unbabel-comet 2.2.7은 transformers<5와
+numpy<2가 필요한데 eval 그룹에는 transformers 5와 numpy 2가 있다. ruff와 backend 테스트가 이 파일을 읽을 수
+있도록 맨 위에서는 표준 라이브러리만 import한다. backend/에서:
 
     uv venv ../work/comet-venv --python 3.11
     set PY=../work/comet-venv/Scripts/python.exe
@@ -10,9 +10,9 @@ so ruff and the backend tests can read it. From backend/:
     %PY% eval/comet_score.py download
     %PY% eval/comet_score.py score --input IN.jsonl --output OUT.json --device cuda --precision fp16
 
-The input is what `python -m eval.reanalysis comet-input` writes: one JSON object per line with `key`, `src`,
-`mt` and `ref`. The output maps each key to its score and records the model revision, the SHA-256 of the
-checkpoint as hashed when it was loaded for scoring, device, precision and package versions.
+입력은 `python -m eval.reanalysis comet-input`이 쓰는 것으로, 한 줄에 `key`, `src`, `mt`, `ref`를 가진
+JSON 객체 하나다. 출력은 키마다 점수를 대응시키고, 모델 리비전, 채점하려고 적재할 때 해시한 체크포인트의
+SHA-256, 장치, 정밀도, 패키지 버전을 기록한다.
 """
 
 # [파일 역할] 저장된 번역 결과의 문장마다 COMET-22 점수(모델 기반 번역 품질 지표)를 매기는 독립 스크립트.
@@ -42,15 +42,15 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 # 고정한 COMET-22 모델: 저장소, 리비전, 체크포인트 경로와 SHA-256(docs/experiments.md 13절에 같은 값이 적혀
-# 있다). 인코더(xlm-roberta-large)의 토크나이저·설정도 리비전을 고정해 받는다(위 영어 주석). BATCH_SIZE: 한
+# 있다). 인코더(xlm-roberta-large)의 토크나이저·설정도 리비전을 고정해 받는다(아래 주석). BATCH_SIZE: 한
 # 번에 채점할 문장 수.
 MODEL = "Unbabel/wmt22-comet-da"  # Apache-2.0
 REVISION = "2760a223ac957f30acfb18c8aa649b01cf1d75f2"
 CHECKPOINT = "checkpoints/model.ckpt"
 CHECKPOINT_SHA256 = "e213091cde220f97b89f8bdfa750c458cfea741ad62affb455b59900210ff2af"
-# The checkpoint holds the encoder weights; COMET still reads the tokenizer and config of the encoder it
-# was trained on (`pretrained_model: xlm-roberta-large` in hparams.yaml). They are loaded from this pinned
-# snapshot instead of whatever "main" is when the script runs.
+# 체크포인트에 인코더 가중치가 들어 있지만, COMET은 학습 때 쓴 인코더의 토크나이저와 설정을 따로
+# 읽는다(hparams.yaml의 `pretrained_model: xlm-roberta-large`). 그래서 스크립트를 돌릴 때의 "main"이
+# 무엇이든 상관없이 이 고정 스냅샷에서 읽는다.
 ENCODER = "FacebookAI/xlm-roberta-large"  # MIT
 ENCODER_REVISION = "c23d21b0620b635a76227c604d44e43a9f0ee389"
 ENCODER_FILES = ["config.json", "sentencepiece.bpe.model", "tokenizer.json", "tokenizer_config.json"]
@@ -66,16 +66,18 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-# Hugging Face 캐시에서 고정 리비전의 모델 폴더와 인코더 파일 폴더를 얻는다. offline=True면 내려받지 않고
-# 캐시에 있는 것만 쓴다(채점 때). 인코더는 필요한 네 파일만 받는다(allow_patterns).
 def snapshots(offline: bool) -> tuple[Path, Path]:
-    """Local folders of the pinned COMET model and encoder files (downloaded unless offline)."""
+    """고정한 COMET 모델과 인코더 파일의 로컬 폴더(offline이 아니면 내려받는다).
+
+    Hugging Face 캐시에서 고정 리비전의 폴더를 얻는다. offline=True면 내려받지 않고 캐시에 있는 것만
+    쓴다(채점 때). 인코더는 필요한 네 파일만 받는다(allow_patterns).
+    """
     from huggingface_hub import snapshot_download
     from huggingface_hub.file_download import are_symlinks_supported
 
-    # Without symlink rights (Windows, no developer mode) the parallel download threads race on this check:
-    # the first marks the cache as symlink-capable before testing it, and another then fails with
-    # WinError 1314. Settling it once here, before any download thread starts, avoids that.
+    # 심볼릭 링크 권한이 없으면(Windows, 개발자 모드 꺼짐) 병렬 내려받기 스레드들이 이 확인에서 경쟁한다:
+    # 첫 스레드가 시험하기 전에 캐시를 심볼릭 링크 가능으로 표시하고, 다른 스레드가 WinError 1314로
+    # 실패한다. 내려받기 스레드가 시작되기 전에 여기서 한 번 정해 두면 이를 피한다.
     are_symlinks_supported()
     model = Path(snapshot_download(MODEL, revision=REVISION, local_files_only=offline))
     encoder = Path(
@@ -86,9 +88,8 @@ def snapshots(offline: bool) -> tuple[Path, Path]:
     return model, encoder
 
 
-# 체크포인트가 고정한 파일인지 해시로 확인하고, 다르면 멈춘다.
 def check_checkpoint(model_dir: Path) -> str:
-    """SHA-256 of the checkpoint file in `model_dir`; stops unless it is the pinned one."""
+    """`model_dir`의 체크포인트 파일 SHA-256을 돌려준다. 고정한 파일이 아니면 멈춘다."""
     actual = sha256(model_dir / CHECKPOINT)
     if actual != CHECKPOINT_SHA256:
         raise SystemExit(f"{CHECKPOINT} SHA-256 {actual} is not the pinned {CHECKPOINT_SHA256}")
@@ -106,9 +107,12 @@ def download() -> None:
 
 
 def load(device: str, precision: str):
-    """The pinned COMET-22 model in eval mode on `device`, loaded from local files only, and the SHA-256 of
-    the checkpoint file it was loaded from. The file is hashed here, before the model is built, so a cache
-    that changed since `download` is refused and the scores' metadata records what was actually read."""
+    """고정한 COMET-22 모델을 로컬 파일에서만 읽어 `device`에 eval 모드로 올리고, 읽은 체크포인트 파일의
+    SHA-256과 함께 돌려준다.
+
+    파일은 모델을 만들기 전에 여기서 해시한다. 그래서 `download` 뒤에 바뀐 캐시는 거절되고, 점수의
+    메타데이터에는 실제로 읽은 것이 기록된다.
+    """
     # torch·yaml·comet은 COMET 전용 환경에만 있으므로 함수 안에서 import한다.
     # 체크포인트를 먼저 해시해 받은 뒤 바뀐 캐시를 거절하고, hparams.yaml의 class_identifier로 모델 클래스를
     # 골라 적재한다. 인코더 가중치는 체크포인트에 들어 있어 따로 받지 않고(load_pretrained_weights=False),
@@ -124,7 +128,7 @@ def load(device: str, precision: str):
     hparams = yaml.safe_load((model_dir / "hparams.yaml").read_text(encoding="utf-8"))
     if (
         hparams.get("layer_transformation") == "sparsemax_patch"
-    ):  # comet's own load_from_checkpoint workaround
+    ):  # comet 자체 load_from_checkpoint의 우회 경로
         raise SystemExit("unexpected layer_transformation sparsemax_patch; use comet.load_from_checkpoint")
     model = str2model[hparams["class_identifier"]].load_from_checkpoint(
         checkpoint_path=model_dir / CHECKPOINT,
@@ -141,10 +145,12 @@ def load(device: str, precision: str):
     return model, checkpoint_sha256
 
 
-# comet의 predict처럼 원문 길이순으로 배치를 만들어(비슷한 길이끼리 묶어 패딩 낭비를 줄임) 채점하고, 점수는
-# 입력 순서대로 되돌려 놓는다. inference_mode로 기울기 계산을 끈다. 점수는 float32로 바꿔 CPU로 가져온다.
 def score(model, samples: list[dict], device: str, batch_size: int = BATCH_SIZE) -> list[float]:
-    """Segment scores in input order. Batches are formed in source-length order, as comet's predict does."""
+    """입력 순서대로의 문장 점수. 배치는 comet의 predict처럼 원문 길이순으로 만든다.
+
+    비슷한 길이끼리 묶어 패딩 낭비를 줄이고, 점수는 입력 순서대로 되돌려 놓는다. inference_mode로 기울기
+    계산을 끈다. 점수는 float32로 바꿔 CPU로 가져온다.
+    """
     import torch
 
     order = sorted(range(len(samples)), key=lambda index: len(samples[index]["src"]))
@@ -184,7 +190,7 @@ def run(args: argparse.Namespace) -> None:
         samples = samples[: args.limit]
 
     started = time.perf_counter()
-    model, checkpoint_sha256 = load(args.device, args.precision)  # load_s includes hashing the checkpoint
+    model, checkpoint_sha256 = load(args.device, args.precision)  # load_s에 체크포인트 해시 포함
     loaded = time.perf_counter()
     values = score(model, samples, args.device, args.batch_size)
     finished = time.perf_counter()
@@ -231,14 +237,14 @@ def main() -> None:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("download", help="fetch the pinned model and encoder files and check the checkpoint")
-    scoring = commands.add_parser("score", help="score segments offline")
+    commands.add_parser("download", help="고정한 모델과 인코더 파일을 받고 체크포인트를 확인한다")
+    scoring = commands.add_parser("score", help="문장 점수를 오프라인으로 매긴다")
     scoring.add_argument("--input", required=True)
     scoring.add_argument("--output", required=True)
     scoring.add_argument("--device", choices=["cuda", "cpu"], required=True)
     scoring.add_argument("--precision", choices=["fp16", "fp32"], required=True)
     scoring.add_argument("--batch-size", type=int, default=BATCH_SIZE)
-    scoring.add_argument("--limit", type=int, help="score only the first N segments (checks)")
+    scoring.add_argument("--limit", type=int, help="앞 N문장만 채점한다(점검용)")
     args = parser.parse_args()
     if args.command == "download":
         download()

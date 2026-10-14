@@ -60,7 +60,7 @@ export class ConversationSession {
   private controller = new AbortController()
   private microphone?: Microphone
   private endpointer?: SpeechEndpointer
-  // Signed in: the live connection that prepares each clip at a pause (T77). Example mode uploads.
+  // 로그인 상태: 쉼에서 클립마다 미리 처리하는 동시통역 연결(T77). 예시 모드는 업로드한다.
   private channel?: SpeculativeChannel
   private captureEpoch = 0
   private direction: Direction = { source_lang: 'ko', target_lang: 'en' }
@@ -202,7 +202,7 @@ export class ConversationSession {
     } else this.channel?.event(event)
   }
 
-  /** The live connection is ready again, or reconnecting with a new token (it dropped what it held). */
+  /** 동시통역 연결이 다시 준비됐거나, 새 토큰으로 다시 연결하는 중이다(가지고 있던 것은 버렸다). */
   // 연결이 준비를 잃으면(토큰 만료로 재연결) 듣던 말을 버리고 다시 말해 달라고 알린다. 서버가 그 마디를 이미
   // 잃었기 때문이다. 마이크는 준비된 동안에만 연다.
   private connected(ready: boolean) {

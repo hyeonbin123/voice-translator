@@ -1,16 +1,15 @@
-"""T34: offline check of live subtitles while speaking (docs/experiments.md 8).
+"""T34: 말하는 동안 갱신되는 동시통역 자막을 오프라인으로 확인한다(docs/experiments.md 8절).
 
   uv run python -m eval.stream_eval run --split validation --tag t34_dev
   uv run python -m eval.stream_eval modes --split validation --tag t77_dev   (T77, docs/experiments.md 11)
 
-Each FLEURS clip is cut as conversation mode cuts it in the browser (Silero VAD, 1000 ms of quiet, T33),
-then streamed through a simulated clock. While the person speaks, the server recognizes all of the
-utterance's audio received so far and translates the result, one update at a time on its single model
-thread. The model calls are real and timed on this machine's GPU; their measured times advance the clock.
-Network time is taken as zero. Once the browser has seen 192 ms of quiet, the clip conversation mode would
-send is complete: the server recognizes it with the final settings, and that result replaces the live text.
+FLEURS 클립마다 대화 모드가 브라우저에서 자르는 방식(Silero VAD, 1000ms 쉼, T33)대로 자른 뒤, 가상의
+시계 위에서 흘려보낸다. 사람이 말하는 동안 서버는 지금까지 받은 그 마디의 소리 전체를 인식하고 결과를
+번역하며, 모델 스레드가 하나라 갱신은 한 번에 하나씩만 돈다. 모델 호출은 실제로 이 PC의 GPU에서 돌려
+시간을 재고, 잰 시간만큼 시계를 진행한다. 네트워크 시간은 0으로 둔다. 브라우저가 192ms 쉼을 보면 대화
+모드가 보낼 클립이 다 모인 것이므로, 서버가 그 클립을 최종 설정으로 인식하고 그 결과가 자막 글을 대신한다.
 
-Texts are compared by their letters only (app/services/live.py): Korean spacing changes between results.
+글은 글자만으로 비교한다(app/services/live.py). 한국어 띄어쓰기가 결과마다 바뀌기 때문이다.
 """
 
 # [파일 역할] 동시통역 자막과 대화 모드·두 사람 대화의 '미리 처리'를 재는 측정 도구다. 하위 명령 세 가지:
@@ -77,24 +76,24 @@ from eval.eos_eval import (
 # LEAD_S, TAIL_S: FLEURS 음성 앞뒤에 붙이는 조용한 구간(앞 1초, 뒤 1.5초, 8절 시험 방법).
 # PER_LANGUAGE: 언어별 문장 수 40(8절 데이터). INTERVALS_MS: 후보 갱신 간격 U.
 SILENCE_MS = 1000  # D9
-PAD_FRAMES = round(PREROLL_MS / (S_CHUNK * 1000 / RATE))  # 6 frames kept before and after speech (silero.ts)
-MAX_CLIP_S = 28.9  # longer clips are cut in two by the browser's 29 s limit
+PAD_FRAMES = round(PREROLL_MS / (S_CHUNK * 1000 / RATE))
+MAX_CLIP_S = 28.9
 LEAD_S, TAIL_S = 1.0, 1.5
 PER_LANGUAGE = 40
 INTERVALS_MS = (250, 500, 1000)
-# 인식 설정. BASE는 서버와 같은 VAD 필터와 무음 판정 문턱(0.6), FINAL은 최종 인식(beam 5, temperature를 올려
-# 다시 푸는 기본 동작). PARTIAL은 자막 갱신 후보: P1 = beam 1·temperature 0만(다시 풀지 않아 빠름), P5 =
-# 최종과 같은 설정(8절 '고르는 것').
-# Every setting keeps the server's VAD filter (config.stt_vad_filter) and no-speech threshold.
+# 인식 설정. BASE는 서버와 같은 VAD 필터(config.stt_vad_filter)와 무음 판정 문턱(0.6)으로, 모든 설정이
+# 이 둘을 그대로 가진다. FINAL은 대화 모드의 최종 인식과 같은 설정(app/services/models.py, beam 5,
+# temperature를 올려 다시 푸는 기본 동작). PARTIAL은 자막 갱신 후보: P1 = beam 1·temperature 0만(다시 풀지
+# 않아 빠름), P5 = 최종과 같은 설정(8절 '고르는 것').
 BASE = {"vad_filter": True, "no_speech_threshold": 0.6}
-FINAL = {**BASE, "beam_size": 5}  # conversation mode's recognition (app/services/models.py)
+FINAL = {**BASE, "beam_size": 5}
 PARTIAL = {"P1": {**BASE, "beam_size": 1, "temperature": 0.0}, "P5": FINAL}
 
 
 # float 파형을 브라우저가 보내는 16비트 PCM 정밀도로 한 번 양자화했다가 float로 되돌린다. 서버가 받는 소리와
 # 같은 값으로 인식하게 하려는 것이다.
 def quantize(audio: np.ndarray) -> np.ndarray:
-    """The 16-bit PCM the browser sends."""
+    """브라우저가 보내는 16비트 PCM과 같은 값."""
     return (np.clip(audio, -1, 1) * 32767).astype(np.int16).astype(np.float32) / 32768
 
 
@@ -103,7 +102,7 @@ def quantize(audio: np.ndarray) -> np.ndarray:
 # 것').
 # 말소리 조각을 만날 때마다 직전 조용한 길이가 기준 이상이었는지 더한다.
 def long_pauses(flags: np.ndarray) -> int:
-    """Quiet runs of at least PAD_FRAMES inside an utterance: each starts a final that speech then drops."""
+    """마디 안의 PAD_FRAMES 이상 조용한 구간 수. 구간마다 최종 처리가 시작됐다가 말이 이어지면 버려진다."""
     count = run = 0
     for flag in flags:
         if flag:
@@ -119,14 +118,14 @@ def long_pauses(flags: np.ndarray) -> int:
 # 출력: audio(16비트로 양자화한 클립), detected_s(클립 안에서 브라우저가 말 시작을 판정해 흘려보내기 시작하는
 # 시각), pauses(헛 미리 처리를 부를 쉼 수), flags(클립 조각마다 브라우저의 말소리 판정).
 def cut(silero: Silero, clip: np.ndarray, seed: int) -> dict | None:
-    """The clip conversation mode would send for this recording, or None unless it is exactly one."""
+    """이 녹음에서 대화 모드가 보낼 클립. 정확히 한 마디가 나오지 않으면 None."""
     # 앞 1초·뒤 1.5초의 조용한 구간을 붙이고 −60dBFS 분홍 잡음 바닥을 깐다. 실제 마이크는 완전한 0을 내지 않기
     # 때문이다(7절 측정 세부). 잡음 시드는 클립마다 정해져 실행마다 같다.
     track = np.concatenate(
         [np.zeros(int(LEAD_S * RATE), np.float32), clip, np.zeros(int(TAIL_S * RATE), np.float32)]
     )
     noise = pink_noise(len(track), np.random.default_rng(seed)) * 10 ** (QUIET_FLOOR_DBFS / 20)
-    track = (track + noise).astype(np.float32)  # the VAD takes float32 only
+    track = (track + noise).astype(np.float32)  # VAD는 float32만 받는다
     # 32ms 조각마다 Silero 말소리 판정 → 1000ms 쉼 기준으로 마디로 묶는다(T33과 같은 규칙).
     flags = silero.flags(track)
     utterances = group(flags, S_CHUNK, SILENCE_MS, S_START_FRAMES)
@@ -140,9 +139,9 @@ def cut(silero: Silero, clip: np.ndarray, seed: int) -> dict | None:
         return None
     return {
         "audio": quantize(track[begin * S_CHUNK : (end + PAD_FRAMES) * S_CHUNK]),
-        "detected_s": (first + S_START_FRAMES - begin) * S_CHUNK / RATE,  # when the browser starts streaming
+        "detected_s": (first + S_START_FRAMES - begin) * S_CHUNK / RATE,  # 브라우저가 보내기 시작하는 시각
         "pauses": long_pauses(flags[first:end]),
-        "flags": flags[begin : end + PAD_FRAMES],  # the browser's speech flags, one per frame of the clip
+        "flags": flags[begin : end + PAD_FRAMES],  # 브라우저의 말소리 판정, 클립 조각마다 하나
     }
 
 
@@ -151,7 +150,7 @@ def cut(silero: Silero, clip: np.ndarray, seed: int) -> dict | None:
 def recognize(model, audio: np.ndarray, lang: str, options: dict) -> tuple[str, float]:
     began = time.perf_counter()
     segments, _ = model.transcribe(audio, language=lang, **options)
-    text = " ".join(segment.text.strip() for segment in segments).strip()  # the model runs while this reads
+    text = " ".join(segment.text.strip() for segment in segments).strip()  # 이 줄이 읽는 동안 모델이 돈다
     return text, time.perf_counter() - began
 
 
@@ -166,16 +165,15 @@ def translate(translator, text: str, lang: str, target: str) -> tuple[str, float
 # (None, 이유)를 돌려주고, 이유는 utterances가 뺀 문장 수를 세는 데 쓴다.
 # 단어 끝 시각은 표시 지연(단어가 끝난 뒤 자막에 나타나기까지)과 말 끝(마지막 단어 끝)의 기준이 된다.
 def final_result(model, translator, audio: np.ndarray, lang: str, target: str) -> tuple[dict | None, str]:
-    """Conversation mode's result for the clip, with each word's letters and end time, or why there is
-    none."""
+    """클립에 대한 대화 모드의 결과와 단어마다의 글자·끝 시각. 결과가 없으면 그 이유를 돌려준다."""
     text, stt_s = recognize(model, audio, lang, FINAL)
     if not letters(text):
         return None, "no_speech"
-    # A second, untimed pass for word times; it must have the timed pass's letters.
+    # 단어 시각을 얻으려고 시간을 재지 않는 두 번째 인식을 한다. 이 결과는 시간을 잰 첫 인식과 글자가 같아야
+    # 한다.
     segments, _ = model.transcribe(audio, language=lang, word_timestamps=True, **FINAL)
     timed = [word for segment in segments for word in (segment.words or [])]
-    # 단어 시각을 얻으려고 한 두 번째 인식이 시간을 잰 첫 인식과 글자가 다르면 단어 위치를 맞출 수 없으므로 그
-    # 문장을 뺀다.
+    # 두 인식의 글자가 다르면 단어 위치를 맞출 수 없으므로 그 문장을 뺀다.
     if letters("".join(word.word for word in timed)) != letters(text):
         return None, "word_times_differ"
     # 단어마다 (최종 글자열에서의 시작, 끝 위치, 소리에서 끝난 시각)을 만든다. 위치는 letters 기준이라
@@ -183,7 +181,7 @@ def final_result(model, translator, audio: np.ndarray, lang: str, target: str) -
     spans, cursor = [], 0
     for word in timed:
         size = len(letters(word.word))
-        if size:  # a word of punctuation alone has no letters to show
+        if size:  # 문장부호만 있는 단어는 보일 글자가 없다
             spans.append((cursor, cursor + size, word.end))
         cursor += size
     translation, mt_s = translate(translator, text, lang, target)
@@ -194,7 +192,7 @@ def final_result(model, translator, audio: np.ndarray, lang: str, target: str) -
 # 돌려준다. 앞글자 비교가 아니라 정렬이라, 중간 단어 하나가 바뀌어도 그 뒤 글자는 '있음'으로 남는다.
 # autojunk=False는 긴 글에서 자주 나오는 글자를 무시하는 difflib의 기본 동작을 꺼 정렬이 빠지지 않게 한다.
 def covered(shown: str, final: str) -> np.ndarray:
-    """Which letters of the final text the shown text has, by aligning the two."""
+    """두 글을 정렬해, 최종 글의 글자 가운데 화면 글에 있는 것을 표시한다."""
     mask = np.zeros(len(final), bool)
     for _, start, size in SequenceMatcher(None, shown, final, autojunk=False).get_matching_blocks():
         mask[start : start + size] = True
@@ -206,8 +204,8 @@ def covered(shown: str, final: str) -> np.ndarray:
 # 뒤에서부터 거꾸로 보며 단어가 계속 덮여 있던 가장 이른 시각을 찾는다. 최종 결과에서야 처음 맞춰진 단어는
 # 최종 결과가 보인 시각이 된다. 호출 위치: simulate(오프라인), stream_one(실제 서비스).
 def appearance_lags(events: list[tuple[float, str]], spans: list[tuple[int, int, float]]) -> list[float]:
-    """Per final word: the first time its letters were all on screen and stayed, minus the word's end.
-    Events are (time, letters) with the final result last."""
+    """최종 단어마다: 그 글자가 화면에 모두 나타나 계속 남게 된 첫 시각 − 그 단어의 끝 시각.
+    events는 (시각, 글자열) 목록이고 마지막이 최종 결과다."""
     final = events[-1][1]
     masks = [covered(shown, final) for _, shown in events]
     lags = []
@@ -224,8 +222,8 @@ def appearance_lags(events: list[tuple[float, str]], spans: list[tuple[int, int,
 # 흔들림(normalized erasure)의 분자: 갱신마다 화면 글 끝에서 지워진 글자 수(이전 글 길이 − 공통 앞부분)의 합.
 # 이 값을 최종 글자 수로 나눈 것이 흔들림이다(8절, Arivazhagan 외 2020을 글자 단위로).
 def erased(sequence: list[str]) -> int:
-    """Letters taken off the end of the screen from one update to the next (normalized erasure's
-    numerator)."""
+    """갱신에서 다음 갱신으로 넘어갈 때 화면 글 끝에서 지워진 글자 수의 합(normalized erasure의
+    분자)."""
     total, before = 0, ""
     for shown in sequence:
         total += len(before) - common_start(before, shown)
@@ -239,12 +237,11 @@ def erased(sequence: list[str]) -> int:
 # 세어져 뜻보다 크게 나왔다. 그래서 첫 validation 결과를 본 뒤 글자 정렬 기준으로 정의를 고치고 validation을
 # 다시 쟀다(8절 '지표 수정').
 def dark_changes(shown: list[tuple[str, int]], final: str) -> tuple[int, int]:
-    """(dark letters later changed, letters that turned dark) over (letters, dark letters) on screen.
+    """화면의 (글자, 진한 글자 수) 목록에서 (나중에 바뀐 진한 글자 수, 진하게 된 글자 수)를 센다.
 
-    A dark letter has changed when the next text no longer has it, by aligning the two texts (the rule
-    fixed after the first validation, docs/experiments.md 8: a word changed early in the dark part no
-    longer counts every dark letter after it). The final result can change dark letters too; its own
-    letters are not counted as turning dark."""
+    두 글을 정렬해 다음 글에 더는 없는 진한 글자를 바뀐 것으로 센다(첫 validation 뒤 고친 규칙,
+    docs/experiments.md 8절: 진한 부분 앞쪽에서 단어 하나가 바뀌어도 그 뒤 진한 글자가 모두 세어지지 않는다).
+    최종 결과도 진한 글자를 바꿀 수 있다. 최종 결과 자신의 글자는 진하게 된 것으로 세지 않는다."""
 
     # 이전 글의 진한 앞부분(dark 글자) 가운데 다음 글에서 찾을 수 없는 글자 수.
     def lost(before: str, dark: int, after: str) -> int:
@@ -273,9 +270,9 @@ def simulate(
 ) -> dict:
     audio = utterance["audio"]
     duration = len(audio) / RATE
-    free_at, last_start = 0.0, None  # when the model thread is free, when the last update started
+    free_at, last_start = 0.0, None  # 모델 스레드가 비는 시각, 마지막 갱신을 시작한 시각
     previous = previous_translation = None
-    sources: list[tuple[float, str, int]] = []  # (shown at, text, dark characters)
+    sources: list[tuple[float, str, int]] = []  # (보인 시각, 글, 진한 글자 수)
     translations: list[tuple[float, str, int]] = []
     model_s, updates = 0.0, 0
     while True:
@@ -283,7 +280,7 @@ def simulate(
         # 가장 늦은 때 시작한다. 그 시각이 클립 끝을 넘으면 소리가 다 모인 것이라 최종 처리로 넘어간다.
         earliest = interval_s if last_start is None else last_start + interval_s
         start = max(utterance["detected_s"], free_at, earliest)
-        if start >= duration:  # the whole clip is in: the final takes over
+        if start >= duration:  # 클립이 다 들어왔다: 최종 처리가 이어받는다
             break
         # 갱신 = 그 시각까지 받은 소리 전체를 다시 인식. 진한 길이는 바로 앞 결과와 같은 앞부분을 단어
         # 경계까지 자른 것(LocalAgreement-2).
@@ -296,7 +293,7 @@ def simulate(
         # 글과 진한 길이가 직전과 같으면 화면에 보낼 것이 없다. 원문 글이 바뀌고 글자가 있을 때만 다시
         # 번역하며, 번역 시간도 모델 스레드를 차지하므로 free_at을 늘린다.
         if sources and (text, dark) == sources[-1][1:]:
-            continue  # nothing new to show or translate
+            continue  # 새로 보이거나 번역할 것이 없다
         text_changed = not sources or text != sources[-1][1]
         sources.append((free_at, text, dark))
         if text_changed and letters(text):
@@ -307,7 +304,7 @@ def simulate(
             previous_translation = translation
     # 최종 처리는 클립이 다 모인 뒤, 진행 중인 갱신이 끝나기를 기다렸다가 시작한다. 최종 원문은 최종 인식 시간
     # 뒤, 최종 번역문은 그 뒤 번역 시간 뒤에 보인다.
-    final_start = max(duration, free_at)  # an update still running holds the one model thread
+    final_start = max(duration, free_at)  # 아직 도는 갱신이 하나뿐인 모델 스레드를 잡고 있다
     source_final_at = final_start + final["stt_s"]
     translation_final_at = source_final_at + final["mt_s"]
     final_letters, translation_letters = letters(final["text"]), letters(final["translation"])
@@ -363,7 +360,7 @@ def load_models():
 # 문장이 골라지고, 클립마다 잡음 시드도 고정한다.
 # 호출 위치: run, choose_clips(service), modes.
 def utterances(silero: Silero, model, translator, lang: str, split: str, count: int) -> tuple[list, dict]:
-    """The first `count` usable clips in a seeded order, with the number skipped for each reason."""
+    """시드로 정한 순서에서 쓸 수 있는 앞의 `count`개 클립과, 이유별로 뺀 클립 수."""
     target = "ko" if lang == "en" else "en"
     clips = load_clips(lang, split)
     random.Random(f"stream-{SEED[split]}-{lang}").shuffle(clips)
@@ -421,7 +418,7 @@ def run(args: argparse.Namespace) -> None:
         chosen, skipped[lang] = utterances(silero, model, translator, lang, args.split, args.count)
         speech_min = sum(len(u["audio"]) for _, u, _ in chosen) / RATE / 60
         pauses[lang] = sum(u["pauses"] for _, u, _ in chosen) / speech_min
-        # Warm up both settings on this language before any call is timed.
+        # 시간을 재는 호출보다 먼저, 이 언어로 두 인식 설정과 번역을 한 번씩 돌려 준비시킨다.
         for options in PARTIAL.values():
             recognize(model, chosen[0][1]["audio"], lang, options)
         translate(translator, chosen[0][2]["text"], lang, target)
@@ -484,7 +481,7 @@ def write_report(
 # FRAME_S: 32ms 조각 길이(초). QUIET_END_FRAMES: 1000ms 쉼을 조각 수로 바꾼 31. 브라우저는 마지막 말소리 뒤
 # 31조각 조용하면 말 끝으로 판정한다.
 FRAME_S = S_CHUNK / RATE
-QUIET_END_FRAMES = round(SILENCE_MS / (FRAME_S * 1000))  # 31: the browser decides the end here
+QUIET_END_FRAMES = round(SILENCE_MS / (FRAME_S * 1000))
 
 
 # 실제 서비스 측정에서 브라우저(silero.ts)가 보낼 메시지 계획을 만든다. 출력: (그때까지 들은 조각 수, 종류,
@@ -494,12 +491,12 @@ QUIET_END_FRAMES = round(SILENCE_MS / (FRAME_S * 1000))  # 31: the browser decid
 # 규칙이다. 그래서 어느 쉼에서 pause를 보내도 서버가 가진 소리는 업로드되던 클립과 정확히
 # 같다(tests/test_stream_eval.py가 확인). pause_frames는 T61 후보 Q(미리 처리를 시작하는 쉼 조각 수)다.
 def browser_plan(flags, detected: int, pause_frames: int) -> list[tuple[int, str, tuple[int, int] | None]]:
-    """What the browser sends for a clip, in order: (frames heard by then, kind, frames of audio).
+    """브라우저가 클립 하나에 대해 보내는 것을 순서대로: (그때까지 들은 조각 수, 종류, 소리 조각 범위).
 
-    As frontend/src/conversation/silero.ts does: the second speech frame starts the utterance with the
-    frames before it; quiet frames past the six after speech are held back and sent only if speech
-    resumes, so at any pause the server has exactly the clip. The final is asked for after `pause_frames`
-    of quiet (T61 candidate Q, at least six), counting on past the clip's end, and the end comes at 31.
+    frontend/src/conversation/silero.ts와 같게 한다. 두 번째 말소리 조각에서 그 앞 조각들과 함께 마디를
+    시작한다. 말소리 뒤 6조각을 넘는 조용한 조각은 들고 있다가 말이 다시 시작될 때만 보내므로, 어느
+    쉼에서든 서버가 가진 소리는 정확히 그 클립이다. 최종 처리는 `pause_frames`(T61 후보 Q, 6 이상)만큼
+    조용하면 요청하며, 클립 끝을 지나서도 계속 센다. end는 31조각에서 보낸다.
     """
     plan: list[tuple[int, str, tuple[int, int] | None]] = []
     quiet = 0
@@ -517,7 +514,7 @@ def browser_plan(flags, detected: int, pause_frames: int) -> list[tuple[int, str
         if flag:
             if quiet >= pause_frames:
                 plan.append((heard, "resume", None))
-            plan.append((heard, "audio", (i - max(0, quiet - PAD_FRAMES), heard)))  # held frames too
+            plan.append((heard, "audio", (i - max(0, quiet - PAD_FRAMES), heard)))  # 들고 있던 조각도
             quiet = 0
             continue
         # 조용한 조각: 말 끝 뒤 6조각까지만 바로 보내고, 쉼이 pause_frames에 이르면 pause를 보낸다.
@@ -528,7 +525,7 @@ def browser_plan(flags, detected: int, pause_frames: int) -> list[tuple[int, str
             plan.append((heard, "pause", None))
     # 클립이 끝난 뒤에도 브라우저는 조용함을 계속 듣는다. 클립 밖의 조용한 조각을 1초(31조각)까지 세며, 그
     # 사이에 pause 시점이 오면 보낸다. 마지막으로 마지막 말소리 뒤 31조각에서 end.
-    for heard in range(len(flags) + 1, len(flags) - quiet + QUIET_END_FRAMES + 1):  # quiet past the clip
+    for heard in range(len(flags) + 1, len(flags) - quiet + QUIET_END_FRAMES + 1):  # 클립 뒤의 조용함
         quiet += 1
         if quiet == pause_frames:
             plan.append((heard, "pause", None))
@@ -543,8 +540,8 @@ def browser_plan(flags, detected: int, pause_frames: int) -> list[tuple[int, str
 async def stream_one(
     ws, http, auth: dict, number: int, utterance: dict, final: dict, pause_frames: int = PAD_FRAMES
 ) -> dict:
-    """Send one clip as the browser would, a 32 ms frame at a time in real time, with its pause, resume and
-    end messages, and time what comes back from the clip's start."""
+    """클립 하나를 브라우저처럼 실제 시간에 맞춰 32ms 조각씩, pause·resume·end 메시지와 함께 보내고,
+    돌아오는 메시지를 클립 시작부터 잰다."""
     loop = asyncio.get_running_loop()
     pcm = np.round(utterance["audio"] * 32768).astype("<i2")
     flags = utterance["flags"]
@@ -574,7 +571,7 @@ async def stream_one(
         else:
             await ws.send(json.dumps({"type": kind, "id": number}))
             pauses += kind == "pause"
-            resumes += kind == "resume"  # each drops the final prepared at the pause before (T77)
+            resumes += kind == "resume"  # resume마다 앞 쉼에서 미리 처리한 최종 결과를 버린다(T77)
     # 결과를 최대 120초 기다린다. 번역 음성이 있으면 인증된 요청으로 받아 받기 완료 시각을 재고, 해시를
     # 남긴다(경로 간 음성 바이트 비교는 참고용).
     outcome = await asyncio.wait_for(receiver, 120)
@@ -634,7 +631,7 @@ async def stream_all(args: argparse.Namespace, chosen: dict) -> dict:
                 for number, (key, utterance, final) in enumerate(clips, 1):
                     result = await stream_one(ws, http, auth, number, utterance, final, args.pause_frames)
                     results[lang].append({"key": key, **result})
-                    await asyncio.sleep(0.5)  # a moment between utterances, like playback would take
+                    await asyncio.sleep(0.5)  # 재생이 차지할 만한 마디 사이 짧은 틈
             print(f"{lang}: {len(results[lang])} clips streamed", flush=True)
     return results
 
@@ -644,8 +641,8 @@ async def stream_all(args: argparse.Namespace, chosen: dict) -> dict:
 # 다른 프로그램의 간섭이 있었는지 함께 보려고 만들었다.
 # GPU를 쓰는 프로세스 이름도 시작·끝에 모으지만, 그 이름은 공개 보고서가 아니라 커밋하지 않는 work/에만 쓴다.
 class GpuLog:
-    """GPU use while streaming, sampled twice a second (T63). The server's own work shows in it too: what
-    tells of another program (a game on the same GPU) is use that stays high between utterances."""
+    """흘려보내는 동안의 GPU 사용량을 1초에 두 번 기록한다(T63). 서버 자신의 작업도 함께 잡히므로,
+    다른 프로그램(같은 GPU의 게임 등)이 있었다는 표시는 마디 사이에도 높게 남는 사용률이다."""
 
     # NVML·psutil을 준비하고 샘플링 스레드를 띄운다. daemon 스레드라 측정이 예외로 끝나도 프로세스 종료를 막지
     # 않는다.
@@ -658,7 +655,7 @@ class GpuLog:
         self.nvml = pynvml
         self.psutil = psutil
         self.cpu: list[float] = []
-        psutil.cpu_percent(None)  # the first call only starts the count
+        psutil.cpu_percent(None)  # 첫 호출은 세기를 시작할 뿐이다
         pynvml.nvmlInit()
         self.handle = pynvml.nvmlDeviceGetHandleByIndex(0)
         self.samples: list[tuple[float, float]] = []
@@ -676,7 +673,7 @@ class GpuLog:
             use = self.nvml.nvmlDeviceGetUtilizationRates(self.handle)
             memory = self.nvml.nvmlDeviceGetMemoryInfo(self.handle)
             self.samples.append((use.gpu, memory.used / 2**20))
-            self.cpu.append(self.psutil.cpu_percent(None))  # the whole machine, since the last sample
+            self.cpu.append(self.psutil.cpu_percent(None))  # PC 전체, 직전 샘플 뒤부터
 
     # 지금 GPU를 쓰는 그래픽·연산 프로세스의 이름 목록. 이름을 읽을 수 없는 프로세스는 pid로 남긴다.
     def processes(self) -> list[str]:
@@ -713,7 +710,7 @@ class GpuLog:
 # service가 흘려보낼 클립과 이 PC 모델로 구한 최종 결과(단어 시각)를 고른다. 모델은 이 함수 안의 지역 변수라
 # 돌아오면 참조가 사라진다.
 def choose_clips(silero: Silero, args: argparse.Namespace) -> tuple[dict, dict]:
-    """The clips the service check streams, per language, with this machine's final results (word times)."""
+    """service 확인이 흘려보낼 언어별 클립과, 이 PC 모델로 구한 최종 결과(단어 시각)."""
     model, translator = load_models()
     chosen, skipped = {}, {}
     for lang in args.langs:
@@ -727,14 +724,14 @@ def choose_clips(silero: Silero, args: argparse.Namespace) -> tuple[dict, dict]:
 # 언어별로 오류 수, 원문 다름 수, 표시 지연 p50·p90, 말 끝 → final p50, 말 끝 → 음성 p50·p90, pause 수를
 # 보고서에 쓴다.
 def service(args: argparse.Namespace) -> None:
-    """docs/experiments.md 8, real service check: the composed service through nginx, in real time.
-    The clips and their word times come from this machine's models first. They are released before streaming
-    (T83), so their GPU memory is not held next to the server's while it is measured."""
+    """docs/experiments.md 8절의 실제 서비스 확인: compose로 띄운 서비스에 nginx를 거쳐 실제 시간으로 보낸다.
+    클립과 단어 시각은 먼저 이 PC의 모델로 구한다. 그 모델은 흘려보내기 전에 놓아 주므로(T83), 서버를 재는
+    동안 그 GPU 메모리가 서버 옆에 함께 잡혀 있지 않다."""
     chosen, skipped = choose_clips(Silero(), args)
     gc.collect()
     with GpuLog() as gpu:
         results = asyncio.run(stream_all(args, chosen))
-    # Other programs' names stay out of the published report: work/ is not committed.
+    # 다른 프로그램 이름은 공개 보고서에 넣지 않는다. work/는 커밋하지 않는 폴더다.
     (PROJECT / "work" / f"gpu_programs_{args.tag}.txt").write_text("\n".join(gpu.programs), encoding="utf-8")
     rows = []
     for lang, items in results.items():
@@ -788,20 +785,21 @@ def service(args: argparse.Namespace) -> None:
 
 
 # 여기부터 modes 명령(T77)에 쓰는 상수·함수다.
-# T77 (docs/experiments.md 11): conversation and dialog modes, each clip once over the old path (the browser
-# uploads the WAV over HTTP after the 1000 ms end) and once over the new one (streamed over the live
-# WebSocket without subtitles, prepared at the 192 ms pause, committed at the end), back to back.
+# T77(docs/experiments.md 11절): 대화 모드와 두 사람 대화에서 클립마다 옛 경로(1000ms 말 끝 판정 뒤 브라우저가
+# WAV를 HTTP로 올림)로 한 번, 새 경로(자막 없이 동시통역 웹소켓으로 흘려보내고, 192ms 쉼에서 미리 처리하고,
+# 말 끝에서 확정)로 한 번, 연달아 잰다.
 
 # MODES: 잴 화면 모드. OTHER: 원문 언어 → 번역 언어.
 # SAVING_MS: 채택 규칙의 '두 방향 모두 p50이 300ms 이상 빨라짐'. UNDECIDABLE_LIMIT: 방향마다 허용하는 '판단
-# 불가' 클립 수(2개). SECOND_USER_EVERY_S: 간섭 측정에서 두 번째 사용자가 요청을 보내는 간격(11절 지표).
+# 불가' 클립(HTTP 결과 자체가 호출마다 바뀌는 클립) 수(2개). SECOND_USER_EVERY_S: 간섭 측정에서 두 번째
+# 사용자가 요청을 보내는 간격(11절 지표).
 MODES = ("conversation", "dialog")
 OTHER = {"ko": "en", "en": "ko"}
-SAVING_MS = 300  # the rule: both directions' p50 at least this much sooner
-UNDECIDABLE_LIMIT = 2  # clips per direction whose HTTP result itself changes from call to call
+SAVING_MS = 300
+UNDECIDABLE_LIMIT = 2
 SECOND_USER_EVERY_S = 5.0
-# What a clip's result must share over both paths. The synthesized audio itself cannot be compared:
-# MeloTTS samples noise (and durations) at every call, so the same text gives different WAV bytes.
+# 두 경로에서 한 클립의 결과가 같아야 하는 필드. 합성 음성 자체는 비교할 수 없다: MeloTTS가 호출마다
+# 잡음(과 길이)을 새로 뽑아, 같은 글이라도 WAV 바이트가 달라진다.
 SAME_FIELDS = (
     "source_lang",
     "target_lang",
@@ -818,15 +816,15 @@ SAME_FIELDS = (
 # 옛 경로에서 브라우저가 올리는 WAV를 만든다. 서버가 웹소켓으로 받은 PCM으로 만드는 파일과 같은
 # 함수(wav_from_pcm)라 두 경로가 정확히 같은 소리를 받는다.
 def clip_wav(audio: np.ndarray) -> bytes:
-    """The WAV the browser uploads for a clip (frontend pcm.ts encodeWav): the same file the server builds
-    from the streamed PCM (app/services/live.py)."""
+    """브라우저가 클립 하나에 대해 올리는 WAV(frontend pcm.ts encodeWav). 서버가 흘려받은 PCM으로 만드는
+    파일(app/services/live.py)과 같다."""
     return wav_from_pcm(np.round(audio * 32768).astype("<i2").tobytes())
 
 
 # 브라우저가 1초 쉼으로 말 끝을 판정하는 조각 수(browser_plan의 마지막 end 시점). 옛 경로는 이때 업로드를
 # 시작한다.
 def end_frame(utterance: dict) -> int:
-    """Frames heard when the browser decides the end (1000 ms of quiet), as browser_plan sends it."""
+    """브라우저가 말 끝(1000ms 쉼)을 판정할 때까지 들은 조각 수. browser_plan이 end를 보내는 시점과 같다."""
     detected = round(utterance["detected_s"] / FRAME_S)
     return browser_plan(utterance["flags"], detected, PAD_FRAMES)[-1][0]
 
@@ -835,7 +833,7 @@ def end_frame(utterance: dict) -> int:
 # 번역문, 언어, 모델 이름, 합성 오류, 언어 추정 여부). 합성 음성 바이트는 MeloTTS가 호출마다 잡음을 뽑아
 # 달라지므로 넣지 않는다(11절 계획 변경).
 def comparable(outcome: dict) -> dict:
-    """What must be the same over both paths: the error, or the result's texts, languages and models."""
+    """두 경로에서 같아야 하는 부분: 실패면 그 오류, 성공이면 결과의 글·언어·모델."""
     if outcome["outcome"] != "final":
         return {"outcome": outcome["outcome"], "detail": outcome.get("detail")}
     result = outcome["result"]
@@ -855,9 +853,9 @@ def same(a: dict, b: dict) -> bool:
 # 본다: 두 번 모두 처음 업로드와 같으면 미리 처리가 결과를 바꾼 것이라 'different', 아니면 HTTP 경로 자체가
 # 같은 소리에 다른 답을 내는 모델 비결정성이라 'undecidable'(11절 지표).
 def classify(upload: dict, prepared: dict, rechecks: list[dict]) -> str:
-    """'same', or for a clip whose paths differ: 'different' when two more uploads of its WAV give the
-    first upload's result again (the prepared path changed it), else 'undecidable' (the HTTP path itself
-    gives other results for the same WAV: model nondeterminism, not the prepare)."""
+    """'same', 또는 두 경로가 다른 클립이면: 같은 WAV를 두 번 더 올려 첫 업로드 결과가 다시 나오면
+    'different'(미리 처리 경로가 결과를 바꿈), 아니면 'undecidable'(HTTP 경로 자체가 같은 WAV에 다른 결과를
+    냄: 미리 처리가 아니라 모델의 비결정성)."""
     if same(upload, prepared):
         return "same"
     if len(rechecks) == 2 and all(same(upload, again) for again in rechecks):
@@ -868,7 +866,7 @@ def classify(upload: dict, prepared: dict, rechecks: list[dict]) -> str:
 # 클립별 차이(업로드 − 미리 처리)의 중앙값과 그 95% 백분위 붓스트랩 구간(10,000번, 시드 77, 11절 지표).
 # 판정에는 쓰지 않는 참고 값이다.
 def paired_ci(differences: list[float], seed: int = 77, rounds: int = 10_000) -> tuple[float, float, float]:
-    """The median of per-clip differences and its 95% percentile bootstrap interval."""
+    """클립별 차이의 중앙값과 그 95% 백분위 붓스트랩 구간."""
     values = np.asarray(differences, dtype=float)
     draws = np.random.default_rng(seed).choice(values, size=(rounds, len(values)), replace=True)
     medians = np.median(draws, axis=1)
@@ -878,7 +876,7 @@ def paired_ci(differences: list[float], seed: int = 77, rounds: int = 10_000) ->
 # 백분위를 ms로. 한 경로가 음성을 하나도 내지 못했으면 NaN을 돌려주고, NaN은 decide의 비교에서 늘 거짓이라
 # 규칙을 통과하지 못한다.
 def quantile_ms(values: list[float], q: float) -> float:
-    """A percentile in ms, or NaN when a path produced no audio at all (it then fails the rule)."""
+    """ms 단위 백분위. 한 경로가 음성을 하나도 내지 못했으면 NaN(그러면 규칙을 통과하지 못한다)."""
     return float(np.percentile(values, q)) * 1000 if values else float("nan")
 
 
@@ -886,7 +884,7 @@ def quantile_ms(values: list[float], q: float) -> float:
 # 중앙값과 구간, 말 끝 → final p50, 동일성 분류 수, 음성 바이트가 같은 수(참고), 경로별 오류 수, 미리 처리
 # 수(pause)와 버린 수(resume).
 def summarize_modes(rows: list[dict]) -> list[dict]:
-    """One row per mode and source language."""
+    """모드와 원문 언어마다 한 행."""
     out = []
     for mode in MODES:
         for lang in LANGS:
@@ -938,10 +936,10 @@ def summarize_modes(rows: list[dict]) -> list[dict]:
 # 11절 규칙 중 이 도구가 재는 부분(시간·동일성)으로 모드마다 채택 여부와 떨어진 이유를 돌려준다. 세 번째
 # 조건인 e2e 회귀는 eval/e2e_eval.py 보고서로 따로 판정한다.
 def decide(rows: list[dict]) -> dict[str, dict]:
-    """The rule written before measuring (docs/experiments.md 11), for the parts this tool measures: per
-    mode, adopt when in both directions the upload path's end-to-audio p50 is at least 300 ms later than
-    the prepared path's, no clip is 'different' and at most two are 'undecidable'. The e2e_eval regression
-    check is the rule's third part and is judged from its own report."""
+    """측정 전에 적은 규칙(docs/experiments.md 11절) 가운데 이 도구가 재는 부분. 모드마다, 두 방향 모두
+    업로드 경로의 말 끝 → 음성 p50이 미리 처리 경로보다 300ms 이상 늦고, 'different' 클립이 없고,
+    'undecidable'이 두 개 이하면 채택한다. 규칙의 세 번째 부분인 e2e_eval 회귀 확인은 그 보고서로 따로
+    판정한다."""
     verdict = {}
     for mode in MODES:
         mine = [r for r in rows if r["mode"] == mode]
@@ -969,8 +967,8 @@ def decide(rows: list[dict]) -> dict[str, dict]:
 # 대화 모드는 /api/translate/speech에 방향을 주고, 두 사람 대화는 /api/translate/dialog에 직전 마디
 # 언어(previous_lang)를 준다(서버가 언어 판별이 애매할 때 쓰는 값).
 async def upload_one(http, auth: dict, mode: str, lang: str, utterance: dict, final: dict, previous) -> dict:
-    """The old path for one clip: nothing is sent until the browser decides the end, then the WAV goes to
-    the HTTP API and the translated speech is fetched. Times from the clip's start, as stream_one's."""
+    """한 클립의 옛 경로: 브라우저가 말 끝을 판정할 때까지 아무것도 보내지 않다가, WAV를 HTTP API로 올리고
+    번역 음성을 받는다. 시각은 stream_one처럼 클립 시작부터 잰다."""
     loop = asyncio.get_running_loop()
     wav = clip_wav(utterance["audio"])
     t0 = loop.time()
@@ -1004,7 +1002,7 @@ async def upload_one(http, auth: dict, mode: str, lang: str, utterance: dict, fi
 
 # 두 경로 결과가 다른 클립의 같은 WAV를 HTTP로 한 번 더 보낸다(기다림 없이). classify의 재확인에 쓴다.
 async def reupload(http, auth: dict, mode: str, lang: str, utterance: dict, previous) -> dict:
-    """The same clip over HTTP once more, at once, for the identity check of a clip whose paths differ."""
+    """두 경로가 다른 클립의 동일성 확인용으로, 같은 클립을 기다림 없이 HTTP로 한 번 더 보낸다."""
     files = {"audio": ("conversation.wav", clip_wav(utterance["audio"]), "audio/wav")}
     if mode == "conversation":
         path, data = "/api/translate/speech", {"source_lang": lang, "target_lang": OTHER[lang]}
@@ -1030,13 +1028,13 @@ async def account(http, prefix: str) -> tuple[str, dict]:
 # 다른 요청을 막지 않는지 보는 T23 확인이다. 실패나 200이 아닌 응답은 무한대 시간으로 센다. done 신호를
 # wait_for로 기다려 멈춤에 바로 반응한다.
 async def watch_health(http, phase: list[str], out: list[tuple[str, float]], done: asyncio.Event) -> None:
-    """GET /api/health every 0.2 s (T23's check that model work does not hold other requests)."""
+    """0.2초마다 GET /api/health(모델 작업이 다른 요청을 붙잡지 않는지 보는 T23 확인)."""
     while not done.is_set():
         label, began = phase[0], time.perf_counter()
         try:
             reply = await http.get("/api/health")
             took = time.perf_counter() - began if reply.status_code == 200 else float("inf")
-        except Exception:  # noqa: BLE001 - a failed check counts as an endless one
+        except Exception:  # noqa: BLE001 - 실패한 확인은 끝없이 걸린 것으로 센다
             took = float("inf")
         out.append((label, took))
         with contextlib.suppress(TimeoutError):
@@ -1047,7 +1045,7 @@ async def watch_health(http, phase: list[str], out: list[tuple[str, float]], don
 # 보내고, 그때의 구간 이름과 응답 시간을 남긴다(11절 'T23 동시성 간섭', 참고용). 응답이 5초보다 길면 기다리지
 # 않고 바로 다음 요청을 보낸다.
 async def second_user(http, auth: dict, split: str, phase: list[str], out: list[dict], done: asyncio.Event):
-    """Another person on the same server: an 8-12 s recording to the HTTP speech API every 5 s."""
+    """같은 서버의 다른 사람: 5초마다 8~12초 녹음을 HTTP 음성 번역 API로 보낸다."""
     folder = DATA / "e2e" / split
     manifest = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
     loop = asyncio.get_running_loop()
@@ -1070,8 +1068,8 @@ async def second_user(http, auth: dict, split: str, phase: list[str], out: list[
 # 번갈아 넣는다(zip_longest로 한쪽이 짧아도 남은 클립을 뒤에 둔다). 두 사람이 번갈아 말하는 상황이라 직전 마디
 # 언어가 매번 바뀐다.
 def turns(mode: str, chosen: dict) -> list[tuple[str, list]]:
-    """Connections and their clips: conversation mode one per direction, dialog one with the two languages
-    taking turns, as two people would."""
+    """연결과 그 클립들: 대화 모드는 방향마다 연결 하나, 두 사람 대화는 연결 하나에 두 언어를 두 사람처럼
+    번갈아 넣는다."""
     if mode == "conversation":
         return [(lang, [(key, lang, u, f) for key, u, f in chosen[lang]]) for lang in chosen]
     lists = [[(key, lang, u, f) for key, u, f in chosen[lang]] for lang in chosen]
@@ -1095,7 +1093,7 @@ async def run_modes(args: argparse.Namespace, chosen: dict) -> tuple[list[dict],
     rows: list[dict] = []
     async with httpx.AsyncClient(base_url=base, timeout=120) as http:
         token, auth = await account(http, "modes")
-        other = auth  # the second user's account, when there is one
+        other = auth  # 두 번째 사용자의 계정(있을 때 아래에서 바꾼다)
         done = asyncio.Event()
         watchers = [asyncio.create_task(watch_health(http, phase, health, done))]
         if args.second_user:
@@ -1111,10 +1109,10 @@ async def run_modes(args: argparse.Namespace, chosen: dict) -> tuple[list[dict],
                 ) as ws:
                     await ws.send(json.dumps(start))
                     assert json.loads(await ws.recv())["type"] == "ready"
-                    previous = None  # dialog over HTTP: the browser's last answered language
+                    previous = None  # HTTP 두 사람 대화: 브라우저가 마지막으로 답을 받은 언어
                     for number, (key, lang, utterance, final) in enumerate(items, 1):
                         row = {"mode": mode, "lang": lang, "key": key, "number": number, "previous": previous}
-                        # Alternate which path goes first, so a slow stretch of time hits both alike.
+                        # 어느 경로를 먼저 잴지 번갈아 바꿔, 느린 시간대가 두 경로에 똑같이 걸리게 한다.
                         for path in ("upload", "prepared") if number % 2 else ("prepared", "upload"):
                             phase[0] = f"{mode}:{path}"
                             if path == "upload":
@@ -1124,17 +1122,17 @@ async def run_modes(args: argparse.Namespace, chosen: dict) -> tuple[list[dict],
                             else:
                                 row[path] = await stream_one(ws, http, auth, number, utterance, final)
                             phase[0] = "idle"
-                            await asyncio.sleep(0.5)  # a moment between utterances, like playback would take
+                            await asyncio.sleep(0.5)  # 재생이 차지할 만한 마디 사이 짧은 틈
                         # 두 사람 대화의 HTTP 경로는 브라우저처럼 직전 응답의 원문 언어를 다음 요청의
                         # previous_lang으로 넘긴다.
                         if mode == "dialog" and row["upload"]["outcome"] == "final":
                             previous = row["upload"]["result"]["source_lang"]
                         rows.append(row)
-                        print(f"  {mode} {lang} {number}/{len(items)}", flush=True)  # a hang shows here
+                        print(f"  {mode} {lang} {number}/{len(items)}", flush=True)  # 멈추면 여기서 보인다
                 print(f"{mode} {name}: {len(items)} clips", flush=True)
         done.set()
         await asyncio.gather(*watchers)
-        # Clips whose paths differ: the same WAV over HTTP twice more (the identity check's rule).
+        # 두 경로가 다른 클립은 같은 WAV를 HTTP로 두 번 더 보낸다(동일성 확인 규칙).
         clips = {(lang, key): utterance for lang in chosen for key, utterance, _ in chosen[lang]}
         for row in rows:
             row["rechecks"] = []
@@ -1145,7 +1143,7 @@ async def run_modes(args: argparse.Namespace, chosen: dict) -> tuple[list[dict],
                         await reupload(http, auth, row["mode"], row["lang"], clip, row["previous"])
                     )
             row["identity"] = classify(row["upload"], row["prepared"], row["rechecks"])
-        # The two throwaway accounts' records go; the accounts stay in the database (as T58's do).
+        # 두 일회용 계정의 번역 기록은 지운다. 계정 자체는 DB에 남는다(T58의 계정과 같다).
         ids = [
             o["result"]["id"]
             for r in rows
@@ -1177,13 +1175,13 @@ def phase_stats(samples: list[tuple[str, float]]) -> dict[str, dict]:
 # 경로가 같은 조건이라 비교에는 영향 없음, 11절 계획 변경), GPU 기록을 켠 채 실제 측정을 돌린다. GPU 프로그램
 # 이름은 work/에만 쓴다.
 def modes(args: argparse.Namespace) -> None:
-    """docs/experiments.md 11: the composed service through nginx, in real time, both paths per clip."""
+    """docs/experiments.md 11절: compose 서비스에 nginx를 거쳐 실제 시간으로, 클립마다 두 경로를 잰다."""
     silero = Silero()
     model, translator = load_models()
     chosen, skipped = {}, {}
     for lang in args.langs:
         chosen[lang], skipped[lang] = utterances(silero, model, translator, lang, args.split, args.count)
-    # The clips and their word times are ready: free this process's GPU memory before the service runs.
+    # 클립과 단어 시각이 준비됐다. 서비스를 재기 전에 이 프로세스의 GPU 메모리를 놓는다.
     del model, translator
     gc.collect()
     with GpuLog() as gpu:
@@ -1312,15 +1310,15 @@ def main() -> None:
         command.add_argument("--langs", nargs="+", choices=tuple(LANGS), default=list(LANGS))
         command.add_argument("--tag", required=True)
         command.add_argument("--count", type=int, default=PER_LANGUAGE)
-    # The test split gets only the chosen combination (docs/experiments.md 8).
+    # test 분할에는 고른 조합만 돌린다(docs/experiments.md 8절).
     sub.choices["run"].add_argument("--intervals", nargs="+", type=int, default=list(INTERVALS_MS))
     sub.choices["run"].add_argument("--partials", nargs="+", choices=tuple(PARTIAL), default=list(PARTIAL))
     sub.choices["service"].add_argument("--base-url", default="http://localhost:8080")
-    # T61 candidate Q: quiet frames before the browser asks for the final (6 = 192 ms, the clip's end).
+    # T61 후보 Q: 브라우저가 최종 처리를 요청하기 전 조용한 조각 수(6 = 192ms, 클립의 끝).
     sub.choices["service"].add_argument("--pause-frames", type=int, default=PAD_FRAMES)
     sub.choices["modes"].add_argument("--base-url", default="http://localhost:8080")
     sub.choices["modes"].add_argument("--modes", nargs="+", choices=MODES, default=list(MODES))
-    # T23's interference check: another person's HTTP requests during both paths (report only).
+    # T23의 간섭 확인: 두 경로를 재는 동안 다른 사람의 HTTP 요청을 함께 보낸다(보고만 함).
     sub.choices["modes"].add_argument("--second-user", action="store_true")
     args = parser.parse_args()
     {"run": run, "service": service, "modes": modes}[args.command](args)

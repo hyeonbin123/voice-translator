@@ -1,5 +1,5 @@
-"""Speech synthesis candidates for eval.tts_eval (tasks T4, T78 and T82). Each loader imports only its own
-libraries, because the candidates run in different environments (docs/experiments.md)."""
+"""eval.tts_eval이 쓰는 음성 합성 후보(작업 T4, T78, T82). 후보마다 도는 환경이 달라서 각 로더는 자기
+라이브러리만 불러온다(docs/experiments.md)."""
 
 # [파일 역할] 음성 합성 측정 도구(eval/tts_eval.py)가 고르는 후보 표다. 후보 이름 → (언어 하나에 대한 합성기를
 # 만드는 함수, 지원 언어 목록).
@@ -23,11 +23,10 @@ from app.services.interfaces import Language, TextToSpeech
 from app.services.tts import KokoroTextToSpeech, MeloTextToSpeech, MmsTextToSpeech, SupertonicTextToSpeech
 from eval.common import MODELS
 
-# T78 (docs/experiments.md 12), fixed before any FLEURS run: ONNX Runtime on the CPU with 2 intra-op threads
-# (the fastest of 2, 4, 6 and 12 in a smoke on made-up sentences in the API container, and it leaves 4 of the
-# 6 cores to the server's other work), the reference code's speed 1.05 and voice F1.
-# SUPERTONIC_DIR: eval/supertonic_download.py가 해시를 확인하며 받아 두는 모델 폴더. SUPERTONIC_THREADS: 위
-# 영어 주석의 이유로 정한 intra-op 2스레드.
+# SUPERTONIC_DIR: eval/supertonic_download.py가 해시를 확인하며 받아 두는 모델 폴더.
+# SUPERTONIC_THREADS: T78(docs/experiments.md 12절)에서 FLEURS를 돌리기 전에 고정한 설정은 CPU의 ONNX Runtime
+# intra-op 2스레드, 참조 코드의 속도 1.05, 목소리 F1이다. 2스레드는 API 컨테이너에서 지어낸 문장으로 짧게 돌려
+# 본 2·4·6·12 가운데 가장 빨랐고, 코어 6개 중 4개를 서버의 다른 일에 남긴다.
 SUPERTONIC_DIR = MODELS / "supertonic-3"
 SUPERTONIC_THREADS = 2
 
@@ -38,9 +37,9 @@ SUPERTONIC_THREADS = 2
 def _kokoro(language: Language) -> TextToSpeech:
     import espeakng_loader
 
-    # espeak-ng cannot open a path with Korean characters: work from the data's parent folder and pass a
-    # relative ASCII path. Changing the working directory is fine in this one-off evaluation process;
-    # the report and audio paths are absolute.
+    # espeak-ng는 한글이 든 경로를 열지 못하므로 데이터 폴더의 부모에서 작업하고 ASCII 상대 경로를 넘긴다.
+    # 작업 폴더를 바꿔도 되는 것은 이 프로세스가 한 번 쓰고 끝나는 평가용이고, 보고서·음성 경로가 모두 절대
+    # 경로이기 때문이다.
     data = Path(espeakng_loader.get_data_path())
     os.chdir(data.parent)
     os.environ["ESPEAK_DATA_PATH"] = data.name
@@ -60,17 +59,18 @@ def _supertonic(steps: int, provider: str = "cpu") -> Callable[[Language], TextT
 
 # 후보 이름은 tts_eval synth --candidate의 선택지다. 목소리 등 합성기 설정은 각 클래스 기본값을
 # 따른다(MeloTTS·Kokoro는 서버도 같은 기본값으로 만든다, app/services/models.py).
-# name: (how to load the model for one language, languages it speaks)
+# 형식: 이름: (언어 하나에 대한 모델을 만드는 함수, 그 후보가 말하는 언어 목록)
 CANDIDATES: dict[str, tuple[Callable[[Language], TextToSpeech], list[Language]]] = {
     "mms": (MmsTextToSpeech, ["ko", "en"]),
     "melo": (MeloTextToSpeech, ["ko", "en"]),
     "kokoro": (_kokoro, ["en"]),
-    # Supertonic 3 speaks English too, but the trial replaces only the Korean model (Kokoro keeps English).
-    # S: the reference code's default 8 steps. S-fast: 2 steps, the fastest setting its documentation lists.
+    # Supertonic 3은 영어도 말하지만, 이 시험은 한국어 모델만 바꾼다(영어는 Kokoro 유지).
+    # S: 참조 코드의 기본 8단계. S-fast: 2단계, 그 문서에 적힌 가장 빠른 설정.
     "supertonic": (_supertonic(8), ["ko"]),
     "supertonic-fast": (_supertonic(2), ["ko"]),
-    # T82 (docs/experiments.md 14): the same two on ONNX Runtime's CUDA provider, with the provider options
-    # fixed in app/services/supertonic.py. Needs onnxruntime-gpu (the trial image, not the lock file).
+    # T82(docs/experiments.md 14절): 같은 두 설정을 ONNX Runtime의 CUDA 제공자로, 제공자 옵션은
+    # app/services/supertonic.py에 고정한 값으로 돌린다. onnxruntime-gpu가 필요하다(lock 파일이 아니라 시험용
+    # 이미지에 들어 있음).
     "supertonic-cuda": (_supertonic(8, "cuda"), ["ko"]),
     "supertonic-fast-cuda": (_supertonic(2, "cuda"), ["ko"]),
 }

@@ -1,12 +1,11 @@
-"""Re-analysis of recorded translation and speech recognition decisions with paired intervals.
+"""기록된 번역·음성 인식 결정을 짝지은 구간으로 다시 분석한다.
 
-docs/experiments.md 13 (task T80) registers the comparisons, the intervals and how they are read before
-anything is computed. Nothing is re-run, re-selected or rewritten: every number comes from the per-sentence
-items of the stored reports in eval/reports/, and the COMET-22 scores come from eval/comet_score.py, which
-runs in its own environment.
+docs/experiments.md 13절(작업 T80)에 비교 목록, 구간, 그 구간을 읽는 방법을 계산 전에 먼저 적어 두었다.
+아무것도 다시 돌리거나 다시 고르거나 고쳐 쓰지 않는다. 모든 수치는 eval/reports/에 저장된 보고서의
+문장별 항목에서 나오고, COMET-22 점수는 별도 환경에서 도는 eval/comet_score.py에서 온다.
 
-From backend/ with the eval group. `run` scores spBLEU with sacrebleu's flores200 tokenizer, which sacrebleu
-downloads once into the folder named by the SACREBLEU environment variable (default: ~/.sacrebleu).
+backend/에서 eval 그룹으로 실행한다. `run`은 spBLEU를 sacrebleu의 flores200 토크나이저로 채점하는데,
+sacrebleu가 이 토크나이저를 SACREBLEU 환경 변수가 가리키는 폴더(기본: ~/.sacrebleu)에 한 번 내려받는다.
     uv run --no-sync python -m eval.reanalysis check
     uv run --no-sync python -m eval.reanalysis comet-input --output ../work/vt-n3/comet_input.jsonl
     uv run --no-sync python -m eval.reanalysis comet-input --subset precision --output CHECK.jsonl
@@ -60,9 +59,9 @@ from eval.significance import (
     rate_difference,
 )
 
-# 재분석에 쓰는 저장 보고서 파일 이름. 결정을 내릴 때 썼던 바로 그 보고서로 고정해 다른 실행의 결과가 섞이지
-# 않게 한다. T2는 T15의 한국어 아포스트로피 보정을 다시 적용한 _rescored 보고서다.
-# The stored reports the recorded decisions were made from (docs/experiments.md 1, 1-1, 2, 2-1, 6, 9).
+# 재분석에 쓰는 저장 보고서 파일 이름. docs/experiments.md 1·1-1·2·2-1·6·9절의 결정을 내릴 때 썼던 바로 그
+# 보고서로 고정해 다른 실행의 결과가 섞이지 않게 한다. T2는 T15의 한국어 아포스트로피 보정을 다시 적용한
+# _rescored 보고서다.
 T2_DEV = "stt_t2_dev_20260912_223312_rescored.json"
 T2_TEST = "stt_t2_test_20260912_224129_rescored.json"
 T14_DEV = "stt_t14_dev_20260913_054613.json"
@@ -81,9 +80,9 @@ T65_TEST = "quality_t65_test_20260914_125149.json"
 # LABELS: 분류 결과를 보고서 표에 쓸 한국어 이름. 문턱이 없는 비교(None)는 '참고'.
 TC_BIG = {"ko-en": "opus-mt-tc-big-ko-en", "en-ko": "opus-mt-tc-big-en-ko"}
 LABELS = {"robust": "견고", "straddles": "문턱 걸침", "opposite": "반대쪽", None: "참고"}
-# COMET-22 fp16 관문의 한도: 문장 점수 차이 최대 0.01, 시스템 평균 차이 0.001(13절 'COMET-22 정밀도'). 넘으면
-# 모든 문장을 CPU fp32로 채점하기로 했다(실제로는 최대 0.0063으로 통과).
-# COMET fp16 against fp32 on the precision subset (docs/experiments.md 13): within these, fp16 scores stand.
+# COMET-22 fp16 관문의 한도: 정밀도 확인용 부분집합에서 fp16과 fp32 점수를 견줘 문장 점수 차이 최대 0.01,
+# 시스템 평균 차이 0.001(13절 'COMET-22 정밀도'). 이 안이면 fp16 점수를 그대로 쓰고, 넘으면 모든 문장을 CPU
+# fp32로 채점하기로 했다(실제로는 최대 0.0063으로 통과).
 COMET_MAX_SEGMENT_GAP = 0.01
 COMET_MAX_MEAN_GAP = 0.001
 
@@ -103,7 +102,7 @@ def stored(name: str) -> object:
 # 항목(후보 A·B·C)만 새 보고서의 것으로 바꾸고, 영→한 항목과 다른 보고서는 그대로 둔다. 관문·구간·COMET 계산은
 # 13절 그대로다. 새 보고서에 한→영 A·B·C가 하나씩 있지 않으면 비교를 만들 수 없어 멈춘다.
 def with_t32_ko_en(report: str, reports: Reports = stored) -> Reports:
-    """T32_DEV with its Korean-to-English entries (A, B, C) read from `report` (docs/experiments.md 16)."""
+    """한→영 항목(A, B, C)만 `report`에서 읽은 T32_DEV를 돌려준다(docs/experiments.md 16절)."""
     replacement = [entry for entry in reports(report) if entry["direction"] == "ko-en"]
     if sorted(entry["candidate"] for entry in replacement) != ["A", "B", "C"]:
         raise ValueError(f"{report} must hold the ko-en entries A, B and C once each")
@@ -120,7 +119,7 @@ def with_t32_ko_en(report: str, reports: Reports = stored) -> Reports:
 # (원문, 번역문, 참조)를 입력으로 받기 때문이다.
 @dataclass(frozen=True)
 class Segments:
-    """One system's translations of a sentence list, with the clean source and the reference."""
+    """한 시스템이 문장 목록을 번역한 결과와, 그 문장들의 깨끗한 원문·참조."""
 
     ids: tuple[int, ...]
     sources: tuple[str, ...]
@@ -141,7 +140,7 @@ def _mt_entry(reports: Reports, name: str, model: str, direction: str) -> dict:
 # 것은 비교 목록을 모듈 상수로 미리 적어 두고, 실제 읽기는 reports를 받았을 때(테스트면 가짜 보고서) 하려는
 # 것이다.
 def mt(name: str, model: str, direction: str) -> Callable[[Reports], Segments]:
-    """Translations stored by eval.mt_eval (T3, T17)."""
+    """eval.mt_eval이 저장한 번역(T3, T17)."""
 
     def load(reports: Reports) -> Segments:
         items = _mt_entry(reports, name, model, direction)["items"]
@@ -167,8 +166,8 @@ def _typo_entry(reports: Reports, name: str, direction: str, candidate: str) -> 
 # 원문과 참조가 없으므로, 같은 분할의 T3 보고서에서 문장 ID로 가져온다(13절 '데이터'). COMET-22의 원문도 오타
 # 입력이 아니라 깨끗한 원문이 된다(참조가 그 원문의 번역이므로).
 def typo(name: str, direction: str, candidate: str, level: str) -> Callable[[Reports], Segments]:
-    """Translations stored by eval.typo_eval (T32). Those items keep the noisy input but not the clean source
-    or the reference, so both come from the T3 report of the same split (same FLEURS sentence IDs)."""
+    """eval.typo_eval이 저장한 번역(T32). 이 항목에는 오타 섞인 입력만 있고 깨끗한 원문과 참조가 없어서,
+    둘 다 같은 분할의 T3 보고서(같은 FLEURS 문장 ID)에서 가져온다."""
     plain = T3_TEST if "test" in name else T3_DEV
 
     def load(reports: Reports) -> Segments:
@@ -189,8 +188,8 @@ def typo(name: str, direction: str, candidate: str, level: str) -> Callable[[Rep
 # T65 보고서(eval/quality_eval.py)에서 음성 경로(from_speech) 또는 전사 경로(from_text) 번역을 읽는다. 원문은
 # 두 경로 모두 정답 전사로 둔다. 그래야 두 경로가 같은 원문·참조로 짝지어진다.
 def quality(direction: str, path: str) -> Callable[[Reports], Segments]:
-    """T65 translations of the recognised speech (`from_speech`) or of the true transcription (`from_text`);
-    the source is the true transcription for both."""
+    """T65에서 인식한 음성을 번역한 것(`from_speech`) 또는 정답 전사를 번역한 것(`from_text`).
+    원문은 두 경우 모두 정답 전사다."""
 
     def load(reports: Reports) -> Segments:
         items = reports(T65_TEST)["results"][direction]["items"]
@@ -208,7 +207,7 @@ def quality(direction: str, path: str) -> Callable[[Reports], Segments]:
 # 눈금), 판단 규칙 문장. a·b가 튜플인 것은 오타 평균처럼 여러 그룹(light, heavy)을 함께 비교하기 위해서다.
 @dataclass(frozen=True)
 class MtComparison:
-    """chrF of a minus b over the same sentences; several groups (typo levels) are averaged."""
+    """같은 문장들에서 a의 chrF − b의 chrF. 그룹(오타 수준)이 여럿이면 그 차이를 평균한다."""
 
     key: str
     stage: str
@@ -371,7 +370,7 @@ MT_COMPARISONS: tuple[MtComparison, ...] = (
 # 음성 인식 비교의 한쪽 데이터: 녹음 ID(문장 ID), 정규화된 참조, 발화별 편집 수와 참조 길이 배열.
 @dataclass(frozen=True)
 class Utterances:
-    """One recognizer's results on a list of recordings, with per-utterance edits and reference lengths."""
+    """한 인식기가 녹음 목록을 인식한 결과와, 발화별 편집 수·참조 길이."""
 
     ids: tuple[int, ...]
     references: tuple[str, ...]
@@ -383,7 +382,7 @@ class Utterances:
 # 영어는 단어 단위(WER)로, jiwer.cer·wer가 세는 방식과 같다. 발화별로 따로 세어 두어야 재표집마다 합산
 # 오류율을 다시 계산할 수 있다.
 def utterance_edits(language: str, reference: str, hypothesis: str) -> tuple[int, int]:
-    """Edits and reference length of one utterance, as jiwer.cer (ko) or jiwer.wer (en) count them."""
+    """발화 하나의 편집 수와 참조 길이. jiwer.cer(한국어)·jiwer.wer(영어)가 세는 방식과 같다."""
     process = jiwer.process_characters if language == "ko" else jiwer.process_words
     out = process(reference, hypothesis)
     return out.substitutions + out.deletions + out.insertions, out.hits + out.substitutions + out.deletions
@@ -392,7 +391,7 @@ def utterance_edits(language: str, reference: str, hypothesis: str) -> tuple[int
 # stt_eval·stt_rescore 보고서에서 모델·변형(T14의 a·b 등, T2는 None)·언어가 맞는 결과를 읽는 함수를 만든다.
 # 보고서의 reference·hypothesis는 이미 정규화된 문자열이라 그대로 센다.
 def stt(name: str, model: str, variant: str | None, language: str) -> Callable[[Reports], Utterances]:
-    """Recognition results stored by eval.stt_eval / eval.stt_rescore (normalized texts)."""
+    """eval.stt_eval·eval.stt_rescore가 저장한 인식 결과(정규화된 글자)."""
 
     def load(reports: Reports) -> Utterances:
         for entry in reports(name):
@@ -414,7 +413,7 @@ def stt(name: str, model: str, variant: str | None, language: str) -> Callable[[
 # %p로 본다.
 @dataclass(frozen=True)
 class SttComparison:
-    """Error rate (%p) of a minus b; with both languages, the mean of Korean CER and English WER."""
+    """a의 오류율 − b의 오류율(%p). 두 언어면 한국어 CER과 영어 WER의 평균으로 견준다."""
 
     key: str
     stage: str
@@ -530,7 +529,7 @@ def _paired_stt(comparison: SttComparison, reports: Reports) -> list[tuple[str, 
 # 왜: 보고서 해석(어느 필드가 무엇인지, 어느 참조를 쓰는지)이 틀리면 구간도 틀리므로, 기록된 값을 먼저 똑같이
 # 재현해 읽는 방법이 맞는지 확인한다. 준비 단계와 run 직전에 66/66 통과했다(13절).
 def check(reports: Reports = stored) -> list[dict]:
-    """Recompute every recorded corpus score used here from the stored items (gate before any interval)."""
+    """여기서 쓰는 기록된 corpus 점수를 저장된 항목으로 모두 다시 계산한다(구간 계산 전의 관문)."""
     rows = []
 
     def add(name: str, recorded: float, recomputed: float) -> None:
@@ -589,14 +588,14 @@ def comet_key(source: str, translation: str, reference: str) -> str:
 PRECISION_SUBSET = (
     "t3-ko-en-nllb",
     "t3-en-ko-nllb",
-)  # their `a` sides: T3 validation tc-big, both directions
+)
 
 
 # 모든 번역 비교에서 COMET-22로 채점할 (원문, 번역문, 참조)를 키로 중복 없이 모은다(처음 본 순서).
 # subset='precision'이면 정밀도 점검 비교의 a 쪽만 모은다. comet-input 명령이 이 목록을 JSONL로 써서
 # eval/comet_score.py에 넘긴다.
 def comet_segments(reports: Reports = stored, subset: str | None = None) -> list[dict]:
-    """Unique (source, translation, reference) triples of every MT comparison, in first-seen order."""
+    """모든 번역 비교의 (원문, 번역문, 참조) 세 쌍을 중복 없이, 처음 본 순서로 돌려준다."""
     seen: dict[str, dict] = {}
     for comparison in MT_COMPARISONS:
         if subset == "precision" and comparison.key not in PRECISION_SUBSET:
@@ -617,7 +616,7 @@ def comet_segments(reports: Reports = stored, subset: str | None = None) -> list
 # 평균의 차이. 두 한도를 모두 지키면 passes가 True이고, 그러면 fp16 점수를 쓴다.
 # 두 파일의 문장 집합이 다르거나 NaN·무한대가 있으면 비교하지 않고 멈춘다.
 def comet_agreement(first: dict[str, float], second: dict[str, float], reports: Reports = stored) -> dict:
-    """fp16 against fp32 on the precision subset: largest segment gap and the gap of each system mean."""
+    """정밀도 점검 부분집합에서 fp16과 fp32를 견준다: 가장 큰 문장 점수 차이와 시스템 평균마다의 차이."""
     keys = sorted(first.keys() & second.keys())
     if not keys or len(keys) != len(first) or len(keys) != len(second):
         raise ValueError("the two score files must hold the same segments")
@@ -640,7 +639,7 @@ def comet_agreement(first: dict[str, float], second: dict[str, float], reports: 
         "segments": len(keys),
         "max_segment_gap": float(segment_gap),
         "mean_gaps": {direction: float(gap) for direction, gap in mean_gaps.items()},
-        # bool(): worst_mean is a numpy float, so the comparison is a numpy bool that json cannot print.
+        # bool()로 감싼다: worst_mean이 numpy float라 비교 결과가 numpy bool이 되는데 json은 이를 못 쓴다.
         "passes": bool(segment_gap <= COMET_MAX_SEGMENT_GAP and worst_mean <= COMET_MAX_MEAN_GAP),
     }
 
@@ -659,7 +658,7 @@ def _interval_dict(interval: Interval, threshold: float | None = None) -> dict:
 # sacrebleu 지표의 설정 서명 문자열(버전·토크나이저 등)을 얻는다. 참조 개수는 한 번 채점해야 알기 때문에 더미
 # 문장으로 한 번 채점한 뒤 서명을 읽는다. 보고서에 남겨 같은 설정으로 다시 계산할 수 있게 한다.
 def signature(metric) -> str:
-    """sacrebleu's signature string; it knows the reference count only after scoring something."""
+    """sacrebleu의 서명 문자열. 참조 개수는 무언가를 한 번 채점한 뒤에야 알 수 있다."""
     metric.corpus_score(["a"], [["a"]])
     return str(metric.get_signature())
 
@@ -667,7 +666,7 @@ def signature(metric) -> str:
 # spBLEU: tokenize='flores200'(FLORES-200 관례). 13a 토크나이저는 한국어를 어절로만 나눠 거칠어서 두 방향 모두
 # 이것을 쓴다(13절 '지표와 구간'). 처음 쓸 때 토크나이저 모델을 내려받는다.
 def bleu() -> BLEU:
-    return BLEU(tokenize="flores200")  # spBLEU, the FLORES-200 convention, for both target languages
+    return BLEU(tokenize="flores200")
 
 
 # 번역 비교 한 행의 결과를 만든다: chrF 차이 구간과 분류(문턱 기준), spBLEU 차이 구간(문턱 없음), 그룹이
@@ -878,17 +877,15 @@ def main() -> None:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     commands = parser.add_subparsers(dest="command", required=True)
-    checking = commands.add_parser("check", help="recompute the recorded scores from the stored items")
-    segments = commands.add_parser("comet-input", help="write the unique segments to score with COMET-22")
+    checking = commands.add_parser("check", help="저장된 항목으로 기록된 점수를 다시 계산한다(관문)")
+    segments = commands.add_parser("comet-input", help="COMET-22로 채점할 중복 없는 문장 목록을 쓴다")
     segments.add_argument("--output", required=True)
-    segments.add_argument("--subset", choices=["precision"], help="only the fp16/fp32 check subset")
-    agreement = commands.add_parser(
-        "comet-agreement", help="compare fp16 and fp32 scores of the check subset"
-    )
+    segments.add_argument("--subset", choices=["precision"], help="fp16/fp32 점검용 부분집합만 쓴다")
+    agreement = commands.add_parser("comet-agreement", help="점검용 부분집합의 fp16·fp32 점수를 견준다")
     agreement.add_argument("first")
     agreement.add_argument("second")
-    analysis = commands.add_parser("run", help="compute the intervals and write the report")
-    analysis.add_argument("--comet", help="scores from eval/comet_score.py")
+    analysis = commands.add_parser("run", help="구간을 계산하고 보고서를 쓴다")
+    analysis.add_argument("--comet", help="eval/comet_score.py가 쓴 COMET-22 점수 파일")
     analysis.add_argument("--tag", required=True)
     analysis.add_argument("--rounds", type=int, default=ROUNDS)
     analysis.add_argument("--trials", type=int, default=TRIALS)
@@ -898,8 +895,8 @@ def main() -> None:
         command.add_argument(
             "--t32-ko-en",
             metavar="REPORT",
-            help="read section 6's Korean-to-English entries from this typo_eval report "
-            "(docs/experiments.md 16)",
+            help="6절의 한→영 항목을 이 typo_eval 보고서에서 읽는다 "
+            "(고친 오타 세트로 다시 잰 것, docs/experiments.md 16절)",
         )
     args = parser.parse_args()
     reports = with_t32_ko_en(args.t32_ko_en) if getattr(args, "t32_ko_en", None) else stored

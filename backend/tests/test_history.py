@@ -100,7 +100,7 @@ async def test_delete_cascades_audio_rows_and_preserves_other_history(
     assert (await client.delete(f"/api/history/{deleted_id}", headers=auth_headers)).status_code == 404
     page = (await client.get("/api/history", headers=auth_headers)).json()
     assert page["total"] == 2
-    # Deleting a record without audio must work as well.
+    # 음성이 없는 기록도 똑같이 지울 수 있어야 한다.
     no_audio_id = page["items"][0]["id"]
     assert (await client.delete(f"/api/history/{no_audio_id}", headers=auth_headers)).status_code == 204
     assert await db_session.get(Translation, UUID(no_audio_id)) is None

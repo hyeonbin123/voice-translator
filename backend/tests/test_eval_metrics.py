@@ -1,5 +1,5 @@
-"""The functions behind the recorded end-of-speech and live subtitle numbers (T33, T34, T61), on hand-made
-cases. They need only numpy, so they run in CI without the eval group."""
+"""기록된 말 끝 판정·동시통역 자막 수치(T33, T34, T61)를 만든 함수들을 손으로 만든 사례로 검증한다.
+numpy만 필요하므로 eval 그룹 없이 CI에서 돈다."""
 
 # [파일 역할] 기록된 측정 수치를 만든 지표 함수를 손으로 만든 작은 사례로 고정한다: 대화 모드 말 끝
 # 판정(eval/eos_eval.py의 group·score)과 동시통역 자막(eval/stream_eval.py의
@@ -33,7 +33,7 @@ BACKEND = Path(__file__).resolve().parents[1]
 # 불러온다. 현재 테스트 프로세스에는 이미 불러온 모듈이 남아 있을 수 있어 별도 프로세스로 확인한다.
 # CUDA_VISIBLE_DEVICES=-1은 import만 보는 자식 프로세스에 GPU가 보이지 않게 한다.
 def test_the_metrics_import_without_the_eval_group():
-    # CI installs only the default groups: pyarrow is needed for reading FLEURS, not for the metrics.
+    # CI는 기본 그룹만 설치한다. pyarrow는 FLEURS를 읽을 때만 필요하고 지표 계산에는 필요 없다.
     code = (
         "import sys; sys.modules['pyarrow'] = None; sys.modules['pyarrow.parquet'] = None; "
         "import eval.eos_eval, eval.stream_eval"
@@ -48,7 +48,7 @@ def test_the_metrics_import_without_the_eval_group():
 # 브라우저 Silero 판정과 같은 조건(32 ms 프레임, 말 끝으로 볼 쉼 1000 ms, 시작 2프레임)으로 group을 돌리고,
 # 표본 단위 결과를 프레임 단위 (시작, 끝, 판정 시점)으로 바꿔 사람이 손으로 셀 수 있게 하는 도우미.
 def silero_group(flags: list[bool]) -> list[tuple[int, int, int]]:
-    """group() with the Silero frames (32 ms) and the chosen 1000 ms of quiet, in frames."""
+    """Silero 프레임(32 ms)과 고른 1000 ms 쉼으로 group()을 돌린 결과를 프레임 단위로."""
     return [
         (u["start"] // S_CHUNK, u["end"] // S_CHUNK, u["decided"] // S_CHUNK)
         for u in group(np.array(flags), S_CHUNK, 1000, S_START_FRAMES)
@@ -59,14 +59,13 @@ def silero_group(flags: list[bool]) -> list[tuple[int, int, int]]:
 # round(1000/32) = 31프레임 쉰 뒤인 61에서 끝이 판정된다. 판정 지연을 '말의 끝'부터 재는 기준이 맞는지
 # 고정한다.
 def test_an_utterance_ends_after_the_quiet_and_is_timed_from_its_first_speech_frame():
-    # 1000 ms is 31 frames of 32 ms: the end is decided on the 31st quiet frame.
     assert silero_group([False] * 10 + [True] * 20 + [False] * 40) == [(10, 30, 61)]
 
 
 # 말소리가 250 ms(MIN_SPEECH_MS) 미만이면 마디로 치지 않고 버린다(브라우저 endpointer.ts와 같은 규칙). 7프레임
 # = 224 ms라 버려진다.
 def test_speech_shorter_than_250_ms_is_dropped():
-    assert silero_group([False] * 10 + [True] * 7 + [False] * 40) == []  # 7 frames = 224 ms
+    assert silero_group([False] * 10 + [True] * 7 + [False] * 40) == []
 
 
 # 29초 상한(MAX_CLIP_MS, 앞에 붙이는 200 ms 여유분 6프레임 포함): 프레임 40부터 이어진 긴 말은 여유분을 더해
@@ -75,7 +74,6 @@ def test_speech_shorter_than_250_ms_is_dropped():
 # 주석).
 def test_the_29_second_limit_splits_long_speech():
     utterances = silero_group([False] * 40 + [True] * 2000 + [False] * 40)
-    # 906 frames with the 6 pre-roll frames: the split is decided at once, and speech goes on in a new clip.
     assert utterances[0] == (40, 940, 940)
     assert utterances[1][0] == 940
 
@@ -88,12 +86,12 @@ def test_the_29_second_limit_splits_long_speech():
 def test_split_merged_missed_and_false_utterances_and_the_latency():
     refs = [(0, 1000), (2000, 3000), (4000, 5000), (6000, 7000), (8000, 9000)]
     utterances = [
-        {"start": 0, "end": 1000, "decided": 17_000},  # the first alone: 1 s after its end
-        {"start": 2000, "end": 2500, "decided": 2600},  # the second in two parts
+        {"start": 0, "end": 1000, "decided": 17_000},  # 첫 문장 단독: 끝나고 1초 뒤 판정
+        {"start": 2000, "end": 2500, "decided": 2600},  # 둘째 문장이 둘로 잘림
         {"start": 2500, "end": 3000, "decided": 3100},
-        {"start": 4000, "end": 7000, "decided": 7100},  # the third and fourth as one
-        {"start": 10_000, "end": 11_000, "decided": 11_100},  # nothing was said here
-    ]  # and the fifth is missed
+        {"start": 4000, "end": 7000, "decided": 7100},  # 셋째와 넷째가 한 마디로 붙음
+        {"start": 10_000, "end": 11_000, "decided": 11_100},  # 여기서는 아무 말도 없었다
+    ]  # 그리고 다섯째는 놓쳤다
     assert score(utterances, refs) == {
         "utterances": 5,
         "split": 1,
@@ -111,8 +109,6 @@ def test_split_merged_missed_and_false_utterances_and_the_latency():
 # erased는 그와 달리 화면 끝에서 지워진 글자 수를 그대로 센다: thejapanesepeople → thejavanesepeople에서 공통
 # 앞부분 'theja'(5글자) 뒤 12글자가 지워졌다.
 def test_a_changed_dark_word_counts_its_changed_letters_not_the_rest():
-    # docs/experiments.md 8: "Japanese" heard again as "Javanese" changes one dark letter, not every dark
-    # letter after it; erasure still counts what was taken off the end of the screen.
     shown = [("thejapanesepeople", 17), ("thejavanesepeoplelive", 17)]
     final = "thejavanesepeoplelive"
     assert dark_changes(shown, final) == (1, 1)
@@ -131,7 +127,6 @@ def test_dark_letters_the_final_result_changes_are_counted():
 def test_a_word_appears_when_it_is_on_screen_to_stay():
     events = [(0.5, "hello"), (1.0, "help"), (1.5, "hellowor"), (2.0, "helloworld")]
     spans = [(0, 5, 0.3), (5, 10, 0.9)]
-    # "hello" went away at 1.0 and came back at 1.5; "world" was shown whole only by the final result.
     assert appearance_lags(events, spans) == pytest.approx([1.2, 1.1])
 
 

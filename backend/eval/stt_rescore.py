@@ -1,11 +1,11 @@
-"""Recompute the error rates of a saved speech recognition report with the current normalization (task T15).
+"""저장된 음성 인식 보고서의 오류율을 지금의 정규화 규칙으로 다시 계산한다(작업 T15).
 
-Usage, from backend/ with the eval group installed:
+사용법(backend/에서, eval 그룹을 설치한 상태로):
     uv run python -m eval.stt_rescore eval/reports/stt_t2_dev_20260912_223312.json
 
-Writes <report>_rescored.json and .md next to the original, which stays as it was. Each item keeps the
-normalized reference and hypothesis, and normalizing is idempotent apart from the fix being applied
-(Korean apostrophes), so normalizing them again gives the corrected text without running the models.
+원본 옆에 <report>_rescored.json과 .md를 쓰고, 원본은 그대로 둔다. 각 항목에는 정규화된 참조와 인식 결과가
+남아 있고, 정규화는 이번에 적용하는 수정(한국어 아포스트로피)을 빼면 여러 번 해도 결과가 같으므로, 그 글을
+다시 정규화하면 모델을 돌리지 않고도 고친 규칙의 글을 얻는다.
 """
 
 # [파일 역할] 저장된 음성 인식 보고서(eval/stt_eval.py의 JSON)에 지금의 정규화(eval/text_norm.py)를 다시
@@ -53,7 +53,7 @@ def rescore(results: list[dict]) -> list[dict]:
 # 담은 .md를 쓴다.
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("report", type=Path, help="a stt_*.json report written by eval.stt_eval")
+    parser.add_argument("report", type=Path, help="eval.stt_eval이 쓴 stt_*.json 보고서")
     args = parser.parse_args()
 
     results = rescore(json.loads(args.report.read_text(encoding="utf-8")))

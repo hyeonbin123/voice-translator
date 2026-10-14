@@ -29,7 +29,7 @@ from tests.fakes import FakeSpeechToText, FakeTextToSpeech, FakeTranslator
 # 모델 클래스 대역: 생성될 때 (클래스 이름, 위치 인자, 키워드 인자)를 공용 목록에 남기고, model_name을 클래스
 # 이름으로 둔다. 모델을 실제로 올리지 않고 '무엇을 어떤 설정으로 만들었는가'만 본다.
 class Recorder:
-    """Stands in for a model class and records how it was built."""
+    """모델 클래스 대신 쓰이며, 어떻게 만들어졌는지 기록한다."""
 
     built: list[tuple[str, tuple, dict]] = []
 
@@ -58,7 +58,6 @@ def fake_model_classes(monkeypatch):
     )
     monkeypatch.setattr(tts, "MeloTextToSpeech", recording("Melo"))
     monkeypatch.setattr(tts, "KokoroTextToSpeech", recording("Kokoro"))
-    # Tests must never reach a real Ollama on the machine.
     monkeypatch.setattr(
         correction,
         "OllamaCorrector",
@@ -78,7 +77,6 @@ def test_loads_the_chosen_models_on_the_configured_device(fake_model_classes, tm
     assert ("Marian", tmp_path / "opus-mt-tc-big-ko-en") in built
     assert ("Marian", tmp_path / "opus-mt-tc-big-en-ko") in built
     assert ("Melo", "ko") in built
-    # Ollama places the typo correction model itself.
     local = [kwargs for name, _, kwargs in fake_model_classes if name != "Ollama"]
     assert all(kwargs.get("device") == "cpu" for kwargs in local)
     assert all(kwargs.get("compute_type", "int8") == "int8" for kwargs in local)
@@ -94,7 +92,7 @@ def test_speech_recognition_settings_reach_the_model(fake_model_classes):
         Settings(model_device="cpu", tts_enabled=False, stt_vad_filter=False, stt_own_decode=True)
     )
     whisper = [kwargs for name, _, kwargs in fake_model_classes if name == "Whisper"]
-    # VAD on by default (T14); decoding in our code off until T23 candidate C is judged.
+    # VAD 기본 켬은 T14 결정, 자체 디코딩(T23 후보 C) 기본 끔은 5절에서 B를 유지하기로 한 결정이다.
     settings = [(kwargs["vad_filter"], kwargs["own_decode"]) for kwargs in whisper]
     assert settings == [(True, False), (False, True)]
 
@@ -108,7 +106,6 @@ def test_only_english_to_korean_translates_sentence_by_sentence(fake_model_class
         for name, args, kwargs in fake_model_classes
         if name == "Marian"
     }
-    # T17 (docs/experiments.md 2-1): splitting helped en->ko and did not help ko->en.
     assert marian == {"opus-mt-tc-big-en-ko": True, "opus-mt-tc-big-ko-en": False}
 
 
@@ -169,7 +166,6 @@ def test_typo_correction_uses_the_configured_ollama_model(fake_model_classes):
     ollama = [(args, kwargs) for name, args, kwargs in fake_model_classes if name == "Ollama"]
     expected = {"base_url": "http://ollama:11434", "timeout_s": 3, "prepare_timeout_s": 60}
     assert ollama == [(("qwen2.5:1.5b-instruct",), expected)]
-    # Preparation is started, not waited for (T37): loading returns while Ollama pulls or loads.
     assert bundle.corrector.started
 
 
@@ -186,7 +182,6 @@ def test_typo_correction_can_be_disabled(fake_model_classes):
 # 요청 때 가서야 실패하면 모든 요청이 500이 되기 때문이다(테스트 주석).
 @pytest.mark.parametrize("value", ["0", "2x"])
 def test_an_invalid_model_thread_count_stops_startup(monkeypatch, value):
-    # Checked with the other settings, not on the first translation: every request would answer 500.
     monkeypatch.setenv("MODEL_THREADS", value)
     with pytest.raises(ValidationError, match="model_threads"):
         Settings()
@@ -199,7 +194,7 @@ def test_the_model_threads_follow_the_setting(monkeypatch):
     settings = Settings()
     assert settings.model_threads == 2
     monkeypatch.setattr(inference, "get_settings", lambda: settings)
-    pool = inference._model_threads.__wrapped__()  # a new pool, not the one the other tests share
+    pool = inference._model_threads.__wrapped__()  # 다른 테스트가 공유하는 풀이 아닌 새 풀
     try:
         assert pool._max_workers == 2
     finally:
@@ -210,7 +205,7 @@ def test_the_model_threads_follow_the_setting(monkeypatch):
 # 얼렸는지 확인하려는 것이다.
 @pytest.fixture
 def frozen(monkeypatch):
-    """Records what app.state.models held at each gc.freeze() call."""
+    """gc.freeze()가 불릴 때마다 app.state.models에 무엇이 있었는지 기록한다."""
     calls = []
     monkeypatch.setattr(main.gc, "freeze", lambda: calls.append(getattr(main.app.state, "models", None)))
     return calls
@@ -223,7 +218,7 @@ def frozen(monkeypatch):
 # 방법: 첫 교정기의 준비 요청만 gate에서 붙잡아 '요청이 Ollama에 닿은 뒤' 종료하게 하고, 종료 뒤에 풀어 준다.
 @pytest.mark.parametrize("status", [500, 200])
 async def test_shutdown_stops_the_typo_correction_preparation(monkeypatch, frozen, status):
-    """T39: a preparation stalled at shutdown neither retries nor turns on afterwards, and a restart works."""
+    """종료 때 멈춰 있던 준비는 그 뒤 재시도하거나 켜지지 않고, 다시 시작하면 정상 동작한다."""
     gate, entered = threading.Event(), threading.Event()
 
     def ollama(stalled: bool):
@@ -250,15 +245,15 @@ async def test_shutdown_stops_the_typo_correction_preparation(monkeypatch, froze
     monkeypatch.setattr(main, "get_settings", lambda: Settings(load_models=True, warm_up=False))
     monkeypatch.setattr(main, "load_models", load)
     async with main.lifespan(main.app):
-        # Shut down only once the worker is inside an HTTP call (T41: not before it reaches Ollama).
+        # 준비 작업이 HTTP 호출 안에 들어간 뒤에야 종료한다(Ollama에 닿기 전이 아니라).
         assert entered.wait(5)
-        assert not correctors[0].corrects("en")  # still preparing: requests translate as typed
-    gate.set()  # the stalled call now ends, failing (500) or succeeding (200), after shutdown
+        assert not correctors[0].corrects("en")  # 아직 준비 중: 요청은 입력 그대로 번역된다
+    gate.set()  # 멈춰 있던 호출이 이제 종료 뒤에 실패(500)하거나 성공(200)하며 끝난다
     workers[0].join(5)
     assert not workers[0].is_alive()
     assert not correctors[0].corrects("en") and correctors[0]._client.is_closed
 
-    async with main.lifespan(main.app):  # the next start prepares its own corrector
+    async with main.lifespan(main.app):  # 다음 시작은 자기 교정기를 새로 준비한다
         workers[1].join(5)
         assert correctors[1].corrects("en")
     assert not correctors[1].corrects("en") and correctors[1]._client.is_closed
@@ -276,9 +271,8 @@ async def test_lifespan_loads_models_only_when_asked(monkeypatch, frozen, load):
 
     async with main.lifespan(main.app):
         assert getattr(main.app.state, "models", None) is (bundle if load else None)
-        # Frozen once, after the models are in place (T23), and only when models are loaded.
         assert frozen == ([bundle] if load else [])
-    assert not hasattr(main.app.state, "models")  # released on shutdown
+    assert not hasattr(main.app.state, "models")  # 종료하면 놓는다
 
 
 # GC_FREEZE=false면 모델은 올리되 얼리지 않는다(비교 측정용 설정).
@@ -320,14 +314,13 @@ async def test_models_are_warmed_up_before_freezing(monkeypatch, enabled):
 
     async with main.lifespan(main.app):
         pass
-    # T25: what warming up creates must be frozen too, so it runs first; and it can be turned off.
     assert order == ([("warm_up", bundle)] if enabled else []) + [("freeze", None)]
 
 
 # 번역·합성·인식을 모두 흉내 내며 호출을 기록하는 대역. 합성은 실제 WAV(무음)를 돌려주고, 일부러 실패하게 할
 # 수 있다.
 class Spies:
-    """Models that record each call; synthesis returns a real (silent) WAV from FakeTextToSpeech."""
+    """호출마다 기록하는 모델들. 합성은 FakeTextToSpeech로 만든 실제 (무음) WAV를 돌려준다."""
 
     def __init__(self, synthesis_fails: bool = False) -> None:
         self.calls: list[tuple] = []
@@ -366,7 +359,6 @@ def test_warm_up_runs_each_model_and_recognizes_the_english_synthesis():
 def test_a_failed_warm_up_step_is_logged_and_the_rest_still_run(caplog):
     spies = Spies(synthesis_fails=True)
     models.warm_up(PipelineModels(stt=spies, translator=spies, tts=spies))
-    # Without an English synthesis there is nothing to recognize, so recognition is skipped.
     assert [call[0] for call in spies.calls] == ["translate", "translate", "synthesize", "synthesize"]
     assert "Warm-up step speech synthesis ko failed" in caplog.text
 
@@ -380,8 +372,6 @@ def test_warm_up_skips_models_that_are_not_loaded():
 # 사라졌다(커밋 5e646ed). 'app' 로거에 StreamHandler가 있고 INFO가 켜져 있으며, 전파(propagate)도 켜져
 # pytest의 caplog가 계속 받는지 확인한다.
 def test_app_info_logs_reach_a_handler_under_uvicorn():
-    # T30: uvicorn leaves the root logger without handlers; the app's own handler prints INFO lines
-    # such as the warm-up times, and propagation still feeds pytest's caplog.
     app_logger = logging.getLogger("app")
     assert any(type(handler) is logging.StreamHandler for handler in app_logger.handlers)
     assert logging.getLogger("app.services.models").isEnabledFor(logging.INFO)
@@ -392,7 +382,7 @@ def test_app_info_logs_reach_a_handler_under_uvicorn():
 # 바꾸고 MeloTTS는 만들지 않는다. CPU로 도므로 한국어 합성은 GPU 모델들이 줄 서는 모델 스레드가 아닌 합성 전용
 # 스레드로 보낸다(synthesis_off_model_thread). 영어는 Kokoro 그대로다.
 def test_korean_synthesis_can_be_supertonic_on_a_thread_of_its_own(fake_model_classes, monkeypatch, tmp_path):
-    # T78 (docs/experiments.md 12): a trial setting, MeloTTS stays the default until the trial is decided.
+    # T78(docs/experiments.md 12절)의 시험용 설정이다. 시험 결과 기본값은 MeloTTS 그대로다.
     monkeypatch.setattr(tts, "SupertonicTextToSpeech", recording("Supertonic"))
     bundle = models.load_models(
         Settings(
@@ -407,14 +397,12 @@ def test_korean_synthesis_can_be_supertonic_on_a_thread_of_its_own(fake_model_cl
     assert "Melo" not in built
     assert built["Supertonic"] == ((tmp_path,), {"steps": 2, "threads": 3, "provider": "cpu"})
     assert bundle.tts.model_name == "ko: Supertonic, en: Kokoro"
-    # It runs on the CPU, off the model thread the GPU models queue on.
     assert bundle.synthesis_off_model_thread == frozenset({"ko"})
 
 
-# SUPERTONIC_PROVIDER=cuda도 같은 비교용 설정이며, 기본 단계 수 8·스레드 2와 함께 cuda 제공자가 넘어간다.
-# 이때도 합성 전용 스레드를 쓴다.
+# SUPERTONIC_PROVIDER=cuda도 같은 비교용 설정이며(T82, docs/experiments.md 14절), 기본 단계 수 8·스레드 2와
+# 함께 cuda 제공자가 넘어간다. 이때도 모델 스레드가 아닌 합성 전용 스레드를 쓴다.
 def test_supertonic_can_run_on_the_gpu_through_onnx_runtime(fake_model_classes, monkeypatch, tmp_path):
-    # T82 (docs/experiments.md 14): the CUDA provider is a trial setting too; it stays off the model thread.
     monkeypatch.setattr(tts, "SupertonicTextToSpeech", recording("Supertonic"))
     bundle = models.load_models(
         Settings(model_device="cpu", ko_tts="supertonic", supertonic_dir=tmp_path, supertonic_provider="cuda")
@@ -451,7 +439,7 @@ def test_supertonic_settings_are_checked():
     assert defaults.supertonic_dir.parts[-3:] == ("data", "models", "supertonic-3")
 
 
-# Hy-MT2 trial translation (T83, docs/experiments.md 15)
+# 여기부터 Hy-MT2 번역 시험 설정(T83, docs/experiments.md 15절)
 
 
 # EN_KO_TRANSLATION=hy-mt2-split이면 영→한만 Hy-MT2 문장 단위 팔로 바꾸고 한→영은 opus 그대로다. Hy-MT2에는
@@ -476,7 +464,7 @@ def test_hy_mt2_can_translate_english_to_korean_one_sentence_at_a_time(fake_mode
         "timeout_s": 30,
         "by_sentence": True,
         "expected_digest": "the-build",
-        "prepare_timeout_s": 45,  # the load request too waits no longer than startup does (T86)
+        "prepare_timeout_s": 45,  # 적재 요청도 시작 대기 한도보다 오래 기다리지 않는다
     }
     assert hymt == [(("hy-mt2:1.8b-q8_0",), expected)]
     marian = [args[0].name for name, args, _ in fake_model_classes if name == "Marian"]
@@ -516,9 +504,8 @@ def test_an_unknown_translation_setting_stops_startup(field):
         Settings(**{field: "nllb"})
 
 
-# 한→영은 통째로 번역만 시험에 등록했으므로 hy-mt2-split 값을 받지 않는다.
+# 한→영은 T17에서 통째 입력을 유지했으므로 시험에도 통째로 번역만 등록했고, hy-mt2-split 값을 받지 않는다.
 def test_ko_en_has_no_sentence_split_hy_mt2_setting():
-    # T17 kept whole input for ko->en; the trial registers only the whole input there.
     with pytest.raises(ValidationError):
         Settings(ko_en_translation="hy-mt2-split")
 
@@ -573,8 +560,6 @@ def test_hy_mt2_that_never_gets_ready_stops_startup(fake_model_classes, monkeypa
 # 점점 줄어야 한다.
 @pytest.mark.parametrize("attempt_s", [None, 1.0])
 def test_hy_mt2_startup_waits_no_longer_than_its_limit(fake_model_classes, monkeypatch, attempt_s):
-    # HYMT_PREPARE_TIMEOUT_S bounds the whole wait (docs/api.md), including a load request that hangs until
-    # its own limit (attempt_s None: each try takes all the time it is given) (T86).
     clock = [0.0]
     asked = []
 
@@ -599,7 +584,7 @@ def test_hy_mt2_startup_waits_no_longer_than_its_limit(fake_model_classes, monke
     with pytest.raises(ModelError, match="could not load"):
         models.load_models(settings)
     assert clock[0] <= 10 + 0.01
-    assert asked[0] == pytest.approx(10)  # each try gets the time left, never more
+    assert asked[0] == pytest.approx(10)  # 시도마다 남은 시간만 받고, 그보다 더 받지 않는다
     assert all(later <= earlier for earlier, later in zip(asked, asked[1:], strict=False))
 
 

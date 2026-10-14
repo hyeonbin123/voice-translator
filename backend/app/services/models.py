@@ -1,4 +1,4 @@
-"""Load the models chosen in docs/experiments.md into the bundle the translation pipeline uses (T11)."""
+"""docs/experiments.md에서 고른 모델들을 올려 번역 흐름이 쓰는 묶음(PipelineModels)으로 만든다."""
 
 # [파일 역할] 서버가 시작할 때 측정으로 고른 모델들(인식·번역·합성·오타 교정)을 설정대로 올려 PipelineModels
 # 묶음 하나로 만들고, 한 번씩 돌려 예열한다.
@@ -20,19 +20,22 @@ from app.services.pipeline import PipelineModels
 
 logger = logging.getLogger(__name__)
 
-# Hy-MT2(비교용 번역 설정)를 Ollama에서 기다릴 때의 재시도 간격(초)과, 마감 직전 시도에도 0이 아닌 요청 제한을
-# 주기 위한 최소값(초).
-HYMT_RETRY_S = 2.0  # seconds between tries while Ollama starts (T83)
-HYMT_MIN_REQUEST_S = 0.01  # a try that starts just before the deadline still gets a valid request limit
+# Hy-MT2(비교용 번역 설정)를 Ollama에서 기다릴 때 쓰는 값. HYMT_RETRY_S는 Ollama가 시작되는 동안의 재시도
+# 간격(초), HYMT_MIN_REQUEST_S는 마감 직전에 시작한 시도도 유효한(0이 아닌) 요청 제한을 받게 하는
+# 최소값(초)이다.
+HYMT_RETRY_S = 2.0
+HYMT_MIN_REQUEST_S = 0.01
 
 # 예열에 쓰는 짧은 문장. 언어마다 번역·합성을 한 번씩 돌린다.
 WARM_UP_TEXT: dict[Language, str] = {"ko": "안녕하세요.", "en": "Hello."}
 
 
 def load_models(settings: Settings) -> PipelineModels:
-    """Speech recognition and translation must load, or startup fails: no request could succeed without
-    them. Speech synthesis is optional: if it cannot load, responses carry tts_error "Speech synthesis is
-    not available" and the browser reads the translation aloud instead (docs/api.md).
+    """설정대로 모델을 올려 PipelineModels 묶음을 만든다.
+
+    음성 인식과 번역은 반드시 올라와야 하고, 아니면 시작이 실패한다: 둘 없이는 어떤 요청도 성공할 수
+    없다. 음성 합성은 선택이다: 올리지 못하면 응답에 tts_error "Speech synthesis is not available"이
+    들어가고 브라우저가 대신 번역문을 읽어 준다(docs/api.md).
     """
     # 모델 라이브러리를 쓰는 모듈은 여기서(함수 안에서) import한다. LOAD_MODELS=false면 이 함수가 불리지
     # 않으므로 테스트·CI는 GPU 패키지 없이 돈다.
@@ -58,8 +61,8 @@ def load_models(settings: Settings) -> PipelineModels:
     translator = load_translation(settings, engine)
     tts = load_speech_synthesis(settings) if settings.tts_enabled else None
     corrector = load_typo_correction(settings) if settings.typo_correction else None
-    # Supertonic runs off the model thread, which the other models queue on: on the CPU (T78), and on the GPU
-    # beside speech recognition (T82, where the measurement shows what that sharing costs).
+    # Supertonic은 다른 모델들이 줄 서는 모델 스레드 밖에서 돈다: CPU에서 돌 때도, GPU에서 음성 인식과
+    # 나란히 돌 때도 그렇다(GPU를 함께 쓰는 비용은 docs/experiments.md 14절의 측정에 있다).
     off_model_thread = (
         frozenset({"ko"}) if tts is not None and settings.ko_tts == "supertonic" else frozenset()
     )
@@ -72,14 +75,14 @@ def load_models(settings: Settings) -> PipelineModels:
     )
 
 
-# 방향별 번역기를 만들어 DirectionalTranslator 하나로 묶는다. 기본은 두 방향 모두 opus-mt-tc-big(CTranslate2
-# 변환본, ct2_dir에서 읽음)이고, 영→한만 문장 단위로 번역한다: opus-mt가 여러 문장 입력에서 문장을 빠뜨려 나눠
-# 번역하니 누락이 줄었고, 한→영은 차이가 없었다(README 설계 판단).
 def load_translation(settings: Settings, engine: dict) -> Translator:
-    """opus-mt-tc-big both ways by default; Hy-MT2 on Ollama for a direction when its setting says so (T83).
+    """기본은 두 방향 모두 opus-mt-tc-big이고, 설정이 정하면 그 방향만 Ollama의 Hy-MT2를 쓴다.
 
-    Startup waits up to HYMT_PREPARE_TIMEOUT_S for Ollama to answer with the model (compose starts the two
-    containers together), and stops at once when Ollama has another build of it than HYMT_DIGEST.
+    방향별 번역기를 DirectionalTranslator 하나로 묶는다. opus는 CTranslate2 변환본을 ct2_dir에서 읽고,
+    영→한만 문장 단위로 번역한다: opus-mt가 여러 문장 입력에서 문장을 빠뜨려 나눠 번역하니 누락이 줄었고,
+    한→영은 차이가 없었다(README 설계 판단). Hy-MT2를 쓰면 서버 시작이 Ollama가 그 모델로 답할 때까지
+    HYMT_PREPARE_TIMEOUT_S만큼 기다리고(compose가 두 컨테이너를 함께 시작하므로), Ollama에 HYMT_DIGEST와
+    다른 빌드가 있으면 바로 멈춘다.
     """
     from app.services.translation import DirectionalTranslator, HyMtTranslator, MarianTranslator
 
@@ -102,7 +105,7 @@ def load_translation(settings: Settings, engine: dict) -> Translator:
     else:
         ko_en = MarianTranslator(settings.ct2_dir / "opus-mt-tc-big-ko-en", "ko", "en", **engine)
     if settings.en_ko_translation == "opus":
-        # One sentence at a time for en->ko only (T17, docs/experiments.md 2-1).
+        # 영→한만 한 문장씩 번역한다(docs/experiments.md 2-1절).
         en_ko = MarianTranslator(
             settings.ct2_dir / "opus-mt-tc-big-en-ko", "en", "ko", by_sentence=True, **engine
         )
@@ -111,16 +114,14 @@ def load_translation(settings: Settings, engine: dict) -> Translator:
     return DirectionalTranslator({("ko", "en"): ko_en, ("en", "ko"): en_ko})
 
 
-# 마감 시각(monotonic)을 하나 정해 두고, 시도마다 '남은 시간'만 제한으로 준다. 그래서 여러 번 재시도해도
-# 전체가 대략 timeout_s 안에서 끝난다. 실패(ModelError)하면 남은 시간이 있을 때만 잠깐 쉬고 다시 시도하고,
-# 마감이 지났으면 마지막 예외를 그대로 올린다. 성공하면 Ollama가 알려 준 모델 빌드(digest)를 로그에 남긴다.
 def _wait_until_ready(model, timeout_s: float) -> None:
-    """Try prepare until it succeeds or `timeout_s` has passed.
+    """prepare가 성공하거나 `timeout_s`가 지날 때까지 다시 시도한다.
 
-    Each try gets only the time left, prepare gives each of its requests only what is left when that request
-    starts (T87), and the pause before the next try is no longer than the time left either, so a request that
-    hangs ends at about the limit (T86). About: httpx applies a limit to each phase of a request (connecting,
-    then each read), not to the request as a whole.
+    마감 시각(monotonic)을 하나 정해 두고 시도마다 남은 시간만 제한으로 준다. prepare도 각 요청에 그
+    요청이 시작될 때 남은 시간만 주고, 다음 시도 전의 쉼도 남은 시간보다 길지 않다. 그래서 멈춘 요청도
+    대략 제한 시각에 끝난다. '대략'인 이유: httpx는 요청 전체가 아니라 요청의 각 단계(연결, 그 뒤 읽기
+    하나하나)에 제한을 건다. 실패(ModelError)하면 남은 시간이 있을 때만 잠깐 쉬고 다시 시도하고, 마감이
+    지났으면 마지막 예외를 그대로 올린다. 성공하면 Ollama가 알려 준 모델 빌드(digest)를 로그에 남긴다.
     """
     deadline = time.monotonic() + timeout_s
     while True:
@@ -137,15 +138,13 @@ def _wait_until_ready(model, timeout_s: float) -> None:
         return
 
 
-# 순서: 두 방향 번역 → 한국어·영어 합성 → 영어 합성 결과를 인식. 인식에 합성 음성을 쓰는 것은, 무음을 넣으면
-# VAD가 말이 없다고 보고 모델을 아예 돌리지 않아 예열이 되지 않기 때문이다(docstring). 각 단계의 걸린 시간을
-# 로그에 남긴다.
 def warm_up(models: PipelineModels) -> None:
-    """Run each model once, so the first request does not pay for what loads lazily (T25).
+    """모델마다 한 번씩 돌려, 첫 요청이 지연 적재되는 부분의 비용을 치르지 않게 한다.
 
-    In the container the first synthesis took 5-20 s and later ones about 0.2 s. Speech recognition gets
-    the English synthesis as input, since VAD would skip the model on silence. A step that fails is
-    logged and skipped: the server still starts, and a real request reports the failure as usual.
+    컨테이너에서 첫 합성은 5~20초, 이후는 약 0.2초 걸렸다. 순서: 두 방향 번역 → 한국어·영어 합성 → 영어
+    합성 결과를 인식. 음성 인식에는 영어 합성 결과를 입력으로 준다. 무음을 넣으면 VAD가 모델을 아예
+    건너뛰어 예열이 되지 않기 때문이다. 실패한 단계는 로그에 남기고 건너뛴다: 서버는 그래도 시작하고,
+    실제 요청이 평소처럼 실패를 알린다. 각 단계의 걸린 시간을 로그에 남긴다.
     """
 
     # 한 단계를 실행하고 시간을 잰다. 실패하면 경고만 남기고 None을 돌려줘 다음 단계로 넘어간다(예열 실패로
@@ -154,7 +153,7 @@ def warm_up(models: PipelineModels) -> None:
         start = time.perf_counter()
         try:
             result = run()
-        except Exception:  # noqa: BLE001 - warming up must never stop the server
+        except Exception:  # noqa: BLE001 - 예열 실패로 서버가 멈추면 안 된다
             logger.warning("Warm-up step %s failed", name, exc_info=True)
             return None
         logger.info("Warm-up %s took %.1f s", name, time.perf_counter() - start)
@@ -178,11 +177,12 @@ def warm_up(models: PipelineModels) -> None:
         step("speech recognition en", lambda: stt.transcribe(english.wav, "en"))
 
 
-# OllamaCorrector를 만들고 start()로 백그라운드 준비 스레드(내려받기·적재·첫 교정, 실패하면 다시 시도)를
-# 시작한 뒤 바로 돌려준다. 준비가 끝나기 전에는 corrects()가 False라 글자 입력은 교정 없이 번역된다.
 def load_typo_correction(settings: Settings) -> TypoCorrector:
-    """Optional like synthesis, and never waited for (T37): the model is prepared on a background thread
-    that retries until Ollama answers, and until then typed text is translated as is.
+    """오타 교정기를 만든다. 합성처럼 선택이고, 서버 시작이 절대 기다리지 않는다.
+
+    OllamaCorrector를 만들고 start()로 백그라운드 준비 스레드(내려받기·적재·첫 교정, Ollama가 답할 때까지
+    다시 시도)를 시작한 뒤 바로 돌려준다. 준비가 끝나기 전에는 corrects()가 False라 글자 입력은 교정 없이
+    그대로 번역된다.
     """
     from app.services.correction import OllamaCorrector
 
@@ -216,6 +216,6 @@ def load_speech_synthesis(settings: Settings) -> TextToSpeech | None:
         else:
             korean = tts.MeloTextToSpeech("ko", device=device)
         return tts.LanguageTextToSpeech({"ko": korean, "en": tts.KokoroTextToSpeech(device=device)})
-    except Exception:  # noqa: BLE001 - a missing tts group or a load failure turns synthesis off, not the server
+    except Exception:  # noqa: BLE001 - tts 그룹이 없거나 적재가 실패하면 서버가 아니라 합성만 끈다
         logger.exception("Speech synthesis could not be loaded; translations will carry tts_error")
         return None

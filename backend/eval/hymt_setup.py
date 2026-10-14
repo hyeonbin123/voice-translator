@@ -1,19 +1,19 @@
-"""Hy-MT2-1.8B from Tencent's official GGUF into Ollama (task T83, docs/experiments.md 15).
+"""Tencent 공식 GGUF로 Hy-MT2-1.8B를 Ollama에 올린다(docs/experiments.md 15절).
 
-The GGUF files are fetched at one fixed revision and checked against their SHA-256 (about 3 GB, kept in
-data/models/hy-mt2, not committed). `modelfile` writes an Ollama Modelfile next to each file: the model's own
-chat template (tokenizer.chat_template in the GGUF) for one user turn, written as a Go template, its
-end-of-turn token as the stop, the user-turn token as a second stop, no system prompt (the model has none),
-and the request options of app/services/translation.py. No community Ollama package is used. From backend/:
+GGUF 파일은 고정된 리비전 하나에서 받아 SHA-256으로 확인한다(약 3GB, data/models/hy-mt2에 두고 커밋하지
+않음). `modelfile`은 파일마다 옆에 Ollama Modelfile을 쓴다: 사용자 차례 하나에 대한 모델 자체의 채팅
+템플릿(GGUF의 tokenizer.chat_template)을 Go 템플릿으로 옮긴 것, 멈춤 문자열로 차례 끝 토큰, 두 번째 멈춤
+문자열로 사용자 차례 토큰, 시스템 프롬프트 없음(모델에 없음), app/services/translation.py의 요청 옵션.
+커뮤니티 Ollama 패키지는 쓰지 않는다. backend/에서:
 
     uv run --no-sync python -m eval.hymt_setup download
     uv run --no-sync python -m eval.hymt_setup modelfile
-    ollama create hy-mt2:1.8b-q8_0 -f ../data/models/hy-mt2/Modelfile.q8_0                       (host Ollama)
+    ollama create hy-mt2:1.8b-q8_0 -f ../data/models/hy-mt2/Modelfile.q8_0                     (호스트 Ollama)
     docker compose exec ollama ollama create hy-mt2:1.8b-q8_0 -f /models/hy-mt2/Modelfile.q8_0   (compose)
     uv run --no-sync python -m eval.hymt_setup check --quant q8_0 [--ollama-url URL]
 
-`check` compares what Ollama reports for the model (template, stops, architecture) with this file and prints
-the model's digest, which must be the one docs/experiments.md 15 records for the measured build.
+`check`는 Ollama가 그 모델에 대해 보고하는 것(템플릿, 멈춤 문자열, 구조)을 이 파일과 비교하고 모델의
+digest를 출력한다. 그 digest는 docs/experiments.md 15절이 측정한 빌드로 기록한 값과 같아야 한다.
 """
 
 # [파일 역할] Hy-MT2-1.8B 번역 시험을 위해 Tencent 공식 GGUF 파일을 고정 리비전으로 받아 검증하고(download),
@@ -37,13 +37,12 @@ from app.services.translation import HY_MT_OPTIONS
 from eval.common import MODELS
 
 # 받을 저장소와 고정 리비전, 저장 폴더(data/models/hy-mt2, 커밋하지 않음).
-REPO = "tencent/Hy-MT2-1.8B-GGUF"  # Apache-2.0 (LICENSE.txt read 2026-10-08)
+REPO = "tencent/Hy-MT2-1.8B-GGUF"  # Apache-2.0 (2026-10-08에 LICENSE.txt 확인)
 REVISION = "a0c709d9fac510f2c807aa3af52872340dc37a4a"
 FOLDER = MODELS / "hy-mt2"
-# quant: (file, SHA-256 from the Hugging Face API, size in bytes, Ollama model name, digest of the build that
-# Ollama 0.35.1 makes from the Modelfile below; first seen in a container without GPU, 2026-10-08)
 # 양자화 두 가지: Q8_0(기본 시험 팔)과 Q4_K_M(지연에서만 떨어질 때 재는 대체 팔, docs/experiments.md 15절).
-# 튜플 순서는 바로 위 영어 주석과 같다.
+# 양자화 이름: (파일 이름, Hugging Face API가 알려 준 SHA-256, 바이트 크기, Ollama 모델 이름, Ollama 0.35.1이
+# 아래 Modelfile로 만드는 빌드의 digest. digest는 2026-10-08 GPU 없는 컨테이너에서 처음 확인했다).
 QUANTS = {
     "q8_0": (
         "Hy-MT2-1.8B-Q8_0.gguf",
@@ -65,7 +64,7 @@ QUANTS = {
 BOS = "<｜hy_begin▁of▁sentence｜>"
 USER = "<｜hy_User｜>"
 ASSISTANT = "<｜hy_Assistant｜>"
-END_OF_TURN = "<｜hy_place▁holder▁no▁2｜>"  # eos_token_id 120020 in the GGUF and the tokenizer
+END_OF_TURN = "<｜hy_place▁holder▁no▁2｜>"  # GGUF와 토크나이저의 eos_token_id 120020
 # GGUF에 든 채팅 템플릿을 Ollama의 Go 템플릿으로 옮긴 것: 문장 시작 토큰 뒤에 메시지마다 사용자/조수 토큰과
 # 내용을 붙이고, 마지막에 조수 토큰을 두어 모델이 답을 이어 쓰게 한다. 시스템 프롬프트 갈래는 없다(모델에 기본
 # 시스템 프롬프트가 없음).
@@ -130,10 +129,12 @@ def download(folder: Path = FOLDER) -> None:
         print(f"{name}: downloaded and checked")
 
 
-# Modelfile 내용: FROM(같은 폴더의 GGUF), TEMPLATE, 멈춤 문자열, 서비스와 같은 요청 옵션(temperature 0,
-# repeat_penalty, num_predict, num_ctx).
 def modelfile_text(quant: str) -> str:
-    """The Modelfile, with FROM relative to the Modelfile's own folder (the GGUF's folder)."""
+    """Modelfile 내용. FROM은 Modelfile 자신의 폴더(GGUF가 있는 폴더) 기준 상대 경로다.
+
+    FROM(같은 폴더의 GGUF), TEMPLATE, 멈춤 문자열, 서비스와 같은 요청 옵션(temperature 0, repeat_penalty,
+    num_predict, num_ctx)으로 이루어진다.
+    """
     lines = [f"FROM ./{QUANTS[quant][0]}", f'TEMPLATE """{TEMPLATE}"""']
     lines += [f'PARAMETER stop "{stop}"' for stop in STOPS]
     lines += [f"PARAMETER {key} {value}" for key, value in HY_MT_OPTIONS.items()]
@@ -149,11 +150,13 @@ def write_modelfiles(folder: Path = FOLDER) -> None:
         print(f"wrote {path}")
 
 
-# Ollama가 보고하는 모델 정보(/api/show의 템플릿·매개변수·구조, /api/tags의 digest, /api/version)를 이 파일의
-# 값과 대조한다. 다른 점이 하나라도 있거나 모델이 목록에 없으면 SystemExit으로 멈춘다. 결과(digest, Ollama
-# 버전, 문제 목록)는 JSON 한 줄로 출력해 측정 기록에 남길 수 있게 한다.
 def check(quant: str, ollama_url: str) -> dict:
-    """What Ollama reports for the model, against this file. Raises SystemExit on a difference."""
+    """Ollama가 그 모델에 대해 보고하는 것을 이 파일과 대조한다. 다른 점이 있으면 SystemExit.
+
+    /api/show의 템플릿·매개변수·구조, /api/tags의 digest, /api/version을 이 파일의 값과 대조한다. 다른 점이
+    하나라도 있거나 모델이 목록에 없으면 멈춘다. 결과(digest, Ollama 버전, 문제 목록)는 JSON 한 줄로 출력해
+    측정 기록에 남길 수 있게 한다.
+    """
     import httpx
 
     name = QUANTS[quant][3]
@@ -189,9 +192,9 @@ def main() -> None:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     commands = parser.add_subparsers(dest="command", required=True)
-    commands.add_parser("download", help="fetch the pinned GGUF files and check their SHA-256")
-    commands.add_parser("modelfile", help="write Modelfile.<quant> next to each checked GGUF file")
-    checking = commands.add_parser("check", help="compare the Ollama model with this file, print its digest")
+    commands.add_parser("download", help="고정한 GGUF 파일을 받고 SHA-256을 확인한다")
+    commands.add_parser("modelfile", help="확인한 GGUF 파일마다 옆에 Modelfile.<quant>를 쓴다")
+    checking = commands.add_parser("check", help="Ollama의 모델을 이 파일과 비교하고 digest를 출력한다")
     checking.add_argument("--quant", choices=list(QUANTS), default="q8_0")
     checking.add_argument("--ollama-url", default="http://localhost:11434")
     args = parser.parse_args()

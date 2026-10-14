@@ -44,9 +44,9 @@ export const openMicrophone: OpenMicrophone = async (samples, signal, failed) =>
   signal.addEventListener('abort', stop, { once: true })
   try {
     if (signal.aborted) throw new Error('Canceled')
-    // Resume during the start button gesture; do not wait for the permission prompt first.
+    // 시작 단추를 누른 사용자 동작 안에서 resume한다. 권한 창을 먼저 기다리지 않는다.
     const resumed = context.resume()
-    // Permission may outlive a failed resume; mark the rejection handled immediately.
+    // resume이 실패해도 권한 요청은 이어질 수 있으므로, 거절을 바로 처리된 것으로 표시해 둔다.
     void resumed.catch(() => undefined)
     // 모노, 에코 제거, 잡음 억제, 자동 음량 조절을 켠 마이크를 요청한다. 말소리 판정(Silero)과 서버 인식이
     // 받는 소리를 브라우저가 한 번 다듬어 준다. 첫 사용이면 여기서 권한 창이 뜬다.

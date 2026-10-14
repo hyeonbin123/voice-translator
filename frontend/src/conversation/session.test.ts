@@ -54,7 +54,7 @@ function setup(create?: CreateEndpointer) {
     const task = deferred<void>(); played.push({ id: turn.id, begin, task, signal }); return task.promise
   })
   const run = vi.fn(async (input: Float32Array) => ({ probability: input[64], h: new Float32Array(128), c: new Float32Array(128) }))
-  // Example mode (VITE_TRANSLATION_MOCK=true; the page still needs a login) uploads each clip over HTTP after its end.
+  // 예시 모드(VITE_TRANSLATION_MOCK=true, 페이지는 여전히 로그인이 필요)는 마디가 끝난 뒤 클립을 HTTP로 올린다.
   const session = new ConversationSession(new TranslationApi({ request }, true), open, play,
     create ?? (async () => new SileroEndpointer(run)))
   sessions.push(session)
@@ -205,8 +205,8 @@ it('reports disconnected microphones and discards a short noise burst', async ()
   expect(s.session.getSnapshot().error).toContain('연결이 끊겼습니다')
 })
 
-// Signed in, the clip streams over the live connection without subtitles and the server prepares its
-// translation at a 192 ms pause (T77, docs/experiments.md 11).
+// 로그인하면 클립은 자막 없이 동시통역 연결로 흘러가고, 서버는 192 ms 쉼에서 번역을 미리 준비한다(T77,
+// docs/experiments.md 11절).
 // 실제 모드 세션 도구. 판정기는 emit으로 정해 준 이벤트를 다음 push에서 그대로 돌려주는 가짜이고, 소켓은 만들
 // 때마다 sockets에 쌓인다. liveToken은 처음에는 'access', 거절된 토큰을 받으면 'fresh'를 준다. start는 연결
 // 열기와 ready까지 마친다.

@@ -74,7 +74,7 @@ async def delete_history(id: UUID, user: CurrentUser, db: DbSession, store: Stor
     if deleted_id is None:
         raise HTTPException(404, "History not found")
     await db.commit()
-    # PostgreSQL cascades audio_files rows. Disk failures must not undo the DB deletion.
+    # audio_files 행은 PostgreSQL이 CASCADE로 함께 지웠다. 디스크 삭제가 실패해도 DB 삭제를 되돌리지 않는다.
     if path is not None:
         await store.delete(path)
     return Response(status_code=204)

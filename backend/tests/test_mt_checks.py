@@ -13,7 +13,7 @@ from eval.mt_checks import check_items, explanation_signs, foreign_letters
 
 # 설명형 사례에 쓰는 참조 번역. 출력이 참조의 두 배를 넘으면 'long'이 붙으므로, 꼬리표·주석 사례가 길이 때문에
 # 'long'까지 걸리지 않을 만큼 길게 둔다.
-REF = "서울은 대한민국의 수도이고 가장 큰 도시다."  # long enough that the label cases are not 'long'
+REF = "서울은 대한민국의 수도이고 가장 큰 도시다."
 
 
 # 다른 문자 점검: 한국어 출력의 라틴 문자·숫자(NASA, 2026)는 허용하고, 한자·가타카나·키릴 문자는 잡는다.
@@ -29,10 +29,10 @@ REF = "서울은 대한민국의 수도이고 가장 큰 도시다."  # long eno
         ("東京은 일본의 수도다.", "Tokyo is the capital of Japan.", "ko", "東京"),
         ("카타카나 カナ 섞임", "Katakana mixed in", "ko", "カナ"),
         ("러시아어 слово 섞임", "Russian word mixed in", "ko", "слово"),
-        # A character the input itself has is kept: a Greek letter, or a Hanja in a Korean source.
+        # 입력에 이미 있는 글자는 남아도 된다: 그리스 문자, 또는 한국어 원문의 한자.
         ("The α particle decays.", "α 입자가 붕괴한다.", "en", ""),
         ("Hanja 漢 stays.", "한자 漢이 남는다.", "en", ""),
-        # Korean left in an English output always counts, even though the input is Korean.
+        # 영어 출력에 남은 한글은 입력이 한국어여도 늘 센다.
         ("He went to 학교.", "그는 학교에 갔다.", "en", "학교"),
         ("Café au lait costs 3 €.", "카페오레는 3유로다.", "en", ""),
     ],
@@ -63,7 +63,7 @@ def test_foreign_letters(output, source, target, expected):
             "서울은 수도다.",
             ["long"],
         ),
-        # A note marker the input already has is the input's, not an added note.
+        # 입력에 이미 있는 주석 표시는 입력을 옮긴 것이지 덧붙인 주석이 아니다.
         ("참고: 서울은 수도이다.", "Note: Seoul is the capital.", "참고: 서울은 수도다.", []),
     ],
 )

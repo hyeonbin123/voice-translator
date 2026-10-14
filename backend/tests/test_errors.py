@@ -15,7 +15,7 @@ def raise_chain():
         try:
             raise KeyError("secret one")
         except KeyError:
-            raise ValueError("secret two")  # noqa: B904 - the implicit context is the point
+            raise ValueError("secret two")  # noqa: B904 - 암묵적 문맥이 바로 시험 대상이다
     except ValueError as exc:
         raise RuntimeError("secret three") from exc
 

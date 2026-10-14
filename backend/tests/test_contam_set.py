@@ -38,7 +38,7 @@ from eval.contam_set import (
         ("(서울=연합뉴스) 정부는 내년부터 지원을 늘리기로 했다.", "ko", False),
         ("▲ 행사장 전경을 보여 주는 사진이다.", "ko", False),
         ("자세한 내용은 누리집(www.korea.kr)에서 볼 수 있다.", "ko", False),
-        ("정부는 내년부터 청년 주거 지원을 두 배로 늘리기로 했다", "ko", False),  # no full stop
+        ("정부는 내년부터 청년 주거 지원을 두 배로 늘리기로 했다", "ko", False),  # 마침표 없음
         (
             "Room to protest is narrowing across much of the continent, as governments lean on arrests.",
             "en",

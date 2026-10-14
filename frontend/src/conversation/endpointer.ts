@@ -1,4 +1,4 @@
-// Candidate E, T33. Keep these calculations in sync with the offline Python measurement.
+// 후보 E, T33. 이 계산은 오프라인 파이썬 측정(eval/eos_eval.py의 E 판정기)과 같게 유지한다.
 // [파일 역할] 대화 모드의 말 끝 판정 후보 E(음량 기준)를 브라우저에서 계산하는 구현. docs/experiments.md
 // 7절에서 후보 S(Silero VAD)와 비교했고, 잡음 속에서 문장을 놓치고 일찍 끊는 문제로 S가 채택됐다. 그래서 지금
 // 화면은 이 파일에서 공용 상수 SAMPLE_RATE와 이벤트 타입 EndpointEvent만 가져다 쓰고(pcm.ts, silero.ts),
@@ -54,7 +54,7 @@ export class Endpointer {
   // 쉼 기준(ms)을 20ms 프레임 수로 바꿔 둔다.
   constructor(pauseMs: PauseMs = 700) { this.pauseFrames = pauseMs / 20 }
 
-  // Playback creates a discontinuity: discard unfinished speech/pre-roll, preserve the noise estimate.
+  // 재생은 소리 흐름을 끊는다: 끝나지 않은 말소리와 앞 여유분은 버리고, 잡음 추정값은 남긴다.
   interrupt(): boolean {
     const discarded = this.frames !== null
     this.pendingSize = 0
@@ -76,7 +76,7 @@ export class Endpointer {
       this.pendingSize = 0
       this.cursor += FRAME_SAMPLES
       const db = frameDb(frame)
-      // The first 25 frames only calibrate. Median is the 13th sorted dB value.
+      // 처음 25프레임은 보정에만 쓴다. 중앙값은 정렬한 dB 값의 13번째다.
       if (this.noise === undefined) {
         this.calibration.push(db)
         this.remember(frame)
@@ -94,7 +94,7 @@ export class Endpointer {
         this.consecutive = speech ? this.consecutive + 1 : 0
         this.remember(frame)
         if (this.consecutive < 3) continue
-        // Last 13 frames = 10 before the first speech frame, plus the 3 triggering frames.
+        // 마지막 13프레임 = 첫 말소리 프레임 앞 10개 + 시작을 일으킨 3개.
         this.frames = [...this.pre]
         this.startSample = this.cursor - this.frames.length * FRAME_SAMPLES
         this.speechFrames = 3
@@ -107,7 +107,7 @@ export class Endpointer {
         else this.quietFrames++
       }
 
-      // 29 seconds includes pre-roll; no uploaded clip can cross this limit.
+      // 29초는 앞 여유분을 포함한 길이다. 올리는 클립은 이 한도를 넘을 수 없다.
       const forced = this.frames.length >= 29_000 / 20
       // 쉼 기준만큼 조용하거나 29초에 닿으면 마디를 끝낸다. 끝의 조용한 프레임은 10개(200ms)만 남기고 잘라
       // 내고, 말소리가 250ms 미만이면 기침·짧은 잡음으로 보고 버린다(docs/experiments.md 7절 공통 규칙).
@@ -119,7 +119,7 @@ export class Endpointer {
         events.push({ type: 'end', samples: clip, startSample: this.startSample,
           endSample: this.startSample + clip.length, detectedAtSample: this.cursor, forced })
       } else events.push({ type: 'discard' })
-      // At a forced split do not repeat old speech as pre-roll in the next clip.
+      // 강제로 끊었을 때는 지난 말소리를 다음 클립의 앞 여유분으로 되풀이하지 않는다.
       this.pre = forced ? [] : this.frames.slice(-10)
       this.frames = null
       this.consecutive = this.speechFrames = this.quietFrames = 0

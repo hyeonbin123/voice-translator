@@ -1,9 +1,8 @@
-"""Live subtitles while a person speaks (T34, docs/experiments.md 8).
+"""사람이 말하는 동안 보여 주는 동시통역 자막(docs/experiments.md 8절).
 
-Each update recognizes the whole utterance so far again, and its result replaces the text on screen. The
-start that two results in a row agree on is shown dark, the rest faded. Results are compared by their
-letters only: case, spaces and punctuation change between results (Korean spacing above all) without
-changing what was said.
+갱신마다 지금까지의 마디 전체를 다시 인식하고, 그 결과가 화면의 글을 바꾼다. 연이은 두 결과가 같은
+앞부분은 진하게, 나머지는 흐리게 보인다. 결과는 글자만으로 비교한다: 대소문자·띄어쓰기·문장부호는 말한
+내용이 같아도 결과마다 바뀌기 때문이다(무엇보다 한국어 띄어쓰기).
 """
 
 # [파일 역할] 동시통역 자막에 쓰는 순수 함수 모음: 브라우저가 보낸 PCM을 WAV로 감싸기, 비교용 글자만 남기기,
@@ -24,11 +23,13 @@ _WORD = re.compile(r"\S+")
 SAMPLE_RATE = 16_000
 
 
-# 웹소켓으로 받은 PCM 바이트에 WAV 머리를 붙인다. 대화 모드가 HTTP로 올리는 파일과 같은 형식이라, 최종 처리
-# 결과가 업로드했을 때와 같아진다(docs/api.md: 최종 결과는 음성 번역 API와 같은 WAV로 처리).
-# 16비트 표본은 2바이트이므로 홀수 길이면 마지막 1바이트를 버려 반쪽 표본이 생기지 않게 한다.
 def wav_from_pcm(pcm: bytes) -> bytes:
-    """16 kHz mono 16-bit PCM as the WAV file conversation mode uploads (frontend pcm.ts)."""
+    """16kHz 모노 16비트 PCM을 대화 모드가 올리는 것과 같은 WAV 파일로 만든다(frontend pcm.ts).
+
+    웹소켓으로 받은 PCM 바이트에 WAV 머리를 붙인다. HTTP로 올리는 파일과 같은 형식이라 최종 처리 결과가
+    업로드했을 때와 같아진다(docs/api.md: 최종 결과는 음성 번역 API와 같은 WAV로 처리). 16비트 표본은
+    2바이트이므로 홀수 길이면 마지막 1바이트를 버려 반쪽 표본이 생기지 않게 한다.
+    """
     buffer = io.BytesIO()
     with wave.open(buffer, "wb") as out:
         out.setnchannels(1)
@@ -38,10 +39,12 @@ def wav_from_pcm(pcm: bytes) -> bytes:
     return buffer.getvalue()
 
 
-# 비교용 정규화: NFKC로 같은 글자의 다른 표기(전각·호환 문자 등)를 맞추고, casefold로 대소문자를 없애고,
-# 공백과 문장부호(P 범주)를 뺀다. 예: "Soon, officers entered" → "soonofficersentered".
 def letters(text: str) -> str:
-    """The text without case, spaces or punctuation."""
+    """대소문자·공백·문장부호를 뺀 글자만 남긴다.
+
+    비교용 정규화: NFKC로 같은 글자의 다른 표기(전각·호환 문자 등)를 맞추고, casefold로 대소문자를
+    없애고, 공백과 문장부호(P 범주)를 뺀다. 예: "Soon, officers entered" → "soonofficersentered".
+    """
     folded = unicodedata.normalize("NFKC", text).casefold()
     return "".join(ch for ch in folded if not ch.isspace() and not unicodedata.category(ch).startswith("P"))
 
@@ -56,12 +59,14 @@ def common_start(a: str, b: str) -> int:
     return count
 
 
-# 직전 결과와 지금 결과가 '글자 기준으로' 같은 앞부분을 구한 뒤, 지금 결과(원래 문자열)에서 그 안에 완전히
-# 들어가는 단어까지의 길이를 돌려준다. 단어별 글자 수를 누적(seen)하다 합의한 글자 수(agreed)를 넘는 단어에서
-# 멈춘다. 반환값은 current의 문자 위치라 화면이 current[:stable]을 진하게 그린다.
 def stable_length(previous: str | None, current: str) -> int:
-    """How many characters at the start of `current` to show dark: the whole words whose letters the
-    previous result also starts with. Nothing is dark until there is a previous result."""
+    """`current` 앞에서 몇 글자를 진하게 보일지 돌려준다.
+
+    진하게 보이는 것은 직전 결과도 같은 글자로 시작하는 완전한 단어들이다. 직전 결과가 없으면 아무것도
+    진하게 보이지 않는다. 직전 결과와 지금 결과가 '글자 기준으로' 같은 앞부분(agreed)을 구한 뒤, 지금
+    결과(원래 문자열)의 단어별 글자 수를 누적(seen)하다 agreed를 넘는 단어에서 멈춘다. 반환값은 current의
+    문자 위치라 화면이 current[:stable]을 진하게 그린다.
+    """
     if previous is None:
         return 0
     agreed = common_start(letters(previous), letters(current))

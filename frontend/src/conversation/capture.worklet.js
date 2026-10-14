@@ -33,8 +33,8 @@ class ConversationCapture extends AudioWorkletProcessor {
       }
       this.port.postMessage({ samples, epoch: this.epoch }, [samples.buffer])
     }
-    // true를 돌려줘야 입력이 잠시 비어도 처리기가 살아 있다.
-    // Output stays silent: microphone audio never goes to the speakers.
+    // true를 돌려줘야 입력이 잠시 비어도 처리기가 살아 있다. 출력은 비워 두므로 마이크 소리가 스피커로 나가지
+    // 않는다.
     return true
   }
 }

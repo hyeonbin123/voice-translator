@@ -1,7 +1,7 @@
-"""The T83 decision rules (docs/experiments.md 15) on made-up reports.
+"""T83 판단 규칙(docs/experiments.md 15절)을 지어낸 보고서로 검증한다.
 
-Needs sacrebleu (eval group): CI's plain test step skips this module, and a step of its own runs it with
-sacrebleu added (T88).
+sacrebleu(eval 그룹)가 필요하다. CI의 일반 테스트 단계는 이 모듈을 건너뛰고, sacrebleu를 더한 별도 단계가
+이 모듈을 돌린다.
 """
 
 # [파일 역할] Hy-MT2 번역기 시험의 판단 규칙을 저장된 결과에 적용하는 eval/mt_decide.py를 지어낸 보고서로
@@ -73,7 +73,7 @@ def comet_for(values: dict, score: float) -> dict[str, float]:
 
 # 참조에서 끝 두 단어를 뺀 번역. chrF가 낮은 '기준(opus) 쪽'을 흉내 낸다.
 def degraded(references):
-    return [" ".join(r.split()[:-2]) for r in references]  # drops words: lower chrF
+    return [" ".join(r.split()[:-2]) for r in references]  # 단어를 빼서 chrF를 낮춘다
 
 
 # 참조와 똑같은 후보가 chrF·COMET 모두 기준보다 높고(구간 하한 > 0) 출력·지연도 기준 안이면 (a)(b)(c) 모두
@@ -91,7 +91,7 @@ def test_an_arm_better_on_both_metrics_and_inside_the_budgets_passes():
 def test_rule_a_needs_both_intervals_above_zero():
     refs = sentences(40)
     arm, base = direction_values(refs, refs), direction_values(degraded(refs), refs)
-    comet = {**comet_for(arm, 0.7), **comet_for(base, 0.7)}  # COMET says no difference
+    comet = {**comet_for(arm, 0.7), **comet_for(base, 0.7)}  # COMET으로는 차이가 없다
     assert compare(arm, base, comet, ROUNDS)["rules"]["a"] is False
 
 
@@ -136,9 +136,9 @@ def test_validation_picks_per_direction_and_asks_for_q4_only_after_a_latency_onl
     refs = sentences(40)
     base_en = direction_values(degraded(refs), refs)
     base_ko = direction_values(degraded(refs), refs)
-    whole = direction_values(refs, refs, p50=0.5)  # quality passes, too slow
+    whole = direction_values(refs, refs, p50=0.5)  # 품질은 통과, 너무 느림
     split = direction_values(refs, refs, p50=0.3)
-    ko = direction_values(degraded(refs), refs)  # no better than opus
+    ko = direction_values(degraded(refs), refs)  # opus보다 낫지 않음
     results = [
         report("opus-mt-tc-big-en-ko/split", "en-ko", base_en, 512),
         report("opus-mt-tc-big-ko-en", "ko-en", base_ko, 514),
@@ -160,16 +160,14 @@ def test_validation_picks_per_direction_and_asks_for_q4_only_after_a_latency_onl
 # 단어 짧아 chrF 낮음)을 이기는지 확인한다. 한→영은 Q8이 지연 때문에 떨어진 것이 아니라 Q4 결과가 있어도
 # 후보가 아니다.
 def test_a_q4_arm_measured_after_a_latency_only_miss_competes_with_the_passing_q8_arms():
-    # Section 15: the pick is the passing arm with the higher chrF, and a Q8 arm that missed only (c) is
-    # judged again as its Q4_K_M under the same rules. A passing Q8 arm must not shut the Q4 arm out (T85).
     refs = sentences(40)
     base = direction_values(degraded(refs), refs)
     one_word_short = [" ".join(r.split()[:-1]) for r in refs]
-    q8_whole = direction_values(refs, refs, p50=0.5)  # best quality, too slow
-    q8_split = direction_values(one_word_short, refs, p50=0.3)  # passes, lower chrF
-    q4_whole = direction_values(refs, refs, p50=0.3)  # the Q4 of the slow arm: same quality, fast enough
+    q8_whole = direction_values(refs, refs, p50=0.5)  # 품질 최고, 너무 느림
+    q8_split = direction_values(one_word_short, refs, p50=0.3)  # 통과, chrF 낮음
+    q4_whole = direction_values(refs, refs, p50=0.3)  # 느렸던 팔의 Q4: 같은 품질, 충분히 빠름
     base_ko = direction_values(degraded(refs), refs)
-    ko = direction_values(degraded(refs), refs)  # no better than opus
+    ko = direction_values(degraded(refs), refs)  # opus보다 낫지 않음
     results = [
         report("opus-mt-tc-big-en-ko/split", "en-ko", base, 512),
         report("opus-mt-tc-big-ko-en", "ko-en", base_ko, 514),
@@ -186,7 +184,6 @@ def test_a_q4_arm_measured_after_a_latency_only_miss_competes_with_the_passing_q
     assert result["arms"]["hy-mt2-q8/split"]["passes"] and result["arms"]["hy-mt2-q4"]["passes"]
     assert result["arms"]["hy-mt2-q8/split"]["chrf"]["arm"] < result["arms"]["hy-mt2-q4"]["chrf"]["arm"]
     assert result["pick"] == "hy-mt2-q4"
-    # ko->en: its Q8 arm did not miss on latency only, so the Q4 run there is not a candidate.
     assert decision["ko-en"]["pick"] is None
 
 
@@ -194,7 +191,6 @@ def test_a_q4_arm_measured_after_a_latency_only_miss_competes_with_the_passing_q
 # 요청할 대체 팔이 없으며, 다른 방향의 팔 목록에는 Q4가 끼지 않는지 확인한다(한 방향만 있는 Q4 보고서에서
 # KeyError가 났던 경우).
 def test_a_q4_arm_measured_for_one_direction_leaves_the_other_alone():
-    # Q4_K_M is measured only where a Q8 arm missed on latency only, so its report may hold one direction.
     refs = sentences(40)
     base, base_ko = direction_values(degraded(refs), refs), direction_values(degraded(refs), refs)
     slow, ko = direction_values(refs, refs, p50=0.5), direction_values(degraded(refs), refs)
@@ -240,14 +236,14 @@ def test_vram_counts_what_the_pick_replaces():
     retired = vram(decision, {"retire_corrector": True, "corrector_vram_mb": 1300})
     assert retired["net_mb"] == 2200 - 512 - 1300 and retired["passes"] is True
     edge = vram(decision, {"retire_corrector": True, "corrector_vram_mb": 1176})
-    assert edge["net_mb"] == 512 and edge["passes"] is True  # +0.5 GB itself still passes
+    assert edge["net_mb"] == 512 and edge["passes"] is True  # 정확히 +0.5 GB는 아직 통과다
     both = {
         "directions": {
             "en-ko": {"pick": "hy-mt2-q8", "arms": {"hy-mt2-q8": {"vram_mb": 2400}}},
             "ko-en": {"pick": "hy-mt2-q8", "arms": {"hy-mt2-q8": {"vram_mb": 2400}}},
         }
     }
-    # One Ollama model serves both directions: its memory counts once.
+    # Ollama 모델 하나가 두 방향을 맡으면 그 메모리는 한 번만 센다.
     assert vram(both, None)["net_mb"] == 2400 - 512 - 514
     whole_and_split = {
         "directions": {
@@ -255,14 +251,13 @@ def test_vram_counts_what_the_pick_replaces():
             "ko-en": {"pick": "hy-mt2-q8", "arms": {"hy-mt2-q8": {"vram_mb": 2380}}},
         }
     }
-    # The whole and sentence-by-sentence arms are the same build: still once (the larger reading).
+    # 통째로 팔과 문장 단위 팔은 같은 빌드라 역시 한 번만 센다(둘 중 큰 값).
     assert vram(whole_and_split, None)["net_mb"] == 2400 - 512 - 514
 
 
 # 회귀 테스트(커밋 22fe56c): 한 방향은 Q4_K_M, 다른 방향은 Q8_0이면 Ollama 모델 두 개가 함께 올라가므로 둘을
 # 더해야 한다. 예전에는 하나만 셌다.
 def test_vram_adds_two_different_builds():
-    # Q4_K_M one way and Q8_0 the other are two Ollama models, both loaded: both count (T85).
     decision = {
         "directions": {
             "en-ko": {"pick": "hy-mt2-q4", "arms": {"hy-mt2-q4": {"vram_mb": 1200}}},

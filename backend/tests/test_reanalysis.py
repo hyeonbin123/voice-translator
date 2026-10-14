@@ -1,7 +1,7 @@
-"""The re-analysis reads the stored reports right (no intervals are computed on them here).
+"""재분석 도구가 저장된 보고서를 바르게 읽는지 검증한다(여기서 그 보고서로 구간을 계산하지는 않는다).
 
-It scores with sacrebleu and jiwer from the eval group, which CI's plain test step does not install: a step of
-its own adds the two and runs this module (T88).
+채점에 eval 그룹의 sacrebleu와 jiwer를 쓰는데, CI의 일반 테스트 단계는 이 둘을 설치하지 않는다. 둘을 더한
+별도 단계가 이 모듈을 돌린다.
 """
 
 # [파일 역할] 기록된 번역·음성 인식 결정의 재분석 도구 eval/reanalysis.py(docs/experiments.md 13절)를
@@ -51,12 +51,10 @@ from eval.reanalysis import (  # noqa: E402
 from eval.significance import rate_difference  # noqa: E402
 
 
-# 13절의 관문: 저장된 문장별 결과로 다시 계산한 chrF·CER·WER가 기록된 값과 1e-9 안에서 모두 같고, 각 비교의 두
-# 쪽이 같은 문장을 짝짓는지 실제 저장 보고서로 확인한다. 기록된 점수의 개수(66개)도 고정해, 보고서나 비교
-# 목록이 바뀌면 바로 드러나게 한다.
+# 13절의 관문: 저장된 문장별 결과로 다시 계산한 chrF·CER·WER가 기록된 값과 1e-9 안에서 모두 같고(T32 chrF는
+# T3 보고서의 참조로 계산), 각 비교의 두 쪽이 같은 문장을 짝짓는지 실제 저장 보고서로 확인한다. 기록된 점수의
+# 개수(66개)도 고정해, 보고서나 비교 목록이 바뀌면 바로 드러나게 한다.
 def test_stored_items_reproduce_every_recorded_score():
-    # The gate in docs/experiments.md 13: chrF, CER and WER recomputed from the items equal the recorded
-    # values (T32 chrF with the references from the T3 reports), and each comparison pairs the same sentences.
     rows = check()
     assert [row["name"] for row in rows if not row["ok"]] == []
     # T3 7 + 2, T17 4 + 1, T32 18 + 6 + 6, T65 4, T2 6 + 2, T14 8 + 2
@@ -137,9 +135,9 @@ def test_comet_agreement_applies_the_registered_limits():
     first = {key: 0.8 for key in keys}
     assert comet_agreement(first, {key: 0.8 + 0.0005 for key in keys})["passes"]
     shifted = dict(first)
-    shifted[keys[0]] = 0.8 + 0.02  # one segment too far
+    shifted[keys[0]] = 0.8 + 0.02  # 한 문장이 한도를 넘는다
     assert not comet_agreement(first, shifted)["passes"]
-    assert not comet_agreement(first, {key: 0.8 + 0.002 for key in keys})["passes"]  # system means too far
+    assert not comet_agreement(first, {key: 0.8 + 0.002 for key in keys})["passes"]  # 시스템 평균이 넘는다
     with pytest.raises(ValueError):
         comet_agreement(first, {key: 0.8 for key in keys[1:]})
 
@@ -147,7 +145,6 @@ def test_comet_agreement_applies_the_registered_limits():
 # 회귀 테스트(커밋 18adc0a): comet-agreement 명령은 결과를 json.dumps로 출력하는데, passes가 numpy bool이면
 # 직렬화에서 실패했다. 결과가 JSON으로 왕복되고 passes가 파이썬 bool인지 확인한다.
 def test_comet_agreement_prints_as_json():
-    # The comet-agreement command prints the result with json.dumps; a numpy bool there crashed it.
     keys = [row["key"] for row in comet_segments(subset="precision")]
     first = {key: 0.8 for key in keys}
     for second, expected in [({key: 0.8005 for key in keys}, True), ({key: 0.802 for key in keys}, False)]:
@@ -213,21 +210,21 @@ def test_analyse_mt_rejects_sides_on_different_sentences():
 # 점 추정은 40글자 중 편집 2개 차이 = 5%p이고, 문장 3개·녹음 4개를 세며, 두 구간이 rate_difference를 직접 부른
 # 결과와 같은지 확인한다.
 def test_analyse_stt_groups_recordings_by_sentence():
-    ids = (1, 1, 2, 3)  # sentence 1 read twice
+    ids = (1, 1, 2, 3)  # 문장 1은 두 번 읽혔다
     lengths = np.array([10, 10, 10, 10])
     worse = lambda reports: Utterances(ids, ("r",) * 4, np.array([2, 2, 1, 1]), lengths)  # noqa: E731
     better = lambda reports: Utterances(ids, ("r",) * 4, np.array([1, 1, 1, 1]), lengths)  # noqa: E731
     comparison = SttComparison("y", "T2", "validation", "a − b", {"ko": worse}, {"ko": better}, 1.0, "rule")
     row = analyse_stt(comparison, None, rounds=300)
-    assert row["utterance"]["point"] == pytest.approx(5.0)  # 2 more edits in 40 characters, in %p
+    assert row["utterance"]["point"] == pytest.approx(5.0)  # 40글자 중 편집 2개 더, %p 단위
     assert row["sentences"] == {"ko": 3} and row["languages"] == {"ko": 4}
     assert row["classification"] == row["sentence"]["classification"]
-    # The sentence interval resamples the three sentences (sentence 1 with both its recordings) ...
+    # 문장 단위 구간은 문장 세 개를 재표집한다(문장 1은 두 녹음을 함께) ...
     grouped = rate_difference(
         [(np.array([400, 100, 100]), np.array([200, 100, 100]), np.array([20, 10, 10]))], 300
     )
     assert (row["sentence"]["low"], row["sentence"]["high"]) == pytest.approx((grouped.low, grouped.high))
-    # ... and the utterance interval the four recordings.
+    # ... 녹음 단위 구간은 녹음 네 개를 재표집한다.
     single = rate_difference([(np.array([200, 200, 100, 100]), np.array([100] * 4), lengths)], 300)
     assert (row["utterance"]["low"], row["utterance"]["high"]) == pytest.approx((single.low, single.high))
 
@@ -255,7 +252,7 @@ def test_run_writes_the_report_and_the_comet_scores_it_used(tmp_path, monkeypatc
         (SttComparison("y", "T2", "validation", "a − b", {"ko": worse}, {"ko": better}, 1.0, "rule"),),
     )
     monkeypatch.setattr(reanalysis, "check", lambda reports: [])
-    monkeypatch.setattr(reanalysis, "bleu", BLEU)  # 13a here: flores200 would download its tokenizer
+    monkeypatch.setattr(reanalysis, "bleu", BLEU)  # 여기서는 13a: flores200은 토크나이저를 내려받는다
     monkeypatch.setattr(reanalysis, "REPORTS", tmp_path)
     scores = {row["key"]: 0.5 for row in comet_segments(None)}
     scores["unused"] = 0.1
@@ -302,7 +299,6 @@ def test_run_refuses_missing_comet_scores(tmp_path, monkeypatch):
 # 회귀 테스트(커밋 4abb008): max()는 첫 값이 아닌 NaN을 건너뛰므로, NaN 점수가 정밀도 점검을 통과할 수 있었다.
 # 유한한 숫자가 아닌 점수가 있으면 ValueError로 거부하는지 확인한다.
 def test_comet_agreement_rejects_scores_that_are_not_numbers():
-    # max() skips a NaN that is not first, so a NaN segment could otherwise pass the precision check.
     keys = [row["key"] for row in comet_segments(subset="precision")]
     first = {key: 0.8 for key in keys}
     second = dict(first)

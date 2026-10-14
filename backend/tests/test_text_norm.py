@@ -19,7 +19,6 @@ def test_korean_drops_punctuation_and_every_space():
 # 더해지고 나머지는 그대로여야 모델을 다시 돌리지 않고 다시 채점할 수 있다.
 def test_korean_drops_apostrophes_used_as_quotation_marks():
     assert normalize("'희망의 섬'이라는 이름", "ko") == "희망의섬이라는이름"
-    # Saved reports hold normalized text; normalizing again only applies this fix.
     assert normalize(normalize("'희망'", "ko"), "ko") == "희망"
 
 

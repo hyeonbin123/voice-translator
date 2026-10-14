@@ -21,7 +21,7 @@ type Callbacks = { ready: (ready: boolean) => void; message: (message: unknown) 
 export const liveUrl = (location: Pick<Location, 'protocol' | 'host'> = window.location) =>
   `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/api/translate/live`
 
-// The server's per-utterance error details (docs/api.md), in words for someone who just spoke.
+// 서버의 마디별 오류 detail(docs/api.md)을 방금 말한 사람에게 맞는 말로 옮긴 표.
 const utteranceErrors: Record<string, string> = {
   'Audio could not be decoded': '음성을 읽을 수 없습니다. 다시 말해 주세요.',
   'Audio is longer than 30 seconds': '음성은 30초 이하로 말해 주세요.',
@@ -64,8 +64,8 @@ export class LiveTransport {
   private readonly callbacks: Callbacks
   private readonly open: OpenSocket
   private readonly name: string
-  // `fields` go into every start message (direction, mode); read again when a new token reconnects.
-  // `name` is the feature the connection error texts name.
+  // `fields`는 모든 start 메시지에 들어가고(방향, 모드), 새 토큰으로 다시 연결할 때 다시 읽는다.
+  // `name`은 연결 오류 문구에 들어가는 기능 이름이다.
   constructor(api: Pick<TranslationApi, 'liveToken' | 'expireLiveAuthentication'>, fields: () => object,
     callbacks: Callbacks, open: OpenSocket = (url) => new WebSocket(url), name = '동시통역') {
     this.api = api; this.fields = fields; this.callbacks = callbacks; this.open = open; this.name = name
@@ -113,8 +113,8 @@ export class LiveTransport {
             if (this.ready) return
             clearTimeout(this.timeout)
             this.ready = true
-            // The server accepted this token, so a later 4401 is the next expiry and gets its own retry.
-            // The one-retry budget only stops a loop when a freshly refreshed token is rejected before ready.
+            // 서버가 이 토큰을 받아들였으므로, 나중의 4401은 다음 만료이고 다시 한 번 재시도할 수 있다. 재시도
+            // 한 번 제한은 방금 갱신한 토큰이 ready 전에 거절될 때 생기는 반복만 막는다.
             this.retried = false
             this.callbacks.ready(true)
             this.resolveReady?.()
@@ -157,7 +157,6 @@ export class LiveTransport {
   // 열려 있지 않으면 조용히 버린다. 보내기 실패는 연결 오류로 처리한다.
   send(message: object | ArrayBuffer) {
     if (!this.ready || !this.socket || this.socket.readyState !== 1) return
-    // Bound queued audio if the network stops accepting data (roughly one minute of PCM).
     // 2,000,000바이트는 16kHz·16비트 모노 PCM(초당 32,000바이트)으로 약 1분 분량이다. 네트워크가 멈춰 보내지
     // 못한 소리가 이만큼 쌓이면 메모리가 끝없이 늘지 않게 멈춘다.
     if (this.socket.bufferedAmount > 2_000_000) {

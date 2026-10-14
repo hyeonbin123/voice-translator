@@ -161,8 +161,8 @@ describe('API authentication', () => {
     expect(sessionStorage.getItem(REFRESH_KEY)).toBeNull()
   })
 
-  // 일시 오류 세 가지: 500, nginx의 HTML 502 페이지, 네트워크 끊김(fetch의 TypeError).
-  // A proxy 5xx while the API restarts or a dropped connection says nothing about the refresh token.
+  // 일시 오류 세 가지: 500, nginx의 HTML 502 페이지, 네트워크 끊김(fetch의 TypeError). API가 다시 시작하는
+  // 동안 프록시가 내는 5xx나 끊긴 연결은 갱신 토큰이 무효라는 뜻이 아니다.
   const transient = [
     ['500', () => Promise.resolve(response({}, 500))],
     ['502', () => Promise.resolve(new Response('<html>502 Bad Gateway</html>', { status: 502 }))],

@@ -23,8 +23,8 @@ export const SILERO_CHUNK = 512
 const CONTEXT = 64
 // 시간을 32ms 조각 수로 반올림한다: PAUSE_FRAMES 31(992ms), PAD_FRAMES 6(192ms, 말 앞뒤 여유 200ms),
 // MAX_FRAMES 906(28.992초, 앞 여유 포함 29초). 서버의 30초 한도를 넘는 마디가 나오지
-// 않는다(src/conversation/assets/SOURCE.md).
-// Match backend/eval/eos_eval.py group(): durations round to whole 32 ms frames.
+// 않는다(src/conversation/assets/SOURCE.md). backend/eval/eos_eval.py의 group()과 같게 길이를 32ms 조각 단위로
+// 반올림한다.
 const FRAME_MS = SILERO_CHUNK * 1000 / SAMPLE_RATE
 const PAUSE_FRAMES = Math.round(SILENCE_MS / FRAME_MS)
 const PAD_FRAMES = Math.round(200 / FRAME_MS)
@@ -48,7 +48,6 @@ export type CreateEndpointer = () => Promise<SpeechEndpointer>
 // 기본 모드 판정기 만들기. sileroRuntime을 동적 import로 불러, onnxruntime-web(WASM 약 14MB, gzip 약 3.7MB,
 // README)과 모델 파일을 대화 기능을 처음 시작할 때만 받는다. 번역 화면만 쓰는 사용자는 이것을 받지 않는다.
 export const createSileroEndpointer: CreateEndpointer = async () => {
-  // Neither ONNX Runtime nor the model is fetched on the initial page load.
   const { getSileroRunner } = await import('./sileroRuntime')
   return new SileroEndpointer(await getSileroRunner())
 }
@@ -123,7 +122,7 @@ export class SileroEndpointer implements SpeechEndpointer {
       const input = new Float32Array(CONTEXT + SILERO_CHUNK)
       input.set(this.context); input.set(frame, CONTEXT)
       const result = await this.run(input, this.h, this.c)
-      // Stop/playback can interrupt while session.run is pending. Never restore its old state.
+      // session.run을 기다리는 동안 멈춤·재생이 끼어들 수 있다. 그 경우 옛 상태를 되살리지 않는다.
       if (epoch !== this.epoch) return []
       if (!Number.isFinite(result.probability)) throw new Error('Invalid VAD output')
       this.h = result.h; this.c = result.c; this.context = frame.slice(-CONTEXT)
@@ -155,8 +154,8 @@ export class SileroEndpointer implements SpeechEndpointer {
         if (this.streaming) {
           if (speech && previousQuiet >= PAD_FRAMES) {
             events.push({ type: 'resume' })
-            // Keep the silence after the tail padding locally until speech resumes. The pause
-            // snapshot must equal the conversation WAV, but an internal gap must not disappear.
+            // 뒤 여유분을 넘는 조용한 조각은 말이 다시 시작될 때까지 여기서 들고 있는다. pause 시점의 소리는
+            // 대화 모드 WAV와 같아야 하지만, 마디 안의 쉼이 사라져서도 안 된다.
             for (const samples of this.frames.slice(-(previousQuiet - PAD_FRAMES + 1))) {
               events.push({ type: 'audio', samples })
             }
@@ -175,9 +174,9 @@ export class SileroEndpointer implements SpeechEndpointer {
         events.push({ type: 'end', samples: clip, startSample: this.startSample,
           endSample: this.startSample + clip.length, detectedAtSample: this.cursor, forced })
       } else events.push({ type: 'discard' })
-      // Pre-roll only from frames this clip left out, at most six: after a normal end that is the silence
-      // past the tail padding; a forced split in speech leaves none, so the next clip never repeats audio.
-      // A forced split in a long pause drops the quiet frames before those six, as a normal end does.
+      // 앞 여유분은 이 마디가 남긴 조각에서만, 최대 6개 가져온다: 보통의 끝이면 뒤 여유분을 넘는 조용한
+      // 조각이고, 말하는 도중 강제로 끊으면 남긴 조각이 없어 다음 마디가 소리를 되풀이하지 않는다. 긴 쉼 중에
+      // 강제로 끊으면 보통의 끝처럼 그 6개 앞의 조용한 조각은 버린다.
       this.pre = this.frames.slice(keep).slice(-PAD_FRAMES)
       this.frames = null; this.consecutive = this.speechFrames = this.quietFrames = 0
     }
