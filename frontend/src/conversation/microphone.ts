@@ -6,10 +6,12 @@
 // [설계 이유] 열기 도중 어느 단계에서든 취소(signal)되거나 실패하면 stop 하나로 스트림·노드·컨텍스트를 모두
 // 정리해 마이크가 켜진 채 남지 않게 한다.
 // [연결] 세션 생성자의 기본값으로 쓰이고(conversation·live·dialog의 session.ts), 테스트는 OpenMicrophone
-// 타입에 맞는 가짜 함수를 넣는다. ?url 접미는 Vite가 워클릿 파일을 별도 자산으로 내보내고 그 주소를 주게
-// 한다(addModule은 주소가 필요하다).
+// 타입에 맞는 가짜 함수를 넣는다. ?url 접미는 Vite가 워클릿 파일의 주소를 주게 한다(addModule은 주소가
+// 필요하다). &no-inline은 그 파일을 늘 별도 자산(/assets/capture.worklet-<해시>.js)으로 내보내게 한다: 워클릿이
+// 4KB보다 작아 Vite가 기본으로 data: URL로 묶어 넣었는데, 배포 nginx의 Content-Security-Policy(script-src
+// 'self')는 data: 스크립트를 막으므로 그대로면 대화 모드의 마이크가 열리지 않는다(frontend/nginx.conf).
 
-import workletUrl from './capture.worklet.js?url'
+import workletUrl from './capture.worklet.js?url&no-inline'
 import { MonoResampler } from './pcm'
 
 // 열린 마이크: stop은 완전히 닫기, setPaused는 번역 음성을 재생하는 동안 잠시 듣지 않기(재생 소리를 다시 말로
