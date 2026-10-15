@@ -739,3 +739,106 @@ async def test_dialog_mode_without_language_detection_is_unavailable(live):
     with live.client.websocket_connect("/api/translate/live") as ws:
         ws.send_json({"type": "start", "token": live.token, "mode": "dialog"})
         assert closed_with(ws) == 4503
+
+
+# 진단용 단계별 시각(LIVE_TIMINGS, docs/experiments.md 17절)이 켜졌을 때 final 메시지에 더할 timings의 단계
+# 이름들. 대화 모드·동시통역의 최종 처리는 음성 검사 → 인식 → 번역 → 합성 순서다.
+STAGES = ("validate", "stt", "mt", "tts")
+
+
+# 기록을 켠 연결 설정으로 바꾼다(갱신 간격 0초는 live 픽스처와 같음).
+def with_timings():
+    app.dependency_overrides[get_live_options] = lambda: LiveOptions(
+        interval_s=0.0, start_timeout_s=2.0, timings=True
+    )
+
+
+# 기본(LIVE_TIMINGS 끔)에서는 final 메시지에 type·id·result만 있다. 진단용 기록을 더한 뒤에도 기본 서버의
+# 메시지 계약(docs/api.md)이 그대로인지 고정한다.
+@pytest.mark.parametrize("mode", ["live", "conversation"])
+async def test_without_timings_the_final_message_is_unchanged(live, mode):
+    with live.client.websocket_connect("/api/translate/live") as ws:
+        start(ws, live.token, mode=mode)
+        final = turn(ws, 1)
+    assert set(final) == {"type", "id", "result"}
+
+
+# 기록을 켜면 pause에서 시작한 최종 처리의 단계가 순서대로 적힌다: 각 단계의 대기(wait_ms)와
+# 실행(run_ms)은 0 이상이고, 앞 단계가 끝난 뒤 다음 단계가 시작하며, 준비가 끝난 뒤 저장, 저장이 끝난 뒤
+# final을 보낸다. result는 기록을 끈 연결과 같은 값(시각 필드는 result 밖에 있다).
+@pytest.mark.parametrize("mode", ["live", "conversation"])
+async def test_timings_break_down_a_final_prepared_at_the_pause(live, mode):
+    with live.client.websocket_connect("/api/translate/live") as ws:
+        start(ws, live.token, mode=mode)
+        plain = turn(ws, 1)
+    with_timings()
+    with live.client.websocket_connect("/api/translate/live") as ws:
+        start(ws, live.token, mode=mode)
+        final = turn(ws, 2)
+    timings = final["timings"]
+    assert timings["from"] == "pause" and timings["redone"] is False
+    assert isinstance(timings["update_busy"], bool)
+    assert tuple(timings["stages"]) == STAGES
+    previous_end = 0.0
+    for name in STAGES:
+        step = timings["stages"][name]
+        assert step["wait_ms"] >= 0 and step["run_ms"] >= 0
+        assert step["started_ms"] >= previous_end - 0.2  # 소수 한 자리 반올림 여유
+        previous_end = step["started_ms"] + step["run_ms"]
+    assert timings["prepared_ms"] >= previous_end - 0.2
+    assert timings["end_ms"] >= 0
+    assert timings["save_started_ms"] >= max(timings["prepared_ms"], timings["end_ms"]) - 0.2
+    assert timings["save_ms"] >= 0
+    assert timings["final_ms"] >= timings["save_started_ms"] + timings["save_ms"] - 0.2
+    same = ("mode", "source_lang", "target_lang", "source_text", "translated_text", "stt_model", "mt_model")
+    assert {key: final["result"][key] for key in same} == {key: plain["result"][key] for key in same}
+
+
+# pause 없이 end가 오면 그때 받은 소리 전체로 처리하므로 기록의 기준점이 end다(end_ms 0). 미리 처리했다가 다시
+# 말해 버린 처리는 기록에 남지 않는다(다음 pause의 처리만 적힌다).
+async def test_timings_start_at_the_end_without_a_pause_and_forget_dropped_finals(live):
+    with_timings()
+    with live.client.websocket_connect("/api/translate/live") as ws:
+        start(ws, live.token, mode="conversation")
+        ws.send_json({"type": "utterance", "id": 1})
+        ws.send_bytes(SECOND)
+        ws.send_json({"type": "end", "id": 1})
+        no_pause = until(ws, "final")[-1]["timings"]
+        ws.send_json({"type": "utterance", "id": 2})
+        ws.send_bytes(SECOND)
+        ws.send_json({"type": "pause", "id": 2})
+        ws.send_json({"type": "resume", "id": 2})
+        ws.send_bytes(SECOND)
+        ws.send_json({"type": "pause", "id": 2})
+        ws.send_json({"type": "end", "id": 2})
+        resumed = until(ws, "final")
+    assert no_pause["from"] == "end" and no_pause["end_ms"] == 0.0
+    assert tuple(no_pause["stages"]) == STAGES
+    assert [message["type"] for message in resumed] == ["final"]
+    assert resumed[-1]["timings"]["from"] == "pause"
+    assert resumed[-1]["result"]["source_text"] == words(2 * len(SECOND))
+
+
+# 두 사람 대화는 언어 판별 단계도 적는다(음성 검사·판별을 먼저 하고 번역 흐름을 이어 감). 앞 마디가
+# 저장되기 전에 미리 처리해 저장 때 언어 결정을 다시 한 마디는 redone이 참이다.
+async def test_dialog_timings_include_detection_and_mark_a_redone_turn(live):
+    stt = Turns([("ko", 1.0), ("ko", 0.55)], hold=True)
+    app.dependency_overrides[get_models] = lambda: replace(live.models, stt=stt)
+    with_timings()
+    with live.client.websocket_connect("/api/translate/live") as ws:
+        start_dialog(ws, live.token)
+        ws.send_json({"type": "utterance", "id": 1})
+        ws.send_bytes(SECOND)
+        ws.send_json({"type": "pause", "id": 1})
+        assert stt.entered.wait(5)
+        ws.send_json({"type": "end", "id": 1})
+        ws.send_json({"type": "utterance", "id": 2})
+        ws.send_bytes(SECOND)
+        ws.send_json({"type": "pause", "id": 2})
+        ws.send_json({"type": "end", "id": 2})
+        stt.release.set()
+        messages = until(ws, "final")
+        messages += until(ws, "final")
+    first, second = [message["timings"] for message in messages if message["type"] == "final"]
+    assert tuple(first["stages"]) == ("dialog_validate", "detect", *STAGES)
+    assert first["redone"] is False and second["redone"] is True

@@ -18,7 +18,8 @@ import asyncio
 import contextlib
 import io
 import logging
-from collections.abc import Callable
+import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from fractions import Fraction
 from time import perf_counter
@@ -118,6 +119,45 @@ def validate_audio(audio: bytes) -> None:
         raise UndecodableAudioError("Audio decoding failed") from exc
 
 
+# 진단용 단계 기록(동시통역 웹소켓의 LIVE_TIMINGS, docs/api.md). 단계 이름("validate", "stt", "correct",
+# "mt", "tts", 두 사람 대화는 routers/live.py가 더하는 "dialog_validate"·"detect") → (실행기 대기열에 넣은
+# 시각, 실행 스레드에서 시작한 시각, 끝난 시각). 시각은 time.perf_counter() 초라 같은 프로세스의 모든
+# 스레드와 이벤트 루프가 같은 시계로 읽는다. 기록(stt_ms 등)과 달리 대기열에서 기다린 시간(시작 − 넣은
+# 시각)도 볼 수 있다.
+StageTimes = tuple[float, float, float]
+Trace = dict[str, StageTimes]
+
+
+async def stage(
+    trace: Trace | None, name: str, run: Callable[..., Awaitable[T]], fn: Callable[..., T], *args
+) -> T:
+    """run(fn, *args)를 그대로 부르고, trace가 있으면 그 단계의 세 시각을 trace[name]에 적는다.
+
+    trace가 None(기본, 서비스의 평소 동작)이면 아무것도 감싸지 않고 run(fn, *args)를 부른다. 그래서 기록을 끈
+    서버의 호출 순서·스레드·예외는 이 함수가 없던 때와 같다(tests/test_pipeline.py). 기록을 켜면 fn을 감싼
+    함수가 실행 스레드에서 시작·끝 시각을 찍는다. 실행되기 전에 취소된 단계(동시통역의 resume)는 시작 시각이
+    없어 적지 않는다. 시계는 _timed가 쓰는 pipeline.perf_counter와 따로 time.perf_counter를 직접 읽어, 그
+    이름을 바꾸는 테스트(기록 시간 확인)와 섞이지 않게 한다.
+    """
+    if trace is None:
+        return await run(fn, *args)
+    queued = time.perf_counter()
+    marks: list[float] = []
+
+    def stamped(*call_args):
+        marks.append(time.perf_counter())
+        try:
+            return fn(*call_args)
+        finally:
+            marks.append(time.perf_counter())
+
+    try:
+        return await run(stamped, *args)
+    finally:
+        if len(marks) == 2:
+            trace[name] = (queued, marks[0], marks[1])
+
+
 # 함수를 실행하고 (결과, 걸린 밀리초)를 돌려준다. 모델 스레드 안에서 실행되므로 대기열에서 기다린 시간은
 # 빠지고 순수 모델 호출 시간만 잰다.
 def _timed(fn: Callable[..., T], *args) -> tuple[T, int]:
@@ -135,16 +175,21 @@ async def prepare(
     target: Language,
     text: str | None = None,
     audio: bytes | None = None,
+    trace: Trace | None = None,
 ) -> Prepared:
+    # trace: 진단용 단계 기록(위 stage). 동시통역 웹소켓이 LIVE_TIMINGS를 켰을 때만 넘기고, HTTP API는 넘기지
+    # 않는다. 넘겨도 결과와 호출 순서는 같다.
     stt_ms = None
     stt_model = None
     # 음성 입력: 먼저 풀리는지·30초 이하인지 검사하고, 인식 언어는 사용자가 고른 source로 고정한다(언어 자동
     # 판별을 하지 않음, docs/api.md). 인식된 글자가 번역할 원문이 된다.
     if audio is not None:
-        await run_model(validate_audio, audio)
+        await stage(trace, "validate", run_model, validate_audio, audio)
         if models.stt is None:
             raise ModelError("Speech recognition model is unavailable")
-        transcript, stt_ms = await run_model(_timed, models.stt.transcribe, audio, source)
+        transcript, stt_ms = await stage(
+            trace, "stt", run_model, _timed, models.stt.transcribe, audio, source
+        )
         text = transcript.text
         stt_model = models.stt.model_name
     if models.translator is None:
@@ -157,11 +202,20 @@ async def prepare(
     # 모델 스레드를 붙잡지 않게 한다.
     corrected, correction_ms = None, 0
     if corrector is not None and corrector.corrects(source):
-        corrected, correction_ms = await run_correction(_timed, corrector.correct, text, source)
+        corrected, correction_ms = await stage(
+            trace, "correct", run_correction, _timed, corrector.correct, text, source
+        )
     # 교정이 성공했으면 교정문을, 실패(None)했거나 교정하지 않았으면 원문을 번역한다. 기록의 source_text는 늘
     # 사용자가 입력한 원문이다.
-    translated, translate_ms = await run_model(
-        _timed, models.translator.translate, corrected if corrected is not None else text, source, target
+    translated, translate_ms = await stage(
+        trace,
+        "mt",
+        run_model,
+        _timed,
+        models.translator.translate,
+        corrected if corrected is not None else text,
+        source,
+        target,
     )
     # mt_ms는 교정 시간 + 번역 시간이고, 교정문을 썼을 때만 mt_model에 교정 모델 이름을 붙인다(예: "... +
     # ollama/qwen2.5:1.5b-instruct").
@@ -185,7 +239,9 @@ async def prepare(
     if models.tts is not None:
         try:
             run = run_synthesis if target in models.synthesis_off_model_thread else run_model
-            prepared.speech, prepared.tts_ms = await run(_timed, models.tts.synthesize, translated, target)
+            prepared.speech, prepared.tts_ms = await stage(
+                trace, "tts", run, _timed, models.tts.synthesize, translated, target
+            )
             prepared.tts_model = models.tts.model_name
             prepared.tts_error = None
         except (ModelError, OSError) as exc:

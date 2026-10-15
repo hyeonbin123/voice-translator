@@ -552,3 +552,80 @@ async def test_the_synthesis_thread_does_not_wait_for_a_busy_model_thread():
     finally:
         release.set()
         await held
+
+
+# 진단용 단계 기록(pipeline.stage, LIVE_TIMINGS). 기록이 없으면(None) 넘긴 함수를 감싸지 않고 실행기에
+# 그대로 넘기는지(평소 서비스의 호출이 이 기능 전과 같음), 기록이 있으면 (넣은 시각 ≤ 시작 ≤ 끝)을 적고,
+# 모델 스레드가 막혀 있던 시간이 대기(시작 − 넣은 시각)로 드러나는지 확인한다.
+async def test_stage_passes_the_call_through_untouched_without_a_trace():
+    seen = []
+
+    async def run(fn, *args):
+        seen.append(fn)
+        return fn(*args)
+
+    def work(value):
+        return value * 2
+
+    assert await pipeline.stage(None, "stt", run, work, 21) == 42
+    assert seen == [work]  # 감싼 함수가 아니라 원래 함수가 넘어갔다
+
+
+async def test_stage_records_the_queue_wait_and_the_run_on_the_model_thread():
+    entered, release = threading.Event(), threading.Event()
+
+    def hold() -> None:
+        entered.set()
+        release.wait(5)
+
+    held = asyncio.create_task(run_model(hold))
+    assert await asyncio.to_thread(entered.wait, 5)
+    trace: pipeline.Trace = {}
+    task = asyncio.create_task(pipeline.stage(trace, "stt", run_model, lambda: time.sleep(0.05) or "text"))
+    await asyncio.sleep(0.2)  # 모델 스레드가 막혀 있는 동안 대기열에서 기다린다
+    release.set()
+    await held
+    assert await task == "text"
+    queued, started, ended = trace["stt"]
+    assert queued <= started <= ended
+    assert started - queued >= 0.15  # 막혀 있던 시간이 대기로 잡힌다
+    assert ended - started >= 0.04
+
+
+# 실행되기 전에 취소된 단계(동시통역에서 다시 말해 버린 미리 처리)는 시작 시각이 없으므로 기록하지
+# 않는다. 모델 스레드의 취소 규칙(inference._run: 취소된 작업은 대기열에서 아무것도 하지 않음)을 따른다.
+async def test_stage_leaves_no_entry_for_a_call_cancelled_in_the_queue():
+    entered, release = threading.Event(), threading.Event()
+
+    def hold() -> None:
+        entered.set()
+        release.wait(5)
+
+    held = asyncio.create_task(run_model(hold))
+    assert await asyncio.to_thread(entered.wait, 5)
+    trace: pipeline.Trace = {}
+    task = asyncio.create_task(pipeline.stage(trace, "mt", run_model, lambda: "never"))
+    await asyncio.sleep(0.05)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    release.set()
+    await held
+    await run_model(lambda: None)  # 취소된 작업이 대기열에서 빠질 때까지
+    assert trace == {}
+
+
+# prepare에 기록을 넘기면 음성 입력의 네 단계(검사·인식·번역·합성. 오타 교정은 글자 입력만)가 순서대로
+# 적히고, 결과는 기록 없이 부른 것과 같다.
+async def test_prepare_with_a_trace_records_each_stage_and_returns_the_same_result():
+    models = pipeline.PipelineModels(FakeSpeechToText(), FakeTranslator(), FakeTextToSpeech())
+    plain = await pipeline.prepare(models=models, source="en", target="ko", audio=silent_wav(100))
+    trace: pipeline.Trace = {}
+    traced = await pipeline.prepare(
+        models=models, source="en", target="ko", audio=silent_wav(100), trace=trace
+    )
+    assert list(trace) == ["validate", "stt", "mt", "tts"]
+    assert (traced.source_text, traced.translated_text) == (plain.source_text, plain.translated_text)
+    ends = [trace[name][2] for name in trace]
+    starts = [trace[name][1] for name in trace]
+    assert all(previous <= start for previous, start in zip(ends, starts[1:], strict=False))

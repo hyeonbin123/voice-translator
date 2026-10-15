@@ -2,6 +2,7 @@
 
   uv run python -m eval.stream_eval run --split validation --tag t34_dev
   uv run python -m eval.stream_eval modes --split validation --tag t77_dev   (T77, docs/experiments.md 11)
+  uv run python -m eval.stream_eval service --mode conversation --tag t95_conv_dev   (docs/experiments.md 17)
 
 FLEURS 클립마다 대화 모드가 브라우저에서 자르는 방식(Silero VAD, 1000ms 쉼, T33)대로 자른 뒤, 가상의
 시계 위에서 흘려보낸다. 사람이 말하는 동안 서버는 지금까지 받은 그 마디의 소리 전체를 인식하고 결과를
@@ -537,7 +538,8 @@ def browser_plan(flags, detected: int, pause_frames: int) -> list[tuple[int, str
 
 # 클립 하나를 웹소켓으로 브라우저처럼 실제 시간에 맞춰 보내고, 클립 시작부터 서버 메시지가 도착한 시각을 잰다.
 # 출력: 결과 종류, 단어별 표시 지연, 말 끝 → final, 말 끝 → 번역 음성 받기 완료, pause·resume 수, 자막 갱신
-# 수, 서버 결과, 음성의 SHA-256.
+# 수, 서버 결과, 음성의 SHA-256. 17절 진단을 위해 마지막 pause와 end를 보낸 시각(말 끝 기준)과, 서버가
+# LIVE_TIMINGS로 final에 실어 보낸 단계별 시각(timings, 없으면 None)도 함께 돌려준다.
 # 호출 위치: stream_all(service), run_modes(modes의 미리 처리 경로).
 async def stream_one(
     ws, http, auth: dict, number: int, utterance: dict, final: dict, pause_frames: int = PAD_FRAMES
@@ -566,12 +568,23 @@ async def stream_one(
 
     receiver = asyncio.create_task(receive())
     pauses = resumes = 0
+    # 최종 처리를 시작시킨 pause를 보낸 시각(클립 시작 기준). 그 뒤 resume을 보내면 그 처리는 버려지므로
+    # 지운다. 시각이 아니라 보낸 순서로 판단한다(같은 시계 눈금 안에 pause와 resume이 나란히 갈 수 있다).
+    last_pause: float | None = None
+    end_at = 0.0
     for at, kind, frames in browser_plan(flags, detected, pause_frames):
         await at_frame(at)
         if kind == "audio":
             await ws.send(pcm[frames[0] * S_CHUNK : frames[1] * S_CHUNK].tobytes())
         else:
             await ws.send(json.dumps({"type": kind, "id": number}))
+            now = loop.time() - t0
+            if kind == "pause":
+                last_pause = now
+            elif kind == "resume":
+                last_pause = None
+            elif kind == "end":
+                end_at = now
             pauses += kind == "pause"
             resumes += kind == "resume"  # resume마다 앞 쉼에서 미리 처리한 최종 결과를 버린다(T77)
     # 결과를 최대 120초 기다린다. 번역 음성이 있으면 인증된 요청으로 받아 받기 완료 시각을 재고, 해시를
@@ -597,18 +610,36 @@ async def stream_one(
         "lags": lags,
         "final_s": final_at - speech_end,
         "audio_s": None if audio_at is None else audio_at - speech_end,
+        "pause_sent_s": None if last_pause is None else last_pause - speech_end,
+        "end_sent_s": end_at - speech_end,
         "pauses": pauses,
         "updates": sum(1 for _, m in messages if m["type"] == "source"),
         "resumes": resumes,
         "result": outcome.get("result"),
         "detail": outcome.get("detail"),
+        "timings": outcome.get("timings"),
         "audio_sha256": audio_sha256,
     }
 
 
+# service 명령의 첫 메시지. live는 mode를 빼도 같으므로(docs/api.md) 빼서, 8절 이후의 동시통역 측정과 같은
+# 메시지를 보낸다. conversation이면 mode를 넣어 자막 없는 대화 모드로 연다(17절).
+def start_message(token: str, lang: str, mode: str) -> dict:
+    """service가 연결마다 보내는 start 메시지. 원문 언어의 반대 언어로 번역한다."""
+    message = {
+        "type": "start",
+        "token": token,
+        "source_lang": lang,
+        "target_lang": "ko" if lang == "en" else "en",
+    }
+    if mode != "live":
+        message["mode"] = mode
+    return message
+
+
 # service 명령의 실제 전송. 측정용 계정을 매번 새로 만들어(임의의 이메일·비밀번호) 로그인하고, 언어마다 웹소켓
 # 하나를 열어 start → ready 뒤 클립을 차례로 보낸다. 마디 사이 0.5초는 번역 음성 재생 같은 사이를 흉내 낸
-# 것이다.
+# 것이다. --mode conversation이면 start에 mode를 넣어 대화 모드(자막 없이 같은 미리 처리)로 잰다(17절).
 async def stream_all(args: argparse.Namespace, chosen: dict) -> dict:
     import httpx
     from websockets.asyncio.client import connect
@@ -624,10 +655,8 @@ async def stream_all(args: argparse.Namespace, chosen: dict) -> dict:
         token = login.json()["access_token"]
         auth = {"Authorization": f"Bearer {token}"}
         for lang, clips in chosen.items():
-            target = "ko" if lang == "en" else "en"
             async with connect("ws" + base.removeprefix("http") + "/api/translate/live", max_size=None) as ws:
-                start = {"type": "start", "token": token, "source_lang": lang, "target_lang": target}
-                await ws.send(json.dumps(start))
+                await ws.send(json.dumps(start_message(token, lang, args.mode)))
                 assert json.loads(await ws.recv())["type"] == "ready"
                 results[lang] = []
                 for number, (key, utterance, final) in enumerate(clips, 1):
@@ -743,6 +772,7 @@ def service(args: argparse.Namespace) -> None:
         rows.append(
             {
                 "lang": lang,
+                "mode": args.mode,
                 "utterances": len(items),
                 "errors": sum(1 for item in items if item["outcome"] != "final"),
                 "text_differs": sum(
@@ -758,12 +788,19 @@ def service(args: argparse.Namespace) -> None:
         )
     stamp = datetime.now(UTC)
     base = REPORTS / f"stream_{args.tag}_{stamp:%Y%m%d_%H%M%S}"
-    report = {"skipped": skipped, "gpu_use": gpu.summary(), "rows": rows, "details": results}
+    report = {
+        "mode": args.mode,
+        "skipped": skipped,
+        "gpu_use": gpu.summary(),
+        "rows": rows,
+        "details": results,
+    }
     base.with_suffix(".json").write_text(json.dumps(report, indent=1, ensure_ascii=False), encoding="utf-8")
     lines = [
         f"# 동시통역 실제 서비스 측정 ({args.tag})",
         "",
-        f"- 날짜: {stamp.isoformat()}, FLEURS {args.split}, 언어별 {args.count}문장, {args.base_url}",
+        f"- 날짜: {stamp.isoformat()}, FLEURS {args.split}, 언어별 {args.count}문장, {args.base_url}, "
+        f"모드 {args.mode}",
         f"- 미리 처리를 부르는 쉼: {args.pause_frames}조각({args.pause_frames * 32}ms). "
         "서버 설정은 따로 적는다",
         "- GPU (측정 중 0.5초마다, 이 서버의 사용 포함): 사용률 평균 {mean_util:.0f}%, p90 {p90_util:.0f}%, "
@@ -1318,6 +1355,8 @@ def main() -> None:
     sub.choices["service"].add_argument("--base-url", default="http://localhost:8080")
     # T61 후보 Q: 브라우저가 최종 처리를 요청하기 전 조용한 조각 수(6 = 192ms, 클립의 끝).
     sub.choices["service"].add_argument("--pause-frames", type=int, default=PAD_FRAMES)
+    # 17절: 대화 모드도 같은 방식으로 잰다(자막 없음). 기본 live는 8절 이후의 측정과 같은 메시지다.
+    sub.choices["service"].add_argument("--mode", choices=("live", "conversation"), default="live")
     sub.choices["modes"].add_argument("--base-url", default="http://localhost:8080")
     sub.choices["modes"].add_argument("--modes", nargs="+", choices=MODES, default=list(MODES))
     # T23의 간섭 확인: 두 경로를 재는 동안 다른 사람의 HTTP 요청을 함께 보낸다(보고만 함).

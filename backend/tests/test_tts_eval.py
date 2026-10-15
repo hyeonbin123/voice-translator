@@ -441,3 +441,96 @@ def test_unblinding_counts_preferences_and_unacceptable_clips_per_model(tmp_path
     assert summary["comment"] == "괜찮음"
     with pytest.raises(ValueError, match="pair 05"):
         tts_ab.unblind(key, "05 pref=1 bad=-\n")
+
+
+# 여기부터 melo-stages(docs/experiments.md 17절): MeloTTS 합성 한 번을 단계별로 나누는 도구를 가짜 모듈로
+# 검증한다. 가짜 모듈은 고정 리비전 melo/api.py의 tts_to_file처럼 함수를 '모듈 이름으로' 찾아
+# 부른다(split_sentence는 api의 전역, get_text_for_tts_infer는 utils 모듈, empty_cache는 torch.cuda, 잇기는
+# TTS 클래스의 정적 메서드).
+class FakeMeloModel:
+    def infer(self, piece):
+        time.sleep(0.002)
+        return np.ones(len(piece), np.float32)
+
+
+class FakeMeloTTS:
+    def __init__(self):
+        self.model = FakeMeloModel()
+
+    @staticmethod
+    def audio_numpy_concat(segments, sr, speed=1.0):
+        return np.concatenate(segments)
+
+    def tts_to_file(self, text, api, utils, torch):
+        pieces = api.split_sentence(text, language_str="KR")
+        audio = []
+        for piece in pieces:
+            utils.get_text_for_tts_infer(piece)
+            audio.append(self.model.infer(piece))
+        torch.cuda.empty_cache()
+        return self.audio_numpy_concat(audio, sr=44100)
+
+
+def fake_melo_modules():
+    from types import SimpleNamespace
+
+    api = SimpleNamespace(split_sentence=lambda text, language_str: text.split("."), TTS=FakeMeloTTS)
+    utils = SimpleNamespace(get_text_for_tts_infer=lambda piece: time.sleep(0.001))
+    torch = SimpleNamespace(cuda=SimpleNamespace(is_available=lambda: False, empty_cache=lambda: None))
+    return api, utils, torch
+
+
+# 감싸기를 켠 동안에는 다섯 단계의 시간과 조각 수가 모이고, 되돌리면 원래 함수가 모두 제자리에 있고 인스턴스에
+# 덧붙인 infer도 사라진다. 결과(소리)는 감싸기 전후로 같다.
+def test_melo_stages_wrap_each_step_and_undo_restores_the_originals():
+    api, utils, torch = fake_melo_modules()
+    originals = (api.split_sentence, utils.get_text_for_tts_infer, torch.cuda.empty_cache)
+    concat = FakeMeloTTS.__dict__["audio_numpy_concat"]
+    tts = FakeMeloTTS()
+    plain = tts.tts_to_file("가나.다라마.바", api, utils, torch)
+    clock, undo = tts_eval.instrument_melo(api, utils, tts, torch)
+    traced = tts.tts_to_file("가나.다라마.바", api, utils, torch)
+    undo()
+    assert np.array_equal(plain, traced)
+    assert clock.pieces == 3
+    assert set(clock.seconds) == set(tts_eval.MELO_STAGES)
+    assert clock.seconds["infer"] >= 0.005 and clock.seconds["text"] >= 0.002
+    assert (api.split_sentence, utils.get_text_for_tts_infer, torch.cuda.empty_cache) == originals
+    assert FakeMeloTTS.__dict__["audio_numpy_concat"] is concat
+    assert "infer" not in vars(tts.model)
+
+
+# 합성할 글은 서비스 측정 보고서의 영어 원문 마디가 받은 한국어 번역문이다. 두 모드에서 같은 번역문은 한 번만,
+# 실패한 마디와 한국어 원문 마디는 뺀다.
+def test_stage_texts_take_the_korean_translations_of_english_speech_once(tmp_path):
+    def final(text, target="ko"):
+        return {"outcome": "final", "result": {"translated_text": text, "target_lang": target}}
+
+    live = {
+        "details": {
+            "en": [{"key": "1", **final("하나.")}, {"key": "2", "outcome": "error", "result": None}],
+            "ko": [{"key": "3", **final("One.", "en")}],
+        }
+    }
+    conversation = {"details": {"en": [{"key": "1", **final("하나.")}, {"key": "4", **final("넷. 다섯.")}]}}
+    paths = []
+    for name, report in (("live", live), ("conversation", conversation)):
+        path = tmp_path / f"{name}.json"
+        path.write_text(json.dumps(report, ensure_ascii=False), encoding="utf-8")
+        paths.append(path)
+    assert tts_eval.stage_texts(paths) == [{"id": "1", "text": "하나."}, {"id": "4", "text": "넷. 다섯."}]
+
+
+# 요약은 문장별 단계 시간의 중앙값과 전체 합에서 단계가 차지하는 몫, 조각 2개 이상인 문장의 비율을 낸다.
+def test_stage_summary_gives_shares_and_the_multi_piece_ratio():
+    def row(total, infer, cache, pieces):
+        stages = {"split": 1.0, "text": 10.0, "infer": infer, "empty_cache": cache, "concat": 4.0}
+        return {"total_ms": total, "plain_ms": total - 5, "pieces": pieces, "stages_ms": stages}
+
+    summary = tts_eval.summarize_stages([row(500, 400, 50, 1), row(700, 560, 70, 2), row(900, 720, 90, 3)])
+    assert summary["total_p50_ms"] == 700 and summary["plain_p50_ms"] == 695
+    assert summary["stages"]["empty_cache"]["share"] == pytest.approx(210 / 2100)
+    assert summary["stages"]["infer"]["p50_ms"] == 560
+    assert summary["multi_piece_ratio"] == pytest.approx(2 / 3)
+    assert summary["pieces"] == {"1": 1, "2": 1, "3": 1}
+    assert summary["other_p50_ms"] == pytest.approx(700 - (1 + 10 + 560 + 70 + 4))

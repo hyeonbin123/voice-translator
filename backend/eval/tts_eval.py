@@ -498,8 +498,202 @@ def write_report(results: list[dict], args: argparse.Namespace) -> None:
     print(f"written to {report}")
 
 
-# 명령줄 진입점. 하위 명령 export·synth·score·timing을 고른다. synth의 --languages는 고른 언어만 확인 측정할
-# 때(예: test에서 한국어만), --stt-load·--stt-load-device는 인식 부하 실행에 쓴다.
+# 여기부터 melo-stages 명령(docs/experiments.md 17절, 측정 전 규칙과 함께 커밋). 서비스의 한국어 합성(MeloTTS)
+# 한 번이 어느 단계에 시간을 쓰는지 나눠 잰다. 고정 리비전의 melo/api.py `tts_to_file`은 ① 글을 문장 조각으로
+# 나누고(split_sentence) ② 조각마다 글 전처리와 BERT 특징(utils.get_text_for_tts_infer) ③ 음성
+# 생성(model.infer) 을 한 뒤 ④ 호출 끝에 GPU 캐시를 비우고(torch.cuda.empty_cache) ⑤ 조각 사이에 50ms 무음을
+# 넣어 잇는다 (audio_numpy_concat). 이 다섯을 감싸 시간을 모으고, 나머지(텐서 옮기기·WAV 만들기)는 '그 밖'으로
+# 남긴다. 서비스 코드(app/services/tts.py)는 바꾸지 않는다: 이 명령이 측정하는 동안에만 melo 모듈의 함수를
+# 감쌌다가 되돌린다. GPU 작업은 비동기로 돌아 함수가 돌아온 뒤에도 계산이 남을 수 있으므로, ②③을 감쌀 때는
+# 끝에 torch.cuda.synchronize()로 기다려 그 단계의 시간에 넣는다(원래 코드도 ③ 바로 뒤의 .cpu()에서 기다린다).
+MELO_STAGES = ("split", "text", "infer", "empty_cache", "concat")
+
+
+class MeloStageClock:
+    """MeloTTS 합성 한 번 안의 단계별 시간(초)과 조각 수를 모은다. reset()으로 문장마다 새로 센다."""
+
+    def __init__(self, synchronize: Callable[[], None] | None = None) -> None:
+        self.synchronize = synchronize
+        self.reset()
+
+    def reset(self) -> None:
+        self.seconds = dict.fromkeys(MELO_STAGES, 0.0)
+        self.pieces = 0
+
+    def wrap(self, name: str, fn: Callable, sync: bool = False) -> Callable:
+        """fn을 감싸 걸린 시간을 name 단계에 더한다. sync면 끝에 GPU를 기다린다. split은 조각 수도 센다."""
+
+        def timed(*args, **kwargs):
+            start = time.perf_counter()
+            result = fn(*args, **kwargs)
+            if sync and self.synchronize is not None:
+                self.synchronize()
+            self.seconds[name] += time.perf_counter() - start
+            if name == "split":
+                self.pieces = len(result)
+            return result
+
+        return timed
+
+
+def instrument_melo(
+    api_module, utils_module, model, torch_module
+) -> tuple[MeloStageClock, Callable[[], None]]:
+    """MeloTTS의 다섯 단계를 감싸고 (시계, 되돌리기 함수)를 돌려준다.
+
+    api_module은 melo.api(split_sentence 이름과 TTS 클래스가 있음), utils_module은 melo.utils, model은
+    melo.api.TTS 객체(그 안의 model.infer를 감쌈), torch_module은 torch다. 인자로 받는 것은 테스트가 가짜
+    모듈로 같은 감싸기를 확인하기 위해서다. 되돌리기 함수를 부르면 원래 함수가 제자리로 돌아간다.
+    """
+    cuda = torch_module.cuda
+    clock = MeloStageClock(cuda.synchronize if cuda.is_available() else None)
+    originals = [
+        (api_module, "split_sentence", api_module.split_sentence),
+        (utils_module, "get_text_for_tts_infer", utils_module.get_text_for_tts_infer),
+        (cuda, "empty_cache", cuda.empty_cache),
+        (api_module.TTS, "audio_numpy_concat", api_module.TTS.__dict__["audio_numpy_concat"]),
+    ]
+    api_module.split_sentence = clock.wrap("split", api_module.split_sentence)
+    utils_module.get_text_for_tts_infer = clock.wrap("text", utils_module.get_text_for_tts_infer, sync=True)
+    model.model.infer = clock.wrap("infer", model.model.infer, sync=True)
+    cuda.empty_cache = clock.wrap("empty_cache", cuda.empty_cache)
+    concat = api_module.TTS.__dict__["audio_numpy_concat"].__func__
+    api_module.TTS.audio_numpy_concat = staticmethod(clock.wrap("concat", concat))
+
+    def undo() -> None:
+        for owner, name, original in originals:
+            setattr(owner, name, original)
+        # 인스턴스에 덧붙인 infer를 지워 클래스의 원래 메서드가 다시 보이게 한다.
+        vars(model.model).pop("infer", None)
+
+    return clock, undo
+
+
+def stage_texts(stream_reports: list[Path]) -> list[dict]:
+    """17절 서비스 측정 보고서(stream_eval service)에서 한국어로 읽힌 번역문(영어 원문 마디의 최종 결과)을
+    모은다.
+
+    같은 문장이 두 모드(동시통역·대화 모드)에서 같은 번역문으로 나오므로 글이 같으면 한 번만 쓴다. 실패한
+    마디는 뺀다. 돌려주는 것은 [{"id": "<key>", "text": 번역문}] 목록(처음 나온 순서).
+    """
+    seen: dict[str, str] = {}
+    for path in stream_reports:
+        report = json.loads(Path(path).read_text(encoding="utf-8"))
+        for item in report["details"].get("en", []):
+            result = item.get("result") or {}
+            text = result.get("translated_text")
+            if item.get("outcome") == "final" and result.get("target_lang") == "ko" and text:
+                seen.setdefault(text, item["key"])
+    return [{"id": key, "text": text} for text, key in seen.items()]
+
+
+def summarize_stages(rows: list[dict]) -> dict:
+    """문장별 단계 시간에서 17절 규칙이 보는 값들: 합성 전체 p50, 단계별 p50과 전체에서의 몫(합 기준),
+    조각 2개 이상인 문장의 비율, 계측 없이 잰 합성 p50(계측이 더한 시간을 보려고)."""
+    totals = [row["total_ms"] for row in rows]
+    plain = [row["plain_ms"] for row in rows]
+    stages = {
+        name: {
+            "p50_ms": statistics.median(row["stages_ms"][name] for row in rows),
+            "share": sum(row["stages_ms"][name] for row in rows) / sum(totals),
+        }
+        for name in MELO_STAGES
+    }
+    other = [row["total_ms"] - sum(row["stages_ms"].values()) for row in rows]
+    return {
+        "sentences": len(rows),
+        "total_p50_ms": statistics.median(totals),
+        "plain_p50_ms": statistics.median(plain),
+        "stages": stages,
+        "other_p50_ms": statistics.median(other),
+        "other_share": sum(other) / sum(totals),
+        "multi_piece_ratio": sum(1 for row in rows if row["pieces"] >= 2) / len(rows),
+        "pieces": {
+            str(n): sum(1 for row in rows if row["pieces"] == n) for n in sorted({r["pieces"] for r in rows})
+        },
+    }
+
+
+# melo-stages 명령: 서비스와 같은 MeloTextToSpeech("ko")를 올리고, 첫 문장으로 한 번 데운 뒤 문장마다 ① 계측
+# 없이 한 번(plain, 전체 시간만) ② 계측을 켜고 한 번(단계별) 합성한다. 두 번 합성하는 것은 계측(동기화) 자체가
+# 더한 시간을 함께 보려는 것이다. MeloTTS는 호출마다 잡음을 새로 뽑아 두 소리의 길이가 조금 다를 수 있다. tts
+# 그룹(transformers 4.27)이 있는 API 이미지 안에서 돌린다(17절 실행 방법).
+def melo_stages(args: argparse.Namespace) -> None:
+    import melo.api
+    import melo.utils
+    import torch
+
+    from app.services.tts import MeloTextToSpeech
+
+    texts = stage_texts(args.from_stream)
+    if args.limit:
+        texts = texts[: args.limit]
+    model = MeloTextToSpeech("ko", device=args.device)
+    model.synthesize(texts[0]["text"], "ko")  # 데우기(통계에서 뺌)
+    rows = []
+    for item in texts:
+        start = time.perf_counter()
+        model.synthesize(item["text"], "ko")
+        plain_ms = (time.perf_counter() - start) * 1000
+        clock, undo = instrument_melo(melo.api, melo.utils, model._model, torch)
+        try:
+            start = time.perf_counter()
+            audio = model.synthesize(item["text"], "ko")
+            total_ms = (time.perf_counter() - start) * 1000
+        finally:
+            undo()
+        rows.append(
+            {
+                "id": item["id"],
+                "chars": len(item["text"]),
+                "pieces": clock.pieces,
+                "audio_ms": audio.duration_ms,
+                "plain_ms": round(plain_ms, 1),
+                "total_ms": round(total_ms, 1),
+                "stages_ms": {name: round(seconds * 1000, 1) for name, seconds in clock.seconds.items()},
+            }
+        )
+    summary = summarize_stages(rows)
+    stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+    base = REPORTS / f"tts_{args.tag}_melo_stages_{stamp}"
+    record = {
+        "tag": args.tag,
+        "device": args.device,
+        "sources": [str(p) for p in args.from_stream],
+        "model_name": model.model_name,
+        "summary": summary,
+        "rows": rows,
+    }
+    base.with_suffix(".json").write_text(json.dumps(record, ensure_ascii=False, indent=1), encoding="utf-8")
+    names = {
+        "split": "조각 나누기",
+        "text": "전처리·BERT",
+        "infer": "음성 생성",
+        "empty_cache": "캐시 비우기",
+        "concat": "잇기",
+    }
+    lines = [
+        f"# MeloTTS 단계별 시간 ({args.tag})",
+        "",
+        f"- 날짜: {datetime.now(UTC).isoformat()}, 장치 {args.device}, 문장 {summary['sentences']}개"
+        "(서비스 측정의 영어 원문 마디가 받은 한국어 번역문)",
+        f"- 합성 전체 p50(계측 켬) {summary['total_p50_ms']:.0f}ms, "
+        f"계측 없이 {summary['plain_p50_ms']:.0f}ms",
+        f"- 조각 2개 이상인 번역문 {summary['multi_piece_ratio']:.0%}, 조각 수별 문장 수 {summary['pieces']}",
+        "",
+        "| 단계 | p50 | 전체에서의 몫 |",
+        "|---|---|---|",
+    ]
+    for name in MELO_STAGES:
+        stage = summary["stages"][name]
+        lines.append(f"| {names[name]} | {stage['p50_ms']:.1f}ms | {stage['share']:.1%} |")
+    lines.append(f"| 그 밖 | {summary['other_p50_ms']:.1f}ms | {summary['other_share']:.1%} |")
+    base.with_suffix(".md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"written to {base.with_suffix('.md')}")
+
+
+# 명령줄 진입점. 하위 명령 export·synth·score·timing·melo-stages를 고른다. synth의 --languages는 고른 언어만
+# 확인 측정할 때(예: test에서 한국어만), --stt-load·--stt-load-device는 인식 부하 실행에 쓴다.
 def main() -> None:
     parser = argparse.ArgumentParser()
     phases = parser.add_subparsers(dest="phase", required=True)
@@ -522,8 +716,30 @@ def main() -> None:
     score_parser.add_argument("--tag", default="run")
     timing_parser = phases.add_parser("timing", help="인식 없이 한 태그의 속도를 요약한다")
     timing_parser.add_argument("--tag", default="run")
+    stages_parser = phases.add_parser(
+        "melo-stages",
+        help="MeloTTS 한국어 합성 한 번을 단계별(조각 나누기·전처리·생성·캐시 비우기·잇기)로 잰다"
+        " (docs/experiments.md 17절)",
+    )
+    stages_parser.add_argument(
+        "--from-stream",
+        type=Path,
+        nargs="+",
+        required=True,
+        help="stream_eval service 보고서(JSON). 영어 원문 마디의 한국어 번역문을 합성할 글로 쓴다",
+    )
+    stages_parser.add_argument("--tag", required=True)
+    stages_parser.add_argument("--device", choices=["cuda", "cpu"], default="cuda")
+    stages_parser.add_argument("--limit", type=int, default=None, help="앞에서부터 N문장만(시험용)")
     args = parser.parse_args()
-    {"export": export, "synth": synth, "score": score, "timing": timing}[args.phase](args)
+    commands = {
+        "export": export,
+        "synth": synth,
+        "score": score,
+        "timing": timing,
+        "melo-stages": melo_stages,
+    }
+    commands[args.phase](args)
 
 
 if __name__ == "__main__":

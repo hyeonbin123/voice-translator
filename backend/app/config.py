@@ -109,6 +109,11 @@ class Settings(BaseSettings):
     # 않아 기본은 끔이다(README 알려진 한계).
     live_update_thread: bool = False
     stt_num_workers: int = Field(default=1, ge=1)
+    # 진단용(docs/experiments.md 17절): 켜면 웹소켓의 final 메시지에 그 마디의 단계별 시각(timings: 미리
+    # 처리를 시작한 때부터 모델 스레드 대기, 인식·번역·합성의 시작과 길이, end 받음, 저장, final 보냄)을
+    # 더한다. 말을 멈춘 뒤 번역 음성까지의 시간이 어느 단계에서 쓰이는지 나눠 보려는 것이다. 기본은 끔이고,
+    # 끄면 메시지와 동작이 이 설정이 없던 때와 같다. 켜도 결과(result)와 처리 순서는 같고, 시각만 더 읽는다.
+    live_timings: bool = False
     # 두 사람 대화(docs/experiments.md 10절): 판별한 언어의 확신이 이 값보다 낮으면 그 마디를 직전 마디와
     # 반대 언어로 본다. 0.6은 validation으로 골랐다. 판별 확신은 한국어·영어 확률 중 큰 쪽의 몫(큰 쪽 ÷
     # 둘의 합)이라 늘 0.5 이상이다. 그래서 문턱은 0.5보다 커야 의미가 있고(gt=0.5), 1.0을 넘을 수 없다.

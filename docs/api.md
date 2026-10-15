@@ -314,6 +314,21 @@ access 헤더 없이 refresh 토큰을 JSON으로 보낸다.
 | `{"type": "final", "id": 1, "result": {...}}` | 최종 결과. `result`는 `POST /api/translate/speech`의 201 응답과 같은 필드이고 같은 기록이 저장된다. 음성은 `GET /api/audio/{audio_id}`로 받는다 |
 | `{"type": "error", "id": 1, "detail": "..."}` | 그 마디만 실패, 기록 없음. `detail`은 음성 번역 API의 422·503 문구와 같다(`"Audio could not be decoded"`, `"Audio is longer than 30 seconds"`, `"No speech was recognized"`, `"Translation service is unavailable"`), 저장이 실패하면 `"The translation could not be saved"`. 연결은 유지된다 |
 
+**진단용 timings** (`LIVE_TIMINGS=true`일 때만): `final` 메시지에 `result`와 나란히 `timings`가 붙는다. 말을 멈춘 뒤 번역 음성까지의 시간을 단계별로 나누려는 것이며(docs/experiments.md 17절), 기본 서버는 보내지 않는다. 시각은 모두 서버가 최종 처리를 시작한 때(`from`: 보통 `"pause"`를 받은 때, pause 없이 끝나면 `"end"`를 받은 때)를 0으로 잰 밀리초(소수 한 자리)다.
+
+```json
+{"type": "final", "id": 1, "result": {...}, "timings": {
+  "from": "pause", "update_busy": true,
+  "stages": {"validate": {"queued_ms": 0.1, "started_ms": 212.4, "wait_ms": 212.3, "run_ms": 1.8},
+             "stt": {...}, "mt": {...}, "tts": {...}},
+  "prepared_ms": 1180.2, "end_ms": 801.5, "save_started_ms": 1181.0, "save_ms": 24.7,
+  "final_ms": 1206.3, "redone": false}}
+```
+
+- `stages`: 최종 처리의 단계마다 모델 스레드(또는 오타 교정·CPU 합성 전용 스레드) 대기열에 넣은 때(`queued_ms`), 실행이 시작된 때(`started_ms`), 대기(`wait_ms`)와 실행(`run_ms`). 단계 이름은 `validate`(음성 검사), `stt`, `mt`, `tts`, 두 사람 대화는 앞에 `dialog_validate`·`detect`(언어 판별)가 붙는다. 다시 말해 버린 미리 처리는 남지 않는다
+- `update_busy`: 최종 처리를 시작할 때 동시통역 자막 갱신의 모델 호출이 돌고 있었는지(대화 모드·두 사람 대화는 늘 false)
+- `prepared_ms`: 인식·번역·합성이 끝난 때, `end_ms`: `end`를 받은 때, `save_started_ms`·`save_ms`: 기록 저장(음성 파일·DB)의 시작과 길이, `final_ms`: 이 메시지를 보내기 직전, `redone`: 두 사람 대화에서 저장할 때 언어 결정을 다시 해 단계 기록을 덮어썼는지
+
 **닫힘 코드**: `4401` 토큰이 없거나 틀림, 없는 사용자, 또는 연결 중 토큰 만료(만료 뒤 첫 메시지에서 닫는다. 화면은 토큰을 새로 받아 다시 연결한다), `4422` 첫 메시지가 없거나 틀림, 언어 오류, 계약에 없는 메시지, `4503` 서버에 모델이 없음.
 
 - 자막 갱신: 서버는 한 마디에서 한 번에 한 갱신만 돌리고, 끝나면 그때까지 받은 소리 전체를 다시 인식한다. 두 갱신의 시작은 `LIVE_UPDATE_MS` 이상 떨어진다. 원문은 인식이 끝나는 대로, 번역문은 번역이 끝나는 대로 보낸다. 원문이 바뀌지 않으면 번역하지 않는다
@@ -416,6 +431,7 @@ backend 폴더에서 `uv sync` 후 `uv run alembic upgrade head`를 실행해 �
 | `LIVE_BEAM_SIZE` | `5` | 동시통역 자막 갱신의 인식 beam 크기. 최종 결과는 늘 음성 번역 API와 같은 설정을 쓴다 |
 | `LIVE_TEMPERATURE_FALLBACK` | `true` | 자막 갱신 인식이 결과가 나쁠 때 temperature를 올려 다시 풀지. 끄면 temperature 0으로 한 번만 푼다 |
 | `LIVE_UPDATE_THREAD` | `false` | 자막 갱신을 모델 스레드 대기열 대신 전용 스레드에서 돌린다. 인식 호출끼리 실제로 동시에 돌려면 `STT_NUM_WORKERS`도 2 이상이어야 한다 (docs/experiments.md 8절 T61) |
+| `LIVE_TIMINGS` | `false` | 진단용. 켜면 웹소켓 `final` 메시지에 그 마디의 단계별 시각 `timings`를 더한다(아래 'WS /api/translate/live'의 진단용 timings, docs/experiments.md 17절). `result`와 처리 순서는 그대로이고, 끄면 메시지가 이 설정이 없던 때와 같다 |
 | `DIALOG_LANGUAGE_THRESHOLD` | `0.6` | 두 사람 대화에서 판별한 언어의 확신이 이보다 낮으면 직전 마디의 반대 언어로 처리한다 (docs/experiments.md 10절에서 고름) |
 | `STT_NUM_WORKERS` | `1` | 인식 모델 복제 수(faster-whisper num_workers). 여러 스레드의 인식 호출이 이 수만큼 동시에 돈다. 복제마다 GPU 메모리를 더 쓴다 |
 | `WARM_UP` | `true` | 모델을 올린 뒤 번역·합성·인식을 한 번씩 돌려 첫 요청의 지연을 없앤다 |

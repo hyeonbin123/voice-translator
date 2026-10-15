@@ -7,6 +7,8 @@
 # 달라지고, 판정 함수가 틀리면 기록된 채택 결정이 달라진다. 특히 '어느 쉼에서 미리 처리를 요청해도 서버가 가진
 # 소리는 업로드되던 클립과 정확히 같다'는 성질이 미리 처리 결과가 업로드 결과와 같을 수 있는 전제다.
 
+import json
+
 import numpy as np
 import pytest
 
@@ -269,3 +271,68 @@ def test_the_service_check_releases_its_own_models_before_streaming(monkeypatch)
     with pytest.raises(Stop):
         stream_eval.service(args)
     assert len(made) == 2
+
+
+# 여기부터 17절(말 끝 → 번역 음성 단계별 진단)에 더한 것.
+
+
+# service의 첫 메시지: live는 mode를 넣지 않아 8절 이후의 측정과 같은 메시지이고, conversation은 mode를 넣어
+# 자막 없는 대화 모드로 연다. 번역 방향은 원문의 반대 언어다.
+def test_the_service_start_message_names_the_mode_only_for_conversation():
+    from eval.stream_eval import start_message
+
+    assert start_message("t", "en", "live") == {
+        "type": "start",
+        "token": "t",
+        "source_lang": "en",
+        "target_lang": "ko",
+    }
+    assert start_message("t", "ko", "conversation") == {
+        "type": "start",
+        "token": "t",
+        "source_lang": "ko",
+        "target_lang": "en",
+        "mode": "conversation",
+    }
+
+
+# 가짜 웹소켓: 보낸 메시지를 모으고, end를 받으면 그 마디의 final(서버 timings 포함)을 돌려준다.
+class FakeSocket:
+    def __init__(self, timings):
+        import asyncio
+
+        self.sent: list = []
+        self.inbox: asyncio.Queue = asyncio.Queue()
+        self.timings = timings
+
+    async def send(self, message):
+        self.sent.append(message)
+        if isinstance(message, str) and '"end"' in message:
+            result = {"source_text": "hello", "audio_id": None}
+            await self.inbox.put(
+                json.dumps({"type": "final", "id": 1, "result": result, "timings": self.timings})
+            )
+
+    async def recv(self):
+        return await self.inbox.get()
+
+
+# 클립 하나를 흘려보내면, 진단에 쓰는 마지막 pause와 end를 보낸 시각(말 끝 기준)이 계획대로 기록되고, 서버가
+# final에 실어 보낸 timings가 그대로 결과에 남는다. 시간을 아끼려고 조각 길이(FRAME_S)를 1ms로 줄여 돌린다.
+async def test_streaming_records_when_the_pause_and_end_were_sent_and_keeps_the_server_timings(monkeypatch):
+    from eval import stream_eval
+
+    monkeypatch.setattr(stream_eval, "FRAME_S", 0.001)
+    utterance, plan = clip_and_plan()
+    utterance["detected_s"] = DETECTED * 0.001
+    speech_end_s = 0.020
+    final = {"text": "hello", "spans": [(0, 5, speech_end_s)]}
+    timings = {"from": "pause", "stages": {}}
+    ws = FakeSocket(timings)
+    result = await stream_eval.stream_one(ws, None, {}, 1, utterance, final)
+    assert result["outcome"] == "final" and result["timings"] == timings
+    last_pause_frame = max(at for at, kind, _ in plan if kind == "pause")
+    end_frame_ = plan[-1][0]
+    assert result["pause_sent_s"] == pytest.approx(last_pause_frame * 0.001 - speech_end_s, abs=0.05)
+    assert result["end_sent_s"] == pytest.approx(end_frame_ * 0.001 - speech_end_s, abs=0.05)
+    assert result["end_sent_s"] > result["pause_sent_s"]

@@ -25,6 +25,7 @@
 import asyncio
 import json
 import logging
+import time
 from collections.abc import Coroutine
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -82,11 +83,67 @@ class LiveOptions:
     interval_s: float  # 한 마디 안에서 두 갱신 시작 사이의 최소 시간(초)
     start_timeout_s: float = 10.0
     update_thread: bool = False  # 자막 갱신을 전용 스레드에서 돌릴지(LIVE_UPDATE_THREAD)
+    timings: bool = False  # final에 진단용 단계별 시각을 더할지(LIVE_TIMINGS, 아래 Timing)
 
 
 def get_live_options() -> LiveOptions:
     settings = get_settings()
-    return LiveOptions(interval_s=settings.live_update_ms / 1000, update_thread=settings.live_update_thread)
+    return LiveOptions(
+        interval_s=settings.live_update_ms / 1000,
+        update_thread=settings.live_update_thread,
+        timings=settings.live_timings,
+    )
+
+
+@dataclass(eq=False)
+class Timing:
+    """진단용(LIVE_TIMINGS): 한 마디의 최종 처리가 어디에 시간을 쓰는지 적는 시각들(time.perf_counter() 초).
+
+    말을 멈춘 뒤 번역 음성까지(README의 동시통역 영어 원문 1.73초)를 단계별로 나누려고 둔다
+    (docs/experiments.md 17절). 기록을 켜도 처리 순서·결과는 같고, 시각을 읽는 일만 더한다.
+    - started_at·anchor: 최종 처리를 시작한 때. 보통 pause를 받은 때("pause")이고, pause 없이 end가 오면
+      end를 받은 때("end")다. 보고서의 모든 ms는 이 시각을 0으로 잰다
+    - update_busy: 그때 자막 갱신의 모델 호출(인식·번역)이 돌고 있었거나 대기열에 있었는지(동시통역만). 모델
+      스레드가 하나라 그 호출이 끝나야 최종 처리가 시작된다
+    - trace: services/pipeline.stage가 적는 단계별 (대기열에 넣음, 시작, 끝)
+    - prepared_at: 최종 처리(인식·번역·합성)가 끝난 때, ended_at: end를 받은 때
+    - redone: 두 사람 대화에서 앞 마디가 저장된 뒤 언어 결정을 다시 해 단계 기록을 덮어썼는지
+    """
+
+    started_at: float
+    anchor: Literal["pause", "end"]
+    update_busy: bool
+    trace: pipeline.Trace = field(default_factory=dict)
+    prepared_at: float | None = None
+    ended_at: float | None = None
+    redone: bool = False
+
+    def report(self, save_started: float, save_ended: float, sending: float) -> dict:
+        """final 메시지에 실을 timings(밀리초, 소수 한 자리). 모양은 docs/api.md의 '진단용 timings'와 같다."""
+
+        def since(at: float | None) -> float | None:
+            return None if at is None else round((at - self.started_at) * 1000, 1)
+
+        stages = {
+            name: {
+                "queued_ms": since(queued),
+                "started_ms": since(started),
+                "wait_ms": round((started - queued) * 1000, 1),
+                "run_ms": round((ended - started) * 1000, 1),
+            }
+            for name, (queued, started, ended) in self.trace.items()
+        }
+        return {
+            "from": self.anchor,
+            "update_busy": self.update_busy,
+            "stages": stages,
+            "prepared_ms": since(self.prepared_at),
+            "end_ms": since(self.ended_at),
+            "save_started_ms": since(save_started),
+            "save_ms": round((save_ended - save_started) * 1000, 1),
+            "final_ms": since(sending),
+            "redone": self.redone,
+        }
 
 
 # 진행 중인 한 마디의 상태. eq=False라 필드 값이 아니라 객체 자체로 비교된다(같은 내용의 두 마디를 같은 것으로
@@ -94,7 +151,7 @@ def get_live_options() -> LiveOptions:
 # pcm: 지금까지 받은 소리. changed: 새 소리나 상태 변화가 있으면 켜져 자막 갱신 루프를 깨운다. paused: 192ms
 # 쉼 상태. too_long: 30초를 넘음. closed: 끝났거나 버려짐. updater: 자막 갱신 작업. final: 쉼에서 시작한
 # 미리 처리 작업(다시 말하면 버림). recognized/shown: 바로 앞 갱신의 인식 결과와 마지막으로 보낸 (글, 진한
-# 길이).
+# 길이). updating: 자막 갱신의 모델 호출을 기다리는 중인지, timing: 진단용 시각(LIVE_TIMINGS를 켰을 때만).
 @dataclass(eq=False)
 class Utterance:
     id: int
@@ -108,6 +165,8 @@ class Utterance:
     final: asyncio.Task | None = None
     recognized: str | None = None
     shown: tuple[str, int] | None = None
+    updating: bool = False
+    timing: Timing | None = None
 
 
 @dataclass(frozen=True)
@@ -307,7 +366,14 @@ class LiveConnection:
         if utterance.paused or utterance.too_long:
             return
         utterance.paused = True
-        utterance.final = self.spawn(self.prepare(bytes(utterance.pcm), self.previous))
+        utterance.timing = self.timing("pause", utterance)
+        utterance.final = self.spawn(self.prepare(bytes(utterance.pcm), self.previous, utterance.timing))
+
+    def timing(self, anchor: Literal["pause", "end"], utterance: Utterance) -> Timing | None:
+        """LIVE_TIMINGS가 켜져 있으면 지금 시각에서 시작하는 진단용 Timing, 아니면 None."""
+        if not self.options.timings:
+            return None
+        return Timing(time.perf_counter(), anchor, utterance.updating)
 
     # 1초가 되기 전에 다시 말함: 미리 처리를 취소하고 자막 갱신을 다시 깨운다. 이미 모델 스레드에서 돌고 있는
     # 호출은 멈출 수 없어 끝까지 돌지만, 그 뒤 단계는 실행되지 않는다(README: 버려지는 미리 처리가 GPU를 더
@@ -319,6 +385,7 @@ class LiveConnection:
         if utterance.final is not None:
             utterance.final.cancel()
             utterance.final = None
+        utterance.timing = None  # 버린 미리 처리의 시각은 남기지 않는다
         utterance.changed.set()
 
     # 1초 쉼 확인(또는 29초 강제 끊김): 자막 갱신을 멈추고, 미리 처리한 결과가 있으면 그것을, pause 없이
@@ -326,6 +393,7 @@ class LiveConnection:
     # 두 사람 대화는 앞 마디의 저장(self.saving)이 끝난 뒤에 저장하도록 사슬로 잇는다. 확신이 낮은 마디의
     # 언어는 앞 마디 언어에 따라 정해지므로, 끝난 순서대로 저장해야 하기 때문이다(위 docstring).
     def end(self, utterance: Utterance) -> None:
+        ended_at = time.perf_counter()
         utterance.closed = True
         if utterance.updater is not None:
             utterance.updater.cancel()
@@ -334,11 +402,17 @@ class LiveConnection:
                 self.send({"type": "error", "id": utterance.id, "detail": "Audio is longer than 30 seconds"})
             )
             return
-        final = utterance.final or self.spawn(self.prepare(bytes(utterance.pcm), self.previous))  # 소리 전체
+        timing = utterance.timing
+        final = utterance.final
+        if final is None:  # pause 없이 끝남: 소리 전체로 지금 준비한다
+            timing = self.timing("end", utterance)
+            final = self.spawn(self.prepare(bytes(utterance.pcm), self.previous, timing))
+        if timing is not None:
+            timing.ended_at = ended_at
         if self.mode == "dialog":
-            self.saving = self.spawn(self.finish(utterance.id, final, after=self.saving))
+            self.saving = self.spawn(self.finish(utterance.id, final, after=self.saving, timing=timing))
         else:
-            self.spawn(self.finish(utterance.id, final))
+            self.spawn(self.finish(utterance.id, final, timing=timing))
 
     # 마디를 버린다(cancel 메시지, 새 마디 시작, 연결 종료): 닫힘 표시 후 갱신·미리 처리 작업을 취소한다.
     # changed를 켜 기다리던 갱신 루프가 깨어나 끝나게 한다.
@@ -353,28 +427,43 @@ class LiveConnection:
 
     # 최종 결과 준비(저장하지 않음). 받은 PCM을 대화 모드 업로드와 같은 WAV로 만들어 HTTP와 같은 파이프라인에
     # 넣으므로 결과가 같다(README: 두 모드 160문장 모두 판정 뒤 올린 결과와 같음).
-    async def prepare(self, pcm: bytes, previous: Language | None) -> pipeline.Prepared | DialogFinal:
+    # timing(진단용, LIVE_TIMINGS)이 있으면 단계 시각을 그 trace에 적고 끝난 시각을 남긴다. 없으면 이전과
+    # 같다.
+    async def prepare(
+        self, pcm: bytes, previous: Language | None, timing: Timing | None = None
+    ) -> pipeline.Prepared | DialogFinal:
         wav = wav_from_pcm(pcm)
+        trace = timing.trace if timing is not None else None
         if self.mode == "dialog":
-            return await self.prepare_dialog(wav, previous)
-        return await pipeline.prepare(models=self.models, source=self.source, target=self.target, audio=wav)
+            ready = await self.prepare_dialog(wav, previous, trace=trace)
+        else:
+            ready = await pipeline.prepare(
+                models=self.models, source=self.source, target=self.target, audio=wav, trace=trace
+            )
+        if timing is not None:
+            timing.prepared_at = time.perf_counter()
+        return ready
 
     async def prepare_dialog(
-        self, wav: bytes, previous: Language | None, detection: tuple[Language, float] | None = None
+        self,
+        wav: bytes,
+        previous: Language | None,
+        detection: tuple[Language, float] | None = None,
+        trace: pipeline.Trace | None = None,
     ) -> DialogFinal:
         """POST /api/translate/dialog가 답하는 것과 같은 순서로 두 사람 대화 한 마디를 준비한다.
 
         순서: 음성 검사 → 언어 판별 → 언어 결정 → 번역 흐름. detection을 주면 판별을 건너뛰고 그 결과로
-        언어 결정만 다시 한다.
+        언어 결정만 다시 한다. trace는 진단용 단계 기록이다(pipeline.stage, None이면 기록하지 않음).
         """
         if detection is None:
-            await run_model(pipeline.validate_audio, wav)
-            detection = await run_model(self.models.stt.detect_language, wav)
+            await pipeline.stage(trace, "dialog_validate", run_model, pipeline.validate_audio, wav)
+            detection = await pipeline.stage(trace, "detect", run_model, self.models.stt.detect_language, wav)
         detected, confidence = detection
         threshold = get_settings().dialog_language_threshold
         language, guessed = choose_language(detected, confidence, previous, threshold)
         prepared = await pipeline.prepare(
-            models=self.models, source=language, target=OTHER[language], audio=wav
+            models=self.models, source=language, target=OTHER[language], audio=wav, trace=trace
         )
         return DialogFinal(prepared, wav, detected, confidence, previous, guessed)
 
@@ -382,7 +471,13 @@ class LiveConnection:
     # 유지한다.
     # asyncio.wait({after})는 앞 작업이 실패·취소돼도 예외를 올리지 않고 끝나기만 기다린다(await after와 다른
     # 점).
-    async def finish(self, number: int, final: asyncio.Task, after: asyncio.Task | None = None) -> None:
+    async def finish(
+        self,
+        number: int,
+        final: asyncio.Task,
+        after: asyncio.Task | None = None,
+        timing: Timing | None = None,
+    ) -> None:
         if after is not None:
             await asyncio.wait({after})  # 두 사람 대화: 앞 마디의 저장(또는 실패)을 먼저 기다린다
         try:
@@ -394,7 +489,12 @@ class LiveConnection:
             # 직전 언어와 상관없이 결과가 같으므로 다시 하지 않는다.
             threshold = get_settings().dialog_language_threshold
             if turn is not None and turn.previous != self.previous and turn.confidence < threshold:
-                turn = await self.prepare_dialog(turn.wav, self.previous, (turn.detected, turn.confidence))
+                trace = timing.trace if timing is not None else None
+                turn = await self.prepare_dialog(
+                    turn.wav, self.previous, (turn.detected, turn.confidence), trace=trace
+                )
+                if timing is not None:
+                    timing.redone, timing.prepared_at = True, time.perf_counter()
         except asyncio.CancelledError:
             # 취소는 오류 메시지 없이 그대로 올려 연결 종료 정리가 진행되게 한다. 그 밖의 예외는 이 마디의
             # 실패다.
@@ -404,6 +504,7 @@ class LiveConnection:
             return
         # 저장은 이때만 짧게 DB 세션을 연다(연결 내내 붙잡지 않음). 저장 실패는 "The translation could not be
         # saved"로 알린다.
+        save_started = time.perf_counter()
         try:
             ready = turn.prepared if turn is not None else prepared
             async with self.sessions() as db:
@@ -412,6 +513,7 @@ class LiveConnection:
             logger.error("Saving a live translation failed: %s", describe(exc))
             await self.send({"type": "error", "id": number, "detail": "The translation could not be saved"})
             return
+        save_ended = time.perf_counter()
         # 두 사람 대화면 저장한 마디의 언어와 id를 '직전 마디'로 기억하고, 응답에 확신·추측 여부를 더해 HTTP
         # 두 사람 대화 응답과 같은 형태로 만든다. mode="json"은 UUID·datetime을 JSON 문자열로 바꾼다.
         payload = result.model_dump(mode="json")
@@ -422,7 +524,11 @@ class LiveConnection:
                 language_confidence=round(turn.confidence, 3),
                 language_guessed=turn.guessed,
             ).model_dump(mode="json")
-        await self.send({"type": "final", "id": number, "result": payload})
+        message = {"type": "final", "id": number, "result": payload}
+        # 진단용 시각(LIVE_TIMINGS)은 result 밖에 둔다: result는 HTTP 응답과 같은 필드라는 계약을 지킨다.
+        if timing is not None:
+            message["timings"] = timing.report(save_started, save_ended, time.perf_counter())
+        await self.send(message)
 
     async def update(self, utterance: Utterance) -> None:
         """지금까지의 마디를 한 번에 한 갱신씩 거듭 다시 인식한다(docs/experiments.md 8절).
@@ -450,10 +556,13 @@ class LiveConnection:
             # 자막용 인식(transcribe_live): 말이 없으면 예외 대신 빈 문자열. 인식 실패는 이 갱신만 건너뛰고
             # 루프는 계속한다.
             try:
+                utterance.updating = True
                 text = await self.run_update(self.stt.transcribe_live, pcm, self.source)
             except ModelError as exc:
                 logger.warning("Live recognition failed: %s", describe(exc))
                 continue
+            finally:
+                utterance.updating = False
             # 바로 앞 인식 결과와 같은 앞부분(단어 경계까지)을 진하게 보일 길이로 정한다. 보낸 것과 같은 결과,
             # 그리고 아직 아무것도 보내지 않았는데 빈 결과면 보내지 않는다. 마디가 그사이 끝났으면 보내지
             # 않는다.
@@ -473,10 +582,13 @@ class LiveConnection:
             if not changed or not letters(text) or utterance.paused:
                 continue
             try:
+                utterance.updating = True
                 translation = await self.run_update(self.translator.translate, text, self.source, self.target)
             except ModelError as exc:
                 logger.warning("Live translation failed: %s", describe(exc))
                 continue
+            finally:
+                utterance.updating = False
             if utterance.closed:
                 return
             # 동시통역 번역문은 어느 부분도 안정되지 않았다고 본다(stable 0). 원문이 길어지면 번역문의
