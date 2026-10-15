@@ -2,6 +2,7 @@
 # - backend: 린트·포맷 확인, 실제 PostgreSQL로 pytest, 마이그레이션
 # - frontend: 린트, Vitest 단위 테스트, 빌드
 # - e2e: 실제 브라우저(Chromium)로 접근성·키보드·좁은 화면 검사(npm run test:a11y)
+# - audit: 알려진 취약점이 있는 의존성 찾기(pip-audit, npm audit). 지금은 보고만 한다(아래 설명)
 # 명령은 README 테스트 절과 같다. GPU·모델이 필요한 측정은 CI에서 돌리지 않는다(LOAD_MODELS=false).
 name: CI
 
@@ -17,7 +18,8 @@ jobs:
     # 포트는 로컬 compose와 같은 55442로 맞춰 DATABASE_URL 기본값을 그대로 쓴다.
     services:
       postgres:
-        image: postgres:16
+        # docker-compose.yml과 같은 이미지(digest 고정, PostgreSQL 16.15).
+        image: postgres:16@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d
         env:
           POSTGRES_USER: vtuser
           POSTGRES_PASSWORD: vtpass
@@ -150,3 +152,43 @@ jobs:
           name: playwright-results
           path: work/round11-browser
           retention-days: 7
+
+  # 알려진 취약점 검사(docs/security.md '의존성 취약점'). 처음에는 보고만 한다(continue-on-error): 새 권고가
+  # 공개되는 날 코드와 상관없는 push가 막히지 않게 하려는 것이다. 실패하면 이 작업만 빨간색으로 남고 워크플로는
+  # 통과하므로, 실패를 보면 docs/security.md에 판단을 적고 고치거나 받아들일 목록에 더한다.
+  # - 서버 환경(gpu + tts 그룹)과 도구 환경(gpu + eval + dev 그룹)을 uv.lock 그대로 내보내 따로 검사한다.
+  #   두 그룹(tts·eval)은 함께 설치할 수 없어 한 번에 내보낼 수 없다
+  # - transformers 4.27.4는 MeloTTS가 고정한 판이라 올릴 수 없어 목록에서 빼고(받아들인 위험, 고정된 공개 모델만
+  #   읽음), MeloTTS는 PyPI에 없는 git 의존성이라 뺀다. 고칠 판이 없거나 이 서비스와 상관없는 두 권고는 ID로
+  #   제외한다: PYSEC-2026-3740(nltk, 사용자 입력 경로로 모델을 읽고 쓰지 않음), PYSEC-2026-3447(setuptools, macOS
+  #   에서 sdist를 만들 때만 해당)
+  # - npm은 배포되는 의존성과 개발 도구를 함께 본다(moderate 이상)
+  audit:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10.1.0
+
+      - name: Audit the Python dependencies
+        working-directory: backend
+        run: |
+          export_locked() {
+            uv export --locked --no-hashes --format requirements-txt --no-emit-project "$@"
+          }
+          export_locked --group gpu --group tts --no-group dev \
+            | grep -v -e '^melotts @ git' -e '^transformers==' > /tmp/server.txt
+          export_locked --group gpu --group eval --group dev > /tmp/tools.txt
+          for requirements in /tmp/server.txt /tmp/tools.txt; do
+            uvx pip-audit==2.10.1 -r "$requirements" --disable-pip --no-deps \
+              --ignore-vuln PYSEC-2026-3740 --ignore-vuln PYSEC-2026-3447
+          done
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Audit the npm dependencies
+        working-directory: frontend
+        run: npm audit --audit-level=moderate

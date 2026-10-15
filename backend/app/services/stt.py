@@ -27,6 +27,15 @@ from app.services.interfaces import Language, ModelError, NoSpeechError, Transcr
 # Whisper 입력 규격인 16kHz.
 SAMPLE_RATE = 16_000
 
+# 서비스 인식 모델(large-v3-turbo)의 CTranslate2 변환본을 받을 Hugging Face 저장소 커밋. faster-whisper는
+# "large-v3-turbo"를 mobiuslabsgmbh/faster-whisper-large-v3-turbo로 바꿔 받는데, 리비전을 주지 않으면 그
+# 저장소의 main을 받으므로 저장소가 바뀌면 다음 시작에 다른 파일을 받게 된다(측정한 모델과 달라짐). 그래서
+# 측정(docs/experiments.md 1절 이후 모든 인식 수치)에 쓴 캐시 스냅숏과 같은 커밋으로 고정한다. 저장소 이름은
+# 그대로 둔다: 이름을 새 소유자 이름으로 바꾸면 캐시 폴더 이름이 달라져 같은 파일(약 1.6GB)을 다시 받는다.
+# 다른 모델 이름(tiny 등 테스트·비교용)은 고정하지 않는다.
+TURBO_REVISION = "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf"
+PINNED_REVISIONS = {"large-v3-turbo": TURBO_REVISION}
+
 
 def decode_audio(audio: bytes) -> np.ndarray:
     """faster-whisper 1.2의 decode_audio에서 gc.collect()만 뺀 것(docs/experiments.md 5절, 후보 C).
@@ -97,7 +106,11 @@ class WhisperSpeechToText:
         # num_workers: 여러 스레드의 호출은 그 수만큼 모델 복제가 있어야 나란히 돈다. faster-whisper 자체
         # 기본값 1과 다를 때만 넘긴다.
         replicas = {"num_workers": num_workers} if num_workers != 1 else {}
-        self._model = WhisperModel(model_size, device=device, compute_type=compute_type, **replicas)
+        # 고정 리비전이 있는 모델만 revision을 넘긴다(PINNED_REVISIONS). 없는 모델에 인자를 넘기지 않아야
+        # revision을 받지 않는 가짜 모델들(테스트)도 그대로 동작한다.
+        revision = PINNED_REVISIONS.get(model_size)
+        pinned = {"revision": revision} if revision else {}
+        self._model = WhisperModel(model_size, device=device, compute_type=compute_type, **replicas, **pinned)
 
     # 업로드 파일 인식. 언어는 사용자가 고른 것으로 고정한다. 빈 업로드는 디코딩 불가(422), 인식 결과가 비면
     # 말 없음(422 "No speech was recognized").

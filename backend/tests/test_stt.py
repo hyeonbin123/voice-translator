@@ -229,7 +229,30 @@ def test_recognition_replicas_reach_faster_whisper_only_when_asked(monkeypatch):
     monkeypatch.setattr(stt_module, "WhisperModel", Recording)
     stt_module.WhisperSpeechToText(device="cpu", compute_type="int8")
     stt_module.WhisperSpeechToText(device="cpu", compute_type="int8", num_workers=2)
+    pinned = {"revision": stt_module.TURBO_REVISION}
     assert made == [
-        {"device": "cpu", "compute_type": "int8"},
-        {"device": "cpu", "compute_type": "int8", "num_workers": 2},
+        {"device": "cpu", "compute_type": "int8", **pinned},
+        {"device": "cpu", "compute_type": "int8", "num_workers": 2, **pinned},
+    ]
+
+
+# 서비스 인식 모델(large-v3-turbo)은 측정에 쓴 캐시 스냅숏의 커밋으로 고정해 받는다. 고정하지 않으면
+# faster-whisper가 저장소의 main을 받아, 저장소가 바뀐 뒤에는 측정한 것과 다른 파일로 서비스가 돈다. 고정이
+# 없는 모델(tiny 등)에는 revision 인자를 아예 넘기지 않는다(그 인자를 모르는 가짜 모델도 동작하게).
+def test_the_service_model_is_pinned_to_the_measured_revision(monkeypatch):
+    from app.services import stt as stt_module
+
+    made = []
+
+    class Recording:
+        def __init__(self, model_size, **options):
+            made.append((model_size, options.get("revision", "not passed")))
+
+    monkeypatch.setattr(stt_module, "WhisperModel", Recording)
+    monkeypatch.setattr(stt_module, "add_cuda_dll_dirs", lambda: None)
+    stt_module.WhisperSpeechToText("large-v3-turbo", device="cpu", compute_type="int8")
+    stt_module.WhisperSpeechToText("tiny", device="cpu", compute_type="int8")
+    assert made == [
+        ("large-v3-turbo", "0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf"),
+        ("tiny", "not passed"),
     ]

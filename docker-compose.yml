@@ -1,11 +1,13 @@
-# The whole service: database, API with the real models on the GPU, and the built screen.
-#   docker compose up --build        then open http://localhost:8080 (WEB_HOST_PORT)
-# The first start downloads the Whisper, MeloTTS and Kokoro weights into the hfcache volume (a few GB) and
-# loads them (about a minute). The translation models come from data/models/ct2 (eval/mt_convert.py).
-# For local development, `docker compose up -d db` starts only the database (README).
+# 서비스 전체: DB, 실제 모델을 GPU에서 돌리는 API, 빌드한 화면(nginx).
+#   docker compose up --build        그다음 http://localhost:8080 (WEB_HOST_PORT)
+# 첫 시작에 Whisper·MeloTTS·Kokoro 가중치를 hfcache 볼륨으로 받고(몇 GB) 올린다(약 1분). 번역 모델은
+# data/models/ct2에서 읽는다(eval/mt_convert.py). 로컬 개발에서는 `docker compose up -d db`로 DB만 띄운다(README).
+# 내려받는 이미지는 태그와 함께 digest(sha256)로 고정한다(2026-10-15). 태그만 쓰면 같은 파일로 띄워도 언제
+# 받았느냐에 따라 다른 이미지가 돈다. 보안 수정을 받으려면 태그를 다시 받아 digest를 새로 적는다
+# (backend/Dockerfile 머리 주석의 명령).
 services:
   db:
-    image: postgres:16
+    image: postgres:16@sha256:ca0bd484cb98bf4b24eb1010e73fb3fcbd6714d240fbc1a10eea5b7dbecb641d  # PostgreSQL 16.15
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-vtuser}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vtpass}
@@ -13,26 +15,25 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
-      # Windows (Hyper-V/WSL) can reserve host ports 5432-5631, so the default sits outside
-      # that range. Override with POSTGRES_HOST_PORT; DATABASE_URL must use the same port.
-      # Only this machine can reach it: without a host address Docker listens on every network
-      # interface, and the database would take the example password from anywhere the firewall allows.
-      # Set POSTGRES_HOST_IP=0.0.0.0 only on purpose, with a real password.
+      # Windows(Hyper-V/WSL)가 호스트 포트 5432~5631을 예약할 수 있어 기본값을 그 범위 밖에 둔다.
+      # POSTGRES_HOST_PORT로 바꾸고, DATABASE_URL도 같은 포트를 써야 한다.
+      # 이 PC에서만 접속된다: 호스트 주소를 빼면 Docker가 모든 네트워크에서 받아, 방화벽이 허용하는 어디서든
+      # 예시 비밀번호로 DB에 들어올 수 있다. POSTGRES_HOST_IP=0.0.0.0은 실제 비밀번호와 함께 일부러만 쓴다.
       - "${POSTGRES_HOST_IP:-127.0.0.1}:${POSTGRES_HOST_PORT:-55442}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vtuser}"]
       interval: 5s
       timeout: 5s
       retries: 10
-      start_period: 60s  # a cold start on a slow disk (HDD) can outlast the retries above
+      start_period: 60s  # 느린 디스크(HDD)의 첫 시작은 위 재시도보다 오래 걸릴 수 있다
 
-  # Typo correction for typed English (T32): the API pulls its small LLM into the ollama volume on the
-  # first start (about 1 GB, in the background) and keeps it loaded on the GPU (about 1.3 GB).
-  # The Hy-MT2 translation trial (T83, docs/experiments.md 15) is created in here from the official GGUF:
+  # 영어 글자 입력의 오타 교정(docs/experiments.md 6절): API가 첫 시작에 작은 LLM을 ollama 볼륨으로 받고(약
+  # 1GB, 뒤에서) GPU에 올려 둔다(약 1.3GB). Hy-MT2 번역 시험(docs/experiments.md 15절)의 모델은 이 안에서 공식
+  # GGUF로 만든다:
   #   docker compose exec ollama ollama create hy-mt2:1.8b-q8_0 -f /models/hy-mt2/Modelfile.q8_0
-  # (files from `python -m eval.hymt_setup download` and `modelfile`). Ollama is pinned like the host's.
+  # (파일은 `python -m eval.hymt_setup download`와 `modelfile`로 만든다). Ollama 판은 측정에 쓴 호스트와 같다.
   ollama:
-    image: ollama/ollama:0.35.1
+    image: ollama/ollama:0.35.1@sha256:292ee7945dfc3d5840a181f3ab86fedb1e66703e02c8af98b50f4da56b7e278c
     volumes:
       - ollama:/root/.ollama
       - ./data/models/hy-mt2:/models/hy-mt2:ro
@@ -51,17 +52,18 @@ services:
 
   api:
     build: ./backend
-    # Optional .env: JWT_SECRET_KEY keeps users signed in across restarts. DATABASE_URL below wins.
+    # .env는 없어도 된다: JWT_SECRET_KEY가 있으면 재시작 뒤에도 로그인이 유지된다. DATABASE_URL은 아래 값이
+    # 이긴다.
     env_file:
       - path: .env
         required: false
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-vtuser}:${POSTGRES_PASSWORD:-vtpass}@db:5432/${POSTGRES_DB:-voicetranslator}
       OLLAMA_URL: http://ollama:11434
-      # Live subtitles (docs/experiments.md 8, T61): a thread of their own and two recognition replicas.
+      # 동시통역 자막(docs/experiments.md 8절): 자막 전용 스레드와 인식 복제 둘. 측정으로 기본값(끔, 1)을 유지했다.
       LIVE_UPDATE_THREAD: ${LIVE_UPDATE_THREAD:-false}
       STT_NUM_WORKERS: ${STT_NUM_WORKERS:-1}
-      # Translation per direction (T83): opus by default; the Hy-MT2 trial needs its Ollama model and digest.
+      # 방향별 번역(docs/experiments.md 15절): 기본 opus. Hy-MT2 시험 설정은 Ollama 모델과 digest가 필요하다.
       EN_KO_TRANSLATION: ${EN_KO_TRANSLATION:-opus}
       KO_EN_TRANSLATION: ${KO_EN_TRANSLATION:-opus}
       HYMT_MODEL: ${HYMT_MODEL:-hy-mt2:1.8b-q8_0}
@@ -73,8 +75,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      # Typo correction is optional: the API starts without Ollama and translates typed text as is
-      # until the model is ready (T37).
+      # 오타 교정은 없어도 된다: API는 Ollama 없이도 뜨고, 교정 모델이 준비될 때까지 글자 입력을 그대로
+      # 번역한다.
       ollama:
         condition: service_started
         required: false
@@ -90,7 +92,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 6
-      start_period: 900s  # the first start downloads and loads the models
+      start_period: 900s  # 첫 시작은 모델을 받고 올린다
 
   web:
     build: ./frontend

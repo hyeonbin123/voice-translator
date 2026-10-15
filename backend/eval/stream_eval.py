@@ -341,10 +341,12 @@ def load_models():
     from faster_whisper import WhisperModel
 
     from app.services.cuda import add_cuda_dll_dirs
+    from app.services.stt import TURBO_REVISION
     from app.services.translation import DirectionalTranslator, MarianTranslator
 
     add_cuda_dll_dirs()
-    model = WhisperModel("large-v3-turbo", device="cuda", compute_type="float16")
+    # 서버와 같은 고정 리비전의 모델 파일을 쓴다(app/services/stt.py의 TURBO_REVISION).
+    model = WhisperModel("large-v3-turbo", device="cuda", compute_type="float16", revision=TURBO_REVISION)
     ct2 = MODELS / "ct2"
     translator = DirectionalTranslator(
         {

@@ -48,9 +48,11 @@ def load_model():
     from faster_whisper import WhisperModel
 
     from app.services.cuda import add_cuda_dll_dirs
+    from app.services.stt import TURBO_REVISION
 
     add_cuda_dll_dirs()
-    return WhisperModel("large-v3-turbo", device="cuda", compute_type="float16")
+    # 서버와 같은 고정 리비전의 모델 파일을 쓴다(app/services/stt.py의 TURBO_REVISION).
+    return WhisperModel("large-v3-turbo", device="cuda", compute_type="float16", revision=TURBO_REVISION)
 
 
 def korean_or_english(model, audio: np.ndarray) -> tuple[str, float, float]:

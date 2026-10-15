@@ -396,7 +396,7 @@ backend 폴더에서 `uv sync` 후 `uv run alembic upgrade head`를 실행해 �
 |---|---|---|
 | `LOAD_MODELS` | `false` | 앱 시작 때 세 모델을 올린다. 끄면 번역 요청은 503 (테스트·CI는 끈 채로 돈다) |
 | `MODEL_DEVICE` | `cuda` | `cuda` 또는 `cpu`. GPU는 float16, CPU는 int8 |
-| `STT_MODEL` | `large-v3-turbo` | faster-whisper 모델 이름 |
+| `STT_MODEL` | `large-v3-turbo` | faster-whisper 모델 이름. `large-v3-turbo`는 측정에 쓴 변환본 커밋(`mobiuslabsgmbh/faster-whisper-large-v3-turbo`의 `0a363e9`)으로 고정해 받는다(`app/services/stt.py`의 `TURBO_REVISION`). 다른 이름은 고정하지 않는다 |
 | `CT2_DIR` | `<프로젝트>/data/models/ct2` | 변환한 번역 모델 폴더 (`eval.mt_convert`) |
 | `EN_KO_TRANSLATION` | `opus` | 영→한 번역. `opus`(opus-mt-tc-big, 문장 단위, 2·2-1절에서 고름), `hy-mt2`(Hy-MT2-1.8B, 입력 통째로) 또는 `hy-mt2-split`(Hy-MT2, 문장 단위). Hy-MT2는 시험에서 채택하지 않은 비교용 설정이다(docs/experiments.md 15절: validation에서 COMET-22는 opus보다 높았지만 chrF 차이가 유의하지 않았고, 영→한은 번역 시간 기준도 넘었다): `OLLAMA_URL`의 Ollama에 `eval.hymt_setup`으로 만든 모델이 있어야 하고, 서버가 시작할 때 그 모델을 기다렸다가(`HYMT_PREPARE_TIMEOUT_S`) 올린다. 번역은 필수라 끝내 준비되지 않으면 서버가 뜨지 않는다. 번역 호출은 opus처럼 모델 스레드에서 돈다 |
 | `KO_EN_TRANSLATION` | `opus` | 한→영 번역. `opus`(입력 통째로) 또는 `hy-mt2`(시험 설정, 위와 같음) |

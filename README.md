@@ -150,7 +150,7 @@ uv run python -m eval.supertonic_download    # 한국어 합성 시험용 Supert
 | 음성 인식 | Whisper large-v3-turbo | OpenAI | MIT | [openai/whisper-large-v3-turbo](https://huggingface.co/openai/whisper-large-v3-turbo) |
 | 음성 인식 (쓰는 변환본) | faster-whisper-large-v3-turbo | Mobius Labs | MIT | [mobiuslabsgmbh/faster-whisper-large-v3-turbo](https://huggingface.co/mobiuslabsgmbh/faster-whisper-large-v3-turbo) |
 | 말소리 구간 검출 (서버 인식, 대화 모드의 말 끝 판정) | Silero VAD v6 (faster-whisper에 포함된 ONNX 파일) | Silero | MIT | [snakers4/silero-vad](https://github.com/snakers4/silero-vad). 대화 모드는 같은 파일을 `frontend/src/conversation/assets/`에 넣어 브라우저로 보낸다 (라이선스 원문 동봉) |
-| 대화 모드의 브라우저 추론 | onnxruntime-web 1.29.0 | Microsoft | MIT | [microsoft/onnxruntime](https://github.com/microsoft/onnxruntime). WASM 파일을 화면과 함께 배포 (라이선스 원문 동봉) |
+| 대화 모드의 브라우저 추론 | onnxruntime-web 1.30.0 | Microsoft | MIT | [microsoft/onnxruntime](https://github.com/microsoft/onnxruntime). WASM 파일을 화면과 함께 배포 (라이선스 원문 동봉) |
 | 오타 교정 (영어 글자 입력) | Qwen2.5-1.5B-Instruct (Ollama `qwen2.5:1.5b-instruct`) | Alibaba Cloud Qwen | Apache-2.0 | [Qwen/Qwen2.5-1.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct) |
 | 번역 한→영 | opus-mt-tc-big-ko-en | Helsinki-NLP (University of Helsinki) | CC-BY-4.0 | [Helsinki-NLP/opus-mt-tc-big-ko-en](https://huggingface.co/Helsinki-NLP/opus-mt-tc-big-ko-en). 원본 MarianNMT 배포본을 CTranslate2로 변환해 씀 |
 | 번역 영→한 | opus-mt-tc-big-en-ko | Helsinki-NLP (University of Helsinki) | CC-BY-4.0 | [Helsinki-NLP/opus-mt-tc-big-en-ko](https://huggingface.co/Helsinki-NLP/opus-mt-tc-big-en-ko). 위와 같이 변환 |
@@ -173,4 +173,5 @@ uv run python -m eval.supertonic_download    # 한국어 합성 시험용 Supert
 
 - [docs/api.md](docs/api.md): API 요청·응답, 오류, 실행 설정
 - [docs/experiments.md](docs/experiments.md): 모델 측정 절차·규칙·결과
+- [docs/security.md](docs/security.md): 재현성 고정, 의존성 취약점 검사와 받아들인 위험
 - [docs/plan.md](docs/plan.md): 개발 시작 전 계획

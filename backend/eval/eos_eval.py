@@ -133,9 +133,11 @@ def word_bounds(clips: list[tuple[str, np.ndarray]], lang: str, split: str) -> d
     from faster_whisper import WhisperModel
 
     from app.services.cuda import add_cuda_dll_dirs
+    from app.services.stt import TURBO_REVISION
 
     add_cuda_dll_dirs()  # Windows: nvidia wheel 폴더에 있는 cuBLAS/cuDNN을 CTranslate2가 찾게 한다
-    model = WhisperModel("large-v3-turbo", device="cuda", compute_type="float16")
+    # 서버와 같은 고정 리비전의 모델 파일을 쓴다(app/services/stt.py의 TURBO_REVISION).
+    model = WhisperModel("large-v3-turbo", device="cuda", compute_type="float16", revision=TURBO_REVISION)
     bounds: dict[str, list[int] | None] = {}
     for key, clip in clips:
         segments, _ = model.transcribe(
