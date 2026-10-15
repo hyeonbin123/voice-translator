@@ -100,12 +100,12 @@ npm run dev
 ## 테스트
 
 ```bash
-(cd backend && uv run ruff check . && uv run pytest)
+(cd backend && uv run ruff check . && uv run ruff format --check . && uv run pytest)
 (cd frontend && npm run lint && npm test && npm run build)
 (cd frontend && npm run test:a11y)   # Playwright + Microsoft Edge, 키보드·axe(WCAG 2.2 AA)·360px 검사
 ```
 
-백엔드 테스트는 compose DB에 테스트 전용 DB(`vt_test_<임의 문자열>`)를 만들어 쓰고 끝나면 지운다. 모델은 가짜 구현으로 대체한다. push와 PR마다 GitHub Actions가 백엔드·프론트엔드 검사를 돌린다 (`.github/workflows/ci.yml`, 브라우저 검사는 로컬에서만).
+백엔드 테스트는 compose DB에 테스트 전용 DB(`vt_test_<임의 문자열>`)를 만들어 쓰고 끝나면 지운다. 모델은 가짜 구현으로 대체한다. push와 PR마다 GitHub Actions가 백엔드·프론트엔드 검사와 브라우저 검사를 돌린다 (`.github/workflows/ci.yml`. 브라우저 검사는 Linux 러너라 Edge 대신 Playwright의 Chromium으로 돈다: `PLAYWRIGHT_CHANNEL=` 빈 값).
 
 ## 측정 다시 하기
 

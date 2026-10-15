@@ -1,3 +1,8 @@
+# push(main)와 PR마다 도는 검사. 세 작업은 서로 기다리지 않고 나란히 돈다.
+# - backend: 린트·포맷 확인, 실제 PostgreSQL로 pytest, 마이그레이션
+# - frontend: 린트, Vitest 단위 테스트, 빌드
+# - e2e: 실제 브라우저(Chromium)로 접근성·키보드·좁은 화면 검사(npm run test:a11y)
+# 명령은 README 테스트 절과 같다. GPU·모델이 필요한 측정은 CI에서 돌리지 않는다(LOAD_MODELS=false).
 name: CI
 
 on:
@@ -8,6 +13,8 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    # 테스트는 이 DB 서버에 테스트마다 vt_test_<임의 문자열> DB를 만들어 쓰고 지운다(backend/tests/conftest.py).
+    # 포트는 로컬 compose와 같은 55442로 맞춰 DATABASE_URL 기본값을 그대로 쓴다.
     services:
       postgres:
         image: postgres:16
@@ -31,24 +38,28 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # setup-uv publishes no floating major tag, so pin the exact release.
+      # setup-uv는 떠다니는 주 판 태그(v10 같은)를 내지 않아 정확한 릴리스로 고정한다.
       - uses: astral-sh/setup-uv@v10.1.0
         with:
           enable-cache: true
 
-      # --locked, as the image build (backend/Dockerfile) uses: fails when uv.lock is out of date with
-      # pyproject.toml instead of testing the old locked versions.
+      # --locked: 이미지 빌드(backend/Dockerfile)와 같다. uv.lock이 pyproject.toml과 어긋나면 옛 고정 판으로
+      # 테스트하지 않고 바로 실패한다.
       - name: Install dependencies
         run: uv sync --locked
 
       - name: Lint
         run: uv run ruff check .
 
+      # 포맷이 다른 파일이 있으면 실패한다(고치지 않고 보기만). 로컬에서는 `uv run ruff format .`으로 맞춘다.
+      - name: Check formatting
+        run: uv run ruff format --check .
+
       - name: Test
         run: uv run pytest -q
 
-      # The plain run skips these modules: they need sacrebleu and jiwer from the eval group, which also
-      # brings torch. Add only those two, at their locked versions, so these tests run too (T88).
+      # 위 실행은 이 모듈들을 건너뛴다: eval 그룹의 sacrebleu·jiwer가 필요한데, eval 그룹 전체는 torch까지
+      # 끌어와 무겁다. 그래서 두 패키지만 uv.lock과 같은 판으로 얹어 이 테스트도 돌게 한다.
       - name: Test the evaluation tools that need sacrebleu and jiwer
         run: >-
           uv run --with sacrebleu==2.6.0 --with jiwer==4.0.0
@@ -82,3 +93,60 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  # 실제 브라우저 검사(frontend/e2e/accessibility.spec.ts, 8개). 화면을 Vite 개발 서버로 띄우고 API·웹소켓·마이크는
+  # 검사 파일이 가짜로 답한다. CI에 넣은 이유: 대화 모드를 웹소켓으로 바꾼 커밋 뒤 이 검사 2개가 깨졌는데 CI가
+  # 돌리지 않아 열흘 동안 몰랐다.
+  e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      # 빈 값이면 playwright.config.ts가 채널을 주지 않아 Playwright가 받아 둔 Chromium으로 돈다. 로컬 기본값인
+      # Microsoft Edge는 Linux 러너에 없고, 실행마다 설치하면 캐시할 수 없어 느리다.
+      PLAYWRIGHT_CHANNEL: ""
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # 브라우저 내려받기(~/.cache/ms-playwright)는 Playwright 판마다 캐시한다. 판이 같으면 브라우저는 다시 받지
+      # 않고, 러너에 없는 시스템 라이브러리만 설치한다(이 부분은 러너 밖에 설치돼 캐시할 수 없다).
+      - name: Read the Playwright version
+        id: playwright
+        run: echo "version=$(npx playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the Playwright browsers
+        id: browsers
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium
+
+      - name: Install Chromium and its system libraries
+        if: steps.browsers.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Install the system libraries for the cached Chromium
+        if: steps.browsers.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Accessibility and keyboard checks in a real browser
+        run: npm run test:a11y
+
+      # 실패하면 스크린샷·trace(playwright.config.ts의 outputDir)를 올려 원인을 볼 수 있게 한다.
+      - name: Keep the failure screenshots and traces
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-results
+          path: work/round11-browser
+          retention-days: 7

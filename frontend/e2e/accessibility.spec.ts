@@ -3,7 +3,8 @@
 // 2.2 AA까지)에 위반이 없는지, 360px 폭에서 가로로 넘치지 않는지 확인하며 스크린샷을 남긴다(README 테스트 절,
 // README의 화면 그림도 이 검사가 찍은 것).
 // [왜 따로 두나] Vitest 단위 테스트(jsdom)는 실제 포커스 테두리·레이아웃·색 대비를 계산하지 못한다. 그래서
-// 진짜 브라우저 검사를 로컬에서만 따로 돌린다(CI에서는 돌리지 않음).
+// 진짜 브라우저 검사를 따로 돌린다. 로컬은 Edge, CI는 Linux 러너라 Playwright의 Chromium으로 돈다
+// (playwright.config.ts의 channel, .github/workflows/ci.yml의 e2e 작업).
 // [방법] 화면과 API 클라이언트 코드는 실제로 돌리고, 경계만 가짜로 바꾼다: 서버 API(page.route),
 // 웹소켓(page.routeWebSocket), 마이크·녹음기·오디오 처리, 브라우저 음성 합성, 말소리 판정 모델(ONNX) 실행기.
 // [구성] 대화 모드, 두 사람 대화, 동시통역, 회원가입·로그인·로그아웃, 글자 번역, 녹음·파일 업로드, 기록
@@ -391,7 +392,10 @@ test('two-person dialog keyboard, guessed direction, face-to-face view and 360px
   expect(correctionBody).toContain('en')
   expect(correctionBody).toContain('name="target_lang"')
   expect(correctionBody).toContain('ko')
-  expect(deleted).toBe('DELETE')
+  // 화면은 새 번역을 먼저 말풍선에 반영한 뒤 예전 기록 삭제를 보낸다(dialog/session.ts의 방향 바꾸기). 그래서
+  // '번역 완료'가 보인 순간에는 DELETE가 아직 도착하지 않았을 수 있어, 도착할 때까지 기다리며 확인한다.
+  // 바로 비교하던 때는 Edge에서는 늘 통과했지만 Playwright의 Chromium(CI)에서는 순서가 엇갈려 실패했다.
+  await expect.poll(() => deleted).toBe('DELETE')
   await expect(panel.getByText(/방향을 추정했습니다/)).toHaveCount(0)
   await expect(panel.getByRole('status')).toContainText('재생 중 · 듣기 멈춤')
   expect(messages().some((message) => message.type === 'previous')).toBe(false)

@@ -282,9 +282,18 @@ async def memory(args: argparse.Namespace) -> None:
             is_json = reply.headers.get("content-type", "").startswith("application/json")
             body = reply.json() if is_json else {}
             requests.append(
-                {"phase": phase, "concurrent": concurrent, "file": item["file"], "t": sent,
-                 "elapsed_s": round(clock() - sent, 3), "status": reply.status_code, "id": body.get("id"),
-                 "stt_ms": body.get("stt_ms"), "mt_ms": body.get("mt_ms"), "tts_ms": body.get("tts_ms")}
+                {
+                    "phase": phase,
+                    "concurrent": concurrent,
+                    "file": item["file"],
+                    "t": sent,
+                    "elapsed_s": round(clock() - sent, 3),
+                    "status": reply.status_code,
+                    "id": body.get("id"),
+                    "stt_ms": body.get("stt_ms"),
+                    "mt_ms": body.get("mt_ms"),
+                    "tts_ms": body.get("tts_ms"),
+                }
             )
 
         async def watch_health() -> None:
@@ -346,8 +355,13 @@ async def memory(args: argparse.Namespace) -> None:
     }
     stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     base_path = REPORTS / f"e2e_{args.tag}_{stamp}"
-    payload = {"summary": summary, "checkpoints": checkpoints, "requests": requests, "health": health,
-               "memory_trace": memory_trace}
+    payload = {
+        "summary": summary,
+        "checkpoints": checkpoints,
+        "requests": requests,
+        "health": health,
+        "memory_trace": memory_trace,
+    }
     raw = json.dumps(payload, ensure_ascii=False, indent=1)
     base_path.with_suffix(".json").write_text(raw, encoding="utf-8")
     lines = [
