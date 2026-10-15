@@ -129,9 +129,10 @@ def test_the_rules_switch_at_their_thresholds():
     rows = lb.summarize(slow) + lb.summarize(conversation)
     decision = lb.decide(rows, stages_summary())
     assert decision["i_live_en_within_goal"] is True  # 말 끝 → 음성이 약 1.4초
-    assert decision["ii_open_a9"] is True
+    # 대기 조건은 맞지만 동시통역이 이미 목표 안이라 A9는 열지 않는다(17절 측정 전 정정).
+    assert decision["ii_queue_condition"] is True and decision["ii_open_a9"] is False
     assert decision["iii_open_a3"] is True
-    assert decision["iv_a3_skip_cache_variant"] is True
+    assert decision["iv_cache_condition"] is True and decision["iv_a3_skip_cache_variant"] is True
     assert lb.decide(rows, stages_summary(multi=0.29, cache=0.09))["iii_open_a3"] is False
     assert lb.decide(rows, stages_summary(multi=0.29, cache=0.09))["iv_a3_skip_cache_variant"] is False
 
@@ -139,9 +140,40 @@ def test_the_rules_switch_at_their_thresholds():
     fast_tts = report("conversation", [item(tts=399.0, prepared=700.0)] * 3, [])
     decision = lb.decide(lb.summarize(late) + lb.summarize(fast_tts), stages_summary())
     assert decision["i_live_en_within_goal"] is False
-    assert decision["ii_open_a9"] is False
+    assert decision["ii_queue_condition"] is False and decision["ii_open_a9"] is False
     # 합성 중앙값은 두 모드의 영어 원문 행을 합친 중앙값(600과 399의 중앙값 499.5)이라 아직 문턱 이상이다.
     assert decision["values"]["en_source_tts_p50_ms"] == pytest.approx(499.5)
+
+
+# 경계(이상·이하)와 선행 조건: 말 끝 → 음성 p50이 정확히 1500ms면 목표 안(i 참)이라 첫 대기가 정확히 100ms여도
+# A9를 열지 않고, 1500ms를 넘으면 같은 대기에서 연다. iii이 거짓이거나 판단 못 함이면 캐시 몫이 정확히 10%여도
+# 생략 변형을 넣지 않는다(각각 거짓, None).
+def test_rule_boundaries_and_preconditions():
+    def rows_with(audio_ms: float, wait_ms: float) -> list[dict]:
+        row = {
+            "mode": "live",
+            "lang": "en",
+            "audio_p50": audio_ms,
+            "first_wait_p50": wait_ms,
+            "tts_p50": 600.0,
+            "processing_bound": 0.6,
+        }
+        return [row]
+
+    at_goal = lb.decide(rows_with(1500.0, 100.0), stages_summary(cache=0.10))
+    assert at_goal["i_live_en_within_goal"] is True
+    assert at_goal["ii_queue_condition"] is True and at_goal["ii_open_a9"] is False
+    over = lb.decide(rows_with(1500.1, 100.0), stages_summary(cache=0.10))
+    assert over["i_live_en_within_goal"] is False and over["ii_open_a9"] is True
+    assert over["iii_open_a3"] is True and over["iv_a3_skip_cache_variant"] is True  # 캐시 몫 10%는 '이상'
+    closed = lb.decide(rows_with(1500.1, 99.9), stages_summary(multi=0.29, cache=0.10))
+    assert closed["ii_open_a9"] is False
+    assert closed["iii_open_a3"] is False
+    assert closed["iv_cache_condition"] is True and closed["iv_a3_skip_cache_variant"] is False
+    unknown = lb.decide([{**rows_with(1500.1, 100.0)[0], "tts_p50": None}], stages_summary(cache=0.10))
+    assert unknown["iii_open_a3"] is None and unknown["iv_a3_skip_cache_variant"] is None
+    no_live = lb.decide([], None)
+    assert no_live["i_live_en_within_goal"] is None and no_live["ii_open_a9"] is None
 
 
 # 처리가 1초 확정보다 늦은 마디가 어느 모드에서도 절반 미만이면 조각을 먼저 보내도 말 끝 → 음성이 줄지

@@ -120,16 +120,29 @@ def summarize(report: dict) -> list[dict]:
     return rows
 
 
+def gate(precondition: bool | None, condition: bool | None) -> bool | None:
+    """선행 조건이 참일 때만 조건을 따른다. 선행 조건이 거짓이면 거짓, 둘 중 하나라도 모르면(None) None."""
+    if precondition is False:
+        return False
+    if precondition is None or condition is None:
+        return None
+    return condition
+
+
 def decide(rows: list[dict], stages: dict | None) -> dict:
     """17절 판단 규칙. rows는 summarize의 결과(두 모드), stages는 melo-stages 보고서의 summary(없으면 None).
 
-    - i 동시통역 영어 원문의 말 끝 → 음성 p50이 GOAL_MS 이하면 '이미 목표 안'(지연 개선 작업을 열지 않음.
-      README 수치를 test로 다시 잴지는 사용자 결정)
-    - ii 동시통역에서 최종 처리의 첫 단계 대기 p50이 어느 원문 언어든 QUEUE_MS 이상이면 A9를 연다
+    조건(*_condition)과 실제로 여는지(open_*)를 나눠 둘 다 돌려준다(17절 2026-10-15 측정 전 정정).
+    - i 동시통역 영어 원문의 말 끝 → 음성 p50이 GOAL_MS 이하면 '이미 목표 안'이라 동시통역 지연 개선(A9)을
+      열지 않는다. README 수치를 test로 다시 잴지는 사용자 결정
+    - ii 동시통역에서 최종 처리의 첫 단계 대기 p50이 어느 원문 언어든 QUEUE_MS 이상인 조건. i가 거짓(목표를
+      넘음)일 때만 A9를 연다
     - iii 영어 원문(한국어 합성)의 합성 p50이 KO_TTS_MS 이상이고, 조각 2개 이상인 번역문이 MULTI_PIECE
       이상이며, 두 모드 중 어느 하나에서라도 처리가 1초 확정보다 늦게 끝난 마디가 PROCESSING_BOUND 이상이면
-      A3를 연다(사용자가 후보 C를 열기로 할 때. 조각을 먼저 보내는 것은 처리가 확정보다 늦을 때만 돕는다)
-    - iv MeloTTS 합성에서 캐시 비우기가 CACHE_SHARE 이상이면 A3에 캐시 비우기 생략 변형을 넣는다
+      A3를 연다(사용자가 후보 C를 열기로 할 때. 조각을 먼저 보내는 것은 처리가 확정보다 늦을 때만 돕는다).
+      A3는 대화 모드·두 사람 대화에도 해당하므로 i와 상관없다
+    - iv MeloTTS 합성에서 캐시 비우기가 CACHE_SHARE 이상인 조건. iii이 참(A3를 엶)일 때만 A3에 캐시 비우기
+      생략 변형을 넣는다
     규칙에 필요한 값이 없으면(마디가 없음 등) 그 규칙은 None(판단 못 함)으로 둔다.
     """
     by = {(row["mode"], row["lang"]): row for row in rows}
@@ -142,14 +155,19 @@ def decide(rows: list[dict], stages: dict | None) -> dict:
     ]
     multi = stages["multi_piece_ratio"] if stages else None
     cache = stages["stages"]["empty_cache"]["share"] if stages else None
-    rule_iii = None
+    within_goal = None if live_en is None else live_en <= GOAL_MS
+    queue_condition = None if not waits else max(waits) >= QUEUE_MS
+    open_a3 = None
     if tts is not None and multi is not None and bound:
-        rule_iii = tts >= KO_TTS_MS and multi >= MULTI_PIECE and max(bound) >= PROCESSING_BOUND
+        open_a3 = tts >= KO_TTS_MS and multi >= MULTI_PIECE and max(bound) >= PROCESSING_BOUND
+    cache_condition = None if cache is None else cache >= CACHE_SHARE
     return {
-        "i_live_en_within_goal": None if live_en is None else live_en <= GOAL_MS,
-        "ii_open_a9": None if not waits else max(waits) >= QUEUE_MS,
-        "iii_open_a3": rule_iii,
-        "iv_a3_skip_cache_variant": None if cache is None else cache >= CACHE_SHARE,
+        "i_live_en_within_goal": within_goal,
+        "ii_queue_condition": queue_condition,
+        "ii_open_a9": gate(None if within_goal is None else not within_goal, queue_condition),
+        "iii_open_a3": open_a3,
+        "iv_cache_condition": cache_condition,
+        "iv_a3_skip_cache_variant": gate(open_a3, cache_condition),
         "values": {
             "live_en_audio_p50_ms": live_en,
             "live_first_wait_p50_ms": max(waits) if waits else None,
@@ -222,13 +240,14 @@ def write_report(rows: list[dict], decision: dict, stages: dict | None, args: ar
         "",
         f"- i 동시통역 영어 원문 p50 {_ms(values['live_en_audio_p50_ms'])}ms ≤ {GOAL_MS}ms: "
         f"{decision['i_live_en_within_goal']}",
-        f"- ii 동시통역 첫 대기 p50(나쁜 쪽) {_ms(values['live_first_wait_p50_ms'])}ms ≥ {QUEUE_MS}ms "
-        f"→ A9 열기: {decision['ii_open_a9']}",
+        f"- ii 동시통역 첫 대기 p50(나쁜 쪽) {_ms(values['live_first_wait_p50_ms'])}ms ≥ {QUEUE_MS}ms: "
+        f"{decision['ii_queue_condition']} → i가 거짓일 때만 A9 열기: {decision['ii_open_a9']}",
         f"- iii 영어 원문 합성 p50 {_ms(values['en_source_tts_p50_ms'])}ms ≥ {KO_TTS_MS}ms, 조각 2개 이상 "
         f"{_ratio(values['multi_piece_ratio'])} ≥ {MULTI_PIECE:.0%}, 처리가 확정보다 늦음(나쁜 모드) "
         f"{_ratio(values['en_source_processing_bound_max'])} ≥ {PROCESSING_BOUND:.0%} → A3 열기: "
         f"{decision['iii_open_a3']}",
-        f"- iv 캐시 비우기 몫 {_ratio(values['empty_cache_share'])} ≥ {CACHE_SHARE:.0%} → A3에 생략 변형: "
+        f"- iv 캐시 비우기 몫 {_ratio(values['empty_cache_share'])} ≥ {CACHE_SHARE:.0%}: "
+        f"{decision['iv_cache_condition']} → iii이 참일 때만 A3에 생략 변형: "
         f"{decision['iv_a3_skip_cache_variant']}",
     ]
     base.with_suffix(".md").write_text("\n".join(lines) + "\n", encoding="utf-8")
