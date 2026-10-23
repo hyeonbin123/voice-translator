@@ -78,7 +78,9 @@ async def login(
         raise unauthorized() from exc
     user = await db.scalar(select(User).where(User.email == email))
     # 사용자가 없어도 dummy_hash로 같은 bcrypt 검증을 돌린다. 그래야 '없는 이메일'이 '틀린 비밀번호'보다 눈에
-    # 띄게 빨리 실패하지 않는다(시간 차로 가입 여부를 알아내는 것을 막음).
+    # 띄게 빨리 실패하지 않는다(시간 차로 가입 여부를 알아내는 것을 막음). 다만 가입(register)이 이미 있는
+    # 이메일에 409로 답해 같은 정보를 드러내므로, 이 방어는 로그인 응답 시간으로 알아내는 길만 막는다. 가입
+    # 응답을 같게 하려면 이메일 확인 흐름이 필요해 받아들인 위험으로 둔다(docs/security.md).
     valid = await run_in_threadpool(
         verify_password, form.password, user.hashed_password if user else dummy_hash
     )
