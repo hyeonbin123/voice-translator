@@ -15,13 +15,12 @@ import logging
 import threading
 import time
 from dataclasses import replace
-from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from uuid import uuid4
 
-# jwt: 1초 뒤 만료되는 토큰을 직접 만든다. NullPool: 테스트 클라이언트가 자기 이벤트 루프에서 앱을 돌리므로,
-# 루프 사이에 연결을 공유하지 않는 엔진을 만든다. TestClient·WebSocketDisconnect: 웹소켓 연결과 닫힘 코드
-# 확인.
+# jwt: 곧 만료되는 토큰(만료 시각이 정수 초)을 직접 만든다. NullPool: 테스트 클라이언트가 자기 이벤트
+# 루프에서 앱을 돌리므로, 루프 사이에 연결을 공유하지 않는 엔진을 만든다. TestClient·WebSocketDisconnect:
+# 웹소켓 연결과 닫힘 코드 확인.
 import jwt
 import pytest
 from sqlalchemy import func, select
@@ -335,20 +334,23 @@ async def test_a_bad_control_message_closes_the_connection(live, message):
 
 
 # 연결 중에 액세스 토큰이 만료되면 만료 뒤 첫 메시지에서 4401로 닫는다(docs/api.md). 화면은 토큰을 새로 받아
-# 다시 연결한다. 1초 뒤 만료되는 토큰을 앱과 같은 비밀키로 직접 만든다.
+# 다시 연결한다. 곧 만료되는 토큰을 앱과 같은 비밀키로 직접 만든다.
+# 만료 시각(exp)을 정수 초로 직접 정하는 이유: PyJWT는 datetime 클레임을 정수 초로 바꾸며 초 아래를 버린다.
+# 그래서 `지금 + 1초`를 datetime으로 넣으면 실제 수명이 1초가 아니라 (1 - 지금 초의 소수부)초, 곧 0~1초가
+# 된다. 소수부가 클 때(예: 0.995) 시작하면 서버가 start 메시지의 토큰을 검증하기 전에 이미 만료돼(서버
+# 검증에는 여유 시간 leeway가 없다, app/core/security.py) ready 대신 4401이 오고, 테스트가 확인하려는 '연결
+# 중 만료'가 아니라 시작 단계에서 실패했다. 지금 초를 내림한 값의 2초 뒤를 만료로 두면 수명이 늘 1초를 넘어
+# (1초 초과 2초 이하) 연결·검증·ready가 만료 전에 끝난다. ready를 받은 뒤에는 만료 시각을 0.3초 넘길 때까지
+# 기다렸다가 메시지를 보낸다(서버는 메시지를 받을 때 지금 시각이 만료 시각 이상인지 본다, routers/live.py).
+# iat는 발급 시각이라 지금보다 뒤면 PyJWT가 '아직 유효하지 않음'으로 거절하므로 같은 내림한 초를 쓴다.
 async def test_the_connection_closes_once_the_token_expires(live, user):
-    now = datetime.now(UTC)
-    claims = {
-        "sub": str(user.id),
-        "type": "access",
-        "iat": now,
-        "exp": now + timedelta(seconds=1),
-        "jti": "j",
-    }
+    issued = int(time.time())
+    expires = issued + 2
+    claims = {"sub": str(user.id), "type": "access", "iat": issued, "exp": expires, "jti": "j"}
     token = jwt.encode(claims, get_settings().jwt_secret_key.get_secret_value(), algorithm="HS256")
     with live.client.websocket_connect("/api/translate/live") as ws:
         start(ws, token)
-        time.sleep(1.2)
+        time.sleep(max(0.0, expires - time.time()) + 0.3)
         ws.send_json({"type": "utterance", "id": 1})
         assert closed_with(ws) == 4401
 
