@@ -121,11 +121,34 @@ async def test_foreign_and_missing_history_are_404(client, auth_headers, histori
     assert await db_session.get(AudioFile, other_audio.id) is not None
 
 
-# 페이지 매개변수 검증: limit은 1~100의 정수, offset은 0 이상의 정수(라우터의 Query(ge, le)). 범위
-# 밖·문자열·소수는 422다. 너무 큰 limit으로 한 번에 많은 행을 읽는 요청을 막는다.
-@pytest.mark.parametrize("query", ["limit=0", "limit=101", "offset=-1", "limit=abc", "offset=1.5"])
+# 페이지 매개변수 검증: limit은 1~100의 정수, offset은 0 이상 2147483647(2^31 - 1) 이하의 정수(라우터의
+# Query(ge, le)). 범위 밖·문자열·소수는 422다. 너무 큰 limit으로 한 번에 많은 행을 읽는 요청을 막는다.
+# offset 상한 바로 위(2^31)와 PostgreSQL bigint도 넘는 값(2^63)을 넣은 이유: 상한이 없을 때 2^31은 DB까지
+# 내려가 200(빈 페이지)이 났고, 2^63은 DB 드라이버가 bigint로 보내지 못해 처리되지 않은 오류(500)가 났다.
+# 둘 다 다른 범위 오류처럼 DB에 묻기 전에 422로 막혀야 한다.
+@pytest.mark.parametrize(
+    "query",
+    [
+        "limit=0",
+        "limit=101",
+        "offset=-1",
+        "limit=abc",
+        "offset=1.5",
+        "offset=2147483648",
+        "offset=9223372036854775808",
+    ],
+)
 async def test_invalid_pagination(client, auth_headers, query):
     assert (await client.get(f"/api/history?{query}", headers=auth_headers)).status_code == 422
+
+
+# offset 상한 값(2^31 - 1) 자체는 받아들여 실제 DB에서 오류 없이 빈 페이지를 돌려주는지 확인한다. total은
+# 페이지와 상관없는 본인 기록 수(3)를 그대로 준다(docs/api.md: offset이 끝을 넘으면 items만 빈 배열). 상한을
+# PostgreSQL integer 범위로 둔 것은 이 값까지는 쿼리 인자가 bigint로 바뀌지 않기 때문이다(routers/history.py).
+async def test_the_largest_offset_is_an_empty_page(client, auth_headers, histories):
+    response = await client.get("/api/history?offset=2147483647", headers=auth_headers)
+    assert response.status_code == 200
+    assert response.json() == {"items": [], "total": 3}
 
 
 # 기록 API의 세 경로 모두 인증 헤더가 없으면 401이다.

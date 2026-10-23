@@ -108,7 +108,7 @@ access 헤더 없이 refresh 토큰을 JSON으로 보낸다.
 
 ### GET /api/history?limit=20&offset=0
 
-본문 없음. `limit` 기본값 20, 범위 1~100. `offset` 기본값 0, 0 이상 정수.
+본문 없음. `limit` 기본값 20, 범위 1~100. `offset` 기본값 0, 0 이상 2147483647(2^31 − 1, PostgreSQL integer 최댓값) 이하 정수.
 `created_at` 내림차순이며 시각이 같으면 `id` 내림차순으로 정렬한다.
 `total`은 페이지 크기와 무관한 본인 기록 전체 개수다.
 

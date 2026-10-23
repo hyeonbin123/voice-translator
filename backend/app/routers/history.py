@@ -19,7 +19,13 @@ from app.schemas.history import HistoryItem, HistoryPage
 router = APIRouter(prefix="/history", tags=["history"])
 
 
-# 페이지 단위 목록. limit 1~100(기본 20), offset 0 이상을 Query로 검증해 범위를 벗어나면 422.
+# 페이지 단위 목록. limit 1~100(기본 20), offset 0 이상 2147483647(2^31 - 1, PostgreSQL integer 최댓값)
+# 이하를 Query로 검증해 범위를 벗어나면 422.
+# offset에 상한을 둔 이유: 파이썬 int는 크기 제한이 없어 상한이 없으면 아무리 큰 값도 검증을 통과한다.
+# SQLAlchemy의 asyncpg 방언은 2^31 이상인 offset을 bigint 인자로 보내고, 2^63 이상은 asyncpg가 int64로 바꾸지
+# 못해 DataError를 내는데, 이를 잡는 예외 처리기가 없어 422가 아니라 500이 됐다. 상한을 integer 범위로 두면
+# 쿼리 인자가 늘 integer로 나가고, 실제 행 수보다 큰 offset은 지금처럼 빈 페이지가 된다. 화면은 20개씩
+# 넘기므로 이 상한에 닿지 않는다(docs/api.md 번역 기록).
 # total은 페이지와 상관없는 본인 기록 전체 개수라 화면이 페이지 수를 계산할 수 있다. 정렬은 created_at
 # 내림차순, 시각이 같으면 id 내림차순으로 해 페이지를 넘겨도 순서가 흔들리지 않는다. selectinload로 음성 행을
 # 한 번에 미리 불러온다(모델의 lazy="raise" 때문에 필요, audio_id 계산에 씀).
@@ -28,7 +34,7 @@ async def list_history(
     user: CurrentUser,
     db: DbSession,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    offset: Annotated[int, Query(ge=0, le=2**31 - 1)] = 0,
 ) -> HistoryPage:
     owned = Translation.user_id == user.id
     total = await db.scalar(select(func.count()).select_from(Translation).where(owned))
