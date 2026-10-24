@@ -11,7 +11,7 @@
 | 음성 인식 모델 (faster-whisper large-v3-turbo 변환본) | Hugging Face 저장소 커밋 `0a363e9161cbc7ed1431c9597a8ceaf0c4f78fcf` (`backend/app/services/stt.py`의 `TURBO_REVISION`, 측정 도구도 같은 값) | 측정에 쓴 PC 캐시와 Docker `hfcache` 볼륨의 스냅숏이 같은 커밋이고, `model.bin`의 SHA-256이 허브의 파일 해시와 같다(`e76620f8…`). 저장소 이름은 그대로 둬 다시 받지 않는다(허브에서는 새 소유자 이름으로 넘어가지만 같은 커밋) |
 | Docker 기본 이미지 | 태그와 함께 digest(sha256): `python:3.11-slim-bookworm`, `ghcr.io/astral-sh/uv:0.12`(`backend/Dockerfile`), `node:24-alpine`, `nginx:stable-alpine`(`frontend/Dockerfile`), `postgres:16`, `ollama/ollama:0.35.1`(`docker-compose.yml`, CI의 postgres도 같은 digest) | python 기본 이미지는 고정할 때 이미 빌드돼 있던 api 이미지의 아래 층 세 개와 같은 이미지다(Python 3.11.17). 보안 수정을 받으려면 태그를 다시 받아 digest를 새로 적는다(`backend/Dockerfile` 머리 주석) |
 | 브라우저 말소리 판정 런타임 | `onnxruntime-web` 1.30.0 (`frontend/package.json`, 정확한 판) | 1.29.0에서 올리기 전후로 같은 소리를 Edge와 Playwright Chromium에서 돌려 비교했다: FLEURS validation 영어·한국어 세션(조용함, SNR 10dB 분홍 잡음) 15,834조각의 말소리 확률이 두 판에서 비트까지 같았고, Python onnxruntime 1.30.0과의 차이는 최대 1.2×10⁻⁵, 0.5 기준이 바뀐 조각은 0개였다(관문: 1×10⁻⁴ 이하, 뒤집힘 0). 그래서 대화 모드의 말 끝 판정 측정(7절)은 다시 재지 않는다 |
-| Python 의존성 | `backend/uv.lock`(CI와 이미지 모두 `--locked`) | — |
+| Python 의존성 | `backend/uv.lock`(CI와 이미지 모두 `--locked`) | — 2026-10-24 덧붙임: 서버가 쓰지 않는 gradio·tensorboard를 잠금에서 빼고 certifi·opentelemetry-api 두 판을 올리면서(아래 '의존성 취약점' 2026-10-24 덧붙임) 잠금을 uv 0.13.1로 다시 썼다(잠금 revision 3 → 5). 이미지가 쓰는 uv 0.12.24도 이 잠금을 그대로 읽는다 |
 | npm 의존성 | `frontend/package-lock.json`(`npm ci`) | 아래 '의존성 취약점'의 개발 도구 두 개만 lock에서 올렸고, 빌드 결과(`dist/`)가 올리기 전과 바이트까지 같음을 확인했다. 2026-10-24 덧붙임: 개발 도구(vite 8.3.5 등)를 다시 올리면서 빌드 결과의 자바스크립트 묶음 두 개가 바뀌었다. 새 빌드를 배포 nginx 설정으로 띄워 확인한 내용은 아래 '2026-10-24 덧붙임'에 있다 |
 
 ## 의존성 취약점 (2026-10-15)
@@ -24,7 +24,7 @@
 |---|---|---|---|
 | PyJWT | 2.14.0 → 2.15.1 | GHSA-42vr-xj54-vc7v (JWKS 흐름에서 깊이 중첩된 내용이 정의되지 않은 예외로 새어 나옴), GHSA-x33g-cr3x-6449 (OKP 비밀 JWK의 공개 키 확인 누락) | 아니다. 이 서비스는 JWKS와 OKP 키를 쓰지 않고, HS256 하나로 서명을 먼저 검증한 뒤에야 내용을 읽으므로 비밀 키 없이는 중첩된 내용을 넣을 수 없다. 인증 경로의 패키지라 올렸다 |
 | urllib3 | 2.7.0 → 2.8.0 | GHSA-vxq7-64xx-v4gw·GHSA-gh4c-6fx4-qh6g (악의적 서버의 chunked 응답 스트리밍에서 메모리·무한 반복), GHSA-8988-9cw3-xx77 (HTTPS 프록시 TLS 설정 혼동) | 모델을 처음 받을 때(Hugging Face) 쓰는 경로다. 프록시는 쓰지 않는다 |
-| Werkzeug | 3.1.8 → 3.1.9 | GHSA-g6x2-hccm-hh4m (Windows 장치 이름으로 `safe_join` 우회) | 아니다(MeloTTS가 끌어오는 tensorboard의 의존성이고 서비스가 쓰지 않음). 고치는 판이 있어 올렸다 |
+| Werkzeug | 3.1.8 → 3.1.9 | GHSA-g6x2-hccm-hh4m (Windows 장치 이름으로 `safe_join` 우회) | 아니다(MeloTTS가 끌어오는 tensorboard의 의존성이고 서비스가 쓰지 않음). 고치는 판이 있어 올렸다. 2026-10-24 덧붙임: tensorboard를 잠금에서 빼면서(아래) werkzeug도 잠금에서 빠졌다 |
 | brace-expansion (npm, 개발 도구) | 5.0.9 → 5.0.12 | GHSA-q2hr-2g5m-vwhr 등 3건 (중괄호 확장 DoS) | 아니다(eslint 등 개발 도구 안). 배포 파일에 들어가지 않는다 |
 | source-map-js (npm, 개발 도구) | 1.2.1 → 1.2.2 | GHSA-68fv-2mgg-jv7q (색인 소스 맵 DoS) | 아니다(빌드 도구 안) |
 
@@ -51,6 +51,19 @@ CI의 `audit` 작업이 같은 검사를 push마다 돌린다. 위 '받아들인
 
 - 확인: `npm audit --package-lock-only` 0건(`--omit=dev`도 0건), `npm ci` 뒤 `npm run lint`·`npm test`(181개)·`npm run build`·`npm run test:a11y`(Microsoft Edge, 8개) 통과. 번들러(rolldown 1.2.8 → 1.2.15)가 함께 올라가 빌드 결과 중 `index-<해시>.js`·`sileroRuntime-<해시>.js`와 그 이름을 가리키는 `index.html`은 올리기 전과 달라졌고, 워클릿·WASM·Silero 모델·CSS·라이선스 원문은 바이트까지 같다. 그래서 새 빌드를 배포 nginx 설정(위 머리글)으로 띄워 Edge로 다시 확인했다: 로그인 → 대화 모드(가짜 마이크 장치, 실제 워클릿·Silero WASM) → 동시통역 → 글자 번역 → 기록 화면을 거치는 동안 CSP 위반 0건·콘솔 오류 0건, 배포된 Silero 청크로 실제 WASM 추론(확률 0.024)과 워클릿 적재 성공, 대조로 `data:` URL 워클릿은 같은 CSP에서 막혔다. API 응답과 웹소켓은 Playwright가 브라우저 안에서 가짜로 답했다(2026-10-15 확인과 달리 API 서버를 띄우지 않음)
 - 개발 서버는 `localhost:5173`과 Playwright의 `127.0.0.1:15174`에만 열고(`--host`로 네트워크에 열지 않음) 필요할 때만 띄운다. 개발 도구 권고는 배포 이미지와 무관하지만 개발 PC에 닿는 것이 있으므로, CI `audit` 작업의 npm 결과도 Python 결과와 같이 본다
+
+**2026-10-24 덧붙임: 서버 의존성의 새 권고 — 쓰지 않는 gradio·tensorboard를 잠금에서 빼고, certifi·opentelemetry-api를 올리고, filelock·setuptools는 받아들임** (10-15 뒤 공개된 권고가 2026-10-24 새벽의 CI `audit` 작업(UTC로는 10-23)에서 Python 쪽 39건(pillow 35·brotli 2·certifi 1·opentelemetry-api 1)으로 드러났다. 같은 날 로컬에서 CI와 같은 명령으로 다시 검사하니 서버 환경 45건(pillow 37·brotli 2·certifi 1·opentelemetry-api 1·filelock 3·setuptools 1), 도구 환경 5건(certifi 1·filelock 3·setuptools 1)이었다. 이미 받아들인 nltk·setuptools의 PYSEC 2건은 뺀 수다)
+
+| 조치 | 패키지 | 권고 | 판단 |
+|---|---|---|---|
+| 잠금에서 뺌 | gradio 6.17.3, tensorboard 2.16.2와 둘만 쓰던 15개(absl-py, brotli, gradio-client, groovy, grpcio, hf-gradio, markdown, orjson, pandas, pillow, safehttpx, semantic-version, tensorboard-data-server, tomlkit, werkzeug) | pillow 12.3.0 37건(이미지 디코더의 메모리 손상·DoS, 고친 판 13.0.0), brotli 1.2.0 PYSEC-2026-4322·GHSA-9v8h-qqgm-4m35(디코더 범위 밖 쓰기, 1.2.1) | MeloTTS가 의존성으로 선언했지만 서버가 쓰는 `melo.api`·`melo.utils`·`melo.text`는 둘을 import하지 않는다(고정한 리비전에서 gradio는 웹 데모 `melo/app.py`, tensorboard는 학습 `melo/train.py`만). 판을 올리는 대신 `backend/pyproject.toml`의 `[tool.uv] exclude-dependencies`로 잠금에서 통째로 빼서 서버 이미지와 검사 대상을 줄였다. override에 `sys_platform == 'never'` 마커를 주는 unidic 방식은 잠금 사본으로 시험하니 설치만 막고 패키지는 잠금에 남아(검사 목록에도 남음) 쓰지 않았다. 되돌아오지 않게 `backend/tests/test_lock_hygiene.py`가 잠금을 검사한다 |
+| lock에서 판만 올림 | certifi 2026.7.22 → 2026.10.23 | PYSEC-2026-4320(더 믿지 않기로 한 루트 CA가 묶음에 남아 있음, 고친 판 2026.10.19) | 모델을 처음 받을 때(Hugging Face)의 TLS 검증에 쓰는 루트 묶음이라 올렸다. 두 환경 모두 |
+| lock에서 판만 올림 | opentelemetry-api 1.44.0 → 1.45.1 | CVE-2026-114603(`tracestate` 머리글 파싱 ReDoS) | MeloTTS → cached-path → google-cloud-storage → google-api-core가 끌어오는 패키지다. 이 서비스는 tracestate 머리글을 파싱하지 않아 닿지 않지만 고친 판이 있고 google-api-core 2.36.0이 그대로 해석돼 올렸다(서버 환경만 있음) |
+| 받아들임(ID로 제외) | filelock 3.32.6 | CVE-2026-112940 / GHSA-v4x8-3wr5-3wq8(POSIX `ReadWriteLock`: 다른 계정이 SQLite 보조 파일을 바꿔 넣음), CVE-2026-112913 / GHSA-9vhv-jxww-xfm5(Windows `ReadWriteLock`: 폴더에 `-wal`·`-journal` 심기), CVE-2026-112907 / GHSA-567q-5qvw-pf92(Windows `SoftFileLock` 계열: 다른 계정의 oplock으로 acquire가 멈춤) — 고친 판 4.2.1만(3.x에는 없음) | 셋 다 잠금 파일이 있는 폴더를 다른 로컬 계정과 공유할 때 성립한다. 이 서비스는 filelock을 직접 쓰지 않고 huggingface_hub·cached-path·torch가 모델 내려받기와 캐시에 `FileLock`을 쓸 뿐이며(`ReadWriteLock`은 쓰지 않음), 그 폴더(컨테이너의 `/models/hf` 볼륨, 측정 PC의 Hugging Face 캐시)는 한 계정만 쓴다. MeloTTS가 고정한 cached-path 1.8.10이 `filelock<4.0`을 요구해 4.2.1로 올릴 수 없다(두 환경 모두 같은 판) |
+| 받아들임(ID로 제외) | setuptools 81.0.0(서버 환경)·84.0.0(도구 환경) | GHSA-xmj3-9gf7-h52w(Windows에서 옛 egg 방식 `install_as_egg`로 조작된 wheel을 설치할 때 `namespace_packages.txt` 값으로 폴더 밖에 `__init__.py`를 씀, GitHub 심각도 낮음, 고친 판 84.1.0) | 런타임 경로가 아니다: 서버 이미지는 Linux이고 실행 중 패키지를 설치하지 않으며, 도구 환경은 uv가 잠금에 적힌 wheel만 설치해 setuptools의 egg 설치 경로를 쓰지 않는다. 서버 환경은 torch 2.11.0+cu128이 `setuptools<82`를 요구해 올릴 수 없고, `uv lock --upgrade-package setuptools`는 도구 환경까지 81.0.0으로 맞춰(내려감) 올리지 않았다 |
+
+- 확인: `uv lock --check` 통과, 잠금 diff는 위 17개 제거와 certifi·opentelemetry-api 두 판뿐(잠금 revision 3 → 5, 이미지의 uv 0.12.24도 읽음). CI와 같은 `uv export` → `pip-audit` 2.10.1(위 ID 제외)로 서버·도구 환경 모두 새 권고 0건
+- CI `audit` 작업: npm 단계가 Python 단계 실패 뒤에도 돌게 했다(`if: ${{ !cancelled() }}`; 전에는 건너뛰어 npm 결과가 남지 않았다). Actions 탭에서 손으로 돌릴 수 있게 `workflow_dispatch`를 더했다(push 없이 새 권고를 다시 보려고). 주기 실행(schedule)은 저장소에 지속 설정을 두는 일이라 넣지 않았다 — 저장소가 쉬는 동안 공개된 권고는 다음 push나 손으로 돌릴 때 드러난다
 
 ## 화면 서버(nginx)의 보안 머리글과 ZAP 기준 스캔 (2026-10-15)
 

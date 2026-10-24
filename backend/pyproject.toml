@@ -55,6 +55,13 @@ tts = [
 [tool.uv]
 # MeloTTS pins transformers 4.27.4 and the eval tools need >= 4.57, so the two groups are installed apart.
 conflicts = [[{ group = "eval" }, { group = "tts" }]]
+# MeloTTS가 의존성으로 선언한 gradio(웹 데모 UI, melo/app.py)와 tensorboard(학습 기록, melo/train.py)는
+# 서버가 쓰는 melo.api·melo.utils·melo.text가 import하지 않는다. 잠금에서 통째로 빼서(둘만 쓰던 pillow·
+# brotli·pandas 등 15개도 함께 빠짐) 서버 이미지와 pip-audit 검사 대상을 줄인다(docs/security.md '의존성
+# 취약점' 2026-10-24 덧붙임). 아래 override처럼 `sys_platform == 'never'` 마커를 주는 방식은 설치만 막고
+# 패키지는 마커를 단 채 잠금에 남아 검사 대상에서 빠지지 않으므로 쓰지 않았다. tests/test_lock_hygiene.py가
+# 둘이 잠금에 되돌아오지 않는지 지킨다.
+exclude-dependencies = ["gradio", "tensorboard"]
 override-dependencies = [
     # MeloTTS's Japanese front end: mecab-python3's `MeCab` folder is python-mecab-ko's `mecab` on a
     # case-insensitive file system (app/services/tts.py stands in for the Japanese module on Windows).
