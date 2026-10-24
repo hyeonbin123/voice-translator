@@ -1,4 +1,5 @@
-# push(main)와 PR마다 도는 검사. 세 작업은 서로 기다리지 않고 나란히 돈다.
+# push(main)와 PR마다 도는 검사. Actions 탭의 'Run workflow'로 손으로도 돌릴 수 있다(workflow_dispatch). 네 작업은 서로
+# 기다리지 않고 나란히 돈다.
 # - backend: 린트·포맷 확인, 실제 PostgreSQL로 pytest, 마이그레이션
 # - frontend: 린트, Vitest 단위 테스트, 빌드
 # - e2e: 실제 브라우저(Chromium)로 접근성·키보드·좁은 화면 검사(npm run test:a11y)
@@ -10,6 +11,9 @@ on:
   push:
     branches: [main]
   pull_request:
+  # 손으로 돌리기: push 없이 audit 작업이 새 권고를 다시 보게 할 때 쓴다(저장소가 쉬는 동안 공개된 권고는 다음
+  # push까지 드러나지 않는다). 주기 실행(schedule)은 저장소에 지속 설정을 두는 일이라 넣지 않았다.
+  workflow_dispatch:
 
 jobs:
   backend:
@@ -165,11 +169,18 @@ jobs:
   # 통과하므로, 실패를 보면 docs/security.md에 판단을 적고 고치거나 받아들일 목록에 더한다.
   # - 서버 환경(gpu + tts 그룹)과 도구 환경(gpu + eval + dev 그룹)을 uv.lock 그대로 내보내 따로 검사한다.
   #   두 그룹(tts·eval)은 함께 설치할 수 없어 한 번에 내보낼 수 없다
+  # - MeloTTS가 선언만 하고 서버가 쓰지 않는 gradio·tensorboard는 pyproject의 exclude-dependencies로 잠금에서
+  #   뺐으므로(2026-10-24, 그 밑의 pillow·brotli 등 15개도 함께) 여기 목록에도 없다. tests/test_lock_hygiene.py가 지킨다
   # - transformers 4.27.4는 MeloTTS가 고정한 판이라 올릴 수 없어 목록에서 빼고(받아들인 위험, 고정된 공개 모델만
-  #   읽음), MeloTTS는 PyPI에 없는 git 의존성이라 뺀다. 고칠 판이 없거나 이 서비스와 상관없는 두 권고는 ID로
-  #   제외한다: PYSEC-2026-3740(nltk, 사용자 입력 경로로 모델을 읽고 쓰지 않음), PYSEC-2026-3447(setuptools, macOS
-  #   에서 sdist를 만들 때만 해당)
-  # - npm은 배포되는 의존성과 개발 도구를 함께 본다(moderate 이상)
+  #   읽음), MeloTTS는 PyPI에 없는 git 의존성이라 뺀다. 고칠 판이 없거나 올릴 수 없거나 이 서비스와 상관없는 권고는
+  #   ID로 제외한다(판단은 docs/security.md '의존성 취약점'): PYSEC-2026-3740(nltk, 사용자 입력 경로로 모델을 읽고
+  #   쓰지 않음), PYSEC-2026-3447(setuptools, macOS에서 sdist를 만들 때만 해당), GHSA-xmj3-9gf7-h52w(setuptools
+  #   84.1.0 미만: Windows에서 옛 egg 방식으로 조작된 wheel을 설치할 때만 해당, 서버 환경은 torch cu128이
+  #   setuptools<82를 요구해 올릴 수 없음), CVE-2026-112940·CVE-2026-112913·CVE-2026-112907(filelock 4.2.1 미만:
+  #   ReadWriteLock·SoftFileLock을 다른 계정과 공유하는 폴더에서 쓸 때만 해당, 이 서비스는 모델 내려받기의
+  #   FileLock만 간접으로 쓰고 MeloTTS의 cached-path가 filelock<4.0을 요구해 올릴 수 없음)
+  # - npm은 배포되는 의존성과 개발 도구를 함께 본다(moderate 이상). Python 단계가 실패해도 돌게 해(`!cancelled()`)
+  #   두 결과가 따로 남는다(전에는 Python 실패 뒤 건너뛰어 npm 결과가 기록되지 않았다)
   audit:
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -189,13 +200,17 @@ jobs:
           export_locked --group gpu --group eval --group dev > /tmp/tools.txt
           for requirements in /tmp/server.txt /tmp/tools.txt; do
             uvx pip-audit==2.10.1 -r "$requirements" --disable-pip --no-deps \
-              --ignore-vuln PYSEC-2026-3740 --ignore-vuln PYSEC-2026-3447
+              --ignore-vuln PYSEC-2026-3740 --ignore-vuln PYSEC-2026-3447 \
+              --ignore-vuln GHSA-xmj3-9gf7-h52w \
+              --ignore-vuln CVE-2026-112940 --ignore-vuln CVE-2026-112913 --ignore-vuln CVE-2026-112907
           done
 
       - uses: actions/setup-node@v7
+        if: ${{ !cancelled() }}
         with:
           node-version: 24
 
       - name: Audit the npm dependencies
+        if: ${{ !cancelled() }}
         working-directory: frontend
         run: npm audit --audit-level=moderate
