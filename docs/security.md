@@ -12,7 +12,7 @@
 | Docker 기본 이미지 | 태그와 함께 digest(sha256): `python:3.11-slim-bookworm`, `ghcr.io/astral-sh/uv:0.12`(`backend/Dockerfile`), `node:24-alpine`, `nginx:stable-alpine`(`frontend/Dockerfile`), `postgres:16`, `ollama/ollama:0.35.1`(`docker-compose.yml`, CI의 postgres도 같은 digest) | python 기본 이미지는 고정할 때 이미 빌드돼 있던 api 이미지의 아래 층 세 개와 같은 이미지다(Python 3.11.17). 보안 수정을 받으려면 태그를 다시 받아 digest를 새로 적는다(`backend/Dockerfile` 머리 주석) |
 | 브라우저 말소리 판정 런타임 | `onnxruntime-web` 1.30.0 (`frontend/package.json`, 정확한 판) | 1.29.0에서 올리기 전후로 같은 소리를 Edge와 Playwright Chromium에서 돌려 비교했다: FLEURS validation 영어·한국어 세션(조용함, SNR 10dB 분홍 잡음) 15,834조각의 말소리 확률이 두 판에서 비트까지 같았고, Python onnxruntime 1.30.0과의 차이는 최대 1.2×10⁻⁵, 0.5 기준이 바뀐 조각은 0개였다(관문: 1×10⁻⁴ 이하, 뒤집힘 0). 그래서 대화 모드의 말 끝 판정 측정(7절)은 다시 재지 않는다 |
 | Python 의존성 | `backend/uv.lock`(CI와 이미지 모두 `--locked`) | — |
-| npm 의존성 | `frontend/package-lock.json`(`npm ci`) | 아래 '의존성 취약점'의 개발 도구 두 개만 lock에서 올렸고, 빌드 결과(`dist/`)가 올리기 전과 바이트까지 같음을 확인했다 |
+| npm 의존성 | `frontend/package-lock.json`(`npm ci`) | 아래 '의존성 취약점'의 개발 도구 두 개만 lock에서 올렸고, 빌드 결과(`dist/`)가 올리기 전과 바이트까지 같음을 확인했다. 2026-10-24 덧붙임: 개발 도구(vite 8.3.5 등)를 다시 올리면서 빌드 결과의 자바스크립트 묶음 두 개가 바뀌었다. 새 빌드를 배포 nginx 설정으로 띄워 확인한 내용은 아래 '2026-10-24 덧붙임'에 있다 |
 
 ## 의존성 취약점 (2026-10-15)
 
@@ -38,6 +38,19 @@
 | setuptools 81.0.0 | PYSEC-2026-3447 (macOS에서 sdist를 만들 때 MANIFEST.in 제외 규칙 우회) | 이 저장소는 sdist를 만들지 않는다. 런타임 경로가 아니다 |
 
 CI의 `audit` 작업이 같은 검사를 push마다 돌린다. 위 '받아들인 것'만 제외하고, 새 권고가 나오면 그 작업이 실패로 표시된다. 처음에는 보고만 하므로(워크플로 전체는 통과) 실패를 보면 이 표에 판단을 더하고 고치거나 받아들인다.
+
+**2026-10-24 덧붙임: 프런트엔드 개발 도구의 새 권고를 고침** (`npm audit --package-lock-only`. 2026-10-20·21에 공개된 vite·vitest 권고와, 그 뒤 같은 검사에 더 나타난 간접 의존성 undici·zod 권고다. `frontend/package.json`에서는 vite·vitest의 하한만 `^8.3.5`·`^5.0.5`로 올렸고(새로 설치해도 취약한 판을 고르지 않게), undici·zod는 상위 패키지(jsdom·eslint-plugin-react-hooks)가 선언한 범위 안에서 lock만 올렸다. 배포 의존성 검사(`npm audit --omit=dev`)는 올리기 전후 모두 0건이라, 배포 파일에 들어가는 라이브러리(react·react-router-dom·onnxruntime-web)는 그대로다)
+
+| 패키지 | 판 | 권고 | 이 서비스에 해당했나 |
+|---|---|---|---|
+| vite (개발 서버·빌드 도구) | 8.3.0 → 8.3.5 | GHSA-587h-7wmj-h5pm (high, 묶여 들어온 launch-editor의 `fs.existsSync` 존재 확인을 Windows에서 우회), GHSA-698v-4r3x-3vcv (Windows `cmd` 인자에서 `%`를 이스케이프하지 않음), GHSA-r825-w8mm-5pxw (파일 경로가 편집기의 CLI 플래그로 해석됨) — 셋 모두 개발 서버의 `/__open-in-editor` 경로 | **개발 PC에서는 닿을 수 있었다**(배포에는 없음). 개발 서버(`npm run dev`, 그리고 `npm run test:a11y`가 띄우는 Playwright webServer)는 `/__open-in-editor`를 출처 검사 없이 등록하므로, 서버가 떠 있는 동안 개발자가 브라우저로 연 다른 출처의 페이지가 이 경로를 불러 `file` 인자를 넘길 수 있다. 개발 PC가 Windows라 앞의 두 권고를 합치면 편집기가 감지된 상태에서 명령 실행으로 이어질 수 있다(권고 설명 기준, 재현하지 않음). 세 번째는 작업 폴더에 `+`나 `-`로 시작하는 파일과 Vim·Emacs 같은 편집기가 더 있어야 한다. 배포 이미지는 nginx가 빌드 파일만 내주므로 해당 없음 |
+| vite | (같음) | GHSA-rq7h-c2jc-7f22 (`server.fs.allow` 밖 파일 노출), GHSA-vfpm-58rq-9qcg (`?vite-wasm-instance`로 `server.fs` 밖 파일의 첫 4바이트 노출), GHSA-9jrq-w75r-8gcw (사용자 정의 미들웨어를 거친 교차 출처 스크립트 실행) | 아니다. 첫째는 Windows가 아닌 기기에서 개발 서버를 `--host`로 네트워크에 열었을 때다. 둘째는 응답 본문을 읽어야 하는 노출인데, 개발 서버는 `localhost:5173`과 Playwright의 `127.0.0.1:15174`에만 열고(`--host`를 쓰지 않음) 개발 서버의 CORS 기본값은 localhost 계열 출처만 허용해 다른 출처의 페이지가 응답을 읽지 못한다. 셋째는 `server.middlewareMode`나 `appType: 'custom'`에서 요청 URL을 그대로 `transformIndexHtml`에 넘길 때인데, 이 저장소는 기본 SPA 설정이고 `frontend/vite.config.ts`의 플러그인은 빌드 전용이다 |
+| vitest·@vitest/mocker (단위 테스트 도구) | 5.0.0 → 5.0.5 | GHSA-qxg6-89mg-rqv8 (개발 서버 웹소켓으로 인증 없이 수동 mock을 등록해 코드 주입), GHSA-xp26-3454-mjgp (Windows 역슬래시로 redirect 허용 목록 우회) | 아니다. 두 건의 처리부는 `@vitest/mocker`의 인터셉터 플러그인(브라우저 모드가 Vite 개발 서버의 웹소켓으로 mock 등록을 받는 부분)인데, 이 저장소는 `vitest run`을 jsdom으로만 돌리고 `@vitest/browser`를 설치하지 않아 그 플러그인이 올라가지 않는다 |
+| undici (jsdom이 쓰는 HTTP 클라이언트, 개발 도구) | 8.10.2 → 8.12.3 | GHSA-xjj6-f33q-929c (high, content-encoding이 다섯 개를 넘는 응답 뒤 연결이 끊기면 처리되지 않은 오류로 프로세스가 끝남), GHSA-4qv8-2p9j-2685 (EventSource 파서의 메모리 무제한), GHSA-f72v-6w45-q472 (소문자가 아닌 알고리즘 이름으로 SRI 검사 우회) | 아니다. 셋 모두 악의적인 서버의 응답이 있어야 하는데, 단위 테스트는 `fetch`를 가짜로 바꾸고 외부 서버에 접속하지 않는다. 배포 파일과 무관하다 |
+| zod (eslint-plugin-react-hooks의 의존성, 개발 도구) | 4.6.2 → 4.6.7 | GHSA-mrhx-c7xc-m3w5 (길이 제한 없는 배열 스키마에 큰 배열을 넣으면 검증 문제 객체가 쌓여 메모리 소진) | 아니다. 린트는 이 저장소의 설정과 소스만 입력으로 받는다. 배포 파일과 무관하다 |
+
+- 확인: `npm audit --package-lock-only` 0건(`--omit=dev`도 0건), `npm ci` 뒤 `npm run lint`·`npm test`(181개)·`npm run build`·`npm run test:a11y`(Microsoft Edge, 8개) 통과. 번들러(rolldown 1.2.8 → 1.2.15)가 함께 올라가 빌드 결과 중 `index-<해시>.js`·`sileroRuntime-<해시>.js`와 그 이름을 가리키는 `index.html`은 올리기 전과 달라졌고, 워클릿·WASM·Silero 모델·CSS·라이선스 원문은 바이트까지 같다. 그래서 새 빌드를 배포 nginx 설정(위 머리글)으로 띄워 Edge로 다시 확인했다: 로그인 → 대화 모드(가짜 마이크 장치, 실제 워클릿·Silero WASM) → 동시통역 → 글자 번역 → 기록 화면을 거치는 동안 CSP 위반 0건·콘솔 오류 0건, 배포된 Silero 청크로 실제 WASM 추론(확률 0.024)과 워클릿 적재 성공, 대조로 `data:` URL 워클릿은 같은 CSP에서 막혔다. API 응답과 웹소켓은 Playwright가 브라우저 안에서 가짜로 답했다(2026-10-15 확인과 달리 API 서버를 띄우지 않음)
+- 개발 서버는 `localhost:5173`과 Playwright의 `127.0.0.1:15174`에만 열고(`--host`로 네트워크에 열지 않음) 필요할 때만 띄운다. 개발 도구 권고는 배포 이미지와 무관하지만 개발 PC에 닿는 것이 있으므로, CI `audit` 작업의 npm 결과도 Python 결과와 같이 본다
 
 ## 화면 서버(nginx)의 보안 머리글과 ZAP 기준 스캔 (2026-10-15)
 
