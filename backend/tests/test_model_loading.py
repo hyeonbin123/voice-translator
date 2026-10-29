@@ -430,6 +430,22 @@ def test_melo_stays_the_default_on_the_model_thread(fake_model_classes):
     )
 
 
+# MELO_REGEX_CACHE(melo_regex_cache)는 한국어 MeloTTS 생성 인자 regex_cache로 그대로 간다. 기본은
+# 끔(False)이라 서비스의 합성이 이 설정이 없던 때와 같다. 영어 Kokoro에는 넘기지 않는다(g2pkk는 한국어
+# 전처리만 쓴다).
+def test_melo_regex_cache_setting_reaches_the_korean_synthesizer(fake_model_classes):
+    models.load_models(Settings(model_device="cpu"))
+    models.load_models(Settings(model_device="cpu", melo_regex_cache=True))
+
+    melo = [(args, kwargs) for name, args, kwargs in fake_model_classes if name == "Melo"]
+    assert melo == [
+        (("ko",), {"device": "cpu", "regex_cache": False}),
+        (("ko",), {"device": "cpu", "regex_cache": True}),
+    ]
+    kokoro = [kwargs for name, _, kwargs in fake_model_classes if name == "Kokoro"]
+    assert all("regex_cache" not in kwargs for kwargs in kokoro)
+
+
 # Supertonic 관련 설정 검증: 모르는 합성 이름, 단계·스레드 0, 모르는 제공자는 시작 때 거절한다. 기본값(melo,
 # 8단계, 2스레드, cpu, data/models/supertonic-3 폴더)도 고정한다.
 def test_supertonic_settings_are_checked():

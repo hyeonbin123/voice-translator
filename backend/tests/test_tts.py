@@ -2,7 +2,9 @@
 # 변환(wav_bytes), 모델 실패를 ModelError로 바꾸는 경계(_guarded), 입력 검사(_check_text), 언어별 모델
 # 연결(LanguageTextToSpeech), 그리고 합성·전처리 모델을 측정에 쓴 Hugging Face 커밋으로 고정하는 부분
 # (pin_transformers_revisions, pinned_file, MeloTextToSpeech·KokoroTextToSpeech가 고정한 경로를 모델
-# 라이브러리에 넘기는지).
+# 라이브러리에 넘기는지), MeloTTS 한국어 전처리(g2pkk)의 정규식 캐시(_CompiledRegexCache·_cache_g2pkk_regex)가
+# re와 같은 결과를 내고 끼우기·되돌리기가 정확한지. 실제 g2pkk로 켜기 전후 출력을 견주는 테스트는
+# tests/test_g2pkk_regex_cache.py에 따로 있다(g2pkk가 있을 때만 돎).
 # [왜 중요한가] 합성 모델(MeloTTS·Kokoro 등)마다 출력 형식과 실패 방식이 다르다. 이 도우미들이 서비스 쪽에 늘
 # 같은 WAV 형식과 같은 오류 종류(ModelError)를 주어야, 합성이 실패해도 번역은 돌려주는 처리(README 설계
 # 판단)가 동작한다. 리비전 고정은 상류 저장소가 바뀌어도 README에 기록한 수치를 낸 모델과 같은 파일을 읽게
@@ -13,6 +15,7 @@
 import hashlib
 import io
 import logging
+import re
 import sys
 import types
 import wave
@@ -320,6 +323,161 @@ def test_melo_english_candidate_is_not_pinned_and_warns(monkeypatch, caplog):
     assert events == [("pin",), ("import melo.api",), ("TTS", "EN", "cpu", None, None)]
     assert model.model_name == "melotts/EN/EN-US"
     assert "MeloTTS-English" in caplog.text
+
+
+# regex_cache=True(설정 MELO_REGEX_CACHE)면 생성자가 g2pkk 정규식 캐시를 `from melo.api import TTS`보다 먼저
+# 켠다. 기본(False)은 부르지 않아 생성 순서가 이 설정이 없던 때와 같다. 캐시를 켜도 모델 이름은
+# 그대로다(출력이 같으므로 기록·/api/health에서 다른 모델로 보이면 안 된다). 실제 g2pkk 대신 호출 순서만
+# 남기는 함수를 끼운다.
+def test_melo_turns_on_the_g2pkk_regex_cache_before_importing_melo(monkeypatch, tmp_path):
+    events: list = []
+    fake_melo(monkeypatch, events)
+    monkeypatch.setattr(tts, "pinned_file", lambda repo, filename: tmp_path / filename)
+
+    def cache_g2pkk_regex():
+        events.append(("regex cache",))
+        return ("g2pkk.g2pkk",), lambda: None
+
+    monkeypatch.setattr(tts, "_cache_g2pkk_regex", cache_g2pkk_regex)
+
+    model = MeloTextToSpeech("ko", device="cpu", regex_cache=True)
+    assert events == [
+        ("regex cache",),
+        ("pin",),
+        ("import melo.api",),
+        ("TTS", "KR", "cpu", str(tmp_path / "config.json"), str(tmp_path / "checkpoint.pth")),
+    ]
+    assert model.model_name == "melotts/KR/KR"
+
+    events.clear()
+    MeloTextToSpeech("ko", device="cpu")
+    assert ("regex cache",) not in events
+
+
+# 여기부터 g2pkk 정규식 캐시의 대리 객체(_CompiledRegexCache). g2pkk가 쓰는 re.sub·re.findall과 같은 인수를
+# 받아 같은 결과를 내야 한다: 역참조 치환(\1, g2pkk special.py의 꼴), 지우기, count, flags, 이미 컴파일된
+# 패턴, 함수 치환, bytes. re 쪽은 count·flags를 키워드로 넘긴다(위치 인수는 Python 3.13부터 경고).
+@pytest.mark.parametrize(
+    ("pattern", "repl", "string", "count", "flags"),
+    [
+        ("([ᄌᄍᄎ])ᅧ", r"\1ᅥ", "져쪄", 0, 0),
+        ("/[PJEB]", "", "나/J 는/E 가/P", 0, 0),
+        ("a", "b", "aaaa", 2, 0),
+        ("A", "x", "aAa", 0, re.IGNORECASE),
+        (re.compile("(b)"), r"[\1]", "abcb", 0, 0),
+        (r"(?P<word>\w+)", lambda match: match.group("word").upper(), "ab cd", 0, 0),
+        (b"(a)", rb"\1\1", b"cab", 0, 0),
+    ],
+)
+def test_regex_cache_sub_matches_re(pattern, repl, string, count, flags):
+    cache = tts._CompiledRegexCache(maxsize=8)
+    expected = re.sub(pattern, repl, string, count=count, flags=flags)
+    assert cache.sub(pattern, repl, string, count, flags) == expected
+    assert cache.sub(pattern, repl, string, count=count, flags=flags) == expected
+    assert cache.sub(pattern, repl, string, count=count, flags=flags) == expected  # 캐시에서 꺼낸 두 번째
+
+
+# findall도 같다: 그룹이 없으면 문자열 목록(english.py의 영어 단어 찾기), 그룹이 둘이면 튜플 목록
+# (numerals.py의 '숫자+단위/B' 찾기), flags, 컴파일된 패턴.
+@pytest.mark.parametrize(
+    ("pattern", "string", "flags"),
+    [
+        ("[A-Za-z']+", "I'm sending an mp3 file", 0),
+        (r"([\d][\d,]*)([ㄱ-힣]+)/B", "3개/B를 1,000원/B에", 0),
+        ("A", "aAa", re.IGNORECASE),
+        (re.compile("b+"), "abbcb", 0),
+    ],
+)
+def test_regex_cache_findall_matches_re(pattern, string, flags):
+    cache = tts._CompiledRegexCache(maxsize=8)
+    expected = re.findall(pattern, string, flags=flags)
+    assert cache.findall(pattern, string, flags) == expected
+    assert cache.findall(pattern, string, flags=flags) == expected
+
+
+# 잘못된 입력에는 re와 같은 예외를 낸다(컴파일된 패턴에 flags를 주면 ValueError, 틀린 정규식은 re.error).
+# sub·findall 말고는 모두 진짜 re로 넘긴다: 함수(compile·match·escape)와 상수·예외 클래스가 re의 것과 같다.
+def test_regex_cache_raises_like_re_and_passes_everything_else_to_re():
+    cache = tts._CompiledRegexCache(maxsize=8)
+    with pytest.raises(ValueError, match="compiled pattern"):
+        cache.sub(re.compile("a"), "b", "a", flags=re.IGNORECASE)
+    with pytest.raises(re.error):
+        cache.findall("(", "x")
+    assert cache.compile is re.compile and cache.match is re.match and cache.escape is re.escape
+    assert cache.IGNORECASE is re.IGNORECASE and cache.error is re.error and cache.Pattern is re.Pattern
+    assert cache.match("a", "abc").group() == "a"
+
+
+# (패턴, flags)마다 한 번만 컴파일해 다시 쓰고(두 번째부터는 적중), 서로 다른 패턴이 상한을 넘으면 오래 안 쓴
+# 것부터 버려 크기가 상한에서 멈춘다(입력에 따라 패턴이 무한히 늘어나도 메모리가 묶인다).
+def test_regex_cache_compiles_each_pattern_once_and_stays_bounded():
+    cache = tts._CompiledRegexCache(maxsize=4)
+    for _ in range(3):
+        cache.sub("a(b)", r"\1", "ab")
+        cache.findall("b", "abb")
+    info = cache.cache_info()
+    assert (info.misses, info.hits, info.currsize, info.maxsize) == (2, 4, 2, 4)
+
+    for index in range(10):
+        cache.sub(f"x{index}", "", "x1")
+    assert cache.cache_info().currsize == 4
+
+
+# g2pkk 다섯 모듈(g2pkk.g2pkk·special·utils·english·numerals)과 부모 패키지 자리에 가짜 모듈을 끼우고 {이름:
+# 모듈}을 돌려준다. 기본은 모두 진짜 re를 갖고, without_re의 모듈은 re 속성이 없으며(g2pkk regular.py처럼),
+# other_re의 모듈은 다른 코드가 이미 바꿔 끼운 다른 객체를 갖는다. monkeypatch가 sys.modules를 되돌린다.
+def fake_g2pkk(monkeypatch, *, without_re=(), other_re=()):
+    monkeypatch.setitem(sys.modules, "g2pkk", types.ModuleType("g2pkk"))
+    modules = {}
+    for name in ("g2pkk.g2pkk", "g2pkk.special", "g2pkk.utils", "g2pkk.english", "g2pkk.numerals"):
+        module = types.ModuleType(name)
+        if name in other_re:
+            module.re = SimpleNamespace()
+        elif name not in without_re:
+            module.re = re
+        monkeypatch.setitem(sys.modules, name, module)
+        modules[name] = module
+    return modules
+
+
+# 다섯 모듈의 re를 모두 대리 객체 하나로 바꾸고 그 이름을 돌려준다. 다시 불러도 대리 객체를 또 감싸지 않으며
+# (멱등) 그 호출은 끼운 것이 없어 이름이 비고 되돌리기도 아무것도 하지 않는다. 첫 호출의 되돌리기가 모두 진짜
+# re로 돌려놓고, 두 번 불러도 괜찮다.
+def test_cache_g2pkk_regex_swaps_re_in_the_five_modules_and_restores(monkeypatch):
+    modules = fake_g2pkk(monkeypatch)
+
+    names, restore = tts._cache_g2pkk_regex()
+    assert names == ("g2pkk.g2pkk", "g2pkk.special", "g2pkk.utils", "g2pkk.english", "g2pkk.numerals")
+    assert all(module.re is tts._G2PKK_RE for module in modules.values())
+
+    again, restore_again = tts._cache_g2pkk_regex()
+    assert again == ()
+    restore_again()
+    assert all(module.re is tts._G2PKK_RE for module in modules.values())
+
+    restore()
+    assert all(module.re is re for module in modules.values())
+    restore()
+    assert all(module.re is re for module in modules.values())
+
+
+# 진짜 re를 가진 모듈만 바꾼다: re가 없는 모듈은 그대로 두고, 다른 코드가 이미 바꿔 끼운 re도 덮어쓰지 않는다.
+# 되돌리기는 자기가 끼운 대리 객체가 아직 그 자리에 있을 때만 진짜 re로 돌려놓는다(그 뒤 다른 코드가 바꾼 것은
+# 그대로 둔다).
+def test_cache_g2pkk_regex_only_replaces_the_real_re(monkeypatch):
+    modules = fake_g2pkk(monkeypatch, without_re=("g2pkk.numerals",), other_re=("g2pkk.utils",))
+    other = modules["g2pkk.utils"].re
+
+    names, restore = tts._cache_g2pkk_regex()
+    assert names == ("g2pkk.g2pkk", "g2pkk.special", "g2pkk.english")
+    assert not hasattr(modules["g2pkk.numerals"], "re")
+    assert modules["g2pkk.utils"].re is other
+
+    replaced = SimpleNamespace()
+    modules["g2pkk.english"].re = replaced
+    restore()
+    assert modules["g2pkk.english"].re is replaced
+    assert modules["g2pkk.g2pkk"].re is re and modules["g2pkk.special"].re is re
 
 
 # KokoroTextToSpeech 생성자 흐름을 가짜 kokoro로 확인한다: 설정·가중치는 고정 커밋에서 받아 SHA-256을 확인한

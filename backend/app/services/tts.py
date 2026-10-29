@@ -13,16 +13,21 @@
 # [설계 이유] 모든 구현이 같은 형식(16비트 모노 PCM WAV)을 돌려줘 API·저장·화면 재생이 모델과 상관없게 한다.
 # 모델 라이브러리는 생성자 안에서 import해, 의존성이 서로 충돌하는 후보(예: MeloTTS는 transformers 4.27
 # 고정)를 각자 환경에서 측정할 수 있고, tts 그룹을 설치하지 않은 환경에서도 이 모듈을 불러올 수 있다.
-# Windows에서만 필요한 작은 우회 두 가지가 들어 있다(README 알려진 한계).
+# Windows에서만 필요한 작은 우회 세 가지(MeloTTS의 일본어 모듈과 g2pkk 형태소 분석기, Kokoro의 espeak-ng
+# 데이터 경로, README 알려진 한계)와, 모든 OS에서 켤 수 있는 MeloTTS 한국어 전처리(g2pkk)의 정규식 캐시(설정
+# MELO_REGEX_CACHE, 기본 끔, _cache_g2pkk_regex)가 들어 있다.
 # [연결] services/models.load_speech_synthesis가 서비스용 합성기를 만들고, eval/tts_candidates.py가 측정
 # 후보로 쓴다.
 
 from __future__ import annotations
 
+import functools
 import hashlib
+import importlib
 import io
 import logging
 import os
+import re
 import sys
 import types
 import wave
@@ -317,6 +322,101 @@ def _prepare_melo_on_windows() -> None:
     g2pkk.g2pkk.G2p.get_mecab = lambda self: mecab.MeCab()
 
 
+# [g2pkk 정규식 캐시] 고정 MeloTTS는 한국어 글을 음소로 바꿀 때 melo/text/korean.py의 g2p()가 BERT
+# 토크나이저의 단어 조각 묶음(대략 어절)마다 korean_text_to_phonemes → g2pkk G2p 호출 전체를 부른다. G2p 한
+# 번은 re.sub·re.findall로 서로 다른 정규식 약 570개를 늘 같은 순서로 쓴다(코드 안의 규칙, table.csv의
+# 받침·첫소리 규칙, idioms.txt의 줄마다 하나). 그런데 CPython 3.11의 re는 컴파일한 패턴을 512개까지만 두고,
+# 넘치면 가장 먼저 넣은 것부터 지우며 적중해도 순서를 바꾸지 않는다(Lib/re/__init__.py의 `_MAXCACHE = 512`와
+# `_compile`의 "Drop the oldest item"). 512개보다 많은 패턴을 같은 순서로 돌면 한 번도 캐시에 맞지 않아, G2p를
+# 부를 때마다 약 570개를 모두 다시 컴파일한다. 3.12부터의 re(LRU 512개 + FIFO 256개 두 단계)도 같은 순서의
+# 569개를 돌면 한 바퀴마다 569번 모두 컴파일해(3.11.17·3.12.14에서 확인) 이미지의 Python을 올려도 풀리지
+# 않는다. 17절 측정(docs/experiments.md)에서 MeloTTS 합성 시간의 62%가 글 전처리(정규화·g2pkk 발음 변환)와
+# BERT 특징을 한 덩어리로 잰 단계였다(둘로 나눠 재지는 않았다). 그래서 비공개 값인 re._MAXCACHE를 키우는 대신,
+# g2pkk 모듈들의 전역 이름 re만 아래 대리 객체로 바꿔 (패턴, flags)마다 한 번 컴파일한 것을 다시 쓴다.
+# - 출력이 같은 이유: 3.11의 re.sub(pattern, repl, string, count, flags)는 `_compile(pattern,
+#   flags).sub(repl, string, count)`, re.findall(pattern, string, flags)는 `_compile(pattern,
+#   flags).findall(string)`이다(같은 Lib/re/__init__.py). 대리 객체는 같은 (pattern, flags)로 컴파일한 패턴의
+#   같은 메서드를 같은 인수로 부르므로 컴파일만 건너뛰고 결과는 같다(tests/test_tts.py, 실제 g2pkk로는
+#   tests/test_g2pkk_regex_cache.py).
+# - g2pkk 0.1.2가 쓰는 re 함수는 sub·findall뿐이다. 나머지 이름(compile·match·상수·예외 등)은 캐시 없이 진짜
+#   re로 넘긴다. re를 쓰는 모듈은 아래 다섯이다(regular.py에는 re가 없다).
+# - 패턴은 모두 코드·table.csv·idioms.txt의 고정 문자열이라 캐시는 약 570개에서 멈춘다. 상한(2048, 꽉 차면
+#   가장 오래 안 쓴 것부터 버림)은 g2pkk가 바뀌어 입력에 따라 패턴이 늘어나도 메모리가 묶이게 둔 것이다.
+# - 서드파티 모듈의 전역 이름을 바꾸므로 g2pkk 판이 바뀌면(re를 쓰는 모듈·함수가 달라지면) 끼우는 자리가
+#   어긋날 수 있다. 판은 uv.lock이 고정하고, 다섯 모듈과 출력 동일성은 위 테스트가 지킨다.
+# - 기본은 끔이다(설정 MELO_REGEX_CACHE, docs/api.md). 지연에 주는 효과는 측정 규칙을 먼저
+#   docs/experiments.md에 적고 서비스에서 잰 뒤 기본값을 정한다.
+_G2PKK_REGEX_MODULES = ("g2pkk.g2pkk", "g2pkk.special", "g2pkk.utils", "g2pkk.english", "g2pkk.numerals")
+_G2PKK_REGEX_CACHE_SIZE = 2048
+
+
+class _CompiledRegexCache:
+    """g2pkk 모듈의 전역 re 자리에 끼우는 대리 객체. sub·findall만 (pattern, flags)마다 한 번 컴파일한
+    패턴으로 처리하고, 다른 이름은 모두 진짜 re 모듈의 것을 돌려준다.
+
+    입력·출력과 예외는 re.sub·re.findall과 같다: 이미 컴파일된 패턴도 받고(flags를 함께 주면 re처럼
+    ValueError), 틀린 정규식은 re.error다(예외는 캐시에 남지 않는다). 캐시는 functools.lru_cache라 여러
+    스레드가 함께 불러도 안전하다(동시에 처음 부르면 두 번 컴파일될 수는 있지만 결과는 같다). cache_info()는
+    그 lru_cache의 적중·실패 수와 크기로, 테스트와 측정이 컴파일을 건너뛰는지 확인할 때 쓴다.
+    """
+
+    def __init__(self, maxsize: int) -> None:
+        # re.compile(pattern, flags)를 그대로 감싼다. 아래 두 메서드는 늘 위치 인수 두 개로 불러 같은
+        # (pattern, flags)가 같은 캐시 키가 되게 한다(lru_cache는 키워드로 부른 호출을 다른 키로 본다).
+        self._compiled = functools.lru_cache(maxsize=maxsize)(re.compile)
+
+    def sub(self, pattern, repl, string, count=0, flags=0):
+        return self._compiled(pattern, flags).sub(repl, string, count)
+
+    def findall(self, pattern, string, flags=0):
+        return self._compiled(pattern, flags).findall(string)
+
+    def cache_info(self):
+        return self._compiled.cache_info()
+
+    # 위에 없는 이름만 여기로 온다. self를 거치지 않고 이 모듈의 re에서 찾아, 속성이 덜 만들어진 객체에서도
+    # 자기 자신을 되부르지 않는다.
+    def __getattr__(self, name: str):
+        return getattr(re, name)
+
+
+# 프로세스에 하나만 둔다: g2pkk 다섯 모듈이 같은 캐시를 함께 쓰고, 끼웠는지 여부를 이 객체와의 동일성으로
+# 판단한다.
+_G2PKK_RE = _CompiledRegexCache(_G2PKK_REGEX_CACHE_SIZE)
+
+
+def _cache_g2pkk_regex() -> tuple[tuple[str, ...], Callable[[], None]]:
+    """g2pkk에서 re를 쓰는 다섯 모듈의 전역 re를 _G2PKK_RE로 바꾸고 (이번에 바꾼 모듈 이름, 되돌리기 함수)를
+    돌려준다.
+
+    MeloTextToSpeech가 regex_cache=True일 때 부른다(설명은 위 주석). OS와 상관없이 같고, 모듈을 여기서 직접
+    import한다: Linux에서는 MeloTTS가 g2pkk를 첫 한국어 합성 때 import하므로 그 전에 바꿔 두려면 직접 불러야
+    한다. `import g2pkk.g2pkk`는 NLTK cmudict가 없으면 내려받으므로 이미지에서는
+    NLTK_DATA(backend/Dockerfile)의 것을 쓴다.
+    - 바꾸는 것은 전역 re가 진짜 re 모듈인 모듈뿐이다: 이미 끼운 모듈은 건너뛰어 두 번 불러도 한 번만
+      감싸고(멱등, 그 호출은 빈 이름 목록과 아무것도 하지 않는 되돌리기를 돌려줌), re가 없거나 다른 코드가
+      다른 것으로 바꾼 모듈은 건드리지 않는다.
+    - 되돌리기는 이번에 바꾼 모듈 가운데 아직 _G2PKK_RE를 가진 것만 진짜 re로 돌려놓는다(여러 번 불러도 된다).
+      서비스는 프로세스 동안 켜 둔 채 되돌리지 않고, 측정 도구와 테스트가 끔/켬을 바꿀 때 쓴다. 컴파일해 둔
+      패턴 캐시는 되돌려도 비우지 않는다.
+    입력: 없음. 출력: (바꾼 모듈 이름 튜플 — _G2PKK_REGEX_MODULES 순서, 되돌리기 함수). g2pkk가 없으면
+    ImportError.
+    """
+    patched = []
+    for name in _G2PKK_REGEX_MODULES:
+        module = importlib.import_module(name)
+        if getattr(module, "re", None) is re:
+            module.re = _G2PKK_RE
+            patched.append((name, module))
+
+    def restore() -> None:
+        for _, module in patched:
+            if getattr(module, "re", None) is _G2PKK_RE:
+                module.re = re
+
+    return tuple(name for name, _ in patched), restore
+
+
 class MeloTextToSpeech:
     """MeloTTS. 언어마다 모델 하나. MIT. transformers 4.27을 고정하므로 자기만의 환경이 필요하다.
 
@@ -326,10 +426,17 @@ class MeloTextToSpeech:
     BERT 토크나이저·모델은 pin_transformers_revisions로 커밋을 고정한다(docs/security.md '재현성 고정').
     체크포인트(pickle)는 melo가 `torch.load(ckpt_path, map_location=device)`로 읽으므로, 안의 코드 실행을 막는
     것은 torch 2.6부터의 기본값 weights_only=True다(tests/test_lock_versions.py가 잠금의 torch 판을 지킨다).
+    regex_cache=True(설정 MELO_REGEX_CACHE)면 한국어 전처리 g2pkk의 정규식을 패턴마다 한 번만 컴파일해 다시
+    쓴다(_cache_g2pkk_regex, 기본 끔). 음소 출력은 끈 때와 같아 model_name도 그대로다.
     """
 
-    def __init__(self, language: Language, device: str = "cuda") -> None:
+    def __init__(self, language: Language, device: str = "cuda", *, regex_cache: bool = False) -> None:
         _prepare_melo_on_windows()
+        if regex_cache:
+            # melo.api import 전에 켠다(Linux에서는 g2pkk가 아직 import되지 않았을 수 있어 함수가 직접
+            # 불러온다). 같은 프로세스에서 두 번째 인스턴스면 이미 켜져 있어 바꾼 모듈 이름이 비어 있다.
+            modules, _ = _cache_g2pkk_regex()
+            logger.info("g2pkk regex cache is on (%s)", ", ".join(modules) or "already on")
         # melo.api를 import하면 언어 모듈들이 모듈 수준에서 BERT 토크나이저를 받으므로, 그보다 먼저 감싼다.
         _warn_if_melo_was_imported_unpinned()
         pin_transformers_revisions()

@@ -217,7 +217,9 @@ def load_speech_synthesis(settings: Settings) -> TextToSpeech | None:
                 provider=settings.supertonic_provider,
             )
         else:
-            korean = tts.MeloTextToSpeech("ko", device=device)
+            # regex_cache(MELO_REGEX_CACHE, 기본 끔): 한국어 전처리 g2pkk의 정규식 컴파일 결과를 다시
+            # 쓴다(tts.py).
+            korean = tts.MeloTextToSpeech("ko", device=device, regex_cache=settings.melo_regex_cache)
         return tts.LanguageTextToSpeech({"ko": korean, "en": tts.KokoroTextToSpeech(device=device)})
     except Exception:  # noqa: BLE001 - tts 그룹이 없거나 적재가 실패하면 서버가 아니라 합성만 끈다
         logger.exception("Speech synthesis could not be loaded; translations will carry tts_error")
