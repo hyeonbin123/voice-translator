@@ -1456,3 +1456,15 @@ MeloTTS 단계 (서비스 측정에서 영어 원문 마디가 받은 한국어 
 - **한계**: 관문 1은 CPU fp32에서만 본다(서비스는 GPU에서 합성). 같은 입력·가중치·torch에서 transformers의 계산만 바뀌는지 보는 것이라 GPU 커널의 차는 관문 2나 채택 뒤의 서비스 측정에서만 드러난다. 관문 2의 재인식 오류율은 합성 잡음과 인식기에 함께 흔들리는 간접 지표다(3절 한계). Kokoro의 음소열은 misaki·spaCy가 만들어 transformers와 상관없지만, 잠금을 다시 풀며 다른 의존성의 판이 바뀌었는지 보려고 넣었다
 - **예상 비용**: CPU — 시험 잠금과 이미지 빌드(약 20~45분)와 관문 1(환경마다 약 10분). GPU(관문 2일 때만) — 합성 129문장 × 6회와 재인식 약 0.5시간(영어도 재면 약 0.3시간 더)
 - **측정 전 확인** (GPU 없이, 2026-10-29): backend `ruff check`·`ruff format --check`·`pytest` 통과(이 절과 같은 커밋). `synth --seed`는 가짜 torch(ID 순서와 다른 입력, `--limit`, 기준 시드 바꾸기, 시드 없는 기본값에서는 torch를 import하지 않음)로, 관문 계산은 경계값(-0.0, dtype·모양이 다름, NaN, 허용 폭 1e-4의 경계)으로 테스트했다(`tests/test_tts_eval.py`)
+
+**결과** (2026-10-30, 관문 1. 두 판 모두 모델 추론 없이 판정이 정해져 BERT·ALBERT 특징과 합성은 돌리지 않았고 관문 2도 열지 않았다. GPU는 쓰지 않았다. 스크립트와 출력은 커밋하지 않는 `work/`에 있다)
+- **시험 환경**: 두 후보 모두 잠금이 풀리고 시험 이미지가 빌드됐다. 서버 그룹(gpu·tts)에서 바뀌는 패키지는 T1이 transformers 5.17.0·tokenizers 0.23.2·huggingface-hub 1.31.0(0.36.2에서)과 새로 들어오는 safetensors 0.8.0, T2가 transformers 4.57.6·tokenizers 0.22.2와 새 safetensors 0.8.0(huggingface-hub 0.36.2 그대로)이고, 나머지는 같다. 옛 환경(Python 3.11.17, torch 2.11.0+cu128, transformers 4.27.4)에서는 추론 없는 부분이 모두 돌았다: 토크나이저 모듈 9개(저장소 6개) × 979글, K의 조각 271개(음소 18,722개), E의 Kokoro 조각 190개, MeloTTS·Kokoro 적재
+- **T1 = 5.17.0: 기각**
+  - (e) `import kokoro`가 실패한다. transformers의 `audio_utils.py`는 librosa가 설치돼 있으면 soxr도 import하는데(librosa와 함께 설치된다고 가정한다), MeloTTS가 고정한 librosa 0.9.1은 soxr을 설치하지 않아 잠금에 없다. 그래서 그 모듈을 거치는 모델 클래스(`AlbertModel`, `BertForMaskedLM`)를 import하는 순간 ModuleNotFoundError로 멈춘다. 네트워크와 상관없는 실패다
+  - (a)·(b) 이 절의 조건(네트워크 없음, 측정 때의 캐시)에서 `import melo.api`가 멈춘다. 5.17.0의 AutoTokenizer가 일본어 토크나이저(tohoku-nlp/bert-base-japanese-v3)에서 `config.json`을 찾는데, 캐시에는 4.27.4가 받은 `tokenizer_config.json`·`vocab.txt`만 있다. (d)의 음소열도 kokoro를 import하지 못해 뽑지 못했다
+  - 참고(판정 밖): `melo.api`를 거치지 않고 한국어 경로만 견주면, kykim/bert-kor-base를 포함한 토크나이저 모듈 6개(일본어 모듈을 import하는 영어 모듈과 그것을 쓰는 중국어 혼합 모듈은 빼고)의 tokens·input_ids가 979글에서 모두 같았고 K의 조각 271개에서 7칸이 모두 같았다
+- **T2 = 4.57.6: 기각**
+  - (a) 토크나이저 모듈 9개 × 979글, (b) K의 조각 271개 × 7칸, (d) Kokoro 음소열 190개가 모두 같다. (e)의 적재도 됐다(Kokoro ALBERT 가중치 25개가 이름이 모두 맞아 들어감)
+  - 그러나 같은 soxr 문제로 `BertForMaskedLM`을 import하지 못한다(이 판의 `AlbertModel`은 그 모듈을 거치지 않아 import된다). 한국어 첫 합성의 BERT 특징 단계(`melo/text/japanese_bert.py`)가 부르는 것과 같은 `AutoModelForMaskedLM.from_pretrained("kykim/bert-kor-base")`를 모델 추론 없이 불러, 모델을 만들기 전에 이 오류로 멈추는 것을 확인했다. 그래서 (e)의 한국어 한 문장 합성과 (c)는 돌리지 않아도 실패가 정해진다
+- **판단**: 두 판 모두 기각한다. tts 그룹의 transformers 4.27.4 고정과 서버의 Python 3.11은 그대로이고, 잠금·CI 감사의 예외·docs/security.md·README는 바꾸지 않는다. 관문 2가 열리지 않아 시드 3개 합성 재인식(시드 간 범위 진단 포함)은 재지 않았다. `synth --seed`는 다음 합성 비교에 쓸 수 있게 그대로 둔다
+- **다음에 볼 것**: 두 기각 모두 수치 차가 아니라 빠진 의존성(soxr) 때문이다. T2는 글 쪽 확인((a)·(b)·(d))과 적재를 모두 통과했으므로, tts 그룹에 soxr을 명시한 후보(예: T2 + soxr)는 (c)·(e)부터 다시 볼 만하다. 이 절의 규칙 밖이므로 측정 전에 새 절로 후보와 판정을 먼저 등록한다. 등록하지 않으면 결과 처리대로 MeloTTS만 Python 3.11에 고정한 별도 프로세스로 떼는 일을 2027-10 전에 할 작업으로 남긴다
