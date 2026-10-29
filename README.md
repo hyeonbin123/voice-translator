@@ -61,6 +61,16 @@ docker compose up -d --build
 
 http://localhost:8080 에서 쓴다 (포트는 `.env`의 `WEB_HOST_PORT`). 처음 시작할 때 음성 인식·합성 가중치(약 2.5GB)를 `hfcache` 볼륨으로 받고, 모델을 올린 뒤 한 번씩 돌려 둔 다음 준비 완료가 된다. 오타 교정 모델(약 1GB)은 뒤에서 `ollama` 볼륨으로 받아 올리고, 그동안 영어 글자 입력은 교정 없이 번역된다. 로그인이 서버 재시작 뒤에도 유지되게 하려면 `.env`에 `JWT_SECRET_KEY`를 둔다 (`.env.example` 참고).
 
+(2026-10-29 덧붙임) API 컨테이너는 root가 아닌 사용자(uid 10001)로 돈다. 새로 만드는 `hfcache`·`audio` 볼륨은 그대로 되지만, 이 변경 전의 이미지로 `docker compose up`을 한 적이 있으면 두 볼륨이 root 소유라 번역 음성을 저장하지 못한다. 그때는 새 이미지를 만든 뒤 한 번 소유자를 바꾼다(서버를 띄운 뒤에 해도 되고, 바꾼 뒤로 바로 저장된다). Windows의 Git Bash에서는 `/data/audio` 같은 인수가 Windows 경로로 바뀌지 않게 둘째 명령 앞에 `MSYS_NO_PATHCONV=1 `을 붙인다(PowerShell은 그대로).
+
+```bash
+docker compose build api
+docker compose run --rm --no-deps --user 0 api chown -R 10001:10001 /data/audio /models/hf
+docker compose up -d
+```
+
+오타 교정 모델을 측정한 빌드로 묶으려면 `.env`에 `CORRECTION_DIGEST=65ec06548149b04c096a120e4a6da9d4017ea809c91734ea5631e89f96ddc57b`를 둔다. Ollama에 다른 빌드가 있으면 교정만 꺼지고 경고가 남으며 서버는 그대로 뜬다 ([docs/api.md](docs/api.md) 설정 표).
+
 ## 로컬 개발
 
 준비: Python 3.11, uv, Node.js 24, Docker. 명령은 프로젝트 폴더에서 시작하고, 백엔드와 프론트엔드는 각각 다른 터미널에서 실행한다. 모델 없이 화면과 테스트만 볼 때는 0단계를 건너뛰고 2단계를 `LOAD_MODELS` 없이 실행한다(아래 설명).
