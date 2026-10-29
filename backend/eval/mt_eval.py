@@ -6,9 +6,15 @@ backend/에서 gpu·eval 그룹을 설치하고 모델을 변환한(eval.mt_conv
         opus-mt-tc-big-ko-en/split opus-mt-tc-big-en-ko opus-mt-tc-big-en-ko/split
     uv run python -m eval.mt_eval --split validation --tag t83_dev --models opus-mt-tc-big-ko-en \
         opus-mt-tc-big-en-ko/split hy-mt2-q8 hy-mt2-q8/split
+    uv run --no-sync python -m eval.mt_eval --split validation --tag t108_dev --models opus-mt-tc-big-ko-en \
+        opus-mt-tc-big-ko-en/b8 opus-mt-tc-big-ko-en/b8-mbr opus-mt-tc-big-en-ko/split \
+        opus-mt-tc-big-en-ko/split/b8 opus-mt-tc-big-en-ko/split/b8-mbr
 
 Hy-MT2 시험: Hy-MT2 모델은 eval.hymt_setup이 만드는 그대로 Ollama에 있어야 하고, Ollama에 있는 빌드가
 docs/experiments.md 15절에 기록된 빌드가 아니면 그 후보는 거부된다.
+
+디코딩 시험(docs/experiments.md 20절): '/b8'은 같은 모델의 빔 8 1-best, '/b8-mbr'은 빔 8의 8-best에서 문장
+chrF MBR로 고른 번역(eval/mbr.py, MBR 계산은 문장당 시간에 들어감)이다. 판정은 eval.mbr decide.
 
 후보와 선택 규칙은 실행 전에 docs/experiments.md에 적었다.
 """
@@ -17,14 +23,14 @@ docs/experiments.md 15절에 기록된 빌드가 아니면 그 후보는 거부�
 # 문장당 지연(p50·p95), GPU 메모리, 출력 점검(다른 문자·설명형·빈 출력)을 재서
 # backend/eval/reports/mt_<tag>_<시각>.json·.md로 남긴다.
 # [왜 필요한가] 이 프로젝트는 모델을 측정해서 고른다. 후보와 판단 규칙은 측정 전에 docs/experiments.md에
-# 적고(2절 T3, 2-1절 T17, 15절 T83), 이 스크립트가 같은 조건으로 모든 후보를 재서 그 규칙에 넣을 숫자를
-# 만든다.
+# 적고(2절 T3, 2-1절 T17, 15절 T83, 20절 디코딩 시험), 이 스크립트가 같은 조건으로 모든 후보를 재서 그 규칙에
+# 넣을 숫자를 만든다.
 # [흐름] load_pairs로 문장 ID마다 한·영 쌍을 만든다 → 후보마다 evaluate가 모델을 올리고 메모리를 읽은 뒤,
 # 방향마다 준비 호출 1번을 빼고 전 문장을 번역·채점한다 → write_report가 JSON(문장별 결과 포함)과 사람이 읽는
 # Markdown 표를 쓴다.
 # [연결] 저장된 JSON은 eval/mt_failures.py(누락 신호), eval/mt_checks.py, eval/mt_decide.py(T83 판정),
-# eval/reanalysis.py(T80 재분석)가 다시 읽는다. load_pairs는 eval/typo_noise.py가, CANDIDATES와 ollama_state는
-# eval/typo_eval.py가 가져다 쓴다.
+# eval/reanalysis.py(T80 재분석), eval/mbr.py(20절 판정)가 다시 읽는다. load_pairs는 eval/typo_noise.py가,
+# CANDIDATES와 ollama_state는 eval/typo_eval.py가 가져다 쓴다.
 
 from __future__ import annotations
 
@@ -48,6 +54,7 @@ import sacrebleu
 # 것이다. split_sentences는 T17에서 서버가 영→한에 쓰는 문장 나누기와 같은 함수다.
 # eval.common: 데이터·모델·리포트 경로와 GPU 전체 사용량 읽기. eval.hymt_setup.QUANTS: Hy-MT2 양자화별 Ollama
 # 모델 이름과 측정한 빌드의 digest. eval.mt_checks.check_items: T83 규칙 (b)의 출력 점검.
+# eval.mbr.MbrTranslator: 20절의 '/b8-mbr' 팔(빔 8의 n-best에서 문장 chrF MBR로 고르는 번역기).
 from app.services.interfaces import Language, ModelError, Translator
 from app.services.translation import (
     HyMtTranslator,
@@ -58,6 +65,7 @@ from app.services.translation import (
 )
 from eval.common import DATA, FLEURS_CONFIG, MODELS, REPORTS, gpu_memory_mb
 from eval.hymt_setup import QUANTS
+from eval.mbr import MbrTranslator
 from eval.mt_checks import check_items
 
 # 호스트에서 도는 Ollama의 기본 주소. Qwen과 Hy-MT2 후보는 이 Ollama로 부른다.
@@ -88,6 +96,7 @@ def hymt(quant: str, by_sentence: bool = False) -> HyMtTranslator:
 # - opus-mt-ko-en, opus-mt-tc-big-*, nllb, qwen2.5-7b: T3 후보(docs/experiments.md 2절).
 # - '/split' 이름: 같은 모델이 문장마다 따로 번역하는 T17 후보 B.
 # - hy-mt2-*: T83 후보. Q4_K_M은 Q8_0 팔이 지연에서만 떨어졌을 때 쓰는 대체 팔이다.
+# - '/b8', '/b8-mbr' 이름: 같은 모델의 디코딩만 바꾼 20절 팔(빔 8의 1-best, 빔 8의 8-best + MBR).
 CANDIDATES: dict[str, tuple[Callable[[], Translator], list[tuple[Language, Language]]]] = {
     "opus-mt-ko-en": (lambda: MarianTranslator(CT2 / "opus-mt-ko-en", "ko", "en"), [KO_EN]),
     "opus-mt-tc-big-ko-en": (lambda: MarianTranslator(CT2 / "opus-mt-tc-big-ko-en", "ko", "en"), [KO_EN]),
@@ -108,6 +117,33 @@ CANDIDATES: dict[str, tuple[Callable[[], Translator], list[tuple[Language, Langu
     "hy-mt2-q8/split": (lambda: hymt("q8_0", by_sentence=True), [EN_KO]),
     "hy-mt2-q4": (lambda: hymt("q4_k_m"), [KO_EN, EN_KO]),
     "hy-mt2-q4/split": (lambda: hymt("q4_k_m", by_sentence=True), [EN_KO]),
+    # 같은 opus-mt-tc-big의 디코딩만 바꾼 팔(docs/experiments.md 20절). 기준은 위의 지금 서비스 설정(한→영
+    # 통째로, 영→한 문장 단위, 빔 4의 1-best)이고, 팔도 같은 방향 설정을 따른다. '/b8'은 빔 8의 1-best(빔 크기
+    # 효과만), '/b8-mbr'은 빔 8의 가설 8개 중 문장 chrF MBR로 고른 번역이다(MBR 계산은 translate() 안이라
+    # 문장당 시간에 들어감). MBR 팔의 안쪽 번역기도 빔 8로 만들어 두지만, 후보는 MbrTranslator가 넘기는 빔
+    # 크기로 만든다.
+    "opus-mt-tc-big-ko-en/b8": (
+        lambda: MarianTranslator(CT2 / "opus-mt-tc-big-ko-en", "ko", "en", beam_size=8),
+        [KO_EN],
+    ),
+    "opus-mt-tc-big-ko-en/b8-mbr": (
+        lambda: MbrTranslator(
+            MarianTranslator(CT2 / "opus-mt-tc-big-ko-en", "ko", "en", beam_size=8), beam=8, n=8
+        ),
+        [KO_EN],
+    ),
+    "opus-mt-tc-big-en-ko/split/b8": (
+        lambda: MarianTranslator(CT2 / "opus-mt-tc-big-en-ko", "en", "ko", beam_size=8, by_sentence=True),
+        [EN_KO],
+    ),
+    "opus-mt-tc-big-en-ko/split/b8-mbr": (
+        lambda: MbrTranslator(
+            MarianTranslator(CT2 / "opus-mt-tc-big-en-ko", "en", "ko", beam_size=8, by_sentence=True),
+            beam=8,
+            n=8,
+        ),
+        [EN_KO],
+    ),
 }
 # Ollama 후보 → Ollama 안의 모델 이름. evaluate가 측정 앞뒤로 이 모델을 내려, GPU 메모리를 모델이 없는
 # 상태에서 읽고 다음 후보 측정에 메모리가 남지 않게 한다.
@@ -190,6 +226,10 @@ def evaluate(name: str, pairs: list[dict]) -> dict:
         translator.translate(pairs[0][source], source, target)
     _, after = gpu_memory_mb()
     result: dict = {"model": name, "model_name": translator.model_name, "vram_mb": round(after - before)}
+    # opus 번역기(MarianTranslator)와 MBR 번역기는 디코딩 설정(빔 크기, 가설 수, 고르는 방법, 문장 단위)을
+    # 함께 남긴다. 판정 도구(eval/mbr.py)가 팔이 등록한 설정으로 돌았는지 이것으로 확인한다.
+    if decoding := getattr(translator, "decoding", None):
+        result["decoding"] = dict(decoding)
     if ollama_model:
         result["ollama"] = ollama_state(ollama_model)
     result["directions"] = {}
@@ -229,6 +269,10 @@ def evaluate(name: str, pairs: list[dict]) -> dict:
             # 256토큰에서 잘린 답을 세는 데 쓴다.
             if isinstance(translator, HyMtTranslator):
                 items[-1]["ollama_calls"] = list(translator.calls)
+            # MBR 팔은 문장마다 후보 수와 MBR이 고른 위치(0 = 엔진 점수가 가장 높은 후보)를 남긴다. MBR이
+            # 실제로 얼마나 바꿨는지 읽는 참고 수치이고, 번역이 실패한 입력은 빈 목록이다.
+            if isinstance(translator, MbrTranslator):
+                items[-1]["mbr"] = list(translator.picks)
         # 방향별 요약. chrF는 문장 점수의 평균이 아니라 전체 합산(corpus_chrf)이다. p95는 quantiles(n=20)의
         # 19번째 경계(인덱스 18)다.
         values = {
@@ -282,6 +326,13 @@ def write_report(results: list[dict], args: argparse.Namespace, gpu_name: str, p
         f"- chrF: sacrebleu {sacrebleu.__version__} 기본 설정, 전체 합산",
         "- 지연: 문장당 초, 방향별 첫 호출 제외",
     ]
+    # 20절의 빔 8 팔을 쟀으면 그 디코딩을 밝힌다(위 '빔 4'는 기준 팔에만 맞으므로). 없으면 머리말은 지금까지와
+    # 같다.
+    if any("/b8" in result["model"] for result in results):
+        lines.append(
+            "- 디코딩 시험 팔(docs/experiments.md 20절): 이름이 '/b8'로 끝나면 같은 모델의 빔 8 1-best, "
+            "'/b8-mbr'로 끝나면 빔 8의 가설 8개 중 문장 chrF MBR로 고른 번역(MBR 계산이 지연에 들어감)"
+        )
     # 방향마다 표 한 개. 그 방향을 번역하지 않는 후보는 directions에 없으므로 행이 빠진다.
     for direction, title in (("ko-en", "한→영"), ("en-ko", "영→한")):
         lines += [

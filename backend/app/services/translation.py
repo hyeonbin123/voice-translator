@@ -11,7 +11,9 @@
 # 때와 같은 입력이 되도록 OPUS-MT의 전처리 규칙과 토크나이저 동작을 파이썬으로 그대로 옮겼다. 엔진 안의 모든
 # 오류는 ModelError로 바꿔 API가 503으로 답하게 한다.
 # [연결] services/models.load_translation이 서비스용 번역기를 만들고, eval/mt_eval.py가 후보를 비교하며,
-# eval/mt_convert.py가 변환 뒤 토큰 확인에 이 파일의 토큰화 함수를 쓴다.
+# eval/mt_convert.py가 변환 뒤 토큰 확인에 이 파일의 토큰화 함수를 쓴다. MarianTranslator.candidates(빔 탐색의
+# n-best 후보)는 디코딩 시험(docs/experiments.md 20절)의 eval/mbr.py만 쓰고, 서비스 경로(translate)는 빔 4의
+# 1-best 그대로다.
 
 from __future__ import annotations
 
@@ -131,6 +133,12 @@ def _nonempty(translation: object) -> str:
     return translation.strip()
 
 
+# n-best 후보 하나가 쓸 만한 번역인지(문자열이고 공백만이 아님). _nonempty와 같은 기준이지만 예외 대신
+# 참·거짓을 돌려줘, 후보 중 빈 것만 버릴 때 쓴다(MarianTranslator.candidates).
+def _usable(translation: object) -> bool:
+    return isinstance(translation, str) and bool(translation.strip())
+
+
 def _guarded(run: Callable[[], T]) -> T:
     """엔진이나 토크나이저 호출을 실행하고, 그 안의 어떤 실패든 ModelError로 바꾼다.
 
@@ -145,9 +153,18 @@ def _guarded(run: Callable[[], T]) -> T:
         raise ModelError(f"the translation model failed: {type(exc).__name__}") from exc
 
 
+# n-best 가설 수 검사: 1 이상 빔 크기 이하. 빔 탐색의 마지막 빔에는 빔 크기만큼만 가설이 남으므로 그보다 많이
+# 달라고 할 수 없다. 엔진을 부르기 전에 ValueError로 멈춰, 설정 실수가 번역 실패(ModelError)로 묻히지 않게
+# 한다.
+def _check_nbest(beam_size: int, n: int) -> None:
+    if not 1 <= n <= beam_size:
+        raise ValueError(f"need between 1 and beam_size={beam_size} hypotheses, got {n}")
+
+
 # CTranslate2 번역 엔진 감싸개. 빔 크기 4, 최대 256토큰은 모든 seq2seq 후보에 같게 둔 측정
 # 조건이다(docs/experiments.md 2절). target_prefix는 NLLB처럼 도착 언어 코드를 출력 앞에 강제할 때 쓴다. 한
-# 문장씩(배치 크기 1) 번역하고 가장 좋은 가설 하나를 돌려준다.
+# 문장씩(배치 크기 1) 번역하고 가장 좋은 가설 하나를 돌려준다(generate, 서비스가 쓰는 경로). generate_nbest는
+# 디코딩 시험(docs/experiments.md 20절)의 측정 도구만 쓴다.
 class _Ct2Model:
     def __init__(self, model_dir: Path, device: str, compute_type: str, beam_size: int) -> None:
         import ctranslate2
@@ -165,6 +182,28 @@ class _Ct2Model:
             max_decoding_length=256,
         )
         return results[0].hypotheses[0]
+
+    def generate_nbest(self, tokens: list[str], beam_size: int, n: int) -> list[tuple[list[str], float]]:
+        """빔 탐색의 가설 n개를 (조각 목록, 엔진 점수)로, 점수가 높은 것부터 돌려준다.
+
+        MBR 디코딩 시험(docs/experiments.md 20절)이 후보를 만드는 데 쓴다. 엔진에는 빔 크기와 가설 수
+        (`num_hypotheses`), 점수 반환(`return_scores`)만 더 넘기고, 최대 256토큰을 비롯한 나머지 옵션은
+        generate와 같은 기본값이다. 빔 크기는 생성할 때 정한 값이 아니라 인수로 받는다(같은 모델로 빔 4와 빔
+        8을 견주기 위해). CTranslate2 문서는 점수를 '가설마다의 점수'라고만 하고 가설 순서를 적지 않아, 점수로
+        다시 줄 세운다: 점수가 같으면 엔진이 준 순서를 지키고(안정 정렬), 엔진이 더 많이 돌려줘도 n개까지만
+        쓴다. 점수 수가 가설 수와 다르면(점수가 오지 않음) 순위를 매길 수 없어 ValueError다. 가설 수가 1~빔
+        크기가 아니면 엔진을 부르지 않고 ValueError다.
+        """
+        _check_nbest(beam_size, n)
+        result = self.model.translate_batch(
+            [tokens],
+            beam_size=beam_size,
+            num_hypotheses=n,
+            return_scores=True,
+            max_decoding_length=256,
+        )[0]
+        scored = list(zip(result.hypotheses, result.scores, strict=True))
+        return sorted(scored, key=lambda pair: pair[1], reverse=True)[:n]
 
 
 class MarianTranslator:
@@ -189,6 +228,14 @@ class MarianTranslator:
         self.direction = (source, target)
         self.model_name = f"ctranslate2/{model_dir.name}"
         self.by_sentence = by_sentence
+        # translate()의 디코딩 설정. 측정 도구(eval/mt_eval.py)가 보고서에 그대로 남겨, 판정
+        # 도구(eval/mbr.py)가 팔이 등록한 설정(빔 크기·문장 단위)으로 돌았는지 확인한다. 서비스는 읽지 않는다.
+        self.decoding = {
+            "beam_size": beam_size,
+            "num_hypotheses": 1,
+            "selection": "1-best",
+            "by_sentence": by_sentence,
+        }
         self._model = _Ct2Model(model_dir, device, compute_type, beam_size)
         self._source_sp = load_sentencepiece(model_dir / "source.spm")
         self._target_sp = load_sentencepiece(model_dir / "target.spm")
@@ -207,6 +254,40 @@ class MarianTranslator:
     def _translate_one(self, text: str) -> str:
         pieces = _guarded(lambda: self._model.generate(marian_source_tokens(self._source_sp, text)))
         return _nonempty(_guarded(lambda: self._target_sp.decode(pieces)))
+
+    def candidates(
+        self, text: str, source: Language, target: Language, beam_size: int, n: int
+    ) -> list[list[tuple[str, float]]]:
+        """문장마다 빔 탐색의 번역 후보 n개를 (번역문, 엔진 점수)로, 점수가 높은 것부터 돌려준다.
+
+        MBR 디코딩 시험(docs/experiments.md 20절)의 측정 도구(eval/mbr.py)만 쓰고, 서비스(translate)는 쓰지
+        않는다. 입력 검사와 문장 나누기는 translate()와 같다: 같은 언어 쌍·빈 글·다른 방향은 ModelError,
+        by_sentence면 split_sentences로 나눈 문장마다(순서 그대로) 목록 하나, 아니면 목록 하나. 후보마다
+        목표 언어 SentencePiece로 복원하고 앞뒤 공백을 지운다(translate()의 결과와 같은 모양). 빈 글이 된
+        후보는 버리고, 한 문장에서 남는 것이 없으면 translate()처럼 빈 번역 ModelError다. 엔진·토크나이저
+        오류는 _guarded가 ModelError로 바꾼다. 가설 수가 1~빔 크기가 아니면 설정 실수라 엔진을 부르기 전에
+        ValueError로 멈춘다(ModelError로 바꾸면 측정 도구가 빈 번역으로 세며 계속 돈다).
+        """
+        _check_text(text, source, target)
+        if (source, target) != self.direction:
+            raise ModelError(f"{self.model_name} only translates {self.direction[0]}->{self.direction[1]}")
+        _check_nbest(beam_size, n)
+        sentences = split_sentences(text) if self.by_sentence else [text]
+        return [self._candidates_one(sentence, beam_size, n) for sentence in sentences]
+
+    # 한 문장의 후보: 토큰화·n-best 생성·후보마다 복원을 _guarded로 감싼다. 겹치는 글도 그대로 둔다(가설
+    # 하나가 후보 하나, MBR에서 의사 참조 하나).
+    def _candidates_one(self, text: str, beam_size: int, n: int) -> list[tuple[str, float]]:
+        nbest = _guarded(
+            lambda: self._model.generate_nbest(marian_source_tokens(self._source_sp, text), beam_size, n)
+        )
+        decoded = [
+            (_guarded(lambda pieces=pieces: self._target_sp.decode(pieces)), score) for pieces, score in nbest
+        ]
+        kept = [(candidate.strip(), float(score)) for candidate, score in decoded if _usable(candidate)]
+        if not kept:
+            raise ModelError("the model returned an empty translation")
+        return kept
 
 
 class NllbTranslator:

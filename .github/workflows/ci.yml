@@ -67,6 +67,8 @@ jobs:
       # 위 실행은 아래 테스트들을 건너뛴다: eval 그룹의 sacrebleu·jiwer·pyarrow가 필요한데, eval 그룹 전체는
       # torch까지 끌어와 무겁다. 그래서 세 패키지만 uv.lock과 같은 판으로 얹어 이 테스트도 돌게 한다.
       # - test_mt_decide·test_significance_corpus·test_reanalysis: sacrebleu·jiwer가 필요하다.
+      # - test_mbr: MBR 디코딩 시험 도구(eval/mbr.py)의 효용이 sacrebleu 문장 chrF와 같은지와 판정 규칙을 보고,
+      #   측정 팔을 만드는 eval.mt_eval을 불러온다(그 모듈은 머리에서 sacrebleu와 pyarrow.parquet를 import한다).
       # - test_ort_swap_check: 교체 점검 도구(eval/ort_swap_check.py)가 복사해 둔 무음·잡음 입력이
       #   eval/stt_eval.py의 것과 바이트까지 같은지 보는 테스트가 eval.stt_eval을 불러온다. 그 모듈은 머리에서
       #   jiwer와 pyarrow.parquet를 import하므로(나머지 faster-whisper·av·numpy는 주 의존성) 위 실행에서는 이
@@ -76,7 +78,7 @@ jobs:
         run: >-
           uv run --with sacrebleu==2.6.0 --with jiwer==4.0.0 --with pyarrow==25.0.1
           pytest -q -rs tests/test_mt_decide.py tests/test_significance_corpus.py tests/test_reanalysis.py
-          tests/test_ort_swap_check.py
+          tests/test_ort_swap_check.py tests/test_mbr.py
 
       # MeloTTS 한국어 전처리(g2pkk)의 정규식 캐시(app/services/tts.py _cache_g2pkk_regex)를 켜기 전후로 실제
       # g2pkk의 출력이 같은지 보는 테스트는 맨 위 Test 단계에서 건너뛴다: g2pkk와 형태소 분석기(python-mecab-ko와

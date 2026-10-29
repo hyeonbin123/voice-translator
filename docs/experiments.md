@@ -1468,3 +1468,52 @@ MeloTTS 단계 (서비스 측정에서 영어 원문 마디가 받은 한국어 
   - 그러나 같은 soxr 문제로 `BertForMaskedLM`을 import하지 못한다(이 판의 `AlbertModel`은 그 모듈을 거치지 않아 import된다). 한국어 첫 합성의 BERT 특징 단계(`melo/text/japanese_bert.py`)가 부르는 것과 같은 `AutoModelForMaskedLM.from_pretrained("kykim/bert-kor-base")`를 모델 추론 없이 불러, 모델을 만들기 전에 이 오류로 멈추는 것을 확인했다. 그래서 (e)의 한국어 한 문장 합성과 (c)는 돌리지 않아도 실패가 정해진다
 - **판단**: 두 판 모두 기각한다. tts 그룹의 transformers 4.27.4 고정과 서버의 Python 3.11은 그대로이고, 잠금·CI 감사의 예외·docs/security.md·README는 바꾸지 않는다. 관문 2가 열리지 않아 시드 3개 합성 재인식(시드 간 범위 진단 포함)은 재지 않았다. `synth --seed`는 다음 합성 비교에 쓸 수 있게 그대로 둔다
 - **다음에 볼 것**: 두 기각 모두 수치 차가 아니라 빠진 의존성(soxr) 때문이다. T2는 글 쪽 확인((a)·(b)·(d))과 적재를 모두 통과했으므로, tts 그룹에 soxr을 명시한 후보(예: T2 + soxr)는 (c)·(e)부터 다시 볼 만하다. 이 절의 규칙 밖이므로 측정 전에 새 절로 후보와 판정을 먼저 등록한다. 등록하지 않으면 결과 처리대로 MeloTTS만 Python 3.11에 고정한 별도 프로세스로 떼는 일을 2027-10 전에 할 작업으로 남긴다
+
+## 20. 번역 디코딩 시험: 같은 opus-mt-tc-big의 빔 8 n-best에서 문장 chrF MBR로 고르기
+
+**측정 전에 정한 절차** (2026-10-30. 측정 도구를 이 절과 함께 커밋한다. 아직 아무것도 재지 않았다)
+- **배경**: 서비스 번역은 2절(T3)에서 정한 디코딩 그대로다: CTranslate2 빔 크기 4의 가장 좋은 가설 하나(1-best), 최대 256토큰(2절 '실행 방식'). 그 뒤의 번역 개선 시도는 모두 모델 교체(2절 NLLB·qwen2.5-7b, 15절 Hy-MT2)와 입력 나누기(2-1절)였고, 빔 크기·n-best·MBR 같은 디코딩은 재지 않았다. 영→한이 가장 약하다(chrF validation 36.1·test 36.1, 2-1절. 음성 경로 test 34.6, 9절). 서버가 쓰는 CTranslate2 4.8.2의 `translate_batch`는 `num_hypotheses`(돌려받을 가설 수)와 `return_scores`(가설마다의 점수)를 받아 같은 모델로 번역 후보 여럿을 만들 수 있다. MBR(minimum Bayes risk) 디코딩은 후보마다 나머지 후보들을 의사 참조로 둔 효용의 평균(기대 효용)을 구해 그 값이 가장 큰 후보를 고른다. 13절의 짝지은 구간 도구와 COMET-22 채점(fp16 관문 통과)이 있어 판정 비용이 작다
+- **가설**: 같은 opus-mt-tc-big에서 빔 8의 가설 8개(8-best) 중 문장 chrF를 효용으로 MBR로 고르면 chrF와 COMET-22가 함께 오른다. 영→한이 주 대상이고, 한→영도 같은 규칙으로 따로 판정한다
+- **성격**: 모델은 그대로 두고 디코딩 설정 하나를 고른다. 선택용 validation만 쓴다. test는 채택한 뒤 사용자가 허락할 때만 고른 설정에 한 번 쓴다(아래 '결과 처리'). 그래서 이 절의 validation 값은 README의 test 수치를 대신하지 않는다
+- **바꾼 것** (측정 도구만, 이 절과 함께 커밋. 서비스의 번역 경로(`translate()`, 빔 4의 1-best)·설정·기본값은 바꾸지 않는다)
+  - `app/services/translation.py`: `_Ct2Model.generate_nbest(tokens, beam_size, n)`은 `translate_batch`에 빔 크기·`num_hypotheses=n`·`return_scores=True`만 더 넘기고(최대 256토큰 등 나머지 옵션은 서비스와 같은 기본값) 가설 n개를 점수가 높은 것부터 돌려준다(CTranslate2 문서가 가설 순서를 적지 않아 점수로 다시 줄 세운다. 점수가 같으면 엔진이 준 순서). `MarianTranslator.candidates(text, source, target, beam_size, n)`은 `translate()`와 같은 입력 검사와 문장 나누기(2-1절 B 규칙, 같은 `split_sentences`)로 문장마다 후보 목록을 돌려준다. 후보마다 목표 언어 SentencePiece로 복원하고 앞뒤 공백을 지우며, 빈 글이 된 후보는 버리고 남는 것이 없으면 `translate()`처럼 실패(빈 번역)다. `MarianTranslator.decoding`은 디코딩 설정(빔 크기·가설 수·고르는 방법·문장 단위)을 기록용으로 남긴다(서비스는 읽지 않음)
+  - `eval/mbr.py`: MBR 고르기(`select`와 효용 표 `chrf_matrix`), 그것을 번역기로 감싼 `MbrTranslator`, 판정 `decide`(`python -m eval.mbr decide`)
+  - `eval/mt_eval.py`: 아래 팔 네 개, 보고서에 팔마다 디코딩 설정(`decoding`)과 MBR 팔의 문장마다 후보 수·고른 위치(`mbr`), 빔 8 팔을 잰 보고서의 머리말에 그 디코딩
+- **팔** (방향마다 셋. 모두 2절의 변환 모델 폴더 `data/models/ct2/opus-mt-tc-big-*`, GPU float16)
+  - **기준**: 지금 서비스 설정 그대로 — 한→영 `opus-mt-tc-big-ko-en`(통째로), 영→한 `opus-mt-tc-big-en-ko/split`(문장 단위). 빔 4의 1-best. 같은 실행에서 다시 잰다
+  - **B8**: 빔 8의 1-best — `opus-mt-tc-big-ko-en/b8`, `opus-mt-tc-big-en-ko/split/b8`. 빔 크기 효과를 MBR 효과와 가르려고 넣는다
+  - **B8-MBR**: 빔 8의 가설 8개에서 MBR로 고른다 — `opus-mt-tc-big-ko-en/b8-mbr`, `opus-mt-tc-big-en-ko/split/b8-mbr`
+  - 무작위 표본(ε-sampling 등) 후보로 하는 MBR 팔은 비교 수를 줄이려고 이번에 넣지 않는다
+- **MBR 정의** (`eval/mbr.py`)
+  - 후보: 빔 8 탐색의 가설 8개(복원·공백 정리 뒤, 빈 글은 버림). 겹치는 글도 따로 센다(엔진의 가설 하나가 의사 참조 하나)
+  - 효용: sacrebleu 2.6.0 문장 chrF, 2절과 같은 기본 설정(문자 6-gram, 단어 n-gram 없음, beta 2). 후보를 가설로, 다른 후보를 참조로 둔다. 후보마다 문자 n-gram을 한 번만 뽑아 계산하지만 값은 sacrebleu `CHRF().sentence_score`와 소수점 끝자리까지 같다(테스트로 확인)
+  - 기대 효용: 자기 자신을 뺀 다른 후보 모두(8개면 7개)와의 효용 평균. 이 값이 가장 큰 후보를 고르고, 같으면 엔진 점수(`return_scores`)가 높은 후보, 그것도 같으면 엔진 순서가 앞선 후보다. 후보가 하나면 그대로
+  - 영→한은 서비스처럼 문장으로 나눠 문장마다 MBR로 고르고 공백 하나로 잇는다. MBR 계산은 번역 호출 안에서 해 아래 번역 시간에 들어간다
+- **데이터**: FLEURS validation 129쌍(2절과 같은 문장), 두 방향. test는 쓰지 않는다
+- **지표**
+  - chrF(2절과 같은 sacrebleu 2.6.0 기본 설정, 전체 합산)
+  - COMET-22: 13절과 같은 `Unbabel/wmt22-comet-da` 리비전 `2760a223ac957f30acfb18c8aa649b01cf1d75f2`, 체크포인트 SHA-256 `e213091cde220f97b89f8bdfa750c458cfea741ad62affb455b59900210ff2af`, GPU fp16(13절의 fp16 관문을 통과한 설정). 입력은 `eval.mt_decide comet-input`이 보고서에서 모은 (원문, 번역문, 참조), 채점은 `work/comet-venv`의 `eval/comet_score.py`. `eval.mbr decide`는 점수 파일의 모델·리비전·채점 때 해시한 체크포인트·인코더 리비전이 13절의 값이 아니면 판정하지 않는다
+  - 두 차이(팔 − 기준)의 95% 짝지은 붓스트랩 구간: 13절과 같은 함수·10,000번·시드 12345(chrF는 문장 통계를 다시 더하는 corpus 점수, COMET-22는 문장 점수 평균 ×100)
+  - 출력 점검(`eval/mt_checks.py`, 15절 규칙 그대로): 다른 문자·설명형 출력 수와 빈 출력 수
+  - 번역 시간: 입력 하나의 번역 시간(문장 단위면 문장들의 합, 후보 생성과 MBR 계산 포함) p50·p95. 방향마다 첫 호출은 빼고, 여섯 팔을 한 실행(같은 세션)에서 잰다
+  - 참고(판정에 쓰지 않음): MBR이 n-best의 첫 후보가 아닌 것을 고른 문장 수, 출력이 B8과 같은 입력 수, GPU 메모리(2절 방법)
+- **판정** (validation, 방향마다 따로, `eval.mbr decide`)
+  - 팔 X(B8 또는 B8-MBR)가 기준을 통과하려면 셋 다: **(a) 품질** X − 기준의 chrF 차이 구간 하한 > 0 **그리고** COMET-22 차이 구간 하한 > 0, **(b) 출력** 다른 문자·설명형 출력 수와 빈 출력 수가 각각 기준보다 늘지 않음, **(c) 시간** p50(X) − p50(기준) ≤ +50ms **그리고** p95(X) ≤ 0.8초(ms 소수 셋째 자리로 반올림해 견줘, 부동소수점 표기 오차로 경계값이 떨어지지 않게 한다)
+  - (c)를 15절의 p50 ≤ 0.35초 대신 증가 폭으로 둔 이유: 동시통역 영어 원문의 말 끝 → 번역 음성 p50이 이미 1.5초 목표를 넘었고(17절 1688ms) 그 안에서 번역 단계는 약 80ms라, 번역 시간이 늘면 그만큼 그대로 늦어진다
+  - 고르기: B8과 B8-MBR이 모두 통과하면 B8-MBR − B8도 (a)의 두 지표 조건(두 구간 하한 > 0)을 통과할 때만 B8-MBR, 아니면 더 단순한 B8. 하나만 통과하면 그 팔. 아무것도 통과하지 못하면 기준을 유지하고 '같은 모델의 빔·MBR 디코딩으로는 유의한 개선 없음'으로 닫는다
+  - 판정하지 않는 경우(원인을 고친 뒤 여섯 팔 전체를 다시 잰다): 여섯 팔 중 빠지거나 겹친 것이 있음, 보고서의 디코딩 기록이 위 팔 정의와 다름, 팔끼리 문장(ID·원문·참조)이 다름, COMET 점수가 빠졌거나 유한하지 않음
+- **측정 환경과 순서**
+  - 호스트의 `backend/.venv`(gpu·eval 그룹), RTX 2080 Ti. 다른 GPU 작업(서비스 api 컨테이너, Ollama에 올라간 모델 포함)과 겹치지 않는다
+  - 15절과 같이 PC가 쉬는 상태(CPU 1분 평균 15% 미만·GPU 10% 미만)를 최대 10분 기다린 뒤 잰다. 그래도 바쁘면 그대로 재고 '부하 조건'으로 적은 뒤, 여섯 팔 실행 전체를 곧바로 한 번 더(다시 최대 10분 기다림) 재서 두 번째 실행으로 판정한다(첫 실행도 함께 적는다, 18절과 같은 방식). 실행 전후로 GPU 사용률·메모리·클럭·P-state를 적는다(돌던 프로그램 이름은 커밋하지 않는 work/에만)
+  - 번역: `uv run --no-sync python -m eval.mt_eval --split validation --tag t108_dev --models opus-mt-tc-big-ko-en opus-mt-tc-big-ko-en/b8 opus-mt-tc-big-ko-en/b8-mbr opus-mt-tc-big-en-ko/split opus-mt-tc-big-en-ko/split/b8 opus-mt-tc-big-en-ko/split/b8-mbr`(backend/에서). 팔은 이 순서로 하나씩 모델을 새로 올려 잰다
+  - COMET-22(품질만 재므로 쉬는 상태를 기다리지 않음): `uv run --no-sync python -m eval.mt_decide comet-input --reports eval/reports/mt_t108_dev_<시각>.json --output ../work/mbr/comet_input_dev.jsonl` → `../work/comet-venv/Scripts/python.exe eval/comet_score.py score --input ../work/mbr/comet_input_dev.jsonl --output eval/reports/mt_t108_dev_<시각>_comet22.json --device cuda --precision fp16`
+  - 판정: `uv run --no-sync python -m eval.mbr decide --report eval/reports/mt_t108_dev_<시각>.json --comet eval/reports/mt_t108_dev_<시각>_comet22.json --tag t108_dev`
+- **결과 처리**: 결과는 이 절에 '결과'로, 보고서(`backend/eval/reports/mt_t108_dev_*`·`*_comet22.json`·`mbr_decide_t108_dev_*`)와 함께 이 규칙과 다른 커밋으로 적는다. 아무 팔도 고르지 않으면 서비스는 그대로다. 고른 팔이 있으면(채택) 별도 커밋으로: 서버 설정(예: `EN_KO_DECODING=beam4|beam8|mbr8`, 한→영도 고르면 같은 꼴)과 기본값, 서버 안의 chrF 구현(sacrebleu 문장 chrF와 같은 값인지 CI의 sacrebleu 단계에서 확인), 동시통역 자막 갱신에도 쓸지(아니면 자막은 1-best 유지) 판단, docs/api.md. 그 뒤 사용자가 허락하면 test 270쌍에 고른 설정과 기준을 한 실행에서 한 번 재서 '설정 변경 후 재확인'으로 적는다(결정을 바꾸지 않는다). README의 번역 수치(chrF 한→영 55.7·영→한 36.1, 전체 흐름 53.6·34.6)는 그 test 결과로만, 사용자가 정할 때 바꾼다
+- **예상 비용**: GPU 약 10분(추정: 2절에서 후보 다섯 개가 5분, COMET-22 GPU fp16은 13절에서 3,876문장 11초와 적재) + 쉬는 상태 기다림 최대 10분(부하 조건이면 한 번 더). 채택하고 허락되면 test 한 번 약 5분
+- **한계 (측정 전에 적어 둠)**
+  - 효용과 평가 지표가 같은 chrF라 chrF만 부풀 수 있다. 그래서 COMET-22 구간도 함께 요구하지만, COMET-22는 한국어 대상에서 덜 검증된 지표다(13절 한계)
+  - 비교가 셋(B8 − 기준, B8-MBR − 기준, B8-MBR − B8)이다. 팔 수를 줄이고 MBR에는 B8 대비 조건도 요구해 우연히 통과할 가능성을 줄였지만, 다중 비교 보정은 하지 않는다
+  - 빔 8·가설 8개라는 설정 하나만 본다(validation에서 고른 값이 아니다). 빔 탐색의 가설끼리는 비슷해 무작위 표본 후보보다 다양성이 작으므로, 개선이 없어도 표본 기반 MBR까지 닫는 것은 아니다
+  - 같은 세션의 시간 차이도 GPU 클럭·다른 프로그램에 흔들린다. 쉬는 상태에서 재고 조건을 적는다
+  - FLEURS는 위키 문체이고 참조가 하나다(2절 한계)
+- **측정 전 확인** (GPU·모델 없이, 2026-10-30): backend `ruff check`·`ruff format --check`·`pytest` 통과(이 절과 같은 커밋). 가짜 CTranslate2 결과로 n-best의 엔진 옵션·점수 순서·개수, 후보 함수의 문장 나누기가 `translate()`와 같음과 빈 후보 처리, MBR 고르기(자기 자신 뺌, 동점 처리, 더하는 순서와 무관), `chrf_matrix`가 sacrebleu `sentence_score`와 같음(한국어·영어·빈 글·연속 공백), mt_eval 팔의 디코딩 기록, 판정의 경계값(p50 증가 +50ms·p95 0.8초, 출력 점검, B8 대비 조건)을 테스트했다(`tests/test_translation.py`, `tests/test_mbr.py`). 참고(등록 측정 아님, 판정에 쓰지 않음): 저장된 15절 validation 번역문(시스템별 번역문과 그것을 조금 바꾼 변형으로 입력마다 후보 8개)으로 MBR 계산만의 CPU 시간을 재니 입력당 p50 영→한 약 4ms·한→영 약 9ms였다(짝마다 sacrebleu 공개 함수를 부르면 약 10ms·19ms)

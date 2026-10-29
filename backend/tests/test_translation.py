@@ -3,7 +3,8 @@
 # [무엇을 확인하나] opus-mt(Marian)·NLLB 어댑터가 엔진 실패와 빈 번역을 ModelError로 바꾸는지, opus 학습 때의
 # 전처리를 그대로 옮겼는지, 영→한 문장 단위 번역의 문장 나누기(약어·숫자에서 나누지 않음, docs/experiments.md
 # 2-1절), 방향별 연결, 비교용 Ollama LLM 번역기와 시험용 Hy-MT2 번역기(15절)의 요청 형식·실패 처리·시작
-# 준비(prepare) 시간 제한.
+# 준비(prepare) 시간 제한, MBR 디코딩 시험(20절)의 n-best 후보(엔진 옵션·점수 순서·문장 나누기가 서비스와
+# 같음)와 서비스 1-best 경로가 그대로인지.
 # [왜 중요한가] ModelError로 통일돼야 API가 500이 아니라 503으로 답하고 기록을 남기지 않는다. 요청
 # 형식(프롬프트·옵션)은 측정한 설정과 같아야 측정 결과가 서비스에 그대로 들어맞는다.
 
@@ -182,6 +183,162 @@ def test_marian_translates_the_whole_input_by_default(engine):
 def test_source_tokens_add_language_code_and_end_of_sentence():
     assert marian_source_tokens(SplitProcessor(), "Hello，world") == ["Hello,world", "</s>"]
     assert nllb_source_tokens(SplitProcessor(), "안녕 세상", "ko") == ["kor_Hang", "안녕", "세상", "</s>"]
+
+
+# ---- n-best 후보(docs/experiments.md 20절의 측정 도구). 서비스 경로(translate, generate)는 그대로여야 한다.
+
+
+# CTranslate2 translate_batch 결과(TranslationResult) 대역: 가설(조각 목록)들과 점수.
+class FakeResult:
+    def __init__(self, hypotheses, scores):
+        self.hypotheses, self.scores = hypotheses, scores
+
+
+# ctranslate2.Translator 대역: translate_batch에 들어온 입력과 옵션을 기록하고 정해 둔 결과 하나를 돌려준다.
+class FakeCt2Translator:
+    def __init__(self, result):
+        self.result, self.calls = result, []
+
+    def translate_batch(self, source, **options):
+        self.calls.append((source, options))
+        return [self.result]
+
+
+# 모델 파일 없이 실제 _Ct2Model을 만든다. __init__은 ctranslate2로 모델 폴더를 읽으므로 건너뛰고, 엔진 자리에
+# 대역을 넣는다.
+def ct2_model(engine, beam_size=4):
+    model = object.__new__(translation._Ct2Model)
+    model.model, model.beam_size = engine, beam_size
+    return model
+
+
+# n-best는 빔 크기·가설 수·점수 반환만 엔진에 더 넘기고(최대 256토큰 등 나머지는 서비스와 같은 기본값), 점수가
+# 높은 것부터 돌려준다. CTranslate2 문서가 가설 순서를 적지 않아 점수로 다시 줄 세우되, 점수가 같으면 엔진이
+# 준 순서를 지키고, 엔진이 더 많이 돌려줘도 n개까지만 쓴다.
+def test_ct2_nbest_asks_for_scored_hypotheses_and_returns_them_best_first():
+    engine = FakeCt2Translator(FakeResult([["b"], ["a"], ["c"], ["d"]], [-0.5, -0.2, -0.5, -0.9]))
+    nbest = ct2_model(engine).generate_nbest(["x", "</s>"], beam_size=8, n=3)
+    assert nbest == [(["a"], -0.2), (["b"], -0.5), (["c"], -0.5)]
+    assert engine.calls == [
+        (
+            [["x", "</s>"]],
+            {"beam_size": 8, "num_hypotheses": 3, "return_scores": True, "max_decoding_length": 256},
+        )
+    ]
+
+
+# 가설 수는 1 이상 빔 크기 이하만 받는다(빔 탐색의 마지막 빔에는 빔 크기만큼만 가설이 남는다). 잘못된 값이면
+# 엔진을 부르지 않고 ValueError다.
+@pytest.mark.parametrize(("beam_size", "n"), [(8, 0), (4, 5)])
+def test_ct2_nbest_needs_between_one_and_beam_size_hypotheses(beam_size, n):
+    engine = FakeCt2Translator(FakeResult([["a"]], [-0.1]))
+    with pytest.raises(ValueError, match="hypotheses"):
+        ct2_model(engine).generate_nbest(["x"], beam_size=beam_size, n=n)
+    assert engine.calls == []
+
+
+# 엔진이 점수를 돌려주지 않으면(가설 수와 점수 수가 다름) 순위를 매길 수 없으므로 실패한다.
+def test_ct2_nbest_fails_when_the_engine_returns_no_scores():
+    engine = FakeCt2Translator(FakeResult([["a"], ["b"]], []))
+    with pytest.raises(ValueError):
+        ct2_model(engine).generate_nbest(["x"], beam_size=2, n=2)
+
+
+# 서비스가 쓰는 1-best 경로는 그대로다: 빔 4, 최대 256토큰, 첫 가설 하나(n-best 옵션을 넘기지 않음).
+def test_ct2_generate_keeps_the_service_decoding():
+    engine = FakeCt2Translator(FakeResult([["a"], ["b"]], []))
+    assert ct2_model(engine, beam_size=4).generate(["x"]) == ["a"]
+    assert engine.calls == [([["x"]], {"target_prefix": None, "beam_size": 4, "max_decoding_length": 256})]
+
+
+# n-best 엔진 대역: 문장 토큰마다 정해 둔 (조각, 점수) 목록을 돌려주고 호출(토큰, 빔 크기, 가설 수)을
+# 기록한다. 서비스의 1-best 경로(generate)는 부르면 실패해, 후보 함수가 그 경로를 쓰지 않음을 확인한다.
+class NbestEngine:
+    def __init__(self, nbest_for):
+        self.nbest_for, self.calls = nbest_for, []
+
+    def generate(self, tokens, target_prefix=None):
+        raise AssertionError("the candidates must not come from the 1-best path")
+
+    def generate_nbest(self, tokens, beam_size, n):
+        self.calls.append((tokens, beam_size, n))
+        return self.nbest_for(tokens)
+
+
+# 후보 함수는 가설마다 목표 언어 SentencePiece로 복원한 글과 엔진 점수를 짝지어, 엔진이 준 순서(점수 순)대로
+# 돌려준다. 통째로 번역하는 설정이면 문장 목록이 하나다.
+def test_marian_candidates_decode_every_hypothesis_with_its_score(engine):
+    nbest = NbestEngine(lambda tokens: [(["Hello", "world"], -0.1), (["Hi", "world"], -0.4)])
+    engine(nbest)
+    translator = translation.MarianTranslator(Path("model"), "ko", "en")
+    lists = translator.candidates("안녕 세상", "ko", "en", beam_size=8, n=2)
+    assert lists == [[("Hello world", -0.1), ("Hi world", -0.4)]]
+    assert nbest.calls == [(["안녕", "세상", "</s>"], 8, 2)]
+
+
+# by_sentence면 translate()와 똑같이 나눈 문장(약어 뒤에서는 안 나눔)을 같은 순서로 엔진에 넣고, 문장마다
+# 후보 목록 하나를 돌려준다. MBR을 서비스처럼 문장마다 하려면 나누는 방식이 서비스와 같아야 한다.
+def test_marian_candidates_split_the_input_exactly_like_translate(engine):
+    text = "It rained. Dr. Kim left early!  Why?"
+    echo = EchoEngine()
+    engine(echo)
+    translation.MarianTranslator(Path("model"), "en", "ko", by_sentence=True).translate(text, "en", "ko")
+    nbest = NbestEngine(lambda tokens: [([piece.upper() for piece in tokens[:-1]], -0.1)])
+    engine(nbest)
+    translator = translation.MarianTranslator(Path("model"), "en", "ko", by_sentence=True)
+    lists = translator.candidates(text, "en", "ko", beam_size=8, n=8)
+    assert [tokens for tokens, _, _ in nbest.calls] == echo.calls
+    assert [[text for text, _ in candidates] for candidates in lists] == [
+        ["IT RAINED."],
+        ["DR. KIM LEFT EARLY!"],
+        ["WHY?"],
+    ]
+
+
+# 복원한 글은 앞뒤 공백을 지우고(translate()의 결과와 같게), 빈 글이 된 가설은 버린다. 남는 것이 없으면
+# translate()처럼 빈 번역 ModelError다.
+def test_marian_candidates_drop_empty_hypotheses_and_fail_when_none_is_left(engine):
+    engine(NbestEngine(lambda tokens: [([], -0.1), ([" "], -0.2), (["  Hi "], -0.3)]))
+    translator = translation.MarianTranslator(Path("model"), "ko", "en")
+    assert translator.candidates("안녕", "ko", "en", beam_size=4, n=3) == [[("Hi", -0.3)]]
+    engine(NbestEngine(lambda tokens: [([], -0.1)]))
+    with pytest.raises(ModelError, match="empty"):
+        translation.MarianTranslator(Path("model"), "ko", "en").candidates("안녕", "ko", "en", 4, 1)
+
+
+# 엔진 예외(CUDA 메모리 부족 등)와 다른 방향 요청은 translate()처럼 ModelError다. 가설 수가 빔 크기보다 크면
+# 설정 실수라 엔진을 부르기 전에 ValueError로 멈춘다(ModelError로 바꾸면 측정이 빈 번역을 세며 계속 돈다).
+def test_marian_candidates_failures(engine):
+    class Broken(NbestEngine):
+        def generate_nbest(self, tokens, beam_size, n):
+            raise RuntimeError("CUDA out of memory")
+
+    engine(Broken(None))
+    with pytest.raises(ModelError):
+        translation.MarianTranslator(Path("model"), "ko", "en").candidates("안녕", "ko", "en", 8, 8)
+    nbest = NbestEngine(lambda tokens: [(["a"], -0.1)])
+    engine(nbest)
+    translator = translation.MarianTranslator(Path("model"), "ko", "en")
+    with pytest.raises(ModelError, match="only translates"):
+        translator.candidates("hello", "en", "ko", 8, 8)
+    with pytest.raises(ValueError, match="hypotheses"):
+        translator.candidates("안녕", "ko", "en", 4, 8)
+    assert nbest.calls == []
+
+
+# 번역기가 자기 디코딩 설정을 기록에 남긴다(측정 보고서에 들어감). 기본값은 서비스 설정 그대로인 빔 4의
+# 1-best다.
+def test_marian_records_its_decoding(engine):
+    engine(FakeEngine(result=["a"]))
+    assert translation.MarianTranslator(Path("model"), "ko", "en").decoding == {
+        "beam_size": 4,
+        "num_hypotheses": 1,
+        "selection": "1-best",
+        "by_sentence": False,
+    }
+    assert translation.MarianTranslator(
+        Path("model"), "en", "ko", beam_size=8, by_sentence=True
+    ).decoding == {"beam_size": 8, "num_hypotheses": 1, "selection": "1-best", "by_sentence": True}
 
 
 # 방향마다 다른 모델(opus는 한 방향 전용)을 연결하는 DirectionalTranslator: 등록된 방향은 그 모델로 넘기고
