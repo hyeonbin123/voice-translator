@@ -33,6 +33,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import contextlib
+import functools
 import gc
 import hashlib
 import itertools
@@ -42,6 +43,7 @@ import secrets
 import statistics
 import time
 import uuid
+from collections.abc import Callable
 from datetime import UTC, datetime
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -667,16 +669,153 @@ async def stream_all(args: argparse.Namespace, chosen: dict) -> dict:
     return results
 
 
+# [GPU 클럭 상태, 18절에 더함] 사용률·메모리만으로는 같은 소리의 서버 인식 시간이 모드나 시간대에 따라 수십 ms
+# 다를 때(17절의 동시통역과 대화 모드) 그것이 모드 고유의 효과인지 GPU 클럭 상태(유휴로 내려간 클럭, 전력·온도
+# 제한)인지 가를 수 없었다. 그래서 샘플마다 NVML로 SM·메모리 클럭(nvmlDeviceGetClockInfo), P-state
+# (nvmlDeviceGetPerformanceState, 0이 가장 빠름), 클럭 제한 이유(비트 묶음)를 함께 읽는다. 측정값 자체(서버
+# 시각, 보고서의 지연)는 바뀌지 않는다.
+# - 제한 이유 함수는 NVML 판에 따라 이름이 다르다: 새 이름 nvmlDeviceGetCurrentClocksEventReasons, 옛 이름
+#   nvmlDeviceGetCurrentClocksThrottleReasons(nvidia-ml-py 13.610의 pynvml.py에 둘 다 있고 비트 값이 같다).
+#   pynvml에 이름이 있어도 드라이버에 그 C 함수가 없으면 부를 때 NVMLError(FUNCTION_NOT_FOUND)가 나므로,
+#   시작할 때 한 번 읽어 보고 되는 쪽을 쓴다. 둘 다 안 되면 그 칸은 비운다(None). 클럭·P-state도 같다.
+# CLOCK_REASONS: 비트 → 이름(pynvml의 nvmlClocksEventReason* 상수와 같은 값). GPU_IDLE_REASON: 일이 없어
+# 클럭을 내린 표시. 측정 중에도 마디 사이에는 GPU가 쉬므로 이 비트만 있는 샘플은 '제한'으로 세지 않는다.
+CLOCK_REASONS = {
+    0x1: "gpu_idle",
+    0x2: "applications_clocks_setting",
+    0x4: "sw_power_cap",
+    0x8: "hw_slowdown",
+    0x10: "sync_boost",
+    0x20: "sw_thermal_slowdown",
+    0x40: "hw_thermal_slowdown",
+    0x80: "hw_power_brake_slowdown",
+    0x100: "display_clock_setting",
+}
+GPU_IDLE_REASON = 0x1
+# 샘플 하나의 클럭 칸 순서(GpuLog.clocks의 튜플 순서): SM MHz, 메모리 MHz, P-state, 제한 이유 비트.
+CLOCK_FIELDS = ("sm", "memory", "pstate", "reasons")
+
+
+def clock_readers(nvml, handle) -> tuple[dict[str, Callable[[], int] | None], str | None]:
+    """이 NVML(pynvml 모듈)·드라이버에서 읽을 수 있는 클럭 칸마다 인수 없는 읽기 함수를 만든다.
+
+    돌려주는 값: ({"sm", "memory", "pstate", "reasons"} → 읽기 함수 또는 None, 제한 이유를 읽은 API 이름
+    "event"·"throttle"·None). 함수마다 한 번 불러 보고, pynvml에 이름이 없거나(옛 판) 부를 때 NVMLError가 나면
+    (드라이버에 없음, 이 GPU가 지원하지 않음) 그 칸은 None이다. 제한 이유는 새 이름이 안 되면 옛 이름을 쓴다.
+    NVMLError가 아닌 예외는 잡지 않는다(측정 도구의 잘못이라 시작에서 드러나야 한다).
+    """
+    error = nvml.NVMLError
+
+    def works(read: Callable[[], int]) -> bool:
+        try:
+            read()
+        except error:
+            return False
+        return True
+
+    readers: dict[str, Callable[[], int] | None] = dict.fromkeys(CLOCK_FIELDS)
+    clock_info = getattr(nvml, "nvmlDeviceGetClockInfo", None)
+    for field, constant in (("sm", "NVML_CLOCK_SM"), ("memory", "NVML_CLOCK_MEM")):
+        kind = getattr(nvml, constant, None)
+        if clock_info is not None and kind is not None:
+            read = functools.partial(clock_info, handle, kind)
+            readers[field] = read if works(read) else None
+    pstate = getattr(nvml, "nvmlDeviceGetPerformanceState", None)
+    if pstate is not None:
+        read = functools.partial(pstate, handle)
+        readers["pstate"] = read if works(read) else None
+    api = None
+    for name, label in (
+        ("nvmlDeviceGetCurrentClocksEventReasons", "event"),
+        ("nvmlDeviceGetCurrentClocksThrottleReasons", "throttle"),
+    ):
+        function = getattr(nvml, name, None)
+        if function is None:
+            continue
+        read = functools.partial(function, handle)
+        if works(read):
+            readers["reasons"], api = read, label
+            break
+    return readers, api
+
+
+def clock_summary(
+    samples: list[tuple[float, float]], clocks: list[tuple], reasons_api: str | None, read_errors: int
+) -> dict:
+    """샘플별 클럭 칸(clock_readers 순서의 튜플, 읽지 못한 칸은 None)을 보고서 요약으로 모은다.
+
+    - sm_clock_p50_mhz: 모든 샘플의 SM 클럭 중앙값. busy_sm_clock_p50_mhz: GPU 사용률이 0보다 큰 샘플만의
+      중앙값 (마디 사이 쉬는 동안의 낮은 클럭을 빼고 일할 때의 클럭을 봄). memory_clock_p50_mhz: 메모리 클럭
+      중앙값
+    - pstates: P-state별 샘플 수({"P0": n, ...}, NVML의 32 = 알 수 없음은 "unknown")
+    - limited_ratio: 제한 이유를 읽은 샘플 가운데 gpu_idle 말고 다른 이유가 하나라도 있던 샘플의 비율
+    - clock_reasons: 이유별로 그 비트가 켜져 있던 샘플 수(gpu_idle 포함, 0인 이유는 뺌, 모르는 비트는 "other")
+    - reasons_api: 제한 이유를 읽은 API("event"·"throttle"), clock_read_errors: 측정 중 읽지 못한 횟수
+    값이 하나도 없으면 중앙값·비율은 None, 샘플 수 dict는 빈 dict다.
+    """
+
+    def p50(values: list[float]) -> float | None:
+        return float(statistics.median(values)) if values else None
+
+    column = {field: [values[index] for values in clocks] for index, field in enumerate(CLOCK_FIELDS)}
+    busy = [sm for (use, _), sm in zip(samples, column["sm"], strict=True) if sm is not None and use > 0]
+    pstates: dict[str, int] = {}
+    for state in sorted(state for state in column["pstate"] if state is not None):
+        name = "unknown" if state == 32 else f"P{state}"
+        pstates[name] = pstates.get(name, 0) + 1
+    masks = [mask for mask in column["reasons"] if mask is not None]
+    known = 0
+    reasons: dict[str, int] = {}
+    for bit, name in CLOCK_REASONS.items():
+        known |= bit
+        count = sum(1 for mask in masks if mask & bit)
+        if count:
+            reasons[name] = count
+    other = sum(1 for mask in masks if mask & ~known)
+    if other:
+        reasons["other"] = other
+    return {
+        "sm_clock_p50_mhz": p50([sm for sm in column["sm"] if sm is not None]),
+        "busy_sm_clock_p50_mhz": p50(busy),
+        "memory_clock_p50_mhz": p50([clock for clock in column["memory"] if clock is not None]),
+        "pstates": pstates,
+        "limited_ratio": sum(1 for mask in masks if mask & ~GPU_IDLE_REASON) / len(masks) if masks else None,
+        "clock_reasons": reasons,
+        "reasons_api": reasons_api,
+        "clock_read_errors": read_errors,
+    }
+
+
+# 보고서(.md)에 실을 GPU 클럭 한 줄. 요약에 클럭 칸이 없는 옛 보고서나 읽지 못한 칸은 '-'로 쓴다.
+def clock_line(summary: dict) -> str:
+    def mhz(value) -> str:
+        return "-" if value is None else f"{value:.0f}MHz"
+
+    pstates = ", ".join(f"{name} {count}" for name, count in (summary.get("pstates") or {}).items()) or "-"
+    limited = summary.get("limited_ratio")
+    return (
+        f"- GPU 클럭 (같은 샘플): SM 중앙값 {mhz(summary.get('sm_clock_p50_mhz'))}"
+        f"(사용률 > 0인 샘플 {mhz(summary.get('busy_sm_clock_p50_mhz'))}), "
+        f"메모리 {mhz(summary.get('memory_clock_p50_mhz'))}, P-state 샘플 수 {pstates}, "
+        f"제한 이유가 있던 샘플 {'-' if limited is None else f'{limited:.0%}'}"
+        f"(유휴 표시 말고, {summary.get('reasons_api') or '읽지 못함'}), "
+        f"읽기 실패 {summary.get('clock_read_errors', 0)}회"
+    )
+
+
 # 측정 중 GPU 사용률·메모리와 CPU 사용률을 0.5초마다 기록하는 컨텍스트 관리자(T63). 같은 GPU를 다른
-# 프로그램(게임 등)이 쓰던 때의 측정이 크게 흔들렸던 일(8절 T63, README 알려진 한계)이 있어, 지연 측정에
-# 다른 프로그램의 간섭이 있었는지 함께 보려고 만들었다.
+# 프로그램(게임 등)이 쓰던 때의 측정이 크게 흔들렸던 일(8절 T63, README 알려진 한계)이 있어, 지연 측정에 다른
+# 프로그램의 간섭이 있었는지 함께 보려고 만들었다. 18절부터 같은 샘플에서 GPU 클럭 상태도 읽는다(위 주석).
 # GPU를 쓰는 프로세스 이름도 시작·끝에 모으지만, 그 이름은 공개 보고서가 아니라 커밋하지 않는 work/에만 쓴다.
 class GpuLog:
     """흘려보내는 동안의 GPU 사용량을 1초에 두 번 기록한다(T63). 서버 자신의 작업도 함께 잡히므로,
     다른 프로그램(같은 GPU의 게임 등)이 있었다는 표시는 마디 사이에도 높게 남는 사용률이다."""
 
+    # 샘플 간격(초). 테스트는 이 값을 크게 바꿔 스레드가 스스로 읽지 않게 하고 read()를 직접 부른다.
+    INTERVAL_S = 0.5
+
     # NVML·psutil을 준비하고 샘플링 스레드를 띄운다. daemon 스레드라 측정이 예외로 끝나도 프로세스 종료를 막지
-    # 않는다.
+    # 않는다. 클럭 칸은 여기서 한 번 읽어 보고 되는 것만 쓴다(clock_readers).
     def __enter__(self) -> GpuLog:
         import threading
 
@@ -690,6 +829,9 @@ class GpuLog:
         pynvml.nvmlInit()
         self.handle = pynvml.nvmlDeviceGetHandleByIndex(0)
         self.samples: list[tuple[float, float]] = []
+        self.clocks: list[tuple] = []
+        self.read_errors = 0
+        self.readers, self.reasons_api = clock_readers(pynvml, self.handle)
         self.at_start = set(self.processes())
         self.programs: list[str] = []
         self.stopped = threading.Event()
@@ -697,14 +839,35 @@ class GpuLog:
         self.thread.start()
         return self
 
-    # 멈춤 신호가 올 때까지 0.5초마다 GPU 사용률(%)·사용 메모리(MB)와 CPU 사용률을 적는다. Event.wait를 써서
-    # 멈춤 신호에 바로 반응한다.
+    # 멈춤 신호가 올 때까지 INTERVAL_S(0.5초)마다 샘플 하나를 읽는다. Event.wait를 써서 멈춤 신호에 바로
+    # 반응한다.
     def sample(self) -> None:
-        while not self.stopped.wait(0.5):
-            use = self.nvml.nvmlDeviceGetUtilizationRates(self.handle)
-            memory = self.nvml.nvmlDeviceGetMemoryInfo(self.handle)
-            self.samples.append((use.gpu, memory.used / 2**20))
-            self.cpu.append(self.psutil.cpu_percent(None))  # PC 전체, 직전 샘플 뒤부터
+        while not self.stopped.wait(self.INTERVAL_S):
+            self.read()
+
+    # 샘플 하나: GPU 사용률(%)·사용 메모리(MB), CPU 사용률, 그리고 클럭 칸(CLOCK_FIELDS 순서). 사용률·메모리는
+    # 전처럼 samples에(usage_log 보고서의 샘플 모양을 바꾸지 않으려고 따로 둠), 클럭 칸은 clocks에 같은 순서로
+    # 쌓는다. 시작할 때 읽혔던 클럭 칸이 측정 중 NVMLError를 내면 그 샘플의 그 칸만 None으로 두고 실패 수를
+    # 센다: 클럭 하나를 못 읽었다고 사용률 기록 스레드가 멈추면 안 되고, 센 수는 요약에 남아 드러난다. 다 읽은
+    # 뒤에 세 목록에 함께 더해, 도중에 다른 예외가 나도 목록 길이가 어긋나지 않는다.
+    def read(self) -> None:
+        use = self.nvml.nvmlDeviceGetUtilizationRates(self.handle)
+        memory = self.nvml.nvmlDeviceGetMemoryInfo(self.handle)
+        cpu = self.psutil.cpu_percent(None)  # PC 전체, 직전 샘플 뒤부터
+        values = []
+        for field in CLOCK_FIELDS:
+            read = self.readers[field]
+            if read is None:
+                values.append(None)
+                continue
+            try:
+                values.append(int(read()))
+            except self.nvml.NVMLError:
+                values.append(None)
+                self.read_errors += 1
+        self.samples.append((use.gpu, memory.used / 2**20))
+        self.cpu.append(cpu)
+        self.clocks.append(tuple(values))
 
     # 지금 GPU를 쓰는 그래픽·연산 프로세스의 이름 목록. 이름을 읽을 수 없는 프로세스는 pid로 남긴다.
     def processes(self) -> list[str]:
@@ -725,7 +888,8 @@ class GpuLog:
         self.thread.join()
         self.programs = sorted(self.at_start | set(self.processes()))
 
-    # 보고서에 실을 요약: 샘플 수, GPU 사용률 평균·p90·최대, 메모리 최대, CPU 평균. 샘플이 없으면 0으로 둔다.
+    # 보고서에 실을 요약: 샘플 수, GPU 사용률 평균·p90·최대, 메모리 최대, CPU 평균(샘플이 없으면 0)과 18절에
+    # 더한 클럭 칸(clock_summary, 값이 없으면 None). 앞의 여섯 칸은 전과 같아 옛 보고서와 견줄 수 있다.
     def summary(self) -> dict:
         use = [u for u, _ in self.samples] or [0.0]
         return {
@@ -735,6 +899,7 @@ class GpuLog:
             "max_util": float(max(use)),
             "max_memory_mb": max((m for _, m in self.samples), default=0.0),
             "mean_cpu": float(np.mean(self.cpu)) if self.cpu else 0.0,
+            **clock_summary(self.samples, self.clocks, self.reasons_api, self.read_errors),
         }
 
 
@@ -805,6 +970,7 @@ def service(args: argparse.Namespace) -> None:
         "서버 설정은 따로 적는다",
         "- GPU (측정 중 0.5초마다, 이 서버의 사용 포함): 사용률 평균 {mean_util:.0f}%, p90 {p90_util:.0f}%, "
         "최대 {max_util:.0f}%, 메모리 최대 {max_memory_mb:.0f}MB".format(**gpu.summary()),
+        clock_line(gpu.summary()),
         f"- 뺀 문장: {skipped}",
         "- 표시 지연: 오프라인과 같은 정의(서버 최종 원문이 이 PC의 최종 인식과 글자가 다른 마디는 뺌). "
         "말 끝 → 최종·음성: 마지막 단어 끝부터 final 메시지, 번역 음성 받기 완료까지",

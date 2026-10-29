@@ -336,3 +336,136 @@ async def test_streaming_records_when_the_pause_and_end_were_sent_and_keeps_the_
     assert result["pause_sent_s"] == pytest.approx(last_pause_frame * 0.001 - speech_end_s, abs=0.05)
     assert result["end_sent_s"] == pytest.approx(end_frame_ * 0.001 - speech_end_s, abs=0.05)
     assert result["end_sent_s"] > result["pause_sent_s"]
+
+
+# 여기부터 18절(g2pkk 정규식 캐시 재측정)에 더한 것: GPU 기록기(GpuLog)가 사용률·메모리 옆에 SM·메모리 클럭,
+# P-state, 클럭 제한 이유를 함께 남기는지 가짜 pynvml로 본다. 같은 소리의 서버 인식 시간이 동시통역과 대화
+# 모드에서 수십 ms 달랐는데(17절), 기록에 GPU 클럭 상태가 없어 모드 효과와 GPU 상태를 가를 수 없었다.
+# CI에는 nvidia-ml-py가 없으므로 sys.modules의 pynvml 자리에 가짜 모듈을 넣는다.
+
+
+def fake_pynvml(*, util, sm=None, memory_clock=None, pstate=None, event=None, throttle=None):
+    """값 목록을 차례로 돌려주는 가짜 pynvml 모듈.
+
+    sm·memory_clock·pstate·event(새 이름 nvmlDeviceGetCurrentClocksEventReasons)·throttle(옛 이름
+    nvmlDeviceGetCurrentClocksThrottleReasons)이 None이면 그 함수가 없는 판(옛 pynvml)이다. 목록의 "error"는
+    그 호출에서 NVMLError를 낸다(드라이버에 없는 함수, 읽기 실패). 클럭·P-state·제한 이유 목록의 첫 값은
+    GpuLog가 시작할 때 한 번 읽어 보는 데 쓰인다.
+    """
+    import types
+
+    class NVMLError(Exception):
+        pass
+
+    def reader(values):
+        values = iter(values)
+
+        def read(*args):
+            value = next(values)
+            if value == "error":
+                raise NVMLError("not supported")
+            return value
+
+        return read
+
+    module = types.ModuleType("pynvml")
+    module.NVMLError = NVMLError
+    module.NVML_CLOCK_SM, module.NVML_CLOCK_MEM = 1, 2
+    module.nvmlInit = lambda: None
+    module.nvmlDeviceGetHandleByIndex = lambda index: "gpu0"
+    module.nvmlDeviceGetGraphicsRunningProcesses = lambda handle: []
+    module.nvmlDeviceGetComputeRunningProcesses = lambda handle: []
+    utilization = iter(util)
+    module.nvmlDeviceGetUtilizationRates = lambda handle: types.SimpleNamespace(gpu=next(utilization))
+    module.nvmlDeviceGetMemoryInfo = lambda handle: types.SimpleNamespace(used=1024 * 2**20)
+    if sm is not None:
+        clocks = {1: reader(sm), 2: reader(memory_clock)}
+        module.nvmlDeviceGetClockInfo = lambda handle, kind: clocks[kind]()
+    if pstate is not None:
+        module.nvmlDeviceGetPerformanceState = reader(pstate)
+    if event is not None:
+        module.nvmlDeviceGetCurrentClocksEventReasons = reader(event)
+    if throttle is not None:
+        module.nvmlDeviceGetCurrentClocksThrottleReasons = reader(throttle)
+    return module
+
+
+# 가짜 pynvml로 GpuLog를 열고 샘플을 reads번 직접 읽은 뒤 요약을 돌려준다. 샘플 간격을 한 시간으로 늘려
+# 기록 스레드가 스스로 읽지 않게 하므로(닫을 때 바로 멈춤) 샘플 수가 늘 reads와 같다.
+def gpu_log_summary(monkeypatch, nvml, reads: int) -> dict:
+    import sys
+
+    from eval import stream_eval
+
+    monkeypatch.setitem(sys.modules, "pynvml", nvml)
+    monkeypatch.setattr(stream_eval.GpuLog, "INTERVAL_S", 3600.0)
+    with stream_eval.GpuLog() as log:
+        for _ in range(reads):
+            log.read()
+    return log.summary()
+
+
+# 새 판 pynvml: SM 클럭 중앙값(모든 샘플과 사용률이 0보다 큰 샘플만), 메모리 클럭 중앙값, P-state별 샘플 수,
+# 제한 이유가 있던 샘플의 비율(유휴 표시 gpu_idle만 있는 샘플은 제한으로 세지 않음)과 이유별 샘플 수가
+# 요약에 들어가고, 원래 있던 사용률·메모리 요약은 그대로다. 보고서의 사람이 읽는 줄도 이 값을 쓴다.
+def test_the_gpu_log_keeps_clocks_pstates_and_limit_reasons(monkeypatch):
+    from eval.stream_eval import clock_line
+
+    nvml = fake_pynvml(
+        util=[0, 50, 80, 0],
+        sm=[999, 210, 1900, 1950, 300],
+        memory_clock=[999, 405, 7001, 7001, 405],
+        pstate=[9, 8, 2, 0, 8],
+        event=[0, 0x1, 0x0, 0x4, 0x1],
+    )
+    summary = gpu_log_summary(monkeypatch, nvml, reads=4)
+    assert summary["samples"] == 4 and summary["mean_util"] == 32.5 and summary["max_memory_mb"] == 1024
+    assert summary["sm_clock_p50_mhz"] == 1100.0
+    assert summary["busy_sm_clock_p50_mhz"] == 1925.0
+    assert summary["memory_clock_p50_mhz"] == pytest.approx((405 + 7001) / 2)
+    assert summary["pstates"] == {"P0": 1, "P2": 1, "P8": 2}
+    assert summary["limited_ratio"] == 0.25
+    assert summary["clock_reasons"] == {"gpu_idle": 2, "sw_power_cap": 1}
+    assert summary["reasons_api"] == "event" and summary["clock_read_errors"] == 0
+    line = clock_line(summary)
+    assert "1100MHz" in line and "1925MHz" in line and "25%" in line and "P8 2" in line
+
+
+# 제한 이유는 새 이름 함수가 없는 판(옛 pynvml)이나, 함수는 있지만 드라이버에 없어 처음 읽을 때 NVMLError가
+# 나는 경우(옛 드라이버) 옛 이름 함수로 읽는다.
+@pytest.mark.parametrize("event", [None, ["error"]], ids=["old-pynvml", "old-driver"])
+def test_the_gpu_log_falls_back_to_the_old_throttle_reason_name(monkeypatch, event):
+    nvml = fake_pynvml(
+        util=[10, 20],
+        sm=[1, 1500, 1500],
+        memory_clock=[1, 7000, 7000],
+        pstate=[0, 2, 2],
+        event=event,
+        throttle=[0, 0x8, 0x0],
+    )
+    summary = gpu_log_summary(monkeypatch, nvml, reads=2)
+    assert summary["reasons_api"] == "throttle"
+    assert summary["clock_reasons"] == {"hw_slowdown": 1} and summary["limited_ratio"] == 0.5
+
+
+# 클럭·P-state·제한 이유 함수가 하나도 없는 판이면 그 칸은 비우고(None, 빈 dict) 사용률 기록은 그대로 한다.
+# 처음에는 읽혔는데 측정 중 한 번 읽지 못하면 그 샘플의 그 값만 비우고 실패 수를 센다(기록은 계속된다).
+# 샘플이 없으면 새 칸도 비어 있다.
+def test_the_gpu_log_leaves_out_what_nvml_cannot_read(monkeypatch):
+    bare = gpu_log_summary(monkeypatch, fake_pynvml(util=[30, 40]), reads=2)
+    assert bare["samples"] == 2 and bare["mean_util"] == 35.0
+    assert bare["sm_clock_p50_mhz"] is None and bare["memory_clock_p50_mhz"] is None
+    assert bare["pstates"] == {} and bare["clock_reasons"] == {} and bare["limited_ratio"] is None
+    assert bare["reasons_api"] is None and bare["clock_read_errors"] == 0
+    flaky = fake_pynvml(
+        util=[30, 40, 50],
+        sm=[1, 1500, "error", 1700],
+        memory_clock=[1, 7000, 7000, 7000],
+        pstate=[0, 2, 2, 2],
+        event=[0, 0, 0, 0],
+    )
+    summary = gpu_log_summary(monkeypatch, flaky, reads=3)
+    assert summary["sm_clock_p50_mhz"] == 1600.0 and summary["clock_read_errors"] == 1
+    assert summary["pstates"] == {"P2": 3} and summary["limited_ratio"] == 0.0
+    empty = gpu_log_summary(monkeypatch, fake_pynvml(util=[]), reads=0)
+    assert empty["samples"] == 0 and empty["sm_clock_p50_mhz"] is None and empty["pstates"] == {}

@@ -534,3 +534,199 @@ def test_stage_summary_gives_shares_and_the_multi_piece_ratio():
     assert summary["multi_piece_ratio"] == pytest.approx(2 / 3)
     assert summary["pieces"] == {"1": 1, "2": 1, "3": 1}
     assert summary["other_p50_ms"] == pytest.approx(700 - (1 + 10 + 560 + 70 + 4))
+
+
+# 여기부터 18절: melo-stages --regex-cache. off는 17절과 같고(캐시를 건드리지 않음), on은 서비스의
+# MELO_REGEX_CACHE=true처럼 처음부터 켠 채로 재고, alternate는 문장마다 g2pkk 정규식 캐시를 켜고 끄며 같은
+# 문장을 두 조건으로 잰다. 시작 조건도 문장마다 바꿔, 두 번째로 재는 쪽이 늘 같은 조건이 되지 않게 한다.
+STAGE_TEXTS = [{"id": "1", "text": "가나.다"}, {"id": "2", "text": "라마"}, {"id": "3", "text": "바.사.아"}]
+
+
+class FakeRegexSwitch:
+    """app.services.tts._cache_g2pkk_regex 흉내. 켜면 (바꾼 모듈 이름, 되돌리기)를 돌려주고, 이미 켜져 있으면
+    진짜 함수처럼 빈 이름 목록과 아무것도 하지 않는 되돌리기를 돌려준다."""
+
+    def __init__(self, on: bool = False) -> None:
+        self.on = on
+        self.calls = 0
+
+    def __call__(self):
+        self.calls += 1
+        if self.on:
+            return (), lambda: None
+        self.on = True
+
+        def restore():
+            self.on = False
+
+        return ("g2pkk.g2pkk",), restore
+
+
+class FakeMeloService:
+    """MeloTextToSpeech 흉내. synthesize가 가짜 melo 함수들(fake_melo_modules)을 지나며, 부를 때의 캐시
+    상태(off/on)를 calls에 적는다. fail_call번째 호출은 합성 실패(예외)로 끝난다."""
+
+    def __init__(self, switch: FakeRegexSwitch, fail_call: int | None = None) -> None:
+        self.api, self.utils, self.torch = fake_melo_modules()
+        self._model = FakeMeloTTS()
+        self.switch = switch
+        self.calls: list[tuple[str, str]] = []
+        self.fail_call = fail_call
+
+    def synthesize(self, text, language):
+        from types import SimpleNamespace
+
+        self.calls.append((text, "on" if self.switch.on else "off"))
+        if len(self.calls) == self.fail_call:
+            raise RuntimeError("synthesis failed")
+        audio = self._model.tts_to_file(text, self.api, self.utils, self.torch)
+        return SimpleNamespace(duration_ms=float(len(audio)))
+
+
+def measure(service: FakeMeloService, mode: str) -> list[dict]:
+    return tts_eval.measure_melo_stages(
+        service, STAGE_TEXTS, mode, service.api, service.utils, service.torch, service.switch
+    )
+
+
+def test_regex_cache_orders_alternate_the_first_condition_every_sentence():
+    assert tts_eval.regex_cache_orders("alternate", 3) == [("off", "on"), ("on", "off"), ("off", "on")]
+    assert tts_eval.regex_cache_orders("off", 2) == [("off",), ("off",)]
+    assert tts_eval.regex_cache_orders("on", 1) == [("on",)]
+
+
+# alternate: 첫 문장으로 끔·켬을 한 번씩 데운 뒤(통계에서 뺌), 문장마다 두 조건을 정한 순서로 잰다. 한 조건의
+# 두 합성(계측 없이 한 번, 계측을 켜고 한 번)은 모두 그 조건에서 불리고, 끝나면 캐시가 꺼져 있고 감쌌던 melo
+# 함수들도 제자리다.
+def test_alternate_measures_each_sentence_under_both_conditions_and_turns_the_cache_off_again():
+    switch = FakeRegexSwitch()
+    service = FakeMeloService(switch)
+    originals = (
+        service.api.split_sentence,
+        service.utils.get_text_for_tts_infer,
+        service.torch.cuda.empty_cache,
+    )
+    rows = measure(service, "alternate")
+    assert [(row["id"], row["regex_cache"]) for row in rows] == [
+        ("1", "off"),
+        ("1", "on"),
+        ("2", "on"),
+        ("2", "off"),
+        ("3", "off"),
+        ("3", "on"),
+    ]
+    assert service.calls[:2] == [("가나.다", "off"), ("가나.다", "on")]
+    texts = {item["id"]: item["text"] for item in STAGE_TEXTS}
+    assert service.calls[2:] == [(texts[row["id"]], row["regex_cache"]) for row in rows for _ in range(2)]
+    assert switch.on is False
+    assert [row["pieces"] for row in rows] == [2, 2, 1, 1, 3, 3]
+    assert all(row["stages_ms"]["infer"] > 0 for row in rows)
+    assert (
+        service.api.split_sentence,
+        service.utils.get_text_for_tts_infer,
+        service.torch.cuda.empty_cache,
+    ) == (originals)
+
+
+# off와 on은 측정 중에 캐시를 바꾸지 않는다: off는 17절 그대로 꺼진 채, on은 생성자가 켠 채로 모든 합성을
+# 한다.
+@pytest.mark.parametrize("mode", ["off", "on"])
+def test_off_and_on_keep_the_cache_as_it_is_for_the_whole_run(mode):
+    switch = FakeRegexSwitch(on=mode == "on")
+    service = FakeMeloService(switch)
+    rows = measure(service, mode)
+    assert [row["regex_cache"] for row in rows] == [mode] * 3
+    assert switch.calls == 0 and switch.on is (mode == "on")
+    assert {state for _, state in service.calls} == {mode}
+    assert len(service.calls) == 1 + 2 * 3  # 데우기 한 번 + 문장마다 두 번
+
+
+# alternate는 캐시가 이미 켜져 있으면(끔 조건이 끔이 아니게 됨) 재지 않고 멈춘다. 켬 조건의 합성이 실패해도
+# 캐시는 꺼지고 감싼 melo 함수는 제자리로 돌아간다(측정 뒤 상태가 남지 않음).
+def test_alternate_refuses_a_cache_already_on_and_restores_the_state_after_a_failure():
+    with pytest.raises(RuntimeError, match="already on"):
+        measure(FakeMeloService(FakeRegexSwitch(on=True)), "alternate")
+    switch = FakeRegexSwitch()
+    service = FakeMeloService(switch, fail_call=8)  # 2번 문장 켬 조건의 계측 합성
+    split = service.api.split_sentence
+    with pytest.raises(RuntimeError, match="synthesis failed"):
+        measure(service, "alternate")
+    assert service.calls[-1] == ("라마", "on")
+    assert switch.on is False and service.api.split_sentence is split
+
+
+# alternate 요약: 조건마다 17절과 같은 요약(summarize_stages)을 내고, 같은 문장의 끔 − 켬 차이 중앙값을 전처리
+# 단계와 합성 전체로 따로 낸다.
+def test_the_alternate_summary_gives_each_condition_and_the_paired_saving():
+    def row(id_, cache, text_ms):
+        stages = {"split": 1.0, "text": text_ms, "infer": 100.0, "empty_cache": 2.0, "concat": 5.0}
+        total = 110.0 + text_ms
+        return {
+            "id": id_,
+            "regex_cache": cache,
+            "total_ms": total,
+            "plain_ms": total - 1,
+            "pieces": 1,
+            "stages_ms": stages,
+        }
+
+    rows = [
+        row("1", "off", 300.0),
+        row("1", "on", 40.0),
+        row("2", "on", 50.0),
+        row("2", "off", 420.0),
+        row("3", "off", 350.0),
+        row("3", "on", 30.0),
+    ]
+    summary = tts_eval.summarize_regex_cache(rows)
+    assert summary["off"]["stages"]["text"]["p50_ms"] == 350.0
+    assert summary["on"]["stages"]["text"]["p50_ms"] == 40.0
+    assert summary["on"]["sentences"] == 3
+    assert summary["text_saving_p50_ms"] == 320.0  # 문장별 260, 370, 320
+    assert summary["total_saving_p50_ms"] == 320.0
+
+
+# 보고서: alternate는 두 조건의 단계 표와 짝지은 차이를, off·on은 17절과 같은 표 하나를 쓴다. JSON에는 조건과
+# g2pkk 정규식 캐시의 적중·실패 수가 함께 남는다.
+def test_the_stage_report_names_the_regex_cache_condition(tmp_path):
+    rows = [
+        {
+            "id": "1",
+            "regex_cache": cache,
+            "chars": 3,
+            "pieces": 1,
+            "audio_ms": 900.0,
+            "plain_ms": 400.0,
+            "total_ms": 401.0,
+            "stages_ms": {"split": 0.1, "text": text, "infer": 150.0, "empty_cache": 1.0, "concat": 5.0},
+        }
+        for cache, text in (("off", 240.0), ("on", 20.0))
+    ]
+    record = {
+        "tag": "t",
+        "device": "cpu",
+        "regex_cache": "alternate",
+        "regex_cache_info": {
+            "after_warm_up": {"hits": 799, "misses": 571, "currsize": 571},
+            "end": {"hits": 9000, "misses": 571, "currsize": 571},
+        },
+        "summary": tts_eval.summarize_regex_cache(rows),
+        "rows": rows,
+    }
+    md = tts_eval.write_stage_report(record, tmp_path / "tts_t_melo_stages_x")
+    text = md.read_text(encoding="utf-8")
+    assert (
+        "정규식 캐시 alternate" in text
+        and "| 전처리·BERT | 240.0ms |" in text
+        and "| 전처리·BERT | 20.0ms |" in text
+    )
+    assert "220ms" in text and "데우기 뒤 새 컴파일 0" in text
+    assert json.loads(md.with_suffix(".json").read_text(encoding="utf-8"))["regex_cache"] == "alternate"
+    single = {
+        **record,
+        "regex_cache": "off",
+        "summary": tts_eval.summarize_stages(rows[:1]),
+        "rows": rows[:1],
+    }
+    text = tts_eval.write_stage_report(single, tmp_path / "tts_t2_melo_stages_x").read_text(encoding="utf-8")
+    assert "정규식 캐시 off" in text and text.count("| 전처리·BERT |") == 1

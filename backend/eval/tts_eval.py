@@ -47,6 +47,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from itertools import cycle
 from pathlib import Path
+from typing import Any
 
 # 무거운 의존성(pyarrow, 합성기, 인식기)은 쓰는 함수 안에서 가져온다. 이 파일이 서로 다른 환경(후보 환경,
 # 컨테이너)에서 불려도 import 단계에서 실패하지 않게 하려는 것이다(tests/test_tts_eval.py가 eval 그룹 없이
@@ -614,69 +615,128 @@ def summarize_stages(rows: list[dict]) -> dict:
     }
 
 
-# melo-stages 명령: 서비스와 같은 MeloTextToSpeech("ko")를 올리고, 첫 문장으로 한 번 데운 뒤 문장마다 ① 계측
-# 없이 한 번(plain, 전체 시간만) ② 계측을 켜고 한 번(단계별) 합성한다. 두 번 합성하는 것은 계측(동기화) 자체가
-# 더한 시간을 함께 보려는 것이다. MeloTTS는 호출마다 잡음을 새로 뽑아 두 소리의 길이가 조금 다를 수 있다. tts
-# 그룹(transformers 4.27)이 있는 API 이미지 안에서 돌린다(17절 실행 방법).
-def melo_stages(args: argparse.Namespace) -> None:
-    import melo.api
-    import melo.utils
-    import torch
+# [g2pkk 정규식 캐시 조건, 18절] melo-stages --regex-cache: off(기본)는 17절과 같다(캐시를 건드리지 않음).
+# on은 서비스의 MELO_REGEX_CACHE=true처럼 생성자가 캐시를 켠 채로 잰다. alternate는 문장마다 같은 글을 끔·켬
+# 두 조건으로 재되, 짝수 번째 문장(0부터)은 끔→켬, 홀수 번째는 켬→끔으로 먼저 재는 조건을 바꾼다. 같은
+# 문장끼리 견주므로 문장 길이 차이가 빠지고, 번갈아 재므로 GPU 클럭·캐시 상태처럼 순서에 따라 생기는 차이가 한
+# 조건에 몰리지 않는다. 켜고 끄는 것은 app/services/tts.py의 _cache_g2pkk_regex(켜기)와 그 되돌리기 함수다.
+# 되돌려도 컴파일해 둔 패턴은 비우지 않으므로 켬 조건은 서비스가 오래 돈 뒤처럼 늘 데워진 상태다(데우기에서 한
+# 번 채움).
+REGEX_CACHE_MODES = ("off", "on", "alternate")
 
-    from app.services.tts import MeloTextToSpeech
 
-    texts = stage_texts(args.from_stream)
-    if args.limit:
-        texts = texts[: args.limit]
-    model = MeloTextToSpeech("ko", device=args.device)
-    model.synthesize(texts[0]["text"], "ko")  # 데우기(통계에서 뺌)
-    rows = []
-    for item in texts:
+def regex_cache_orders(mode: str, count: int) -> list[tuple[str, ...]]:
+    """문장마다 잴 조건의 순서. alternate는 짝수 번째 문장(0부터) ("off", "on"), 홀수 번째 ("on", "off")이고,
+    off·on은 문장마다 그 조건 하나다. 입력: mode(REGEX_CACHE_MODES의 하나), count(문장 수)."""
+    if mode == "alternate":
+        return [("off", "on") if index % 2 == 0 else ("on", "off") for index in range(count)]
+    return [(mode,)] * count
+
+
+def measure_melo_stages(
+    model,
+    texts: list[dict],
+    mode: str,
+    api_module,
+    utils_module,
+    torch_module,
+    switch: Callable[[], tuple[tuple[str, ...], Callable[[], None]]],
+    after_warm_up: Callable[[], None] | None = None,
+) -> list[dict]:
+    """첫 문장으로 데운 뒤, 문장마다 정한 조건에서 ① 계측 없이 한 번(plain, 전체 시간만) ② 계측을 켜고 한 번
+    (단계별) 합성해 행을 만든다.
+
+    model은 MeloTextToSpeech(synthesize와 안의 melo TTS인 _model이 있음),
+    api_module·utils_module·torch_module은 instrument_melo에 넘기는 melo.api·melo.utils·torch, switch는
+    app.services.tts._cache_g2pkk_regex다(인자로 받는 것은 테스트가 가짜 모듈로 같은 흐름을 확인하기
+    위해서다). 행은 17절과 같은 칸에 "regex_cache"(그 행의 조건)를 더한 dict이고, alternate는 문장마다 두 행이
+    생긴다.
+    - off·on은 측정 중에 캐시를 바꾸지 않는다(on은 생성자가 이미 켰다). alternate는 켬 조건의 두 합성 동안만
+      switch로 켰다가 되돌린다(예외가 나도 되돌림). 켤 때 바꾼 모듈이 하나도 없으면 캐시가 이미 켜져 있던
+      것이라 끔 조건이 끔이 아니게 되므로 RuntimeError로 멈춘다.
+    - 데우기: 첫 문장을 첫 순서의 조건마다 한 번(alternate는 끔·켬 한 번씩) 합성하고 통계에서 뺀다. 켬 조건의
+      첫 합성은 패턴 약 570개를 처음 컴파일하므로, 데우지 않으면 첫 켬 행에만 그 시간이 들어간다.
+      after_warm_up은 데우기 직후 한 번 불린다(측정 도구가 캐시 적중 수를 그때 적음). MeloTTS는 호출마다
+      잡음을 새로 뽑아 두 합성의 소리 길이가 조금 다를 수 있다(audio_ms는 계측 합성의 것).
+    """
+
+    def under(condition: str, run: Callable[[], Any]) -> Any:
+        if mode != "alternate" or condition == "off":
+            return run()
+        modules, restore = switch()
+        try:
+            if not modules:
+                raise RuntimeError(
+                    "the g2pkk regex cache is already on, so the off condition would not be off"
+                )
+            return run()
+        finally:
+            restore()
+
+    def measure_one(item: dict, condition: str) -> dict:
         start = time.perf_counter()
         model.synthesize(item["text"], "ko")
         plain_ms = (time.perf_counter() - start) * 1000
-        clock, undo = instrument_melo(melo.api, melo.utils, model._model, torch)
+        clock, undo = instrument_melo(api_module, utils_module, model._model, torch_module)
         try:
             start = time.perf_counter()
             audio = model.synthesize(item["text"], "ko")
             total_ms = (time.perf_counter() - start) * 1000
         finally:
             undo()
-        rows.append(
-            {
-                "id": item["id"],
-                "chars": len(item["text"]),
-                "pieces": clock.pieces,
-                "audio_ms": audio.duration_ms,
-                "plain_ms": round(plain_ms, 1),
-                "total_ms": round(total_ms, 1),
-                "stages_ms": {name: round(seconds * 1000, 1) for name, seconds in clock.seconds.items()},
-            }
-        )
-    summary = summarize_stages(rows)
-    stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
-    base = REPORTS / f"tts_{args.tag}_melo_stages_{stamp}"
-    record = {
-        "tag": args.tag,
-        "device": args.device,
-        "sources": [str(p) for p in args.from_stream],
-        "model_name": model.model_name,
-        "summary": summary,
-        "rows": rows,
+        return {
+            "id": item["id"],
+            "regex_cache": condition,
+            "chars": len(item["text"]),
+            "pieces": clock.pieces,
+            "audio_ms": audio.duration_ms,
+            "plain_ms": round(plain_ms, 1),
+            "total_ms": round(total_ms, 1),
+            "stages_ms": {name: round(seconds * 1000, 1) for name, seconds in clock.seconds.items()},
+        }
+
+    orders = regex_cache_orders(mode, len(texts))
+    for condition in orders[0]:
+        under(condition, lambda: model.synthesize(texts[0]["text"], "ko"))  # 데우기(통계에서 뺌)
+    if after_warm_up is not None:
+        after_warm_up()
+    rows = []
+    for item, conditions in zip(texts, orders, strict=True):
+        for condition in conditions:
+            rows.append(under(condition, lambda item=item, condition=condition: measure_one(item, condition)))
+    return rows
+
+
+def summarize_regex_cache(rows: list[dict]) -> dict:
+    """alternate 행의 요약: 조건마다 17절과 같은 요약(summarize_stages)과, 두 조건으로 잰 같은 문장의 끔 − 켬
+    차이 중앙값(전처리·BERT 단계 text_saving_p50_ms, 합성 전체 total_saving_p50_ms, 짝지은 문장 수)."""
+    by = {condition: [row for row in rows if row["regex_cache"] == condition] for condition in ("off", "on")}
+    off = {row["id"]: row for row in by["off"]}
+    on = {row["id"]: row for row in by["on"]}
+    both = [key for key in off if key in on]
+    return {
+        "off": summarize_stages(by["off"]),
+        "on": summarize_stages(by["on"]),
+        "paired_sentences": len(both),
+        "text_saving_p50_ms": statistics.median(
+            off[key]["stages_ms"]["text"] - on[key]["stages_ms"]["text"] for key in both
+        ),
+        "total_saving_p50_ms": statistics.median(off[key]["total_ms"] - on[key]["total_ms"] for key in both),
     }
-    base.with_suffix(".json").write_text(json.dumps(record, ensure_ascii=False, indent=1), encoding="utf-8")
-    names = {
-        "split": "조각 나누기",
-        "text": "전처리·BERT",
-        "infer": "음성 생성",
-        "empty_cache": "캐시 비우기",
-        "concat": "잇기",
-    }
+
+
+# 단계 표 한 벌(17절 보고서의 표와 같음). summary는 summarize_stages의 결과.
+STAGE_NAMES = {
+    "split": "조각 나누기",
+    "text": "전처리·BERT",
+    "infer": "음성 생성",
+    "empty_cache": "캐시 비우기",
+    "concat": "잇기",
+}
+
+
+def _stage_lines(summary: dict) -> list[str]:
     lines = [
-        f"# MeloTTS 단계별 시간 ({args.tag})",
-        "",
-        f"- 날짜: {datetime.now(UTC).isoformat()}, 장치 {args.device}, 문장 {summary['sentences']}개"
-        "(서비스 측정의 영어 원문 마디가 받은 한국어 번역문)",
         f"- 합성 전체 p50(계측 켬) {summary['total_p50_ms']:.0f}ms, "
         f"계측 없이 {summary['plain_p50_ms']:.0f}ms",
         f"- 조각 2개 이상인 번역문 {summary['multi_piece_ratio']:.0%}, 조각 수별 문장 수 {summary['pieces']}",
@@ -686,10 +746,93 @@ def melo_stages(args: argparse.Namespace) -> None:
     ]
     for name in MELO_STAGES:
         stage = summary["stages"][name]
-        lines.append(f"| {names[name]} | {stage['p50_ms']:.1f}ms | {stage['share']:.1%} |")
+        lines.append(f"| {STAGE_NAMES[name]} | {stage['p50_ms']:.1f}ms | {stage['share']:.1%} |")
     lines.append(f"| 그 밖 | {summary['other_p50_ms']:.1f}ms | {summary['other_share']:.1%} |")
+    return lines
+
+
+def write_stage_report(record: dict, base: Path) -> Path:
+    """melo-stages 기록을 base.json·base.md로 쓰고 .md 경로를 돌려준다. alternate는 짝지은 차이와 조건별 표 두
+    벌을, off·on은 17절과 같은 표 한 벌을 쓴다. regex_cache_info가 있으면 데우기 뒤 새로 컴파일한 패턴 수(켬
+    조건이 컴파일을 건너뛰었는지)를 적는다."""
+    base.with_suffix(".json").write_text(json.dumps(record, ensure_ascii=False, indent=1), encoding="utf-8")
+    mode = record.get("regex_cache", "off")
+    summary = record["summary"]
+    count = summary["off"]["sentences"] if mode == "alternate" else summary["sentences"]
+    lines = [
+        f"# MeloTTS 단계별 시간 ({record['tag']})",
+        "",
+        f"- 날짜: {datetime.now(UTC).isoformat()}, 장치 {record['device']}, g2pkk 정규식 캐시 {mode}, "
+        f"문장 {count}개(서비스 측정의 영어 원문 마디가 받은 한국어 번역문)",
+    ]
+    info = record.get("regex_cache_info") or {}
+    if info.get("after_warm_up") and info.get("end"):
+        new = info["end"]["misses"] - info["after_warm_up"]["misses"]
+        lines.append(
+            f"- g2pkk 정규식 캐시: 데우기 뒤 새 컴파일 {new}, 적중 {info['end']['hits']}, "
+            f"캐시 크기 {info['end']['currsize']}"
+        )
+    if mode == "alternate":
+        lines.append(
+            f"- 같은 문장의 끔 − 켬 중앙값({summary['paired_sentences']}문장): 전처리·BERT "
+            f"{summary['text_saving_p50_ms']:.0f}ms, 합성 전체 {summary['total_saving_p50_ms']:.0f}ms"
+        )
+        for condition, title in (("off", "끔"), ("on", "켬")):
+            lines += ["", f"## {title} ({condition})", "", *_stage_lines(summary[condition])]
+    else:
+        lines += _stage_lines(summary)
     base.with_suffix(".md").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"written to {base.with_suffix('.md')}")
+    return base.with_suffix(".md")
+
+
+# melo-stages 명령: 서비스와 같은 MeloTextToSpeech("ko")를 올리고, 첫 문장으로 데운 뒤 문장마다 ① 계측 없이 한
+# 번(plain, 전체 시간만) ② 계측을 켜고 한 번(단계별) 합성한다(measure_melo_stages). 두 번 합성하는 것은
+# 계측(동기화) 자체가 더한 시간을 함께 보려는 것이다. tts 그룹(transformers 4.27)이 있는 API 이미지 안에서
+# 돌린다(17·18절 실행 방법). --regex-cache로 g2pkk 정규식 캐시 조건을 고른다(위 주석, 18절). 모델을 만든 뒤에
+# melo.api를 import한다: 생성자가 pin_transformers_revisions()로 BERT 토크나이저의 리비전을 건 뒤 melo.api를
+# 불러오는데, 이 도구가 먼저 import하면 언어 모듈의 토크나이저가 리비전 없이 받아진다(17절 측정 때의 순서,
+# 받은 파일은 고정 커밋과 같았다 — docs/security.md 재현성 고정).
+def melo_stages(args: argparse.Namespace) -> None:
+    from app.services import tts
+
+    texts = stage_texts(args.from_stream)
+    if args.limit:
+        texts = texts[: args.limit]
+    model = tts.MeloTextToSpeech("ko", device=args.device, regex_cache=args.regex_cache == "on")
+    import melo.api
+    import melo.utils
+    import torch
+
+    def cache_info() -> dict:
+        info = tts._G2PKK_RE.cache_info()
+        return {"hits": info.hits, "misses": info.misses, "currsize": info.currsize}
+
+    info: dict[str, dict] = {}
+    rows = measure_melo_stages(
+        model,
+        texts,
+        args.regex_cache,
+        melo.api,
+        melo.utils,
+        torch,
+        tts._cache_g2pkk_regex,
+        after_warm_up=lambda: info.update(after_warm_up=cache_info()),
+    )
+    info["end"] = cache_info()
+    summary = summarize_regex_cache(rows) if args.regex_cache == "alternate" else summarize_stages(rows)
+    stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+    record = {
+        "tag": args.tag,
+        "device": args.device,
+        "regex_cache": args.regex_cache,
+        "sources": [str(p) for p in args.from_stream],
+        "model_name": model.model_name,
+        "regex_cache_info": info,
+        "summary": summary,
+        "rows": rows,
+    }
+    md = write_stage_report(record, REPORTS / f"tts_{args.tag}_melo_stages_{stamp}")
+    print(f"written to {md}")
 
 
 # 명령줄 진입점. 하위 명령 export·synth·score·timing·melo-stages를 고른다. synth의 --languages는 고른 언어만
@@ -719,7 +862,7 @@ def main() -> None:
     stages_parser = phases.add_parser(
         "melo-stages",
         help="MeloTTS 한국어 합성 한 번을 단계별(조각 나누기·전처리·생성·캐시 비우기·잇기)로 잰다"
-        " (docs/experiments.md 17절)",
+        " (docs/experiments.md 17·18절)",
     )
     stages_parser.add_argument(
         "--from-stream",
@@ -731,6 +874,14 @@ def main() -> None:
     stages_parser.add_argument("--tag", required=True)
     stages_parser.add_argument("--device", choices=["cuda", "cpu"], default="cuda")
     stages_parser.add_argument("--limit", type=int, default=None, help="앞에서부터 N문장만(시험용)")
+    stages_parser.add_argument(
+        "--regex-cache",
+        choices=REGEX_CACHE_MODES,
+        default="off",
+        help="g2pkk 정규식 캐시(서버 설정 MELO_REGEX_CACHE) 조건. off(기본): 17절과 같이 끈 채로."
+        " on: 처음부터 켠 채로. alternate: 문장마다 같은 글을 끔·켬 두 조건으로 재고 먼저 재는 조건을"
+        " 문장마다 바꾼다 (docs/experiments.md 18절)",
+    )
     args = parser.parse_args()
     commands = {
         "export": export,

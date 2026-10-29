@@ -197,3 +197,161 @@ def test_the_report_keeps_rows_and_decisions(tmp_path, monkeypatch):
     assert record["decision"] == decision and len(record["rows"]) == 2
     table = [line for line in md.read_text(encoding="utf-8").splitlines() if line.startswith("| live")]
     assert len(table) == 2 and all(line.count("|") == len(lb.COLUMNS) + 1 for line in table)
+
+
+# 여기부터 18절(g2pkk 정규식 캐시 끔 A / 켬 B)의 짝 계산. 블록 하나는 서버를 한 조건으로 띄우고 잰 stream_eval
+# service 보고서 하나다. 같은 클립(key)끼리 서버 timings의 합성 실행 시간을 짝짓고, 같은 조건의 블록이 둘이면
+# (동시통역 A1·A2, B1·B2) 클립마다 두 블록을 평균한다.
+
+
+def clip(key, tts, *, source="hello", translated="안녕", **kwargs):
+    made = item(tts=tts, **kwargs)
+    made["key"] = key
+    made["result"] = {"source_text": source, "translated_text": translated}
+    return made
+
+
+def block(mode, en=(), ko=(), sm=1800.0):
+    details = {}
+    if en:
+        details["en"] = list(en)
+    if ko:
+        details["ko"] = list(ko)
+    gpu = {"samples": 10, "mean_util": 20.0, "sm_clock_p50_mhz": sm, "busy_sm_clock_p50_mhz": sm + 100}
+    return {"mode": mode, "details": details, "gpu_use": {**gpu, "pstates": {"P2": 10}, "limited_ratio": 0.1}}
+
+
+# 같은 클립끼리 짝짓는다: 동시통역은 A 두 블록 평균 − B 두 블록 평균, 대화 모드는 블록 하나씩. 한 블록에서라도
+# 원문·번역문이 다른 클립은 짝에서 빼고 수를 센다. 주 지표는 두 모드에 모두 남은 클립마다 두 모드의 차이를
+# 평균한 값의 평균이고, 구간은 클립을 한 번 뽑아 두 모드에 함께 쓰는 짝지은
+# 재표본(significance.mean_difference)이다.
+def test_ab_pairs_the_same_clips_and_averages_the_two_live_blocks():
+    live_a = [
+        ("a1", block("live", en=[clip("c1", 600), clip("c2", 700), clip("c3", 800)])),
+        ("a2", block("live", en=[clip("c1", 620), clip("c2", 680), clip("c3", 820)])),
+    ]
+    live_b = [
+        ("b1", block("live", en=[clip("c1", 300), clip("c2", 400), clip("c3", 500, translated="다름")])),
+        ("b2", block("live", en=[clip("c1", 280), clip("c2", 420), clip("c3", 520)])),
+    ]
+    conv_a = [("ca", block("conversation", en=[clip("c1", 610), clip("c2", 690), clip("c3", 790)]))]
+    conv_b = [("cb", block("conversation", en=[clip("c1", 310), clip("c2", 390), clip("c3", 495)]))]
+    live = lb.pair_mode([r for _, r in live_a], [r for _, r in live_b], "live")
+    assert live["keys"] == ["c1", "c2"] and live["text_differs"] == ["c3"]
+    assert live["a"] == [610.0, 690.0] and live["b"] == [290.0, 410.0]
+    result = lb.compare(live_a + conv_a, live_b + conv_b, None)
+    primary = result["primary"]
+    assert primary["modes"] == ["live", "conversation"] and primary["clips"] == 2
+    assert primary["point_ms"] == pytest.approx(((320 + 300) / 2 + (280 + 300) / 2) / 2)
+    assert primary["low_ms"] <= primary["point_ms"] <= primary["high_ms"]
+    assert result["modes"]["conversation"]["clips"] == 3  # 대화 모드만 보면 c3도 짝이 된다
+    assert result["modes"]["live"]["median_ms"] == pytest.approx(300.0)
+    assert result["excluded"]["text_differs"] == ["c3"] and result["errors"] == 0
+    assert result["decision"]["text_differs_warning"] is False
+
+
+# 주 지표의 구간은 같은 클립 수·시드에서 늘 같다(13절과 같은 10,000번·시드 12345). 모든 클립의 차이가 같으면
+# 구간이 그 값 한 점이다.
+def test_the_primary_interval_is_seeded_and_collapses_for_constant_differences():
+    a = [("a", block("conversation", en=[clip(f"c{i}", 500.0 + i) for i in range(5)]))]
+    b = [("b", block("conversation", en=[clip(f"c{i}", 380.0 + i) for i in range(5)]))]
+    first, again = lb.compare(a, b, None)["primary"], lb.compare(a, b, None)["primary"]
+    assert first == again
+    assert first["point_ms"] == first["low_ms"] == first["high_ms"] == pytest.approx(120.0)
+
+
+# 채택 규칙(모두 참이어야 채택): (a) 주 지표 구간 하한이 100ms보다 큼(같으면 거짓) (b) 한국어 원문 말 끝 →
+# 음성 p50 회귀(B − A)가 +50ms 이하(같으면 참) (c) 오류 0. 짝에서 원문·번역문이 달라 뺀 클립이 2개를 넘으면
+# 정상성 경고만 켜고 판정은 바꾸지 않는다. 값을 모르면(None) 채택도 None이다.
+def test_the_adoption_rule_boundaries():
+    assert lb.decide_ab(100.01, 50.0, 0, 0)["adopt"] is True
+    assert lb.decide_ab(100.0, 0.0, 0, 0)["a_primary_low_over_100"] is False
+    assert lb.decide_ab(100.0, 0.0, 0, 0)["adopt"] is False
+    assert lb.decide_ab(150.0, 50.01, 0, 0)["b_ko_regression_within_50"] is False
+    assert lb.decide_ab(150.0, -20.0, 1, 0)["c_no_errors"] is False
+    assert lb.decide_ab(150.0, -20.0, 1, 0)["adopt"] is False
+    warned = lb.decide_ab(150.0, -20.0, 0, 3)
+    assert warned["text_differs_warning"] is True and warned["adopt"] is True
+    assert lb.decide_ab(150.0, -20.0, 0, 2)["text_differs_warning"] is False
+    assert lb.decide_ab(None, -20.0, 0, 0)["adopt"] is None
+    assert lb.decide_ab(150.0, None, 0, 0)["adopt"] is None
+    assert lb.decide_ab(50.0, None, 0, 0)["adopt"] is False  # 하나라도 거짓이면 모르는 칸이 있어도 거짓
+
+
+# 실패한 마디(최종 결과 없음)와 음성이 없는 마디는 오류로 세고 짝에서 뺀다. 어느 블록에 없는 클립(고르기가
+# 달라짐)도 짝에서 빼고 따로 센다. 한국어 원문 회귀는 조건별 동시통역 한국어 블록의 말 끝 → 음성 p50 차이(B −
+# A)다.
+def test_ab_counts_errors_and_missing_clips_and_the_korean_regression():
+    a = [
+        ("a_en", block("conversation", en=[clip("c1", 600), clip("c2", 600), clip("c3", 600)])),
+        ("a_ko", block("live", ko=[clip("k1", 150, prepared=1000.0), clip("k2", 150, prepared=1000.0)])),
+    ]
+    b = [
+        ("b_en", block("conversation", en=[clip("c1", 300), clip("c2", 300, outcome="error")])),
+        ("b_ko", block("live", ko=[clip("k1", 150, prepared=1030.0), clip("k2", 150, prepared=1030.0)])),
+    ]
+    result = lb.compare(a, b, None)
+    assert result["modes"]["conversation"]["clips"] == 1
+    assert result["excluded"]["unusable"] == ["c2"] and result["excluded"]["missing"] == ["c3"]
+    assert result["errors"] == 1 and result["decision"]["c_no_errors"] is False
+    assert result["ko_regression_ms"] == pytest.approx(30.0)
+    assert result["decision"]["b_ko_regression_within_50"] is True
+    assert result["decision"]["adopt"] is False
+
+
+# 17절 규칙 iii(A3를 열 근거)를 조건마다 같은 문턱으로 다시 계산한다. 같은 조건·모드의 블록은 마디를 합쳐
+# 요약하고, 조각 비율과 캐시 비우기 몫은 melo-stages alternate 보고서의 그 조건 요약에서 읽는다. 조건이
+# 하나뿐인 옛 보고서(17절)는 끔(A) 요약으로만 쓴다.
+def test_ab_recomputes_rule_iii_of_section_17_for_each_condition():
+    a = [
+        ("a1", block("live", en=[clip("c1", 600, prepared=1100.0), clip("c2", 600, prepared=1100.0)])),
+        ("a2", block("live", en=[clip("c1", 600, prepared=1100.0), clip("c2", 600, prepared=1100.0)])),
+    ]
+    b = [("b1", block("live", en=[clip("c1", 300, prepared=700.0), clip("c2", 300, prepared=700.0)]))]
+    alternate = {
+        "regex_cache": "alternate",
+        "summary": {
+            "off": stages_summary(multi=0.45, cache=0.01),
+            "on": stages_summary(multi=0.45, cache=0.02),
+        },
+    }
+    result = lb.compare(a, b, alternate)
+    assert result["rule_iii"]["A"]["iii_open_a3"] is True
+    assert result["rule_iii"]["B"]["iii_open_a3"] is False
+    assert result["rule_iii"]["B"]["values"]["en_source_tts_p50_ms"] == 300.0
+    live_a = next(row for row in result["rows"]["A"] if row["mode"] == "live" and row["lang"] == "en")
+    assert live_a["utterances"] == 4  # 두 블록의 마디를 합침
+    old = {"summary": stages_summary(multi=0.45, cache=0.01)}
+    assert lb.stage_summary(old, "off") == old["summary"] and lb.stage_summary(old, "on") is None
+    assert lb.stage_summary(alternate, "on") == alternate["summary"]["on"]
+    assert lb.stage_summary(None, "off") is None
+
+
+# 명령줄: --a·--b로 18절 계산을 하고 latency_ab_<tag>_<시각>.json·.md를 쓴다(블록별 GPU 클럭 표 포함). 17절의
+# --stream 사용은 그대로이고, 둘 다 없거나 한쪽만 주면 멈춘다.
+def test_the_ab_command_writes_its_report_and_keeps_the_stream_form(tmp_path, monkeypatch):
+    import sys
+
+    monkeypatch.setattr(lb, "REPORTS", tmp_path)
+
+    def save(name, report_):
+        path = tmp_path / f"{name}.json"
+        path.write_text(json.dumps(report_, ensure_ascii=False), encoding="utf-8")
+        return str(path)
+
+    a = save("stream_t_live_en_a1", block("live", en=[clip("c1", 600), clip("c2", 640)], sm=1700.0))
+    b = save("stream_t_live_en_b1", block("live", en=[clip("c1", 300), clip("c2", 330)], sm=1750.0))
+    monkeypatch.setattr(sys, "argv", ["latency_breakdown", "--a", a, "--b", b, "--tag", "t_ab"])
+    lb.main()
+    [md] = tmp_path.glob("latency_ab_t_ab_*.md")
+    record = json.loads(md.with_suffix(".json").read_text(encoding="utf-8"))
+    assert record["result"]["modes"]["live"]["clips"] == 2 and record["a"] == [a]
+    text = md.read_text(encoding="utf-8")
+    assert "stream_t_live_en_a1" in text and "1700" in text and "1750" in text
+    monkeypatch.setattr(sys, "argv", ["latency_breakdown", "--stream", a, "--tag", "t_stream"])
+    lb.main()
+    assert list(tmp_path.glob("latency_t_stream_*.md"))
+    for argv in (["--tag", "x"], ["--a", a, "--tag", "x"], ["--stream", a, "--a", a, "--b", b, "--tag", "x"]):
+        monkeypatch.setattr(sys, "argv", ["latency_breakdown", *argv])
+        with pytest.raises(SystemExit):
+            lb.main()
