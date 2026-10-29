@@ -81,7 +81,7 @@ CI의 `audit` 작업이 같은 검사를 push마다 돌린다. 위 '받아들인
 
 - 확인: 잠금 diff는 위 세 판과 manifest의 override 한 줄, eval 그룹의 하한 항목뿐이다(다른 판 변경 없음, 잠금 revision 5 그대로). `uv lock --check`는 uv 0.13.1과 이미지의 uv 0.12.24 모두 통과. CI와 같은 `uv export` → `pip-audit` 2.10.1에서 서버 환경 0건(제외 4: nltk 1·setuptools 3 — PYSEC-2026-3447이 두 줄로 겹쳐 나옴), 도구 환경 0건(제외 없음). 제외 없이 보면 서버 환경에 남는 것은 nltk PYSEC-2026-3740(고친 판 없음)과 setuptools 81.0.0의 PYSEC-2026-3447·GHSA-xmj3-9gf7-h52w뿐이다. CI가 검사하지 못하거나(PyPI에 없는 `+cu128` 판) 목록에서 빼는 판도 따로 검사했다: torch 2.11.0(PyPI 판)은 10-15에 받아들인 PYSEC-2025-194 하나, torchaudio 2.11.0은 0건, transformers 4.27.4는 30건(10-15에 적은 수와 같음). 세 판이 내려가지 않게 `backend/tests/test_lock_security_floors.py`가 잠금을 검사한다(바꾸기 전 잠금에서 3개 모두 실패, 새 잠금에서 통과)
 - 서버 이미지 안 확인: 새 잠금으로 이미지를 다시 빌드하고(이미지의 uv 0.12.24 `uv sync --locked`가 filelock 4.2.4·dnspython 2.9.1·setuptools 81.0.0을 설치) 그 안에서 CPU로만(네트워크 없음, `hfcache` 볼륨 읽기 전용, 합성·추론 없음) 확인했다: pkg_resources와 `import melo.api`·`kokoro`·`app.services.tts`·`app.main`; filelock 사용처 — cached-path 하위 클래스의 생성(기본·`read_only_ok=True`)·잠그기·풀기와 압축 풀기 경로의 잠금, huggingface_hub 0.36.2의 `WeakFileLock`·`SoftFileLock`, torch의 `torch.utils._filelock.FileLock`, 같은 경로의 두 번째 잠금이 기다리지 않으면 잡지 못함; 고정한 합성 모델의 적재(위 재현성 표의 고정 파일 5개 SHA-256, MeloTTS 한국어·Kokoro 생성, 감싼 `from_pretrained`에 고정 커밋이 들어감) 14개 항목. 두 언어 한 문장씩의 실제 합성은 아직 하지 않았다
-- CI `audit` 작업의 제외 목록은 PYSEC-2026-3740·PYSEC-2026-3447·GHSA-xmj3-9gf7-h52w 셋이다
+- CI `audit` 작업의 제외 목록은 PYSEC-2026-3740·PYSEC-2026-3447·GHSA-xmj3-9gf7-h52w 셋이다. 같은 날 이 작업이 서버 환경 검사가 실패해도 도구 환경까지 검사한 뒤 한 번에 실패하게 고쳤다(단계 셸이 `bash -e`라 전에는 서버 환경 실패에서 바로 끝나, 도구 환경 결과가 로그에 남지 않았다)
 
 ## 화면 서버(nginx)의 보안 머리글과 ZAP 기준 스캔 (2026-10-15)
 

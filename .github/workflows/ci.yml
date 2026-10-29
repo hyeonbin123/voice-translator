@@ -208,6 +208,8 @@ jobs:
   #   cu128이 setuptools<82를 요구하고 MeloTTS의 중국어 전처리(cn2an·jieba)가 pkg_resources를 써서 올릴 수 없음.
   #   도구 환경은 eval 그룹의 하한으로 84.1.0 이상). filelock은 2026-10-30부터 pyproject의 override-dependencies로
   #   4.2.1 이상이라(cached-path의 filelock<4.0을 덮음) 2026-10-24에 제외했던 CVE 3개를 목록에서 뺐다
+  # - 두 환경을 모두 검사한 뒤 한 번에 실패시킨다(아래 status). 단계 셸이 `bash -e`라 전에는 서버 환경 검사가
+  #   실패하면 그 자리에서 끝나, 도구 환경 결과가 로그에 남지 않았다
   # - npm은 배포되는 의존성과 개발 도구를 함께 본다(moderate 이상). Python 단계가 실패해도 돌게 해(`!cancelled()`)
   #   두 결과가 따로 남는다(전에는 Python 실패 뒤 건너뛰어 npm 결과가 기록되지 않았다)
   audit:
@@ -227,11 +229,16 @@ jobs:
           export_locked --group gpu --group tts --no-group dev \
             | grep -v -e '^melotts @ git' -e '^transformers==' > /tmp/server.txt
           export_locked --group gpu --group eval --group dev > /tmp/tools.txt
+          # 한 환경이 실패해도 다음 환경을 검사하고, 하나라도 실패했으면 마지막에 실패로 끝낸다(`|| status=1`이라
+          # bash -e가 루프 중간에 멈추지 않는다). 어느 환경의 결과인지 로그에서 보이게 이름을 먼저 찍는다.
+          status=0
           for requirements in /tmp/server.txt /tmp/tools.txt; do
+            echo "pip-audit: $requirements"
             uvx pip-audit==2.10.1 -r "$requirements" --disable-pip --no-deps \
               --ignore-vuln PYSEC-2026-3740 --ignore-vuln PYSEC-2026-3447 \
-              --ignore-vuln GHSA-xmj3-9gf7-h52w
+              --ignore-vuln GHSA-xmj3-9gf7-h52w || status=1
           done
+          exit "$status"
 
       - uses: actions/setup-node@v7
         if: ${{ !cancelled() }}
