@@ -1424,3 +1424,35 @@ MeloTTS 단계 (서비스 측정에서 영어 원문 마디가 받은 한국어 
 - **한계**: 17절과 같다(한 PC, 네트워크 없음, 읽는 말투의 긴 FLEURS 문장). 서버 설정이라 문장마다 조건을 바꾸지 못하고 A·B·B·A 블록으로 시간대 효과를 줄인다. 대화 모드와 한국어 원문은 조건마다 블록이 하나라 시간대 효과가 덜 지워진다. 주 지표는 서버의 합성 실행 시간이라, 1초 확정에 묶인 말 끝 → 음성의 이득과 같지 않다. MeloTTS 단계는 서버 밖에서 같은 모델 클래스로 잰 값이라 단계 몫에만 쓴다
 - **예상 비용**: GPU 약 2시간(쉬는 상태 기다림 제외, 블록과 MeloTTS 단계마다 최대 10분 더). 블록 8개 × (api 다시 만들기·예열 약 2분 + 이 PC 모델로 클립 고르기 약 2분 + 40마디 약 10분) + MeloTTS 단계 약 10분. 이미지 빌드는 GPU 없이 미리 한다
 - **측정 전 확인** (GPU 없이, 2026-10-29): backend `ruff check`·`ruff format --check`·`pytest` 통과(이 절과 같은 커밋). 새 도구는 가짜 pynvml(새·옛 제한 이유 함수, 함수가 없는 판, 측정 중 읽기 실패), 가짜 melo 모듈(문장마다 바뀌는 조건, 끝난 뒤와 실패 뒤의 원래 상태), 가짜 보고서(같은 클립 짝짓기, 원문이 다른 클립·실패·빠진 클립 세기, 규칙 경계)로 테스트했다(`tests/test_stream_eval.py`·`test_tts_eval.py`·`test_latency_breakdown.py`)
+
+## 19. MeloTTS가 고정한 transformers 4.27.4를 올리는 시험: 합성 입력·특징 동일성 관문
+
+**측정 전에 정한 절차** (2026-10-29. `eval.tts_eval`의 `synth --seed`와 관문 계산 함수 `array_gap`·`gate_verdict`를 이 절과 함께 커밋한다. 아직 아무것도 재지 않았다)
+- **배경**: 서버의 합성 의존성 묶음(`backend/pyproject.toml`의 tts 그룹)은 고정 MeloTTS(커밋 2091453)가 요구하는 `transformers==4.27.4`에 묶여 있다. 이 판은 `tokenizers<0.14`를 요구하고 tokenizers 0.13.3 휠은 CPython 3.7~3.11용뿐이라 서버 이미지가 Python 3.11에 묶인다(PEP 664: 3.11의 보안 수정은 2027-10까지). 같은 고정 때문에 eval 그룹(transformers ≥ 4.57)과 tts 그룹을 따로 설치하고(`[tool.uv] conflicts`), CI 감사는 transformers를 검사 목록에서 빼며, docs/security.md는 이 판의 권고 30건을 받아들인 위험으로 적었다. MeloTTS가 transformers에서 쓰는 것은 둘이다: `AutoTokenizer`(언어 모듈이 `import melo.api` 때 BERT 토크나이저 6개를 받고, 한국어 `g2p`는 kykim/bert-kor-base 토크나이저의 단어 조각 묶음마다 발음을 바꿔 word2ph를 만든다)와 `AutoModelForMaskedLM`(첫 합성 때 kykim/bert-kor-base를 올려 `hidden_states[-3]`을 음소 길이로 늘린 BERT 특징). Kokoro(kokoro 0.9.4)는 transformers의 `AlbertModel`로 음소 번호를 인코딩한다. 측정 전 확인(감사 때, 판정에 쓰지 않음): 두 시험 venv(4.27.4·tokenizers 0.13.3과 5.17.0·0.23.3, torch 2.11 CPU)에서 kykim/bert-kor-base 토크나이저의 tokens·input_ids가 아래 A의 620문장에서 모두 같았다
+- **가설**: transformers를 T1 = 5.17.0(eval 그룹 잠금과 같은 판이라 나중에 두 그룹의 충돌도 풀 수 있음), 안 되면 T2 = 4.57.6(마지막 4.x)으로 올려도 MeloTTS·Kokoro의 모델 입력과 특징이 같거나 허용 폭 안이라, 합성 품질 기록(README의 한국어 CER 5.58%·영어 WER 3.91%)이 바뀌지 않는다
+- **성격**: 의존성 판 하나를 고르는 동일성 확인이다. 관문 1은 지표 없이 출력이 같은지만 보므로 FLEURS test에서 온 글도 (a)에만 쓰고(18절과 같음), 관문 2(합성 재인식)는 validation만 쓴다. README와 앞 절의 기록 수치는 이 절의 결과로 바꾸지 않는다
+- **시험 환경** (커밋하지 않는 `work/` 아래): `backend/pyproject.toml`과 `uv.lock`을 복사해 tts 그룹의 `transformers==4.27.4`를 후보 판으로 바꾸고 `override-dependencies`에 같은 판을 더한 뒤(MeloTTS가 선언한 고정을 덮어씀) 그 사본에서만 `uv lock --upgrade-package transformers`로 잠근다. 그 잠금으로 서버와 같은 `backend/Dockerfile`을 빌드한 시험 이미지(Linux, Python 3.11)가 새 환경, 지금 잠금으로 빌드한 api 이미지가 옛 환경이다. 저장소의 잠금과 `backend/.venv`는 바꾸지 않는다. 두 컨테이너 모두 이 절을 커밋한 코드(`backend/app`·`backend/eval`)를 읽기 전용으로 겹쳐 쓰고, 네트워크 없이(`--network none`) Hugging Face 캐시 볼륨을 읽기 전용으로 붙여 오프라인(`HF_HUB_OFFLINE=1`)으로, 모델은 `app/services/tts.py`의 고정 리비전으로 읽고, CPU에서 torch 스레드 4개로 돈다. 잠금이 풀리지 않거나 이미지가 빌드되지 않으면 그 판은 기각이다
+- **데이터**
+  - K(한국어): FLEURS 한국어 validation 129문장(`raw_transcription`, 3절 합성 입력)과 17절 보고서 두 개의 영어 원문 마디 번역문 40개(`melo-stages`가 읽는 글)
+  - A(감사의 620문장, (a)에만): 17절 보고서 두 개의 영어 원문 마디 번역문 80개(두 모드, 겹침 포함)와 9절 test 보고서의 영→한 전체 흐름 번역문 270개·참조 270개
+  - E(영어): FLEURS 영어 validation 150문장(3절에서 Kokoro를 잰 문장)과 17절 보고서 두 개의 한국어 원문 마디 영어 번역문 40개
+- **관문 1** (CPU, GPU 없음. 옛·새 환경에서 같은 스크립트로 뽑아 견준다. 비교와 판정은 `eval.tts_eval`의 `array_gap`·`gate_verdict`)
+  - (a) 토크나이저: `import melo.api`가 받는 토크나이저 6개(`tts.py`의 `HF_REVISIONS`) 각각의 `tokenize` 결과와 `input_ids`가 A·K(MeloTTS 한국어 `text_normalize`를 거친 글)와 E에서 모두 같다
+  - (b) MeloTTS 한국어 전처리: K의 글을 MeloTTS처럼 `split_sentence(..., language_str="KR")`로 나눈 조각마다 `clean_text`의 norm_text·phones·tones·word2ph와 `get_text_for_tts_infer`의 음소·톤·언어 텐서(BERT 특징은 끄고, 18절 ②와 같은 방식)가 같다
+  - (c) BERT 특징: (b)의 조각마다 `melo.text.get_bert`(KR, kykim/bert-kor-base, fp32 CPU)의 결과. 새 환경은 `attn_implementation="eager"`로 올린다(4.27.4의 BERT는 eager 계산뿐이라 같은 계산 방식끼리 견준다). 새 판의 기본값(SDPA)으로 낸 값과의 차도 적지만 판정에는 쓰지 않는다
+  - (d) Kokoro: E의 글마다 `KPipeline`(lang_code "a")이 나눈 조각의 음소열이 같고, 조각마다 KModel 안의 ALBERT 출력(`model.bert`에 kokoro의 `forward_with_tokens`와 같은 input_ids·attention_mask, fp32 CPU, 새 환경은 eager)을 견준다
+  - (e) 시험 이미지에서 `import melo.api, kokoro`, `MeloTextToSpeech("ko", device="cpu")`·`KokoroTextToSpeech(device="cpu")` 적재, 한국어·영어 한 문장씩 합성이 오류 없이 끝난다
+- **판정** (`gate_verdict`. 정확히 같아야 하는 것: (a), (b), (d)의 음소열, (e). 특징: (c)와 (d)의 ALBERT, 조각마다 견준 최대 절대 차의 최댓값)
+  - 정확히 같아야 하는 것이 하나라도 다르거나 실패하면 그 판은 기각(T1이 기각되면 T2를 같은 관문으로)
+  - 특징이 모두 비트까지 같으면(dtype·모양·바이트) 측정 없이 채택안
+  - 0 < 최대 절대 차 ≤ 1e-4(비트만 다르고 차가 0인 경우 포함)이면 관문 2
+  - 최대 절대 차 > 1e-4(모양이 다르거나 한쪽에만 NaN이면 무한대로 봄)이면 그 판은 기각
+- **관문 2** (조건부, GPU. 관문 1의 판정이 '관문 2'일 때만): 옛·새 환경에서 각각 기준 시드 1·2·3으로 FLEURS 한국어 validation 129문장을 MeloTTS로 합성하고(`synth --seed`, GPU, 새 환경은 (c)처럼 BERT를 eager로) 3절 방식으로 재인식해 CER을 잰다. (d)의 ALBERT가 비트까지 같지 않으면 Kokoro도 영어 validation 150문장으로 같은 방식(WER, 새 환경은 eager)으로 잰다
+  - 채택: 새 환경 세 값의 평균 − 옛 환경 세 값의 평균 ≤ 옛 환경 세 값의 범위(최댓값 − 최솟값)이고 ≤ +0.5%p. 영어도 쟀으면 영어도 같은 조건이 참이어야 한다. 아니면 그 판은 기각
+  - 함께 적는 것(판정에 쓰지 않음): 환경별 시드 간 범위와, 문장 단위 짝지은 재표본 95% 구간(13절의 `eval/significance.py` `resample_counts`, 10,000번·시드 12345. 문장마다 세 시드의 오류 수와 참조 길이를 합쳐 두 환경의 오류율 차를 계산). 지금까지의 합성 재인식 오류율은 시드 없는 한 번의 표본이었다(같은 validation 129문장에서 MeloTTS 3절 5.52%, 14절 5.79%). 시드 간 범위는 앞으로의 합성 비교에서 동률 폭을 정할 근거로 쓴다
+- **명령** (관문 1 스크립트와 실행 스크립트는 커밋하지 않는 `work/`에 둔다. 판 정보와 명령은 결과에 적는다)
+  - 관문 2: 호스트에서 `uv run --no-sync python -m eval.tts_eval export --split validation --languages ko en` → 환경마다 컨테이너에서 `python -m eval.tts_eval synth --candidate melo --split validation --languages ko --sentences-dir <export 폴더> --seed <n> --tag t106_<env>_s<n>`(env = old와 t1 또는 t2, n = 1·2·3, 영어는 `--candidate kokoro --languages en`) → 호스트에서 `uv run --no-sync python -m eval.tts_eval score --tag t106_<env>_s<n>`
+- **결과 처리**: 채택안이면 채택 반영(tts 그룹의 판과 override, `uv.lock`, CI 감사의 transformers 예외 줄 지우기, docs/security.md의 transformers 행, README의 판 표기, 서비스가 BERT·ALBERT를 eager로 올리게 하기)을 이 절의 결과 커밋과 따로 만든다. eval·tts 그룹 충돌 풀기와 Python 3.12 이미지 시험은 그다음 작업이다. 두 판이 모두 기각되면 기각과 이유를 적고, MeloTTS만 Python 3.11에 고정한 별도 프로세스로 떼는 일을 2027-10 전에 할 작업으로 남긴다. README의 5.58%·3.91%는 바꾸지 않는다
+- **한계**: 관문 1은 CPU fp32에서만 본다(서비스는 GPU에서 합성). 같은 입력·가중치·torch에서 transformers의 계산만 바뀌는지 보는 것이라 GPU 커널의 차는 관문 2나 채택 뒤의 서비스 측정에서만 드러난다. 관문 2의 재인식 오류율은 합성 잡음과 인식기에 함께 흔들리는 간접 지표다(3절 한계). Kokoro의 음소열은 misaki·spaCy가 만들어 transformers와 상관없지만, 잠금을 다시 풀며 다른 의존성의 판이 바뀌었는지 보려고 넣었다
+- **예상 비용**: CPU — 시험 잠금과 이미지 빌드(약 20~45분)와 관문 1(환경마다 약 10분). GPU(관문 2일 때만) — 합성 129문장 × 6회와 재인식 약 0.5시간(영어도 재면 약 0.3시간 더)
+- **측정 전 확인** (GPU 없이, 2026-10-29): backend `ruff check`·`ruff format --check`·`pytest` 통과(이 절과 같은 커밋). `synth --seed`는 가짜 torch(ID 순서와 다른 입력, `--limit`, 기준 시드 바꾸기, 시드 없는 기본값에서는 torch를 import하지 않음)로, 관문 계산은 경계값(-0.0, dtype·모양이 다름, NaN, 허용 폭 1e-4의 경계)으로 테스트했다(`tests/test_tts_eval.py`)

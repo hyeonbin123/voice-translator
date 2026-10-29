@@ -287,6 +287,7 @@ def test_synth_reports_load_and_first_call_times_providers_and_memory_after_the_
         sentences_dir=tmp_path,
         stt_load=None,
         stt_load_device="cuda",
+        seed=None,
     )
     tts_eval.synth(args)
     record = json.loads((tmp_path / "tts_t_gpu_fake_synth.json").read_text(encoding="utf-8"))
@@ -730,3 +731,128 @@ def test_the_stage_report_names_the_regex_cache_condition(tmp_path):
     }
     text = tts_eval.write_stage_report(single, tmp_path / "tts_t2_melo_stages_x").read_text(encoding="utf-8")
     assert "정규식 캐시 off" in text and text.count("| 전처리·BERT |") == 1
+
+
+# 가짜 torch: synth --seed가 부르는 manual_seed만 흉내 내고, 받은 시드를 차례로(seeds)와 마지막
+# 값(current)으로 남긴다. 실제 torch 없이 '어느 문장 합성 직전에 어떤 시드가 걸렸나'를 보려는 것이다.
+class FakeTorch:
+    def __init__(self) -> None:
+        self.seeds: list[int] = []
+        self.current: int | None = None
+
+    def manual_seed(self, seed: int) -> None:
+        self.seeds.append(seed)
+        self.current = seed
+
+
+# 시드 시험의 공통 준비: 문장 ID가 정렬 순서와 다른 세 문장(7·3·12)을 export JSON으로 쓰고, 합성할 때 그
+# 순간의 가짜 torch 시드를 글과 함께 heard에 적는 가짜 후보를 등록한다. 돌려주는 것은 main에 넘길 공통 인자다.
+def _seed_setup(tmp_path, monkeypatch, fake_torch, heard: list) -> list[str]:
+    from eval import tts_candidates
+
+    class Speech(FakeSpeech):
+        def synthesize(self, text, language):
+            heard.append((text, getattr(fake_torch, "current", None)))
+            return super().synthesize(text, language)
+
+    rows = [{"id": i, "raw_transcription": f"문장 {i}.", "transcription": f"문장 {i}"} for i in (7, 3, 12)]
+    (tmp_path / "validation_ko.json").write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setattr(tts_candidates, "CANDIDATES", {"fake": (Speech, ["ko"])})
+    monkeypatch.setattr(tts_eval, "AUDIO", tmp_path / "audio")
+    monkeypatch.setattr(tts_eval, "REPORTS", tmp_path)
+    monkeypatch.setattr(tts_eval, "gpu_memory_mb", lambda: None)
+    return ["synth", "--candidate", "fake", "--sentences-dir", str(tmp_path)]
+
+
+# synth --seed <n>(docs/experiments.md 19절): 문장마다 합성 직전에 그 문장 ID에서 정한 시드로
+# torch.manual_seed를 부르고, 기록에 기준 시드와 문장별 시드를 남긴다. 같은 문장은 몇 문장을 함께
+# 돌리든(--limit) 같은 시드를 받고, 기준 시드가 다르면 모든 문장의 시드가 달라진다. 첫 준비 호출은 통계에서
+# 빠지므로 시드와 상관없다.
+def test_synth_seed_sets_the_seed_of_each_sentence_id_right_before_it(tmp_path, monkeypatch):
+    fake_torch, heard = FakeTorch(), []
+    monkeypatch.setitem(sys.modules, "torch", fake_torch)
+    base = _seed_setup(tmp_path, monkeypatch, fake_torch, heard)
+    tts_eval.main([*base, "--tag", "s5", "--seed", "5"])
+    record = json.loads((tmp_path / "tts_s5_fake_synth.json").read_text(encoding="utf-8"))
+    items = record["languages"]["ko"]["items"]
+    expected = [(i, tts_eval.sentence_seed(5, i)) for i in (3, 7, 12)]  # sentences()는 ID 순서
+    assert record["seed"] == 5
+    assert [(item["id"], item["seed"]) for item in items] == expected
+    assert heard[1:] == [(f"문장 {i}.", seed) for i, seed in expected]  # heard[0]은 준비 호출
+
+    tts_eval.main([*base, "--tag", "s5_one", "--limit", "1", "--seed", "5"])
+    one = json.loads((tmp_path / "tts_s5_one_fake_synth.json").read_text(encoding="utf-8"))
+    assert [(item["id"], item["seed"]) for item in one["languages"]["ko"]["items"]] == expected[:1]
+
+    tts_eval.main([*base, "--tag", "s6", "--seed", "6"])
+    other = json.loads((tmp_path / "tts_s6_fake_synth.json").read_text(encoding="utf-8"))
+    six = {item["id"]: item["seed"] for item in other["languages"]["ko"]["items"]}
+    assert all(six[i] != seed for i, seed in expected)
+
+
+# 기본값(--seed 없음)은 지금까지의 측정과 같다: torch를 import하지도 시드를 걸지도 않는다(sys.modules의
+# torch를 None으로 두어 import하면 실패하게 함 — torch가 없는 후보 환경에서도 그대로 돈다). 기록의 seed는
+# None이고 문장 항목에는 seed 칸이 없다.
+def test_synth_without_seed_does_not_touch_the_random_state(tmp_path, monkeypatch):
+    heard: list = []
+    monkeypatch.setitem(sys.modules, "torch", None)
+    base = _seed_setup(tmp_path, monkeypatch, None, heard)
+    tts_eval.main([*base, "--tag", "plain"])
+    record = json.loads((tmp_path / "tts_plain_fake_synth.json").read_text(encoding="utf-8"))
+    assert record["seed"] is None
+    assert all("seed" not in item for item in record["languages"]["ko"]["items"])
+    assert [seed for _, seed in heard] == [None] * 4  # 준비 호출 + 세 문장
+
+
+# 문장 시드 = 기준 시드 × 2^32 + 문장 ID: 같은 (기준, ID)는 늘 같은 값이고, FLEURS ID 범위(0~2999)와 기준
+# 1·2·3에서 겹치는 값이 없으며 torch.manual_seed가 받는 범위(0 이상 2^64 미만) 안이다. 범위 밖 값과 정수가
+# 아닌 값(bool 포함)은 ValueError, 명령줄의 범위 밖 --seed는 argparse 오류(종료 코드 2)다.
+def test_sentence_seeds_are_fixed_by_the_id_and_never_collide():
+    assert tts_eval.sentence_seed(1, 7) == tts_eval.sentence_seed(1, 7) == 2**32 + 7
+    seeds = {tts_eval.sentence_seed(base, i) for base in (1, 2, 3) for i in range(3000)}
+    assert len(seeds) == 3 * 3000 and all(0 <= seed < 2**64 for seed in seeds)
+    for base, sentence_id in ((-1, 1), (2**32, 1), (True, 1), (1, -1), (1, 2**32), (1, "7"), (1, 7.0)):
+        with pytest.raises(ValueError):
+            tts_eval.sentence_seed(base, sentence_id)
+    for bad in ("-1", str(2**32), "x"):
+        with pytest.raises(SystemExit) as exit_info:
+            tts_eval.main(["synth", "--candidate", "fake", "--seed", bad])
+        assert exit_info.value.code == 2
+
+
+# 관문 계산(19절): 비트까지 같음은 dtype·모양·바이트가 모두 같을 때만이다(-0.0과 0.0은 값이 같아도 비트가 달라
+# 최대 절대 차 0이지만 같지 않음). 모양이 다르거나 한쪽에 NaN이 있으면 차를 무한대로 본다(관문에서 기각).
+def test_array_gap_tells_bit_identical_from_close_and_from_mismatched():
+    old = np.array([[0.5, -1.25], [3.0, 0.0]], dtype=np.float32)
+    assert tts_eval.array_gap(old, old.copy()) == (True, 0.0)
+    near = old.copy()
+    near[1, 0] += np.float32(3e-5)
+    same, gap = tts_eval.array_gap(old, near)
+    assert not same and gap == pytest.approx(3e-5, rel=1e-2)
+    negative_zero = old.copy()
+    negative_zero[1, 1] = -0.0
+    assert tts_eval.array_gap(old, negative_zero) == (False, 0.0)
+    assert tts_eval.array_gap(old, old.astype(np.float64)) == (False, 0.0)
+    assert tts_eval.array_gap(old, old[:1]) == (False, float("inf"))
+    with_nan = old.copy()
+    with_nan[0, 0] = np.nan
+    assert tts_eval.array_gap(old, with_nan) == (False, float("inf"))
+    assert tts_eval.array_gap(np.array([3, 1, 4]), np.array([3, 1, 4])) == (True, 0.0)  # input_ids 같은 정수
+
+
+# 19절 판정: 정확히 같아야 하는 확인((a) 토큰·(b) clean_text·(d) Kokoro 음소·(e) 적재·합성) 중 하나라도
+# 거짓이면 기각, 특징((c) BERT·(d) ALBERT)이 모두 비트까지 같으면 측정 없이 채택안, 가장 큰 차가 허용 폭 1e-4
+# 이하(경계 포함)면 관문 2, 넘으면 기각. 확인이 하나도 없으면 판정하지 않는다(ValueError).
+def test_the_gate_verdict_follows_the_registered_rule():
+    exact = {"tokens": True, "clean_text": True, "load": True}
+    same = {"bert": (True, 0.0), "albert": (True, 0.0)}
+    assert tts_eval.GATE_TOLERANCE == 1e-4
+    assert tts_eval.gate_verdict(exact, same) == "adopt"
+    assert tts_eval.gate_verdict(exact, {**same, "bert": (False, 0.0)}) == "gate2"
+    assert tts_eval.gate_verdict(exact, {**same, "bert": (False, 1e-4)}) == "gate2"
+    assert tts_eval.gate_verdict(exact, {**same, "bert": (False, 1.0001e-4)}) == "reject"
+    assert tts_eval.gate_verdict(exact, {**same, "albert": (False, float("inf"))}) == "reject"
+    assert tts_eval.gate_verdict({**exact, "clean_text": False}, same) == "reject"
+    for empty_exact, empty_features in (({}, same), (exact, {})):
+        with pytest.raises(ValueError):
+            tts_eval.gate_verdict(empty_exact, empty_features)

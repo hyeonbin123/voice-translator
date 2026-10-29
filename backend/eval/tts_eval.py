@@ -25,8 +25,10 @@ T78 시험에서는 합성을 API의 Linux 컨테이너 안에서 돌리는데(d
 # 비교는 같은 인식 모델로 해야 공정하다. 그래서 synth(후보 환경에서 합성해 WAV와 시간 기록을 남김)와
 # score(백엔드 환경에서 large-v3-turbo로 한꺼번에 재인식)를 나눴다(3절 방법).
 # [하위 명령] export: pyarrow가 없는 API 컨테이너용으로 문장을 JSON으로 내보냄(T78). synth: 후보 하나로
-# 합성(--stt-load면 다른 스레드에서 인식을 계속 돌리는 부하 아래서). score: 재인식·채점·보고서. timing: 재인식
-# 없이 속도만 요약(부하 실행용).
+# 합성(--stt-load면 다른 스레드에서 인식을 계속 돌리는 부하 아래서, --seed면 문장마다 그 문장 ID에서 정한
+# 시드로). score: 재인식·채점·보고서. timing: 재인식 없이 속도만 요약(부하 실행용).
+# [동일성 관문] array_gap·gate_verdict는 docs/experiments.md 19절(transformers 판 올리기 시험)이 측정 전에
+# 정한 판정 규칙을 그대로 계산한다. 관문을 돌리는 스크립트는 저장소 밖에 두고 이 함수들만 가져다 쓴다.
 # [설계 이유] 자연스러움은 자동으로 믿을 만하게 잴 방법이 없어 규칙에 넣지 않았고, 원문을 읽혀 참조 글자를
 # 정확히 해 오류가 합성 탓인지 알 수 있게 했다(3절 무엇을 재나·데이터). 재인식 CER은 자연스러움을 대신하지
 # 못한다는 한계가 있다.
@@ -36,6 +38,7 @@ from __future__ import annotations
 import argparse
 import io
 import json
+import math
 import os
 import re
 import statistics
@@ -202,23 +205,66 @@ def load_recognizer(device: str):
     return WhisperSpeechToText("large-v3-turbo", device=device, compute_type=compute_type, vad_filter=True)
 
 
+# synth --seed의 문장 시드 범위. 기준 시드(--seed)와 문장 ID가 각각 0 이상 2^32 미만이면 '기준 × 2^32 + ID'가
+# 서로 겹치지 않고 torch.manual_seed가 받는 범위(2^64 미만) 안에 든다. FLEURS의 문장 ID는 int32 열이다.
+SEED_LIMIT = 2**32
+
+
+# 문장 하나의 합성 시드: 상위 32비트는 기준 시드, 하위 32비트는 문장 ID다(docs/experiments.md 19절). 왜 ID에서
+# 정하나: 합성 순서나 --limit에 따라 시드가 바뀌면 같은 문장을 두 환경·두 실행에서 같은 잡음 표본으로 견줄 수
+# 없다. 문장 ID로 정하면 어떤 문장 묶음을 돌리든 같은 (기준, 문장)은 늘 같은 시드를 받는다. 해시 대신 이 꼴을
+# 쓴 것은 겹치지 않음이 범위만으로 보장되고 사람이 기록의 값을 바로 풀어 읽을 수 있어서다. 입력: base(기준
+# 시드), sentence_id(정수 문장 ID). 출력: 0 이상 2^64 미만의 정수. 주의: 정수가 아니거나(bool·float·문자열
+# 포함) 범위 밖이면 ValueError — 조용히 바꾸면 기록의 시드를 믿을 수 없다.
+def sentence_seed(base: int, sentence_id: int) -> int:
+    """기준 시드와 문장 ID로 정한 그 문장의 합성 시드(기준 × 2^32 + ID)."""
+    for name, value in (("seed", base), ("sentence id", sentence_id)):
+        if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value < SEED_LIMIT:
+            raise ValueError(f"the {name} must be an integer in [0, 2**32), got {value!r}")
+    return base * SEED_LIMIT + sentence_id
+
+
+# argparse의 --seed 형식 검사: 0 이상 2^32 미만의 정수만 받는다. 아니면 argparse 오류(종료 코드 2)로 멈춰, 긴
+# 합성을 시작한 뒤에야 sentence_seed가 실패하는 일을 막는다.
+def seed_argument(text: str) -> int:
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"not an integer: {text!r}") from None
+    if not 0 <= value < SEED_LIMIT:
+        raise argparse.ArgumentTypeError(f"must be in [0, 2**32), got {value}")
+    return value
+
+
 # synth 명령: 후보 하나로 언어마다 모든 문장을 합성해 WAV를 저장하고, 시간·메모리 기록을
 # reports/tts_<tag>_<후보>_synth.json에 쓴다.
 # 기록하는 것: 모델 적재 시간, 첫 호출(준비, 통계에서 뺌) 시간, 문장별 합성 시간·음성 길이·음성 1초당 합성
 # 시간, 실패, 세션 제공자(Supertonic), 장치 메모리의 적재 전 대비 차이(적재 뒤·마지막 문장 뒤). 적재·첫
 # 호출·실행 뒤 메모리는 T82에서 더했다(14절 방법).
+# --seed(기본 없음, docs/experiments.md 19절): 문장마다 합성 직전에 sentence_seed(기준, 문장 ID)로
+# torch.manual_seed를 불러, 호출마다 잡음을 새로 뽑는 MeloTTS(11절에서 확인)의 표본을 문장별로 고정한다.
+# 기록에 기준 시드(record["seed"])와 문장별 시드(item["seed"])가 남는다. 첫 준비 호출에는 시드를 걸지
+# 않는다(통계에서 빠지고, 다음 문장 전에 다시 시드를 걸므로 결과에 영향이 없다). 주의: torch 전역 난수만
+# 정하고 numpy 등 다른 난수는 건드리지 않는다. torch 문서대로 같은 시드여도 장치·커널에 따라 소리가 비트까지
+# 같다는 보장은 없다(잡음 표본을 고정하려는 것이다). 기본값이면 지금까지처럼 torch를 import하지도 시드를
+# 걸지도 않는다.
 def synth(args: argparse.Namespace) -> None:
     from eval.tts_candidates import CANDIDATES
 
     load, languages = CANDIDATES[args.candidate]
     if args.languages:  # 예: test 실행은 후보가 뽑힌 언어만 다룬다
         languages = [language for language in languages if language in args.languages]
+    seed = args.seed
+    torch = None
+    if seed is not None:  # 시드를 줄 때만 가져온다(torch가 없는 후보 환경도 기본값으로는 그대로 돈다)
+        import torch
     record: dict = {
         "tag": args.tag,
         "candidate": args.candidate,
         "split": args.split,
         "cpu_count": os.cpu_count(),
         "stt_load": bool(args.stt_load),
+        "seed": seed,
         "languages": {},
     }
     # 인식 부하용 모델은 언어 반복 밖에서 한 번만 올린다.
@@ -244,19 +290,24 @@ def synth(args: argparse.Namespace) -> None:
         # 문장마다 합성 시간을 잰다. 예외가 나도 멈추지 않고 실패로 세어 다음 문장으로 간다(실패 수가 판정
         # 조건이라 끝까지 세야 한다). 실패한 문장은 score에서 빈 결과(전부 틀림)로 센다.
         for row in rows:
+            item: dict = {"id": row["id"]}
+            if torch is not None:
+                # 시간을 재기 전에 건다(시드 걸기는 합성 시간에 넣지 않는다).
+                item["seed"] = sentence_seed(seed, row["id"])
+                torch.manual_seed(item["seed"])
             start = time.perf_counter()
             try:
                 audio = model.synthesize(row["raw_transcription"], language)
             except Exception as exc:  # noqa: BLE001 - 실패를 모두 세고 계속한다
                 failures += 1
-                items.append({"id": row["id"], "failure": f"{type(exc).__name__}: {exc}"})
+                items.append({**item, "failure": f"{type(exc).__name__}: {exc}"})
                 continue
             elapsed = time.perf_counter() - start
             (out / f"{row['id']}.wav").write_bytes(audio.wav)
             seconds = wav_seconds(audio.wav)
             items.append(
                 {
-                    "id": row["id"],
+                    **item,
                     "synth_s": round(elapsed, 3),
                     "audio_s": round(seconds, 2),
                     "per_audio_second": round(elapsed / seconds, 4) if seconds else None,
@@ -835,9 +886,59 @@ def melo_stages(args: argparse.Namespace) -> None:
     print(f"written to {md}")
 
 
+# 19절(transformers 판 올리기 시험) 관문 1의 허용 폭: BERT·ALBERT 특징(fp32 CPU)의 최대 절대 차가 이 값
+# 이하이면 관문 2(합성 재인식)로 가고, 넘으면 그 판을 기각한다. 측정 전에 19절에 적은 값이다.
+GATE_TOLERANCE = 1e-4
+
+
+# 옛 환경과 새 환경이 낸 배열 하나를 견준다. 돌려주는 것: (비트까지 같은가, 최대 절대 차). 비트까지 같음 =
+# dtype·모양·바이트가 모두 같음. -0.0과 0.0, float32와 float64처럼 값은 같아도 비트가 다르면 (거짓,
+# 0.0)이다(19절 판정은 '비트까지 같음'일 때만 측정 없이 채택안으로 가므로 값 비교로 갈음하지 않는다). 모양이
+# 다르면 견줄 수 없어 차를 무한대로, 한쪽에만 NaN이 있으면(비트가 같지 않은 NaN) 역시 무한대로 본다 — 둘 다
+# 관문에서 기각이 된다. 정수 배열(input_ids·음소 번호)도 받는다(차는 float64로 계산).
+def array_gap(old, new) -> tuple[bool, float]:
+    """(비트까지 같은가, 최대 절대 차). 모양이 다르거나 NaN이 섞이면 차는 무한대."""
+    import numpy as np
+
+    old, new = np.asarray(old), np.asarray(new)
+    if old.dtype == new.dtype and old.shape == new.shape and old.tobytes() == new.tobytes():
+        return True, 0.0
+    if old.shape != new.shape:
+        return False, math.inf
+    if old.size == 0:  # 빈 배열인데 dtype만 다름
+        return False, 0.0
+    gap = np.abs(old.astype(np.float64) - new.astype(np.float64))
+    if np.isnan(gap).any():
+        return False, math.inf
+    return False, float(gap.max())
+
+
+# 19절 관문 1의 판정을 계산한다. exact: 정확히 같아야 하는 확인의 결과({이름: 참/거짓}, 예: (a)
+# 토큰·input_ids, (b) clean_text, (d) Kokoro 음소, (e) 적재·한 문장 합성). features: 특징 비교({이름:
+# array_gap 결과}, (c) BERT·(d) ALBERT — 문장이 여럿이면 부르는 쪽이 모두 비트까지 같은지와 가장 큰 차로
+# 모아서 넘긴다). 돌려주는 것: "reject"(exact 중 하나라도 거짓, 또는 가장 큰 차 > tolerance — 그 판 기각),
+# "adopt"(특징이 모두 비트까지 같음 — 측정 없이 채택안), "gate2"(0 < 차 ≤ tolerance, 경계 포함 — 시드 3개 합성
+# 재인식 관문으로). 주의: 둘 중 하나라도 비어 있으면 아무것도 확인하지 않은 것이라 판정하지 않고 ValueError.
+# 차가 NaN이면 '허용 폭 이하'가 아니므로 기각이다(not gap <= tolerance).
+def gate_verdict(
+    exact: dict[str, bool], features: dict[str, tuple[bool, float]], tolerance: float = GATE_TOLERANCE
+) -> str:
+    """19절 관문 1 판정: reject·adopt·gate2."""
+    if not exact or not features:
+        raise ValueError("the gate needs both the exact checks and the feature comparisons")
+    if not all(exact.values()):
+        return "reject"
+    if all(same for same, _ in features.values()):
+        return "adopt"
+    if any(not gap <= tolerance for _, gap in features.values()):
+        return "reject"
+    return "gate2"
+
+
 # 명령줄 진입점. 하위 명령 export·synth·score·timing·melo-stages를 고른다. synth의 --languages는 고른 언어만
-# 확인 측정할 때(예: test에서 한국어만), --stt-load·--stt-load-device는 인식 부하 실행에 쓴다.
-def main() -> None:
+# 확인 측정할 때(예: test에서 한국어만), --stt-load·--stt-load-device는 인식 부하 실행에, --seed는 문장별 시드
+# 고정(19절)에 쓴다. argv: 테스트가 명령줄 대신 넘기는 인자 목록(None이면 sys.argv).
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser()
     phases = parser.add_subparsers(dest="phase", required=True)
     export_parser = phases.add_parser("export", help="pyarrow가 없는 환경을 위해 문장을 JSON으로 쓴다")
@@ -855,6 +956,14 @@ def main() -> None:
         "--stt-load", type=Path, help="합성하는 동안 인식할 <language>_<id>.wav 클립 폴더"
     )
     synth_parser.add_argument("--stt-load-device", choices=["cuda", "cpu"], default="cuda")
+    synth_parser.add_argument(
+        "--seed",
+        type=seed_argument,
+        default=None,
+        help="기준 시드(0 이상 2^32 미만). 주면 문장마다 합성 직전에"
+        " torch.manual_seed(기준 × 2^32 + 문장 ID)를 불러 같은 문장은 늘 같은 잡음 표본으로 합성한다(torch"
+        " 전역 난수만, docs/experiments.md 19절). 기본: 시드를 걸지 않음(지금까지의 측정과 같음)",
+    )
     score_parser = phases.add_parser("score", help="한 태그의 모든 후보 음성을 다시 인식해 채점한다")
     score_parser.add_argument("--tag", default="run")
     timing_parser = phases.add_parser("timing", help="인식 없이 한 태그의 속도를 요약한다")
@@ -882,7 +991,7 @@ def main() -> None:
         " on: 처음부터 켠 채로. alternate: 문장마다 같은 글을 끔·켬 두 조건으로 재고 먼저 재는 조건을"
         " 문장마다 바꾼다 (docs/experiments.md 18절)",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     commands = {
         "export": export,
         "synth": synth,
