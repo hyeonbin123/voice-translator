@@ -204,10 +204,10 @@ jobs:
   #   읽음), MeloTTS는 PyPI에 없는 git 의존성이라 뺀다. 고칠 판이 없거나 올릴 수 없거나 이 서비스와 상관없는 권고는
   #   ID로 제외한다(판단은 docs/security.md '의존성 취약점'): PYSEC-2026-3740(nltk, 사용자 입력 경로로 모델을 읽고
   #   쓰지 않음), PYSEC-2026-3447(setuptools, macOS에서 sdist를 만들 때만 해당), GHSA-xmj3-9gf7-h52w(setuptools
-  #   84.1.0 미만: Windows에서 옛 egg 방식으로 조작된 wheel을 설치할 때만 해당, 서버 환경은 torch cu128이
-  #   setuptools<82를 요구해 올릴 수 없음), CVE-2026-112940·CVE-2026-112913·CVE-2026-112907(filelock 4.2.1 미만:
-  #   ReadWriteLock·SoftFileLock을 다른 계정과 공유하는 폴더에서 쓸 때만 해당, 이 서비스는 모델 내려받기의
-  #   FileLock만 간접으로 쓰고 MeloTTS의 cached-path가 filelock<4.0을 요구해 올릴 수 없음)
+  #   84.1.0 미만: Windows에서 옛 egg 방식으로 조작된 wheel을 설치할 때만 해당. 서버 환경에만 남는다 — torch
+  #   cu128이 setuptools<82를 요구하고 MeloTTS의 중국어 전처리(cn2an·jieba)가 pkg_resources를 써서 올릴 수 없음.
+  #   도구 환경은 eval 그룹의 하한으로 84.1.0 이상). filelock은 2026-10-30부터 pyproject의 override-dependencies로
+  #   4.2.1 이상이라(cached-path의 filelock<4.0을 덮음) 2026-10-24에 제외했던 CVE 3개를 목록에서 뺐다
   # - npm은 배포되는 의존성과 개발 도구를 함께 본다(moderate 이상). Python 단계가 실패해도 돌게 해(`!cancelled()`)
   #   두 결과가 따로 남는다(전에는 Python 실패 뒤 건너뛰어 npm 결과가 기록되지 않았다)
   audit:
@@ -230,8 +230,7 @@ jobs:
           for requirements in /tmp/server.txt /tmp/tools.txt; do
             uvx pip-audit==2.10.1 -r "$requirements" --disable-pip --no-deps \
               --ignore-vuln PYSEC-2026-3740 --ignore-vuln PYSEC-2026-3447 \
-              --ignore-vuln GHSA-xmj3-9gf7-h52w \
-              --ignore-vuln CVE-2026-112940 --ignore-vuln CVE-2026-112913 --ignore-vuln CVE-2026-112907
+              --ignore-vuln GHSA-xmj3-9gf7-h52w
           done
 
       - uses: actions/setup-node@v7

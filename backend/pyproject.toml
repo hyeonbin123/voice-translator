@@ -35,6 +35,10 @@ eval = [
     "sacrebleu>=2.4",
     "torch>=2.14.0",
     "transformers>=4.57",
+    # 보안 하한(도구가 직접 쓰지 않음): 위 torch가 끌어오는 setuptools를 GHSA-xmj3-9gf7-h52w를 고친 84.1.0
+    # 이상으로 잠근다. 서버 환경(tts 그룹)은 torch 2.11.0+cu128이 setuptools<82를 요구해 81.0.0에 남는다
+    # (docs/security.md '의존성 취약점' 2026-10-30 덧붙임). tests/test_lock_security_floors.py가 지킨다.
+    "setuptools>=84.1.0",
 ]
 gpu = [
     # CUDA 12 builds; torch 2.11+cu128 (tts group) pins cuBLAS 12.8.4.1, which CTranslate2 also accepts.
@@ -68,6 +72,13 @@ override-dependencies = [
     "mecab-python3; sys_platform != 'win32'",
     # The full unidic dictionary needs a separate 770 MB download; unidic-lite (also required) is enough.
     "unidic; sys_platform == 'never'",
+    # MeloTTS가 고정한 cached-path 1.8.10은 filelock<4.0을 요구하지만, filelock 3.x에는 2026-10에 공개된 권고
+    # 13건(CVE-2026-112907 등)을 고친 판이 없다(고친 판 4.2.1, 하나는 4.0.9). 그 상한을 덮어 모든 환경이 4.x를
+    # 쓰게 한다. cached-path가 쓰는 FileLock API는 4.x에서도 같고(3.32.6 → 4.0.0에서 바뀐 것은 소프트 읽기·쓰기
+    # 잠금·리스·asyncio 쪽), 서버 이미지 안에서 cached-path·huggingface_hub·torch의 잠금 사용을 4.2.4로 확인했다
+    # (docs/security.md '의존성 취약점' 2026-10-30 덧붙임). MeloTTS나 cached-path를 바꿀 때 이 줄을 다시 본다.
+    # tests/test_lock_security_floors.py가 잠금의 판을 지킨다.
+    "filelock>=4.2.1",
 ]
 
 [[tool.uv.index]]
