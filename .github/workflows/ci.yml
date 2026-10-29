@@ -69,6 +69,8 @@ jobs:
       # - test_mt_decide·test_significance_corpus·test_reanalysis: sacrebleu·jiwer가 필요하다.
       # - test_mbr: MBR 디코딩 시험 도구(eval/mbr.py)의 효용이 sacrebleu 문장 chrF와 같은지와 판정 규칙을 보고,
       #   측정 팔을 만드는 eval.mt_eval을 불러온다(그 모듈은 머리에서 sacrebleu와 pyarrow.parquet를 import한다).
+      # - test_register_eval: 말투 후처리 시험 도구(eval/register_eval.py)의 판정이 sacrebleu chrF·spBLEU를 쓰고,
+      #   COMET 키를 eval.reanalysis(머리에서 jiwer·sacrebleu를 import)에서 가져온다.
       # - test_ort_swap_check: 교체 점검 도구(eval/ort_swap_check.py)가 복사해 둔 무음·잡음 입력이
       #   eval/stt_eval.py의 것과 바이트까지 같은지 보는 테스트가 eval.stt_eval을 불러온다. 그 모듈은 머리에서
       #   jiwer와 pyarrow.parquet를 import하므로(나머지 faster-whisper·av·numpy는 주 의존성) 위 실행에서는 이
@@ -78,7 +80,7 @@ jobs:
         run: >-
           uv run --with sacrebleu==2.6.0 --with jiwer==4.0.0 --with pyarrow==25.0.1
           pytest -q -rs tests/test_mt_decide.py tests/test_significance_corpus.py tests/test_reanalysis.py
-          tests/test_ort_swap_check.py tests/test_mbr.py
+          tests/test_ort_swap_check.py tests/test_mbr.py tests/test_register_eval.py
 
       # MeloTTS 한국어 전처리(g2pkk)의 정규식 캐시(app/services/tts.py _cache_g2pkk_regex)를 켜기 전후로 실제
       # g2pkk의 출력이 같은지 보는 테스트는 맨 위 Test 단계에서 건너뛴다: g2pkk와 형태소 분석기(python-mecab-ko와
@@ -95,6 +97,15 @@ jobs:
         run: >-
           uv run --with g2pkk==0.1.2 --with python-mecab-ko==1.3.7 --with python-mecab-ko-dic==2.1.1.post2
           --with jamo==0.4.1 --with nltk==3.10.3 pytest -q -rs tests/test_g2pkk_regex_cache.py
+
+      # 영→한 말투 후처리(app/services/register.py, KO_REGISTER=formal)를 실제 형태소 분석기로 보는 테스트(실제
+      # 문장의 활용·그대로 두는 경우·멱등)는 맨 위 Test 단계에서 건너뛴다: 분석기 python-mecab-ko와 그 사전은 tts
+      # 그룹에만 있다. 두 패키지만 uv.lock과 같은 판으로 얹어 이 파일을 다시 돌린다(가짜 형태소 열 테스트는 위에서도
+      # 돈다). -rs로 건너뜀이 0인지 로그에서 본다.
+      - name: Test the formal register rules against the real morphological analyzer
+        run: >-
+          uv run --with python-mecab-ko==1.3.7 --with python-mecab-ko-dic==2.1.1.post2
+          pytest -q -rs tests/test_register.py
 
       - name: Migrate development database
         run: uv run alembic upgrade head

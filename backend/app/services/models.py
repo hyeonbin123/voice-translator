@@ -82,9 +82,24 @@ def load_translation(settings: Settings, engine: dict) -> Translator:
     영→한만 문장 단위로 번역한다: opus-mt가 여러 문장 입력에서 문장을 빠뜨려 나눠 번역하니 누락이 줄었고,
     한→영은 차이가 없었다(README 설계 판단). Hy-MT2를 쓰면 서버 시작이 Ollama가 그 모델로 답할 때까지
     HYMT_PREPARE_TIMEOUT_S만큼 기다리고(compose가 두 컨테이너를 함께 시작하므로), Ollama에 HYMT_DIGEST와
-    다른 빌드가 있으면 바로 멈춘다.
+    다른 빌드가 있으면 바로 멈춘다. KO_REGISTER=formal이면 영→한 번역기(opus든 Hy-MT2든)를
+    FormalRegisterTranslator로 감싸 문장 끝 말투를 합쇼체로 맞춘다(docs/experiments.md 21절, 기본 asis는
+    감싸지 않음).
     """
-    from app.services.translation import DirectionalTranslator, HyMtTranslator, MarianTranslator
+    from app.services.translation import (
+        DirectionalTranslator,
+        FormalRegisterTranslator,
+        HyMtTranslator,
+        MarianTranslator,
+    )
+
+    # 말투 후처리의 형태소 분석기를 번역 모델보다 먼저 올린다: python-mecab-ko가 없으면 GPU에 모델을 올리기
+    # 전에 분명한 오류(ModelError)로 시작을 멈춘다(번역은 필수라, 설정한 후처리 없이 몰래 뜨지 않게).
+    formalize = None
+    if settings.ko_register == "formal":
+        from app.services import register
+
+        formalize = register.load_formalizer()
 
     # Hy-MT2 번역기를 만들고, Ollama에 모델이 준비될 때까지(또는 HYMT_PREPARE_TIMEOUT_S가 지날 때까지)
     # 기다린다. 끝내 준비되지 않으면 ModelError가 올라가 서버가 뜨지 않는다(번역은 필수).
@@ -111,6 +126,8 @@ def load_translation(settings: Settings, engine: dict) -> Translator:
         )
     else:
         en_ko = hymt(by_sentence=settings.en_ko_translation == "hy-mt2-split")
+    if formalize is not None:
+        en_ko = FormalRegisterTranslator(en_ko, formalize)
     return DirectionalTranslator({("ko", "en"): ko_en, ("en", "ko"): en_ko})
 
 

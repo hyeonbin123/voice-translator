@@ -424,6 +424,7 @@ backend 폴더에서 `uv sync` 후 `uv run alembic upgrade head`를 실행해 �
 | `HYMT_DIGEST` | 없음 | 기대하는 모델 빌드(Ollama `/api/tags`의 digest). 주면 다른 빌드일 때 서버가 바로 멈춘다. 측정한 빌드는 docs/experiments.md 15절에 적는다 |
 | `HYMT_TIMEOUT_S` | `30` | Hy-MT2 번역 요청 하나의 제한 시간(초). 넘으면 그 번역은 실패(503)한다 |
 | `HYMT_PREPARE_TIMEOUT_S` | `300` | 시작할 때 Ollama와 모델을 기다리는 최대 시간(초) |
+| `KO_REGISTER` | `asis` | 영→한 번역 결과의 문장 끝 말투. `asis`는 번역 모델이 낸 그대로, `formal`은 문장 끝의 해라체 평서(…다·…ㄴ다·…는다)를 합쇼체(…습니다·…ㅂ니다)로 바꾼다. 영→한은 문장마다 따로 번역해(2-1절) 한 응답 안에서 말투가 섞일 수 있어 그것을 맞추려는 시험 설정이다. 형태소 분석기 python-mecab-ko(서버 이미지에 있음)로 문장 끝 어절의 어미만 바꾸고, 따옴표·괄호 안, 의문·명령·청유, 이미 높임인 끝, 문장 가운데는 그대로 둔다. 동시통역 자막과 최종 번역에 모두 걸리고, 번역 기록·상태 확인의 영→한 모델 이름 끝에 `+formal`이 붙는다. `formal`인데 분석기가 없으면 서버가 뜨지 않는다. 효과는 아직 재지 않아 기본은 `asis`이고(docs/experiments.md 21절), `asis`면 이 설정이 없던 때와 같다 |
 | `TTS_ENABLED` | `true` | 끄면 음성 합성 없이 뜨고 응답에 `tts_error`가 들어간다 |
 | `KO_TTS` | `melo` | 한국어 음성 합성 모델. `melo`(MeloTTS, GPU) 또는 `supertonic`(Supertonic 3, 기본은 CPU이고 `SUPERTONIC_PROVIDER=cuda`면 GPU. 두 시험 모두 채택하지 않은 비교용 설정: 이 PC의 CPU에서는 GPU의 MeloTTS보다 빠르지 않았고(docs/experiments.md 12절), GPU에서는 2단계 설정(`SUPERTONIC_STEPS=2`)이 빨랐지만 재인식 오류율이 MeloTTS보다 크게 높았고(GPU 탓인지 2단계 탓인지는 가리지 못함), 기본 8단계는 문장당 합성 속도 관문(0.3초)에서 떨어져 오류율을 재지 않았다(14절)). `supertonic`이면 한국어 합성이 모델 스레드가 아니라 합성 전용 스레드에서 한 번에 하나씩 돈다. 모델은 OpenRAIL-M이라 README의 이용 제한 고지를 따른다 |
 | `SUPERTONIC_DIR` | `<프로젝트>/data/models/supertonic-3` | Supertonic 3 파일 폴더(`eval.supertonic_download`로 받음). 올릴 때 파일마다 고정한 SHA-256을 확인하고, 다르면 합성을 끈 채 뜬다 |

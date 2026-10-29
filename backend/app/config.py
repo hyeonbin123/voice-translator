@@ -75,6 +75,13 @@ class Settings(BaseSettings):
     hymt_digest: str | None = None
     hymt_timeout_s: float = Field(default=30, gt=0)
     hymt_prepare_timeout_s: float = Field(default=300, gt=0)
+    # 영→한 번역 결과의 문장 끝 말투. asis는 번역 모델이 낸 그대로, formal은 문장 끝의 해라체
+    # 평서(…다·…ㄴ다·…는다)를 합쇼체(…습니다·…ㅂ니다)로 바꾼다(app/services/register.py, 형태소 분석기
+    # python-mecab-ko). 영→한은 문장마다 따로 번역해(docs/experiments.md 2-1절) 한 응답 안에서 말투가 섞일 수
+    # 있어 그것을 맞추려는 시험 설정이다. 측정 규칙(21절)을 먼저 정해 잰 뒤 기본값을 정하므로 지금은 asis이고,
+    # asis면 이 설정이 없던 때와 같다. formal인데 python-mecab-ko(서버 이미지의 tts 그룹에 있음)가 없으면 서버
+    # 시작이 멈춘다.
+    ko_register: Literal["asis", "formal"] = "asis"
     # 끄면 음성 합성 모델을 올리지 않고, 번역 응답에 tts_error가 들어가 화면이 브라우저 내장 음성으로 읽는다.
     tts_enabled: bool = True
     # 한국어 합성 모델 선택. 기본은 GPU에서 도는 MeloTTS(측정으로 고름)다. supertonic(Supertonic 3, CPU)은

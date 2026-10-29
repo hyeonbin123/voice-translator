@@ -13,7 +13,8 @@
 # [연결] services/models.load_translation이 서비스용 번역기를 만들고, eval/mt_eval.py가 후보를 비교하며,
 # eval/mt_convert.py가 변환 뒤 토큰 확인에 이 파일의 토큰화 함수를 쓴다. MarianTranslator.candidates(빔 탐색의
 # n-best 후보)는 디코딩 시험(docs/experiments.md 20절)의 eval/mbr.py만 쓰고, 서비스 경로(translate)는 빔 4의
-# 1-best 그대로다.
+# 1-best 그대로다. FormalRegisterTranslator(말투 후처리 감싸개, 21절)는 KO_REGISTER=formal일 때만
+# services/models.py가 영→한 번역기에 씌운다(기본 asis는 감싸지 않음).
 
 from __future__ import annotations
 
@@ -492,3 +493,33 @@ class DirectionalTranslator:
         if model is None:
             raise ModelError(f"no translation model for {source}->{target}")
         return model.translate(text, source, target)
+
+
+class FormalRegisterTranslator:
+    """번역기를 감싸, 한국어 번역 결과의 문장 끝 해라체 평서를 합쇼체로 바꿔 돌려준다(KO_REGISTER=formal).
+
+    영→한은 문장마다 따로 번역해(docs/experiments.md 2-1절) 한 응답 안에서 '…있다. …있습니다.'처럼 말투가 섞일
+    수 있어, 그것을 맞추는 시험 설정이다(21절). 후처리 규칙은 app/services/register.py에 있고, 여기서는 받은
+    함수(formalize: 글 → 글)를 부르기만 한다. 서비스는 영→한 번역기 하나를 감싸므로(services/models.py)
+    동시통역 자막과 최종 번역 모두에 걸리고, 감싼 번역기(MarianTranslator·HyMtTranslator)는 바꾸지 않는다.
+    도착 언어가 한국어가 아니면 그대로 돌려준다. 감싼 번역기의 실패는 그대로 올리고, 후처리 안의 실패(분석기
+    오류 등)는 _guarded처럼 번역 실패(ModelError, API 503)로 바꾸며, 바꾼 결과가 비면 빈 번역 실패다.
+    model_name 끝의 '+formal'이 번역 기록·/api/health에 남아 후처리를 건 결과인지 알 수 있다.
+    """
+
+    def __init__(self, inner: Translator, formalize: Callable[[str], str]) -> None:
+        self._inner = inner
+        self._formalize = formalize
+        self.model_name = f"{inner.model_name}+formal"
+
+    def translate(self, text: str, source: Language, target: Language) -> str:
+        translation = self._inner.translate(text, source, target)
+        if target != "ko":
+            return translation
+        try:
+            formal = self._formalize(translation)
+        except ModelError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - 후처리를 감싸는 예외 경계(번역 실패로 바꿈)
+            raise ModelError(f"the formal register conversion failed: {type(exc).__name__}") from exc
+        return _nonempty(formal)

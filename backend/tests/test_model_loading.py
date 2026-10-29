@@ -8,6 +8,7 @@
 # README의 수치가 서비스에 들어맞지 않는다.
 
 import logging
+import sys
 import threading
 
 # httpx: 실제 OllamaCorrector의 HTTP를 MockTransport로 바꿀 때 쓴다. ValidationError: 잘못된 설정값이 Settings
@@ -17,10 +18,11 @@ import pytest
 from pydantic import ValidationError
 
 # main: lifespan과 gc.freeze 호출을 시험한다. models·stt·translation·tts·correction: 모델 클래스를 대역으로
-# 바꿀 모듈들. inference: 모델 스레드 풀 크기를 확인한다.
+# 바꿀 모듈들. register: 말투 후처리 분석기를 올리는 함수를 대역으로 바꾼다. inference: 모델 스레드 풀 크기를
+# 확인한다.
 from app import main
 from app.config import Settings
-from app.services import correction, inference, models, stt, translation, tts
+from app.services import correction, inference, models, register, stt, translation, tts
 from app.services.interfaces import ModelError
 from app.services.pipeline import PipelineModels
 from tests.fakes import FakeSpeechToText, FakeTextToSpeech, FakeTranslator
@@ -107,6 +109,35 @@ def test_only_english_to_korean_translates_sentence_by_sentence(fake_model_class
         if name == "Marian"
     }
     assert marian == {"opus-mt-tc-big-en-ko": True, "opus-mt-tc-big-ko-en": False}
+
+
+# 영→한 말투 후처리(KO_REGISTER, docs/experiments.md 21절)는 기본 asis라 번역기를 감싸지 않는다: 이 설정이
+# 없던 때와 같은 번역기 묶음이다. 측정으로 효과를 보기 전에는 기본값을 바꾸지 않는다.
+def test_korean_register_is_left_as_it_is_by_default(fake_model_classes):
+    bundle = models.load_models(Settings(model_device="cpu", tts_enabled=False))
+    assert bundle.translator.model_name == "ko->en: Marian, en->ko: Marian"
+
+
+# formal이면 영→한 번역기만 FormalRegisterTranslator로 감싼다(한→영은 그대로). 감싼 것은 model_name 끝의
+# '+formal'로 기록·상태 확인에 드러난다.
+def test_the_formal_register_wraps_only_english_to_korean(fake_model_classes, monkeypatch):
+    monkeypatch.setattr(register, "load_formalizer", lambda: lambda text: text)
+    bundle = models.load_models(Settings(model_device="cpu", tts_enabled=False, ko_register="formal"))
+    assert bundle.translator.model_name == "ko->en: Marian, en->ko: Marian+formal"
+
+
+# formal인데 형태소 분석기(python-mecab-ko)가 없으면 번역 모델을 올리기 전에 분명한 오류로 시작을
+# 멈춘다(번역은 필수라 후처리 없이 몰래 뜨지 않는다).
+def test_the_formal_register_without_the_analyzer_stops_startup(fake_model_classes, monkeypatch):
+    monkeypatch.setitem(sys.modules, "mecab", None)
+    with pytest.raises(ModelError, match="python-mecab-ko"):
+        models.load_models(Settings(model_device="cpu", tts_enabled=False, ko_register="formal"))
+    assert [name for name, _, _ in fake_model_classes if name == "Marian"] == []
+
+
+def test_an_unknown_korean_register_is_rejected():
+    with pytest.raises(ValidationError):
+        Settings(ko_register="polite")
 
 
 # 합성 모델이 올라가지 못하면(예: GPU 메모리 부족) 서버는 합성 없이 뜨고 경고 로그를 남긴다. 인식·번역은
