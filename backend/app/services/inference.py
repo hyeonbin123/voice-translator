@@ -14,7 +14,10 @@
 # [설계 이유] 위 docstring 그대로, 비동기 핸들러 안에서 모델을 직접 부르면 그동안 서버의 다른 요청이 모두
 # 멈춘다(위 docstring: 앞선 rag-doc-qa 프로젝트에서 잰 문제). 용도별로 실행기를 나눈 것은 서로 다른 자원을
 # 쓰는 작업이 한 대기열에서 서로를 기다리지 않게 하려는 것이다.
-# [연결] services/pipeline.py, routers/translate.py, routers/live.py가 run_model 등을 await한다.
+# [연결] services/pipeline.py, routers/translate.py, routers/live.py가 run_model 등을 await한다. 모델 실행기
+# 셋(run_model·run_live_model·run_synthesis)은 호출이 끝날 때마다 결과를 services/model_health.py에 알려,
+# /api/health가 모델 호출의 연속 실패를 보이고 CUDA 문맥 오류면 프로세스가 끝나게 한다(오타 교정은 알리지
+# 않음).
 
 import asyncio
 from collections.abc import Callable
@@ -23,6 +26,7 @@ from functools import lru_cache, partial
 from typing import TypeVar
 
 from app.config import get_settings
+from app.services import model_health
 
 # T: 넘긴 함수의 반환 타입을 run_* 의 반환 타입으로 그대로 이어 주는 타입 변수.
 T = TypeVar("T")
@@ -42,12 +46,32 @@ def _model_threads() -> ThreadPoolExecutor:
 # 비워 음성 같은 큰 인수를 놓아준다. 나중에 스레드가 그 작업에 닿으면 빈 칸을 보고 아무것도 하지 않는다.
 # 이렇게 하지 않으면 동시통역의 pause/resume가 반복될 때 취소된 작업이 마디 전체 음성을 그때까지 붙잡고 있게
 # 된다.
-async def _run(executor: ThreadPoolExecutor, fn: Callable[..., T], *args) -> T:
+# 모델 상태 기록(watched=True, 모델 실행기 셋): 실행 스레드 안에서 호출이 끝나는 대로
+# model_health.MODEL_HEALTH에 알린다. 스레드 안에서 하므로 기다리던 쪽이 취소된 뒤 끝난 호출도 빠짐없이
+# 기록된다(돌기 전에 취소돼 빈 칸이 된 작업은 아무것도 하지 않았으니 기록하지 않는다). 실패는 예외를 넘겨
+# 분류를 맡기고(엔진 오류만 세고, 끈적이는 CUDA 오류면 프로세스를 끝냄) 예외는 그대로 다시 올린다. 성공은
+# 결과가 None이 아닐 때만 '모델 성공'으로 알린다: 모델 호출은 모두 값을 돌려주지만(인식 결과, 번역문, 합성
+# 음성, 언어 판별, 자막 글, 또는 pipeline._timed의 (결과, ms)), 같은 실행기에서 도는 음성
+# 검사(pipeline.validate_audio)는 모델을 쓰지 않고 None을 돌려준다. 이것까지 성공으로 치면 GPU가 고장 난
+# 동안에도 음성 요청마다 검사가 연속 실패 수를 지워 한도에 닿지 않는다. 진단용 단계 기록(pipeline.stage)이
+# 함수를 감싸도 결과는 그대로라 같게 동작한다.
+async def _run(executor: ThreadPoolExecutor, fn: Callable[..., T], *args, watched: bool = True) -> T:
     job: list[Callable[[], T] | None] = [partial(fn, *args)]
 
     def call() -> T | None:
         queued = job[0]
-        return None if queued is None else queued()
+        if queued is None:
+            return None
+        if not watched:
+            return queued()
+        try:
+            result = queued()
+        except Exception as exc:
+            model_health.MODEL_HEALTH.record_failure(exc)
+            raise
+        if result is not None:
+            model_health.MODEL_HEALTH.record_success()
+        return result
 
     try:
         return await asyncio.get_running_loop().run_in_executor(executor, call)
@@ -99,6 +123,9 @@ def _correction_thread() -> ThreadPoolExecutor:
     return ThreadPoolExecutor(max_workers=1, thread_name_prefix="correction")
 
 
+# 교정의 결과는 모델 상태(/api/health의 연속 실패)에 넣지 않는다(watched=False): Ollama는 다른 프로세스라 이
+# 프로세스의 모델·GPU 문맥 상태를 말해 주지 않고, 교정이 실패해도 입력 그대로 번역하므로 서비스가 멈추지
+# 않는다.
 async def run_correction(fn: Callable[..., T], *args) -> T:
     """오타 교정(Ollama에 보내는 막는 HTTP 호출)을 전용 스레드에서 실행한다.
 
@@ -107,4 +134,4 @@ async def run_correction(fn: Callable[..., T], *args) -> T:
     글자 요청들이 모델이 쓰는 GPU에 Ollama 작업을 겹겹이 쌓지 않는다. 교정이 도는 중에 요청이 취소돼도
     스레드를 멈출 수는 없으므로, 다음 교정은 그 교정이 끝나기를 기다린다.
     """
-    return await _run(_correction_thread(), fn, *args)
+    return await _run(_correction_thread(), fn, *args, watched=False)

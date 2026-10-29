@@ -351,7 +351,7 @@ access 헤더 없이 refresh 토큰을 JSON으로 보낸다.
 
 ### GET /api/health
 
-인증이 필요 없다. DB에 `SELECT 1`을 보내(2초 제한) 연결을 확인하고, 올라간 모델의 이름을 알려 준다. 응답 `200 OK` 예:
+인증이 필요 없다. DB에 `SELECT 1`을 보내(2초 제한) 연결을 확인하고, 올라간 모델의 이름을 알려 준다. 모델을 올린 서버(`LOAD_MODELS=true`)는 모델 호출이 연이어 실패하는지도 알려 준다. 응답 `200 OK` 예(모델을 올린 서버):
 
 ```json
 {
@@ -364,15 +364,20 @@ access 헤더 없이 refresh 토큰을 JSON으로 보낸다.
     "typo_correction": "ollama/qwen2.5:1.5b-instruct"
   },
   "typo_correction_ready": true,
-  "live": true
+  "live": true,
+  "models_ok": true,
+  "consecutive_model_failures": 0
 }
 ```
 
 - DB에 닿지 못하면 `503 Service Unavailable`, `status`와 `database`가 `"unavailable"`이다. 이유는 서버 로그에만 남긴다(메시지 없이 종류와 위치만)
-- 모델을 올리지 않았으면(`LOAD_MODELS=false`, 테스트·CI) `models`의 값이 모두 `null`이고 번역 요청은 503이다
+- 모델을 올리지 않았으면(`LOAD_MODELS=false`, 테스트·CI) `models`의 값이 모두 `null`이고 번역 요청은 503이다. 이때는 `models_ok`·`consecutive_model_failures`가 없고, 응답과 상태 코드가 이 두 필드가 생기기 전과 같다
 - `typo_correction_ready`: 오타 교정 모델은 서버 시작을 기다리지 않고 뒤에서 준비하므로(T37) 준비됐는지 따로 알린다
 - `live`: 동시통역 웹소켓(`/api/translate/live`)을 쓸 수 있는지(자막 갱신용 인식과 번역 모델이 있음)
-- `LOAD_MODELS=true`면 앱은 모델을 올리고 준비 단계를 마친 뒤에 요청을 받기 시작하므로 그때부터 응답한다. Docker compose의 api 상태 검사가 이 경로를 쓰므로, DB가 끊기면 api가 unhealthy가 된다
+- `consecutive_model_failures`(모델을 올린 서버만): 모델 호출(인식·번역·합성·언어 판별·자막 갱신)이 모델 엔진 오류(GPU 메모리 부족 등)로 연이어 실패한 수. 모델 호출이 한 번 성공하면 0으로 돌아간다. 입력 탓 실패(빈 글, 디코딩할 수 없는 음성, 말 없음, 30초 넘는 음성, 지원하지 않는 언어)와 오타 교정(Ollama)의 실패는 세지 않는다. 수는 모든 모델에 하나라, 한 모델만 고장 나고 다른 모델 호출이 사이사이 성공하면 쌓이지 않는다
+- `models_ok`(모델을 올린 서버만): 인식·번역 모델이 올라가 있고 `consecutive_model_failures`가 `MODEL_FAILURE_LIMIT`(기본 5)보다 작은지. `false`면 `503`이고 `status`가 `"unavailable"`이다(`database`는 DB 상태 그대로). 이유는 서버 로그에만 남긴다. 번역 요청은 그동안에도 모델로 가므로, 원인이 풀려(예: 같은 GPU를 쓰던 다른 프로그램이 메모리를 놓음) 모델 호출이 한 번 성공하면 다음 확인부터 `200`으로 돌아온다
+- CUDA 문맥 오류: 모델 호출의 원인 사슬에 CUDA 런타임 문서가 '프로세스를 끝내고 다시 띄워야 CUDA를 다시 쓸 수 있다'고 적은 오류(`an illegal memory access was encountered`, `unspecified launch failure`, `the launch timed out and was terminated`, `device-side assert triggered` 등, 목록은 `backend/app/services/model_health.py`)가 있으면, 그 프로세스의 GPU 호출이 모두 같은 오류로 실패하므로 서버는 cudaError 이름과 예외 종류만 로그에 남기고 종료 코드 1로 바로 끝난다. 처리 중이던 다른 요청·동시통역 마디는 버려진다(연결이 끊긴다). Docker compose는 api를 `restart: on-failure:3`으로 다시 띄우고(사람이 시작한 뒤 세 번까지, `docker-compose.yml`의 주석), 새 프로세스가 모델을 다시 올리고 예열을 마칠 때까지는 응답하지 않는다. 메모리 부족(`out of memory`)은 문맥이 살아 있어 끝내지 않고 세기만 한다. 실제 CUDA 오류로는 확인하지 않았고, torch·CTranslate2가 내는 메시지 모양을 흉내 낸 테스트로만 확인했다(`backend/tests/test_model_health.py`)
+- `LOAD_MODELS=true`면 앱은 모델을 올리고 준비 단계를 마친 뒤에 요청을 받기 시작하므로 그때부터 응답한다. Docker compose의 api 상태 검사가 이 경로를 쓰므로, DB가 끊기거나 `models_ok`가 `false`면 api가 unhealthy가 된다. 스웜이 아닌 Docker는 unhealthy인 컨테이너를 다시 시작하지 않으므로 이것은 알림이고, 프로세스를 다시 띄우는 것은 위의 종료와 restart 정책이다
 - 모델 이름은 인증 없이 보인다. 비밀값은 들어 있지 않다
 
 ## 오류 응답
@@ -444,6 +449,7 @@ backend 폴더에서 `uv sync` 후 `uv run alembic upgrade head`를 실행해 �
 | `CORRECTION_PREPARE_TIMEOUT_S` | `600` | 교정 모델 준비(내려받기·적재·첫 교정) 요청마다의 제한 시간(초). 넘거나 실패하면 30초 뒤 다시 시도한다 |
 | `GC_FREEZE` | `true` | 모델을 올린 뒤 `gc.freeze()`. 번역 중 다른 요청이 막히지 않게 한다 (5절) |
 | `MODEL_THREADS` | `1` | 모델 호출 스레드 수 (docs/experiments.md 4절) |
+| `MODEL_FAILURE_LIMIT` | `5` | 모델 호출이 모델 엔진 오류로 연이어 이만큼 실패하면 `/api/health`가 `503`(`models_ok` false)으로 답한다(위 '상태 확인'). 한 번 성공하면 수가 0으로 돌아간다. 1 이상. `LOAD_MODELS=false`면 쓰이지 않는다 |
 | `AUDIO_DIR` | `<프로젝트>/work/audio` | 번역 음성 파일을 두는 폴더 |
 
 `uv run pytest`는 conftest가 고유한 `vt_test_<uuid>` DB를 생성하고 Alembic을 적용하여 실제 PostgreSQL로

@@ -49,6 +49,13 @@ class Settings(BaseSettings):
     # 모델이 GPU 하나를 나눠 쓰므로 스레드를 늘려도 서로 GPU를 다투기만 해서, 측정으로 1을 유지했다
     # (docs/experiments.md 4절).
     model_threads: int = Field(default=1, ge=1)
+    # 모델 호출(인식·번역·합성·언어 판별·자막 갱신)이 모델 엔진 오류로 연이어 이만큼 실패하면
+    # /api/health가 503(models_ok false)을 낸다(services/model_health.py, routers/health.py). 모델 호출이
+    # 한 번 성공하면 수가 0으로 돌아간다. 입력 탓 실패와 오타 교정 실패는 세지 않는다. 5인 이유: 다른
+    # 프로그램이 GPU 메모리를 잠깐 차지해 생긴 메모리 부족 한두 번으로는 상태를 바꾸지 않고, 사이에 성공
+    # 없이 다섯 번 이어지면 사람이 볼 만한 고장으로 본다. LOAD_MODELS=false면 쓰이지 않는다. 1 미만이면
+    # 시작 때 멈춘다.
+    model_failure_limit: int = Field(default=5, ge=1)
     # 모델을 돌릴 장치. services/models.py가 cuda면 float16, cpu면 int8 연산 형식을 고른다. stt_model은
     # faster-whisper 모델 이름, ct2_dir은 eval.mt_convert가 CTranslate2로 변환해 둔 번역 모델 폴더다.
     model_device: Literal["cuda", "cpu"] = "cuda"
