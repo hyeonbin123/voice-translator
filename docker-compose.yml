@@ -68,6 +68,12 @@ services:
       KO_EN_TRANSLATION: ${KO_EN_TRANSLATION:-opus}
       HYMT_MODEL: ${HYMT_MODEL:-hy-mt2:1.8b-q8_0}
       HYMT_DIGEST: ${HYMT_DIGEST:-}
+      # 오타 교정 모델의 기대 빌드(docs/api.md): 비우면(기본) 확인하지 않고, 주면 Ollama에 다른 빌드가 있을 때
+      # 교정만 끈다(서버는 뜬다). 측정한 빌드는 .env.example의 예시 값이다.
+      CORRECTION_DIGEST: ${CORRECTION_DIGEST:-}
+    # api는 root가 아닌 uid 10001로 돈다(backend/Dockerfile). 새로 만드는 hfcache·audio 볼륨은 이미지의 마운트
+    # 지점 소유권(10001)을 그대로 받는다. 이 변경 전의 root 이미지로 만든 볼륨은 root 소유라, 한 번 소유자를
+    # 바꿔야 번역 음성을 저장할 수 있다(README '전체 실행 (Docker)').
     volumes:
       - ./data/models/ct2:/models/ct2:ro
       - hfcache:/models/hf
