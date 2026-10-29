@@ -149,22 +149,30 @@ def test_translation_that_cannot_load_stops_startup(fake_model_classes, monkeypa
         models.load_models(Settings(model_device="cpu"))
 
 
-# 오타 교정기가 설정한 Ollama 주소·모델·요청 제한·준비 제한으로 만들어지고, 준비는 시작만 하고 기다리지
-# 않는지(started) 확인한다. 서버는 Ollama가 모델을 받거나 올리는 동안에도 먼저 뜨고, 그동안 영어 글자는 교정
-# 없이 번역된다(README).
+# 오타 교정기가 설정한 Ollama 주소·모델·요청 제한·준비 제한·기대 빌드(CORRECTION_DIGEST)로 만들어지고,
+# 준비는 시작만 하고 기다리지 않는지(started) 확인한다. 서버는 Ollama가 모델을 받거나 올리는 동안에도
+# 먼저 뜨고, 그동안 영어 글자는 교정 없이 번역된다(README). 기대 빌드를 생성자에 넘기지 않으면 설정해도
+# 확인하지 않는다.
 def test_typo_correction_uses_the_configured_ollama_model(fake_model_classes):
+    measured = "65ec06548149b04c096a120e4a6da9d4017ea809c91734ea5631e89f96ddc57b"
     bundle = models.load_models(
         Settings(
             model_device="cpu",
             tts_enabled=False,
             ollama_url="http://ollama:11434",
             correction_model="qwen2.5:1.5b-instruct",
+            correction_digest=measured,
             correction_timeout_s=3,
             correction_prepare_timeout_s=60,
         )
     )
     ollama = [(args, kwargs) for name, args, kwargs in fake_model_classes if name == "Ollama"]
-    expected = {"base_url": "http://ollama:11434", "timeout_s": 3, "prepare_timeout_s": 60}
+    expected = {
+        "base_url": "http://ollama:11434",
+        "timeout_s": 3,
+        "prepare_timeout_s": 60,
+        "expected_digest": measured,
+    }
     assert ollama == [(("qwen2.5:1.5b-instruct",), expected)]
     assert bundle.corrector.started
 

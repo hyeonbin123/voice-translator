@@ -438,6 +438,7 @@ backend 폴더에서 `uv sync` 후 `uv run alembic upgrade head`를 실행해 �
 | `TYPO_CORRECTION` | `true` | 글자로 입력한 영어를 번역 전에 Ollama의 작은 LLM으로 오타·띄어쓰기만 고친다 (docs/experiments.md 6절). 한국어 입력과 음성 인식 결과는 고치지 않는다. Ollama가 응답하지 않거나, 정상 종료로 답하지 않았거나(교정문은 `done`이 true이고 `done_reason`이 "stop"일 때만 쓴다), 한글이 섞였거나, 입력과 글자가 절반 넘게 다르면(거절문·설명을 붙인 답 등, docs/experiments.md 6절) 입력한 그대로 번역한다. 글자는 거의 같은데 뜻만 바뀐 교정까지 막지는 못한다. 서버 시작은 Ollama를 기다리지 않는다: 교정 모델은 뒤에서 준비되고(첫 시작의 내려받기 포함, 실패하면 30초마다 다시 시도), 준비되기 전에는 입력 그대로 번역한다. 기록의 `source_text`는 입력한 그대로, `mt_model`에는 교정 모델이 붙고(`... + ollama/...`), `mt_ms`는 교정 시간을 포함한다 |
 | `OLLAMA_URL` | `http://localhost:11434` | 교정 모델(그리고 시험 설정의 Hy-MT2)을 돌리는 Ollama 주소. Docker compose는 `http://ollama:11434`(이미지 0.35.1) |
 | `CORRECTION_MODEL` | `qwen2.5:1.5b-instruct` | 교정 모델. Ollama에 없으면 시작할 때 받는다(약 1GB). 올린 뒤 계속 올려 둔다(`ollama stop <모델>`로 내림) |
+| `CORRECTION_DIGEST` | 없음 | 기대하는 교정 모델 빌드(Ollama `/api/tags`의 digest, 64자리 16진수). 같은 태그라도 다시 받으면 다른 빌드가 올 수 있다. 주면 준비 단계가 모델을 올리기 전에 비교하고, 다르면 모델을 올리지 않고 교정을 켜지 않은 채 경고를 남긴다(다시 시도하지 않음). 서버는 그대로 뜨고 글자 입력은 교정 없이 번역되며 `/api/health`의 `typo_correction_ready`는 `false`로 남는다(번역 시험 설정의 `HYMT_DIGEST`는 다르면 서버가 멈춘다). 없으면 확인하지 않는다. 측정한 빌드는 `65ec06548149b04c096a120e4a6da9d4017ea809c91734ea5631e89f96ddc57b`(docs/experiments.md 16절 '실행 조건') |
 | `CORRECTION_TIMEOUT_S` | `10` | 교정 요청 제한 시간(초). 넘으면 입력한 그대로 번역한다 |
 | `CORRECTION_PREPARE_TIMEOUT_S` | `600` | 교정 모델 준비(내려받기·적재·첫 교정) 요청마다의 제한 시간(초). 넘거나 실패하면 30초 뒤 다시 시도한다 |
 | `GC_FREEZE` | `true` | 모델을 올린 뒤 `gc.freeze()`. 번역 중 다른 요청이 막히지 않게 한다 (5절) |

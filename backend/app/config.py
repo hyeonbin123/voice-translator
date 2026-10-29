@@ -129,6 +129,14 @@ class Settings(BaseSettings):
     typo_correction: bool = True
     ollama_url: str = "http://localhost:11434"
     correction_model: str = "qwen2.5:1.5b-instruct"
+    # correction_digest: 기대하는 교정 모델 빌드의 digest(Ollama /api/tags가 알려 주는 64자리 16진수,
+    # 앞에 "sha256:" 없이). 같은 태그라도 Ollama 저장소에서 다시 받으면 다른 빌드가 올 수 있어, 측정한
+    # 것과 다른 모델로 조용히 교정하는 일을 막으려는 설정이다. 빈 값(기본)이면 지금처럼 확인하지 않는다.
+    # 주면 준비 단계가 모델을 GPU에 올리기 전에 비교하고, 다르면 교정을 켜지 않고 경고를 남긴다
+    # (services/correction.py). 번역 시험 설정의 hymt_digest는 다르면 서버 시작을 멈추지만, 교정은 보조
+    # 단계라 교정만 끄고 서버는 그대로 뜬다. 측정한 빌드는 docs/experiments.md 16절 '실행 조건'에 적은
+    # 값이다(.env.example 예시).
+    correction_digest: str = ""
     correction_timeout_s: float = Field(default=10, gt=0)
     correction_prepare_timeout_s: float = Field(default=600, gt=0)
 

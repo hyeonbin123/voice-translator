@@ -8,6 +8,9 @@
 # - 개인 정보: 실패를 로그에 남겨도 사용자가 입력한 글은 남기지 않는다.
 # - 시작과 종료: 서버 시작을 막지 않고 뒤에서 준비하며(모델이 없으면 내려받음), 준비 전에는 교정하지 않고,
 #   종료(close)가 준비 스레드와 겹쳐도 클라이언트가 닫히고 다시 켜지지 않는다.
+# - 측정한 빌드인지(CORRECTION_DIGEST): 기대 digest를 주면 모델을 올리기 전에 /api/tags의 digest와
+#   비교해, 같으면 교정을 켜고 다르면 올리지도 다시 시도하지도 않고 교정을 끈 채 경고를 한 번 남긴다
+#   (서버는 그대로 뜬다). 빈 값이면 지금처럼 확인하지 않는다.
 
 import ast
 import json
@@ -20,6 +23,7 @@ from pathlib import Path
 import httpx
 import pytest
 
+from app.config import Settings
 from app.services import correction
 from app.services.correction import OllamaCorrector
 
@@ -27,15 +31,21 @@ from app.services.correction import OllamaCorrector
 # 필드(done true, done_reason 'stop'). 안전장치는 이 둘이 모두 있어야 교정문을 쓴다.
 EVAL_SCRIPT = Path(__file__).resolve().parents[1] / "eval" / "typo_eval.py"
 FINISHED = {"done": True, "done_reason": "stop"}
+# MEASURED: 측정에 쓴 교정 모델 빌드(docs/experiments.md 16절 '실행 조건'에 적은
+# qwen2.5:1.5b-instruct의 Ollama digest). OTHER: 같은 태그를 다시 받았을 때 올 수 있는 다른 빌드를
+# 흉내 낸 값.
+MEASURED = "65ec06548149b04c096a120e4a6da9d4017ea809c91734ea5631e89f96ddc57b"
+OTHER = "0123456789abcdef" * 4
 
 
 # 실제 HTTP 대신 handler 함수가 답하는 교정기를 만든다. 보낸 요청(경로, JSON 본문)을 sent에 쌓아 테스트가
-# 무엇을 보냈는지 확인할 수 있다. 생성자가 만든 원래 클라이언트는 닫고 바꿔 끼운다.
+# 무엇을 보냈는지 확인할 수 있다. 본문이 없는 GET(/api/tags)은 빈 dict로 남긴다. 생성자가 만든 원래
+# 클라이언트는 닫고 바꿔 끼운다.
 def corrector_with(handler, **options) -> tuple[OllamaCorrector, list[tuple[str, dict]]]:
     sent: list[tuple[str, dict]] = []
 
     def record(request: httpx.Request) -> httpx.Response:
-        sent.append((request.url.path, json.loads(request.content)))
+        sent.append((request.url.path, json.loads(request.content) if request.content else {}))
         return handler(request)
 
     corrector = OllamaCorrector("qwen2.5:1.5b-instruct", **options)
@@ -338,3 +348,118 @@ def test_prepare_raises_when_ollama_fails():
     corrector, _ = corrector_with(lambda _: httpx.Response(500, json={"error": "broken"}))
     with pytest.raises(httpx.HTTPStatusError):
         corrector.prepare()
+
+
+# --- 측정한 빌드 확인(CORRECTION_DIGEST) ---
+# 같은 Ollama 태그(qwen2.5:1.5b-instruct)라도 저장소에서 다시 받으면 다른 빌드가 올 수 있다. 기대
+# digest를 주면 준비 단계가 /api/show(없으면 /api/pull) 뒤, 모델을 GPU에 올리기 전에 /api/tags의
+# digest와 비교한다.
+
+
+# 가짜 Ollama: /api/show는 모델이 있으면 200, 없으면 404(첫 compose 시작), /api/pull은 성공,
+# /api/tags는 교정 모델 하나를 주어진 digest로 나열하고, 나머지(/api/generate·/api/chat)는 정상 종료한
+# 교정 답을 준다.
+def ollama_listing(digest: str, present: bool = True):
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path == "/api/show":
+            if present:
+                return httpx.Response(200, json={})
+            return httpx.Response(404, json={"error": "model not found"})
+        if path == "/api/tags":
+            listed = {"name": "qwen2.5:1.5b-instruct", "model": "qwen2.5:1.5b-instruct", "digest": digest}
+            return httpx.Response(200, json={"models": [listed]})
+        return httpx.Response(200, json={"message": {"content": "Hello."}, **FINISHED})
+
+    return handler
+
+
+# 설정의 기본값은 빈 값(확인하지 않음)이고, CORRECTION_DIGEST 환경 변수로 준다.
+def test_the_expected_build_is_empty_unless_configured(monkeypatch):
+    monkeypatch.delenv("CORRECTION_DIGEST", raising=False)
+    assert Settings().correction_digest == ""
+    monkeypatch.setenv("CORRECTION_DIGEST", MEASURED)
+    assert Settings().correction_digest == MEASURED
+
+
+# 빈 값이면 지금처럼 확인하지 않는다: /api/tags를 부르지 않고, 다른 빌드여도 그대로 올려 교정을 켠다.
+def test_an_empty_expected_build_checks_nothing():
+    corrector, sent = corrector_with(ollama_listing(OTHER), expected_digest="")
+    corrector.start().join(5)
+    assert corrector.corrects("en")
+    assert [path for path, _ in sent] == ["/api/show", "/api/generate", "/api/chat"]
+
+
+# 기대한 빌드면 확인한 뒤 평소처럼 올리고 교정을 켠다. 준비 완료 로그에 확인한 빌드가 남는다.
+def test_the_expected_build_is_checked_before_loading_and_turns_correction_on(caplog):
+    caplog.set_level(logging.INFO, logger="app.services.correction")
+    corrector, sent = corrector_with(ollama_listing(MEASURED), expected_digest=MEASURED)
+    corrector.start().join(5)
+    assert corrector.corrects("en")
+    assert [path for path, _ in sent] == ["/api/show", "/api/tags", "/api/generate", "/api/chat"]
+    assert corrector.digest == MEASURED
+    assert "is ready" in caplog.text and MEASURED in caplog.text
+
+
+# 다른 빌드면(이미 있던 모델이든, 첫 시작에 지금 받은 모델이든) 교정을 켜지 않는다. 기다려도 빌드는
+# 바뀌지 않으므로 다시 시도하지 않고 준비 스레드가 끝나며, 모델을 GPU에 올리지도(/api/generate) 교정해
+# 보지도(/api/chat) 않는다. 경고는 한 번, 두 digest를 함께 남겨 무엇이 다른지 알 수 있게 한다. 서버
+# 종료(close) 때 클라이언트는 닫힌다.
+@pytest.mark.parametrize("present", [True, False], ids=["already-there", "pulled-now"])
+def test_another_build_keeps_correction_off_without_loading_or_retrying(present, caplog):
+    caplog.set_level(logging.INFO, logger="app.services.correction")
+    corrector, sent = corrector_with(
+        ollama_listing(OTHER, present=present), expected_digest=MEASURED, retry_s=0.01
+    )
+    thread = corrector.start()
+    thread.join(5)
+    assert not thread.is_alive()
+    assert not corrector.corrects("en") and corrector.digest is None
+    pulled = [] if present else ["/api/pull"]
+    assert [path for path, _ in sent] == ["/api/show", *pulled, "/api/tags"]
+    warnings = [record.getMessage() for record in caplog.records if record.levelno == logging.WARNING]
+    assert len(warnings) == 1 and OTHER in warnings[0] and MEASURED in warnings[0]
+    assert "is ready" not in caplog.text
+    corrector.close()
+    assert corrector._client.is_closed
+
+
+# /api/tags가 실패하거나 모델을 아직 나열하지 않으면(받는 중 등) 기다릴 가치가 있는 일시 실패라, 다른
+# 준비 실패처럼 경고를 한 번 남기고 다시 시도한다. 기대한 빌드가 나열되면 교정을 켠다.
+def test_a_listing_without_the_model_is_retried_until_it_shows_the_build(caplog):
+    caplog.set_level(logging.INFO, logger="app.services.correction")
+    listed = {"name": "qwen2.5:1.5b-instruct", "model": "qwen2.5:1.5b-instruct", "digest": MEASURED}
+    listings = iter([httpx.Response(500, json={"error": "busy"}), {"models": []}, {"models": [listed]}])
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/tags":
+            answer = next(listings)
+            return answer if isinstance(answer, httpx.Response) else httpx.Response(200, json=answer)
+        return httpx.Response(200, json={"message": {"content": "Hello."}, **FINISHED})
+
+    corrector, sent = corrector_with(handler, expected_digest=MEASURED, retry_s=0.01)
+    corrector.start().join(5)
+    assert corrector.corrects("en")
+    assert [path for path, _ in sent].count("/api/tags") == 3
+    assert caplog.text.count("is not ready") == 1
+
+
+# 빌드 확인 요청에도 시간 제한이 있다(일반 요청 제한 10초). 멈춘 Ollama가 준비 스레드를 영원히 잡지
+# 못하게 한다.
+def test_the_build_check_has_the_request_time_limit():
+    timeouts: list[tuple[str, float]] = []
+    answer = ollama_listing(MEASURED)
+
+    def record(request: httpx.Request) -> httpx.Response:
+        timeouts.append((request.url.path, request.extensions["timeout"]["read"]))
+        return answer(request)
+
+    corrector = OllamaCorrector(
+        "qwen2.5:1.5b-instruct", timeout_s=10, prepare_timeout_s=60, expected_digest=MEASURED
+    )
+    corrector._client.close()
+    corrector._client = httpx.Client(
+        base_url="http://ollama.test", timeout=10, transport=httpx.MockTransport(record)
+    )
+    corrector.prepare()
+    assert timeouts == [("/api/show", 10), ("/api/tags", 10), ("/api/generate", 60), ("/api/chat", 60)]

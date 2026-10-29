@@ -186,11 +186,14 @@ def load_typo_correction(settings: Settings) -> TypoCorrector:
     """
     from app.services.correction import OllamaCorrector
 
+    # expected_digest(CORRECTION_DIGEST): 비어 있지 않으면 준비 단계가 Ollama의 빌드를 확인하고, 다르면
+    # 교정만 끈다(서버는 그대로 뜬다).
     corrector = OllamaCorrector(
         settings.correction_model,
         base_url=settings.ollama_url,
         timeout_s=settings.correction_timeout_s,
         prepare_timeout_s=settings.correction_prepare_timeout_s,
+        expected_digest=settings.correction_digest,
     )
     corrector.start()
     return corrector

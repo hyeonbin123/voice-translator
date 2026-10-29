@@ -12,8 +12,10 @@
 # chrF가 27.0 → 34.6으로 올랐다(위 docstring, docs/experiments.md 6절). 한국어는 교정이 깨끗한 문장을 망가뜨려
 # 쓰지 않는다. 교정은 보조 단계라 Ollama가 없거나 느리거나 이상하게 답하면 입력 그대로 번역하고, 서버 시작도
 # Ollama를 기다리지 않는다.
-# [흐름] start()가 백그라운드 스레드에서 prepare()(모델 내려받기 → 적재 → 첫 교정)를 성공할 때까지 되풀이 →
-# 준비되면 corrects()가 True → 요청마다 correct()가 /api/chat을 한 번 부르고, 답이 교정처럼 보일 때만 쓴다.
+# [흐름] start()가 백그라운드 스레드에서 prepare()(모델 내려받기 → 기대 빌드 확인(설정했을 때만) →
+# 적재 → 첫 교정)를 성공할 때까지 되풀이 → 준비되면 corrects()가 True → 요청마다 correct()가
+# /api/chat을 한 번 부르고, 답이 교정처럼 보일 때만 쓴다. 기대한 빌드가 아니면 다시 시도하지 않고
+# 교정을 끈 채 둔다.
 # [연결] services/models.load_typo_correction이 만들고, services/pipeline.prepare가
 # inference.run_correction으로 correct를 부른다. app/main.py가 종료 때 close()를 부른다.
 
@@ -47,6 +49,14 @@ HANGUL = re.compile("[ㄱ-ㆎ가-힣]")
 MIN_SIMILARITY = 0.5
 
 
+class UnexpectedBuildError(RuntimeError):
+    """Ollama에 있는 교정 모델이 기대한 빌드(CORRECTION_DIGEST)가 아니다.
+
+    기다리거나 다시 시도해도 빌드는 바뀌지 않으므로, 준비 스레드는 이 예외를 받으면 재시도 없이 교정을 끈 채
+    끝난다(서버는 그대로 돈다). 메시지에는 모델 이름과 두 digest만 들어가고 사용자 글은 들어가지 않는다.
+    """
+
+
 def looks_like_a_correction(text: str, reply: str, language: Language) -> bool:
     """답이 입력과 같은 언어이고 글자의 절반 이상을 그대로 두었으면 교정으로 본다.
 
@@ -66,7 +76,8 @@ class OllamaCorrector:
 
     temperature 0(가장 확률 높은 토큰을 고름)이라 같은 입력에는 같은 교정이 나온다. start()가 백그라운드
     스레드에서 모델을 준비하고 성공할 때까지 다시 시도한다. 그 전까지 corrects()는 False라, 요청은 Ollama를
-    기다리지 않고 입력 그대로 번역한다.
+    기다리지 않고 입력 그대로 번역한다. expected_digest를 주면 측정한 빌드인지 확인하고, 다르면 교정을 켜지
+    않는다(prepare 참고).
     """
 
     def __init__(
@@ -77,15 +88,20 @@ class OllamaCorrector:
         timeout_s: float = 10,
         prepare_timeout_s: float = 600,
         retry_s: float = 30,
+        expected_digest: str = "",
     ) -> None:
         # model_name은 기록의 mt_model에 붙는다("... + ollama/qwen2.5:1.5b-instruct"). 기본 교정 언어는
         # 영어만. 클라이언트의 기본 제한 시간은 correct()용(CORRECTION_TIMEOUT_S, 10초)이고, 오래 걸리는 준비
         # 요청은 prepare_timeout_s를 따로 준다.
+        # expected_digest: 기대하는 모델 빌드(CORRECTION_DIGEST, Ollama /api/tags의 digest). 빈 값이면
+        # 확인하지 않는다. digest는 확인해서 기대 값과 같았던 빌드다(확인하지 않았거나 다른 빌드면 None).
         # _ready: 준비 완료 신호, _closed: 종료 신호. 둘 다 threading.Event라 요청 스레드와 준비 스레드가
         # 안전하게 함께 읽는다.
         self.model_name = f"ollama/{model}"
         self.languages = languages
+        self.digest: str | None = None
         self._model = model
+        self._expected_digest = expected_digest
         self._client = httpx.Client(base_url=base_url, timeout=timeout_s)
         self._prepare_timeout_s = prepare_timeout_s
         self._retry_s = retry_s
@@ -158,6 +174,9 @@ class OllamaCorrector:
     # 준비 스레드 본문: 성공할 때까지 prepare()를 되풀이한다. 실패하면 경고는 첫 번째에만 남기고(재시도마다
     # 로그가 쌓이지 않게), retry_s(30초) 동안 기다린다. 기다림을 _closed.wait로 해서 종료 신호가 오면 바로
     # 깬다.
+    # 기대한 빌드가 아니면(UnexpectedBuildError) 기다려도 바뀌지 않으므로 다시 시도하지 않는다: 경고를
+    # 한 번 남기고 준비 완료 표시 없이 끝나, 교정은 서버가 다시 시작될 때까지 꺼져 있다(서버와 번역은
+    # 그대로 돈다). 클라이언트는 아래 finally의 규칙대로 close()가 닫는다.
     # 성공하면 Lock 안에서 '아직 닫히지 않았을 때만' 준비 완료로 표시해, 종료 뒤에 교정이 켜지는 일을 막는다.
     def _prepare_until_ready(self) -> None:
         failures = 0
@@ -165,6 +184,14 @@ class OllamaCorrector:
             while not self._closed.is_set():
                 try:
                     self.prepare()
+                except UnexpectedBuildError as exc:
+                    if not self._closed.is_set():
+                        logger.warning(
+                            "Typo correction stays off: %s. Typed text is translated as is; put the expected "
+                            "build in Ollama or change CORRECTION_DIGEST, then restart the server",
+                            exc,
+                        )
+                    return
                 except Exception as exc:  # noqa: BLE001 - 어떤 실패든 다음 시도가 성공할 때까지 교정은 꺼져 있다
                     failures += 1
                     if failures == 1 and not self._closed.is_set():  # 재시도마다가 아니라 한 번만
@@ -180,7 +207,12 @@ class OllamaCorrector:
                 with self._lock:  # 종료 뒤에 끝난 준비는 교정을 켜지 않는다
                     if not self._closed.is_set():
                         self._ready.set()
-                        logger.info("Typo correction model %s is ready", self._model)
+                        if self.digest:  # 빌드를 확인했으면 어느 빌드인지도 남긴다
+                            logger.info(
+                                "Typo correction model %s is ready (build %s)", self._model, self.digest
+                            )
+                        else:
+                            logger.info("Typo correction model %s is ready", self._model)
                 return
         finally:
             with self._lock:
@@ -194,6 +226,9 @@ class OllamaCorrector:
         세 단계: (1) /api/show로 모델이 있는지 보고 404면 /api/pull로 내려받는다(첫 compose 시작, 약 1GB)
         (2) 프롬프트 없는 /api/generate로 모델만 올리고 keep_alive -1로 계속 올려 둔다 (3) 교정을 한 번 해
         둔다. 실패하면 raise_for_status 예외가 _prepare_until_ready로 올라가 재시도된다.
+        기대 빌드(expected_digest)를 주면 (1)과 (2) 사이에 _check_build로 확인한다. 다른 빌드면
+        UnexpectedBuildError가 올라가 모델을 GPU에 올리지 않고(약 1.3GB를 쓰지 않음) 교정도 켜지 않는다. 빈
+        값이면 이 확인을 건너뛰어 요청 순서가 확인을 넣기 전과 같다.
         모든 호출에 제한 시간이 있어(느린 호출은 prepare_timeout_s) 멈춘 Ollama가 스레드를 영원히 붙잡지
         못한다. Ollama는 기본으로 5분 동안 쓰이지 않은 모델을 내리고 다음 요청이 다시 적재를 기다리게
         하는데, keep_alive -1은 Ollama가 멈출 때까지(`ollama stop <model>`) 모델을 올려 둔다.
@@ -208,6 +243,8 @@ class OllamaCorrector:
             pulled.raise_for_status()
         else:
             shown.raise_for_status()
+        if self._expected_digest:
+            self._check_build()
         # 프롬프트 없는 요청은 모델을 올리기만 한다.
         loaded = self._client.post(
             "/api/generate", json={"model": self._model, "keep_alive": -1}, timeout=slow
@@ -217,6 +254,31 @@ class OllamaCorrector:
         # 교정은 0.1~0.2초 걸렸다(원인은 찾지 못함). 그 비용을 요청 대신 여기서 치른다.
         first = self._client.post("/api/chat", json=self._payload("Hello.", "en"), timeout=slow)
         first.raise_for_status()
+
+    def _check_build(self) -> None:
+        """Ollama /api/tags가 알려 주는 이 모델의 digest가 기대한 빌드인지 확인한다.
+
+        번역 시험 설정의 HyMtTranslator.prepare와 같은 방식이다: 목록에서 이름(name 또는 model 필드)이 설정한
+        모델 이름(태그 포함)과 같은 항목의 digest를 읽는다. 요청은 일반 제한 시간(timeout_s)을 따른다.
+        - 목록 요청이 실패하거나 모델이 아직 목록에 없으면(받는 중 등) 기다릴 가치가 있는 일시 실패라
+          RuntimeError·httpx 예외를 그대로 올려 _prepare_until_ready가 다시 시도하게 한다.
+        - digest가 다르면 UnexpectedBuildError: 기다려도 바뀌지 않으므로 다시 시도하지 않는다.
+        - 같으면 self.digest에 남긴다(준비 완료 로그에 빌드가 찍힌다).
+        """
+        tags = self._client.get("/api/tags")
+        tags.raise_for_status()
+        digests = [
+            listed.get("digest")
+            for listed in tags.json()["models"]
+            if self._model in (listed.get("name"), listed.get("model"))
+        ]
+        if not digests or not digests[0]:
+            raise RuntimeError(f"Ollama does not list {self._model}")
+        if digests[0] != self._expected_digest:
+            raise UnexpectedBuildError(
+                f"{self._model} in Ollama is build {digests[0]}, not the expected {self._expected_digest}"
+            )
+        self.digest = digests[0]
 
     # /api/chat 요청 본문: 시스템 지시문 + 사용자 글, 스트리밍 없이 한 번에 받는다. keep_alive -1로 요청
     # 뒤에도 모델을 올려 둔다. num_predict 256은 답의 최대 토큰 수이고, 이를 넘어 잘린 답은 correct()의
