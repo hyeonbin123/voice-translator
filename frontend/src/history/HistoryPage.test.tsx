@@ -234,10 +234,19 @@ it('aborts a pending list when leaving and ignores a late response', async () =>
   expect(screen.queryByText('Hello')).not.toBeInTheDocument()
 })
 
-// 확인: 음수, 숫자가 아닌 값, 안전한 정수 범위를 넘는 값은 offset 0으로 바로잡아 서버에 보낸다(서버는 잘못된
-// 값에 422를 준다).
-it.each(['-20', 'nope', '9007199254740992'])('normalizes invalid offset %s before requesting the API', async (offset) => {
+// 확인: 음수, 숫자가 아닌 값, 안전한 정수 범위를 넘는 값, 서버가 받는 상한(2147483647, docs/api.md)을 넘는 값은
+// offset 0으로 바로잡아 서버에 보낸다(서버는 잘못된 값에 422를 준다). 2147483660은 20의 배수로 내려도 상한을
+// 넘는 가장 작은 값이고, 9007199254740991은 안전한 정수의 최댓값이다.
+it.each(['-20', 'nope', '9007199254740992', '2147483660', '9007199254740991'])('normalizes invalid offset %s before requesting the API', async (offset) => {
   show(`/history?offset=${offset}`)
   await screen.findByText('Hello')
   expect(listCalls().every(([path]) => path === '/api/history?limit=20&offset=0')).toBe(true)
+})
+
+// 확인: 상한 안의 가장 큰 값은 0으로 바꾸지 않고 다른 값처럼 20의 배수로만 내린다(상한 경계). 이 offset의 응답은
+// 가짜 fetch에 없어 목록 오류가 나지만, 여기서는 보낸 주소만 본다.
+it('keeps the largest offset the server accepts, rounded down to a page', async () => {
+  show('/history?offset=2147483647')
+  await waitFor(() => expect(listCalls().length).toBeGreaterThan(0))
+  expect(listCalls().every(([path]) => path === '/api/history?limit=20&offset=2147483640')).toBe(true)
 })

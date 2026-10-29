@@ -13,6 +13,9 @@ export type HistoryItem = Omit<TranslationResult, 'tts_error'>
 export interface HistoryList { items: HistoryItem[]; total: number }
 // 한 페이지에 보이는 기록 수. 서버의 limit 기본값(20)과 같다. HistoryPage가 offset을 이 단위로 맞춘다.
 export const PAGE_SIZE = 20
+// 서버가 받는 offset의 최댓값(PostgreSQL integer 최댓값, docs/api.md GET /api/history). 넘으면 서버가 422로
+// 거절하므로 HistoryPage가 주소의 offset을 이 값 안에서만 쓴다.
+export const MAX_OFFSET = 2147483647
 
 // TranslationApi를 이어받아 번역 음성 받기(audio) 같은 기능을 기록 화면에서도 그대로 쓴다. 부모의 client는
 // private이라 자식에서 볼 수 없으므로 같은 객체를 historyClient로 한 번 더 들고 있는다.

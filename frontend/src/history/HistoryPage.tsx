@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ApiError, errorMessage } from '../api/client'
 import Playback from '../translation/Playback'
-import { HistoryApi, PAGE_SIZE, type HistoryItem, type HistoryList } from './api'
+import { HistoryApi, MAX_OFFSET, PAGE_SIZE, type HistoryItem, type HistoryList } from './api'
 
 // 작은 도우미: 언어 이름, 목록 주소 만들기, 날짜를 한국어 형식으로, 오류 문구 고르기(404는 '기록이 없거나
 // 삭제됨', 나머지는 공통 오류 문구).
@@ -21,14 +21,16 @@ const date = (value: string) => new Date(value).toLocaleString('ko-KR')
 const historyError = (cause: unknown) => cause instanceof ApiError && cause.status === 404
   ? '기록이 없거나 삭제되었습니다. 목록에서 다시 확인해 주세요.' : errorMessage(cause)
 
-// 주소를 해석해 목록 또는 상세를 고른다. offset은 숫자만 받아들이고, 안전한 정수가 아니거나 형식이 틀리면 0,
-// 맞으면 페이지 크기(20)의 배수로 내려 맞춘다. 주소를 손으로 고쳐도 서버에 잘못된 값(422)을 보내지 않는다.
+// 주소를 해석해 목록 또는 상세를 고른다. offset은 숫자만 받아들이고, 안전한 정수가 아니거나 서버가 받는
+// 최댓값(MAX_OFFSET, 2147483647)을 넘거나 형식이 틀리면 0, 맞으면 페이지 크기(20)의 배수로 내려 맞춘다(최댓값
+// 이하를 내린 값은 늘 최댓값 이하). 주소를 손으로 고쳐도 서버에 잘못된 값(422)을 보내지 않는다.
 export default function HistoryPage({ api }: { api: HistoryApi }) {
   const { id } = useParams()
   const [search] = useSearchParams()
   const raw = search.get('offset') ?? '0'
   const number = /^\d+$/.test(raw) ? Number(raw) : 0
-  const offset = Number.isSafeInteger(number) ? Math.floor(number / PAGE_SIZE) * PAGE_SIZE : 0
+  const offset = Number.isSafeInteger(number) && number <= MAX_OFFSET
+    ? Math.floor(number / PAGE_SIZE) * PAGE_SIZE : 0
   return id ? <HistoryDetail key={id} id={id} offset={offset} api={api} />
     : <HistoryListing key={offset} offset={offset} api={api} />
 }
