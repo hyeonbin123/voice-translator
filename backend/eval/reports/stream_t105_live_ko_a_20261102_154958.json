@@ -1,0 +1,3367 @@
+{
+ "mode": "live",
+ "skipped": {
+  "ko": {
+   "not_one_utterance": 0,
+   "no_speech": 0,
+   "word_times_differ": 0
+  }
+ },
+ "gpu_use": {
+  "samples": 802,
+  "mean_util": 24.316708229426435,
+  "p90_util": 42.89999999999998,
+  "max_util": 59.0,
+  "max_memory_mb": 8197.2734375,
+  "mean_cpu": 23.23890274314214,
+  "sm_clock_p50_mhz": 1860.0,
+  "busy_sm_clock_p50_mhz": 1860.0,
+  "memory_clock_p50_mhz": 6800.0,
+  "pstates": {
+   "P2": 802
+  },
+  "limited_ratio": 0.13591022443890274,
+  "clock_reasons": {
+   "sw_power_cap": 109
+  },
+  "reasons_api": "event",
+  "clock_read_errors": 0
+ },
+ "rows": [
+  {
+   "lang": "ko",
+   "mode": "live",
+   "utterances": 40,
+   "errors": 0,
+   "text_differs": 0,
+   "lag_p50_ms": 775.5000000959262,
+   "lag_p90_ms": 1270.300000129268,
+   "final_p50_ms": 1286.0000000102448,
+   "audio_p50_ms": 1301.4999998733404,
+   "audio_p90_ms": 1605.3000000389302,
+   "pauses": 81
+  }
+ ],
+ "details": {
+  "ko": [
+   {
+    "key": "190-1632",
+    "outcome": "final",
+    "lags": [
+     3.157000000150874,
+     3.0300000000000002,
+     2.63,
+     2.31,
+     1.63,
+     1.0699999999999998,
+     0.4500000000000002,
+     0.9260000000614674,
+     0.7660000000614673,
+     0.3860000000614674,
+     1.604000000040978,
+     1.2640000000409781,
+     0.9640000000409783,
+     0.5840000000409784,
+     1.2790000001713633,
+     1.0590000001713635,
+     0.5990000001713636,
+     1.2590000001713637,
+     0.8390000001713638,
+     0.5390000001713631
+    ],
+    "final_s": 1.367000000150874,
+    "audio_s": 1.3829999999795106,
+    "pause_sent_s": 0.4770000000204888,
+    "end_sent_s": 1.274000000040978,
+    "pauses": 1,
+    "updates": 7,
+    "resumes": 0,
+    "result": {
+     "id": "45a53d8f-1635-45c1-b061-0b27b00f2d7f",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "여성들은 문화적 차이로 인해 괴롭힘으로 간주되는 결과가 초래될 수 있고, 팔을 잡는 등의 행위가 드문 일이 아니라는 것을 알아야 합니다.",
+     "translated_text": "Women need to know that cultural differences can lead to harassment, and that arm-holding is not uncommon.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 415,
+     "mt_ms": 68,
+     "tts_ms": 174,
+     "audio_id": "34969d3f-5a22-4a0e-8f14-cbd213cc74ea",
+     "created_at": "2026-11-02T15:43:18.142460Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": true,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.2,
+       "started_ms": 61.7,
+       "wait_ms": 61.5,
+       "run_ms": 5.4
+      },
+      "stt": {
+       "queued_ms": 67.2,
+       "started_ms": 67.3,
+       "wait_ms": 0.1,
+       "run_ms": 415.3
+      },
+      "mt": {
+       "queued_ms": 482.8,
+       "started_ms": 482.9,
+       "wait_ms": 0.1,
+       "run_ms": 67.9
+      },
+      "tts": {
+       "queued_ms": 551.0,
+       "started_ms": 551.1,
+       "wait_ms": 0.1,
+       "run_ms": 173.8
+      }
+     },
+     "prepared_ms": 725.1,
+     "end_ms": 786.3,
+     "save_started_ms": 786.4,
+     "save_ms": 90.4,
+     "final_ms": 876.8,
+     "redone": false
+    },
+    "audio_sha256": "13a6073253c9c2c5031f353d52ab177a6b3d360eb8b86486cdd8974a22de32fb"
+   },
+   {
+    "key": "220-1548",
+    "outcome": "final",
+    "lags": [
+     0.6860000000614673,
+     0.06600000006146733,
+     0.6340000001713633,
+     0.1740000001713633,
+     0.79,
+     1.1010000001918523,
+     1.2370000000204895,
+     0.9570000000204892,
+     0.6970000000204895,
+     0.4370000000204888
+    ],
+    "final_s": 1.3590000000409779,
+    "audio_s": 1.374000000171363,
+    "pause_sent_s": 0.5149999999999997,
+    "end_sent_s": 1.328000000081956,
+    "pauses": 1,
+    "updates": 5,
+    "resumes": 0,
+    "result": {
+     "id": "f3ecb43b-d58c-4fd6-8db9-e5efb516a930",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "수천 킬로미터 마일 떨어진 사람과 통화한다면 인공위성을 쓰고 있는 겁니다.",
+     "translated_text": "If you're talking to someone thousands of miles away, you're using a satellite.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 303,
+     "mt_ms": 65,
+     "tts_ms": 132,
+     "audio_id": "0a5e2346-a532-4e9c-9ee1-489ff6ea09a1",
+     "created_at": "2026-11-02T15:43:24.943584Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": false,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.1,
+       "started_ms": 0.3,
+       "wait_ms": 0.1,
+       "run_ms": 4.5
+      },
+      "stt": {
+       "queued_ms": 4.9,
+       "started_ms": 5.0,
+       "wait_ms": 0.1,
+       "run_ms": 302.9
+      },
+      "mt": {
+       "queued_ms": 308.0,
+       "started_ms": 308.1,
+       "wait_ms": 0.1,
+       "run_ms": 65.1
+      },
+      "tts": {
+       "queued_ms": 373.4,
+       "started_ms": 373.5,
+       "wait_ms": 0.1,
+       "run_ms": 131.7
+      }
+     },
+     "prepared_ms": 505.4,
+     "end_ms": 762.6,
+     "save_started_ms": 762.7,
+     "save_ms": 29.4,
+     "final_ms": 792.1,
+     "redone": false
+    },
+    "audio_sha256": "a20588c4c8202a0b4fd8b4eec068fd459913a1ba9b7111a3fe5afefb05775e77"
+   },
+   {
+    "key": "24-1658",
+    "outcome": "final",
+    "lags": [
+     0.8300000000000001,
+     0.7149999998696148,
+     1.23,
+     0.71,
+     0.3900000000000001,
+     0.8659999998286367,
+     0.3259999998286367,
+     0.9689999999105927,
+     0.5089999999105927,
+     1.1889999999105934,
+     0.6489999999105933
+    ],
+    "final_s": 1.4299999998696151,
+    "audio_s": 1.4450000000000003,
+    "pause_sent_s": 0.6019999998901042,
+    "end_sent_s": 1.3989999999105933,
+    "pauses": 1,
+    "updates": 6,
+    "resumes": 0,
+    "result": {
+     "id": "6abebf31-e77c-4326-b118-13a07a6daf3a",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "하루에 18개의 메달만 주어지기 때문에 많은 국가가 메달 단상에 오르지 못했습니다.",
+     "translated_text": "With only 18 medals per day, many countries failed to reach the medal.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 301,
+     "mt_ms": 56,
+     "tts_ms": 131,
+     "audio_id": "8c695c99-1779-4722-8da9-81ac308d34c4",
+     "created_at": "2026-11-02T15:43:32.571301Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": true,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.1,
+       "started_ms": 45.0,
+       "wait_ms": 44.8,
+       "run_ms": 5.1
+      },
+      "stt": {
+       "queued_ms": 50.2,
+       "started_ms": 50.3,
+       "wait_ms": 0.1,
+       "run_ms": 301.3
+      },
+      "mt": {
+       "queued_ms": 351.7,
+       "started_ms": 351.9,
+       "wait_ms": 0.2,
+       "run_ms": 55.6
+      },
+      "tts": {
+       "queued_ms": 407.6,
+       "started_ms": 407.7,
+       "wait_ms": 0.1,
+       "run_ms": 130.6
+      }
+     },
+     "prepared_ms": 538.5,
+     "end_ms": 798.2,
+     "save_started_ms": 798.2,
+     "save_ms": 35.0,
+     "final_ms": 833.3,
+     "redone": false
+    },
+    "audio_sha256": "3773cd2029793d6bed0d2fc241af2bd7ac3acb63580a13ca827376523582fe93"
+   },
+   {
+    "key": "33-1518",
+    "outcome": "final",
+    "lags": [
+     0.9340000001713633,
+     0.5740000001713633,
+     0.19400000017136332,
+     0.6260000000614674,
+     0.9810000001918526,
+     0.6810000001918524,
+     0.987999999979511,
+     0.5079999999795111,
+     1.0190000001713635,
+     0.6590000001713632,
+     1.0460000001918521,
+     0.6860000001918527,
+     0.26600000019185277
+    ],
+    "final_s": 1.1260000000614676,
+    "audio_s": 1.1410000001918528,
+    "pause_sent_s": 0.2980000000819567,
+    "end_sent_s": 1.0940000001713637,
+    "pauses": 1,
+    "updates": 6,
+    "resumes": 0,
+    "result": {
+     "id": "57be0b83-deb5-4dcd-92e8-46fc5ed47f86",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "한 전직 필리핀 경찰관이 필리핀의 수도 마닐라에서 버스를 납치하여 홍콩 관광객들을 인질로 삼았다.",
+     "translated_text": "An ex-Philippine police officer kidnapped a bus in Manila, the Philippines’ capital, and took Hong Kong tourists hostage.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 382,
+     "mt_ms": 81,
+     "tts_ms": 158,
+     "audio_id": "c4cb2fc5-c20a-4b6f-8832-0371faa81b6e",
+     "created_at": "2026-11-02T15:43:40.368584Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": true,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.3,
+       "started_ms": 33.4,
+       "wait_ms": 33.1,
+       "run_ms": 4.5
+      },
+      "stt": {
+       "queued_ms": 38.1,
+       "started_ms": 38.2,
+       "wait_ms": 0.1,
+       "run_ms": 381.7
+      },
+      "mt": {
+       "queued_ms": 420.0,
+       "started_ms": 420.1,
+       "wait_ms": 0.1,
+       "run_ms": 81.4
+      },
+      "tts": {
+       "queued_ms": 501.7,
+       "started_ms": 501.9,
+       "wait_ms": 0.2,
+       "run_ms": 158.3
+      }
+     },
+     "prepared_ms": 660.3,
+     "end_ms": 786.4,
+     "save_started_ms": 786.5,
+     "save_ms": 29.1,
+     "final_ms": 815.6,
+     "redone": false
+    },
+    "audio_sha256": "0edd51a1c2ffa8a65fd6cf17846eb3524f45b6ef1f3b56ddd25a6c975a5bce6f"
+   },
+   {
+    "key": "6-1550",
+    "outcome": "final",
+    "lags": [
+     0.2989999998081475,
+     0.71,
+     0.6019999998901038,
+     1.0729999998491255,
+     0.41299999984912583,
+     1.027999999979511,
+     0.6679999999795108,
+     1.1439999998081474,
+     1.4509999998286363,
+     0.8909999998286366,
+     0.6109999998286364,
+     1.1669999998901037,
+     0.8069999998901043,
+     0.6269999998901037,
+     1.1469999998901041,
+     0.5469999998901045,
+     1.1249999998696154,
+     0.7649999998696142,
+     1.4600000000000009,
+     1.0,
+     0.35999999999999943
+    ],
+    "final_s": 1.2669999998901034,
+    "audio_s": 1.2819999997876579,
+    "pause_sent_s": 0.35999999999999943,
+    "end_sent_s": 1.1569999997876579,
+    "pauses": 1,
+    "updates": 11,
+    "resumes": 0,
+    "result": {
+     "id": "47fa3d71-4343-4efc-bb60-588da792b59a",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "스키여행은 스키광, 스키범이라고 불리는 애호가들이 즐기는 여행 방식이다. 그 사람들은 휴가 일정을 어느 한 특정 장소에서 줄곧 스키를 타는 시간으로 계획한다.",
+     "translated_text": "Skiing is a form of travel enjoyed by lovers known as skiers or skiers. They plan their vacations as a time to ski in one particular place.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 473,
+     "mt_ms": 96,
+     "tts_ms": 181,
+     "audio_id": "cdfecaf2-8f1b-4f00-8232-789215faf629",
+     "created_at": "2026-11-02T15:43:53.284628Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": true,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.2,
+       "started_ms": 74.4,
+       "wait_ms": 74.2,
+       "run_ms": 6.1
+      },
+      "stt": {
+       "queued_ms": 80.6,
+       "started_ms": 80.7,
+       "wait_ms": 0.1,
+       "run_ms": 473.4
+      },
+      "mt": {
+       "queued_ms": 554.2,
+       "started_ms": 554.3,
+       "wait_ms": 0.1,
+       "run_ms": 96.0
+      },
+      "tts": {
+       "queued_ms": 650.4,
+       "started_ms": 650.6,
+       "wait_ms": 0.1,
+       "run_ms": 181.1
+      }
+     },
+     "prepared_ms": 831.9,
+     "end_ms": 761.7,
+     "save_started_ms": 831.9,
+     "save_ms": 30.1,
+     "final_ms": 862.0,
+     "redone": false
+    },
+    "audio_sha256": "5812a26bbf6ce61ffcccd80fff251033615494b36f015a804dbb1044eba1d329"
+   },
+   {
+    "key": "120-1620",
+    "outcome": "final",
+    "lags": [
+     0.8080000000819564,
+     0.3080000000819564,
+     0.6590000000409781,
+     0.9350000001024457,
+     0.5350000001024453,
+     0.3750000001024456,
+     -0.00499999989755473,
+     1.7370000000204895,
+     1.0770000000204893,
+     1.0570000000204889,
+     0.39700000002048874,
+     1.0840000000409784,
+     0.684000000040978,
+     1.1010000000614681,
+     0.7580000002123413,
+     1.2140000000409774,
+     0.7740000000409779,
+     1.2700000001024456,
+     0.5300000001024454,
+     0.6850000000000005,
+     1.2100000000000009,
+     1.3920000000204897,
+     1.012000000020489,
+     0.5320000000204885,
+     1.3650000000000002,
+     1.2420000000204894,
+     1.5650000000000013
+    ],
+    "final_s": 1.5650000000000013,
+    "audio_s": 1.5810000000614686,
+    "pause_sent_s": 0.4870000000204904,
+    "end_sent_s": 1.2680000002123428,
+    "pauses": 7,
+    "updates": 16,
+    "resumes": 6,
+    "result": {
+     "id": "4c4c53eb-e4d6-42e3-b793-1cc983ecfe96",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "이제 군도 전체에서 폭넓게 이용할 수 있는 자바식 요리법은 다양한 단순 제철 요리가 특징적이며 자바인들이 선호하는 주요 향은 땅콩, 실리, 설탕, 특히 자바 코코넛 설탕과 다양한 향신료입니다.",
+     "translated_text": "Now widely available throughout the archipelago, Javanese recipes feature a variety of simple seasonal dishes, and the main flavors that Javans prefer are peanuts, silica, sugar, and especially Java coconut sugar and various spices.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 601,
+     "mt_ms": 148,
+     "tts_ms": 254,
+     "audio_id": "53798376-1115-4fe1-958f-fa7487a81f26",
+     "created_at": "2026-11-02T15:44:12.430862Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": true,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.3,
+       "started_ms": 33.1,
+       "wait_ms": 32.8,
+       "run_ms": 6.4
+      },
+      "stt": {
+       "queued_ms": 39.6,
+       "started_ms": 39.8,
+       "wait_ms": 0.1,
+       "run_ms": 601.5
+      },
+      "mt": {
+       "queued_ms": 641.5,
+       "started_ms": 641.6,
+       "wait_ms": 0.1,
+       "run_ms": 148.4
+      },
+      "tts": {
+       "queued_ms": 790.2,
+       "started_ms": 790.3,
+       "wait_ms": 0.1,
+       "run_ms": 253.7
+      }
+     },
+     "prepared_ms": 1044.1,
+     "end_ms": 777.0,
+     "save_started_ms": 1044.2,
+     "save_ms": 33.1,
+     "final_ms": 1077.3,
+     "redone": false
+    },
+    "audio_sha256": "b7a15f5a67d2abbea7f0c9c6a93ecdaaad02eca78992c44f1d3fb40ad6dea090"
+   },
+   {
+    "key": "41-1561",
+    "outcome": "final",
+    "lags": [
+     0.563999999910593,
+     0.9549999998696148,
+     0.1749999998696148,
+     0.5419999998901037,
+     1.1419999998901038,
+     0.7619999998901039,
+     0.7929999998491262,
+     1.1699999998696144
+    ],
+    "final_s": 1.1699999998696144,
+    "audio_s": 1.1849999999999996,
+    "pause_sent_s": 0.32599999982863626,
+    "end_sent_s": 1.1389999999105926,
+    "pauses": 1,
+    "updates": 5,
+    "resumes": 0,
+    "result": {
+     "id": "9908446e-948c-46dd-84bb-7e3025b0fef0",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "대부분의 구역에서는 편안하고 튼튼한 소형 일제 코스터버스가 운행된다.",
+     "translated_text": "In most areas, a comfortable and sturdy small Japanese coaster bus is operated.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 315,
+     "mt_ms": 48,
+     "tts_ms": 153,
+     "audio_id": "52a93934-6c2e-4f29-9bbd-0eb58a8cde40",
+     "created_at": "2026-11-02T15:44:19.566815Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": false,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.1,
+       "started_ms": 0.3,
+       "wait_ms": 0.2,
+       "run_ms": 4.3
+      },
+      "stt": {
+       "queued_ms": 4.7,
+       "started_ms": 4.8,
+       "wait_ms": 0.1,
+       "run_ms": 315.3
+      },
+      "mt": {
+       "queued_ms": 320.3,
+       "started_ms": 320.4,
+       "wait_ms": 0.1,
+       "run_ms": 48.2
+      },
+      "tts": {
+       "queued_ms": 368.8,
+       "started_ms": 368.9,
+       "wait_ms": 0.1,
+       "run_ms": 152.6
+      }
+     },
+     "prepared_ms": 521.8,
+     "end_ms": 808.2,
+     "save_started_ms": 808.3,
+     "save_ms": 30.4,
+     "final_ms": 838.7,
+     "redone": false
+    },
+    "audio_sha256": "294e26c402450efe470e7e678d09ded209285a933586182ea7e888a7eb4182d3"
+   },
+   {
+    "key": "207-1613",
+    "outcome": "final",
+    "lags": [
+     0.6140000001713634,
+     1.1029999999795108,
+     0.6229999999795108,
+     1.25,
+     0.75,
+     1.2060000000614672,
+     0.5060000000614675,
+     1.1730000000819567,
+     0.7730000000819564,
+     0.373000000081956,
+     1.0170000000204888,
+     1.2530000000819568,
+     0.833000000081956,
+     0.2530000000819568,
+     0.8190000001713633,
+     0.6990000001713632,
+     0.3990000001713634,
+     0.7349999999999994,
+     0.41499999999999915
+    ],
+    "final_s": 1.2280000000819555,
+    "audio_s": 1.24299999997951,
+    "pause_sent_s": 0.38400000004097734,
+    "end_sent_s": 1.2120000000204882,
+    "pauses": 1,
+    "updates": 9,
+    "resumes": 0,
+    "result": {
+     "id": "11c0e8be-f980-4941-bb70-4354a74b4289",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "다음으로 일부 안장, 특히 영국의 안장에는 떨어지는 기수가 뒤로 당길 경우 등자 가죽이 안장해서 떨어질 수 있는 안전바가 있다.",
+     "translated_text": "Next, some saddles, especially in the UK, have safety bars where falling jockeys can be pulled back.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 398,
+     "mt_ms": 110,
+     "tts_ms": 149,
+     "audio_id": "8a221312-e101-46a1-8dd6-070cba49268e",
+     "created_at": "2026-11-02T15:44:30.296728Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": true,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.2,
+       "started_ms": 31.8,
+       "wait_ms": 31.7,
+       "run_ms": 5.4
+      },
+      "stt": {
+       "queued_ms": 37.4,
+       "started_ms": 37.6,
+       "wait_ms": 0.2,
+       "run_ms": 397.8
+      },
+      "mt": {
+       "queued_ms": 435.5,
+       "started_ms": 435.6,
+       "wait_ms": 0.1,
+       "run_ms": 110.0
+      },
+      "tts": {
+       "queued_ms": 545.7,
+       "started_ms": 545.9,
+       "wait_ms": 0.2,
+       "run_ms": 149.2
+      }
+     },
+     "prepared_ms": 695.3,
+     "end_ms": 818.4,
+     "save_started_ms": 818.4,
+     "save_ms": 25.2,
+     "final_ms": 843.7,
+     "redone": false
+    },
+    "audio_sha256": "4f5e13060b2a58b00bd2c2a4bd3f36ceca40f4cba8841be26d0fef6fdec7f122"
+   },
+   {
+    "key": "100-1659",
+    "outcome": "final",
+    "lags": [
+     0.5539999999385327,
+     1.11,
+     0.9099999999999999,
+     0.49,
+     0.940999999959022,
+     0.6009999999590216
+    ],
+    "final_s": 1.2259999999590216,
+    "audio_s": 1.242000000020489,
+    "pause_sent_s": 0.36700000002048894,
+    "end_sent_s": 1.1789999999385326,
+    "pauses": 1,
+    "updates": 3,
+    "resumes": 0,
+    "result": {
+     "id": "2d72fd57-b8a9-4bba-82ad-c225f3d6fd97",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "과학자들은 충돌로 인한 폭발이 거대했다고 말한다.",
+     "translated_text": "Scientists say the explosion was huge.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 278,
+     "mt_ms": 29,
+     "tts_ms": 113,
+     "audio_id": "d4cfd235-4df6-409b-bfbc-9248c7563e48",
+     "created_at": "2026-11-02T15:44:34.709576Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": true,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.1,
+       "started_ms": 222.0,
+       "wait_ms": 221.9,
+       "run_ms": 4.5
+      },
+      "stt": {
+       "queued_ms": 226.5,
+       "started_ms": 226.7,
+       "wait_ms": 0.1,
+       "run_ms": 277.6
+      },
+      "mt": {
+       "queued_ms": 504.5,
+       "started_ms": 504.6,
+       "wait_ms": 0.1,
+       "run_ms": 28.9
+      },
+      "tts": {
+       "queued_ms": 533.7,
+       "started_ms": 533.8,
+       "wait_ms": 0.1,
+       "run_ms": 112.8
+      }
+     },
+     "prepared_ms": 646.8,
+     "end_ms": 798.8,
+     "save_started_ms": 798.9,
+     "save_ms": 53.1,
+     "final_ms": 852.1,
+     "redone": false
+    },
+    "audio_sha256": "649ea120677225ca63cf99f87487563edbdda095893446480c3261a60ef3ea24"
+   },
+   {
+    "key": "22-1532",
+    "outcome": "final",
+    "lags": [
+     1.0349999998696149,
+     1.1459999998286365,
+     0.26599999982863665,
+     0.7019999998901039,
+     1.1619999998901038,
+     0.5219999998901041,
+     0.7079999999795108,
+     1.0799999998696146,
+     0.6999999998696147,
+     0.4599999998696145,
+     0.46699999989010355,
+     1.1799999999999997,
+     0.861999999787658,
+     1.1979999998491255,
+     0.3179999998491265
+    ],
+    "final_s": 1.2869999998901047,
+    "audio_s": 1.3019999997876592,
+    "pause_sent_s": 0.42699999978765923,
+    "end_sent_s": 1.2239999998081483,
+    "pauses": 1,
+    "updates": 12,
+    "resumes": 0,
+    "result": {
+     "id": "fc07fb76-5f4c-4f19-81b4-badc8ef44a58",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "108접시의 초판버헝 힌두교에서는 신에게 바치는 단것, 과일, 견과류, 요리 등 56가지 다른 먹을거리들과 바바시함에게 차려졌습니다.",
+     "translated_text": "The first Pan-Hungarian Hindus served 56 different dishes, including sweets, fruit, nuts, and dishes.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 447,
+     "mt_ms": 87,
+     "tts_ms": 168,
+     "audio_id": "6e3909a9-74e4-4dfb-bd63-f27247e93212",
+     "created_at": "2026-11-02T15:44:48.630537Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": false,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.2,
+       "started_ms": 0.3,
+       "wait_ms": 0.1,
+       "run_ms": 5.2
+      },
+      "stt": {
+       "queued_ms": 5.5,
+       "started_ms": 5.7,
+       "wait_ms": 0.1,
+       "run_ms": 447.0
+      },
+      "mt": {
+       "queued_ms": 452.8,
+       "started_ms": 452.9,
+       "wait_ms": 0.1,
+       "run_ms": 87.1
+      },
+      "tts": {
+       "queued_ms": 540.2,
+       "started_ms": 540.3,
+       "wait_ms": 0.1,
+       "run_ms": 167.9
+      }
+     },
+     "prepared_ms": 708.5,
+     "end_ms": 788.6,
+     "save_started_ms": 788.7,
+     "save_ms": 56.8,
+     "final_ms": 845.5,
+     "redone": false
+    },
+    "audio_sha256": "2999e5f300fb02302a816f1be1703c89f68c424112ed50478917ee2d6cf24972"
+   },
+   {
+    "key": "165-1523",
+    "outcome": "final",
+    "lags": [
+     0.9099999999999999,
+     0.53,
+     1.0930000000819564,
+     0.6530000000819565,
+     1.1410000001918523,
+     2.4480000002123417,
+     0.2930000000819568,
+     0.5880000002123413,
+     0.14800000021234183
+    ],
+    "final_s": 1.1010000001918527,
+    "audio_s": 1.1170000000204894,
+    "pause_sent_s": 0.25800000008195667,
+    "end_sent_s": 1.0700000000000003,
+    "pauses": 2,
+    "updates": 5,
+    "resumes": 1,
+    "result": {
+     "id": "740ef94f-632f-4047-93b0-f3d9a2250c06",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "최종 점수는 21대 20으로 1점차 승부였으며 올블랙스의 15연승으로 끝났다.",
+     "translated_text": "The final score was 21–20, finishing in the All-Blacks' 15th straight.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 350,
+     "mt_ms": 87,
+     "tts_ms": 134,
+     "audio_id": "8ee3bcd6-3868-45d5-b28d-ab3b677ca2ae",
+     "created_at": "2026-11-02T15:44:55.467252Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": false,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.1,
+       "started_ms": 0.2,
+       "wait_ms": 0.1,
+       "run_ms": 4.4
+      },
+      "stt": {
+       "queued_ms": 4.7,
+       "started_ms": 4.8,
+       "wait_ms": 0.1,
+       "run_ms": 350.4
+      },
+      "mt": {
+       "queued_ms": 355.4,
+       "started_ms": 355.5,
+       "wait_ms": 0.1,
+       "run_ms": 86.6
+      },
+      "tts": {
+       "queued_ms": 442.3,
+       "started_ms": 442.4,
+       "wait_ms": 0.1,
+       "run_ms": 133.6
+      }
+     },
+     "prepared_ms": 576.1,
+     "end_ms": 813.7,
+     "save_started_ms": 813.7,
+     "save_ms": 28.1,
+     "final_ms": 841.8,
+     "redone": false
+    },
+    "audio_sha256": "7926b73c0e698375019b8ff28b4ae87a43204063b061697dc13575e378c24967"
+   },
+   {
+    "key": "5-1623",
+    "outcome": "final",
+    "lags": [
+     0.9299999999999999,
+     0.18999999999999995,
+     0.6390000000409781,
+     0.1190000000409781,
+     1.1210000001918523,
+     0.6210000001918523,
+     1.027999999979511,
+     1.2679999999795113,
+     0.3879999999795105,
+     0.7549999999999999,
+     1.2660000001918519,
+     1.0260000001918517,
+     1.3060000001918528,
+     0.22600000019185273,
+     0.7980000000819558,
+     0.8329999999795117
+    ],
+    "final_s": 1.5829999999795117,
+    "audio_s": 1.599000000040979,
+    "pause_sent_s": 0.5210000000614681,
+    "end_sent_s": 1.3020000000204899,
+    "pauses": 4,
+    "updates": 12,
+    "resumes": 3,
+    "result": {
+     "id": "16c2414b-3562-4162-8859-ddc8a69f10cd",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "이 조항들은 모든 주에서 만장일지의 동의를 얻어야만 수정이 가능했으며 중앙정부를 무시한 주 대표들은 대부분 회의에 불참석했습니다.",
+     "translated_text": "These provisions had to be amended with unanimous consent from all states, and most of the state representatives who ignored the central government were absent from the meeting.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 430,
+     "mt_ms": 91,
+     "tts_ms": 190,
+     "audio_id": "20f6d86e-d59a-4d20-9195-ca501ba94bc5",
+     "created_at": "2026-11-02T15:45:09.168272Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": true,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.2,
+       "started_ms": 297.3,
+       "wait_ms": 297.1,
+       "run_ms": 5.5
+      },
+      "stt": {
+       "queued_ms": 302.9,
+       "started_ms": 303.0,
+       "wait_ms": 0.2,
+       "run_ms": 430.3
+      },
+      "mt": {
+       "queued_ms": 733.5,
+       "started_ms": 733.7,
+       "wait_ms": 0.2,
+       "run_ms": 91.1
+      },
+      "tts": {
+       "queued_ms": 824.9,
+       "started_ms": 825.1,
+       "wait_ms": 0.2,
+       "run_ms": 190.0
+      }
+     },
+     "prepared_ms": 1015.3,
+     "end_ms": 782.4,
+     "save_started_ms": 1015.3,
+     "save_ms": 35.6,
+     "final_ms": 1050.9,
+     "redone": false
+    },
+    "audio_sha256": "2ce6136a6a553475182ce77a9ece1c8e894798b9029bdad1145eb3e7b7b6fffe"
+   },
+   {
+    "key": "123-1652",
+    "outcome": "final",
+    "lags": [
+     1.7379999998491258,
+     0.19899999980814753,
+     0.8979999998491257,
+     0.29099999982863656
+    ],
+    "final_s": 1.3849999998696148,
+    "audio_s": 1.4,
+    "pause_sent_s": 0.5569999998901038,
+    "end_sent_s": 1.353999999910593,
+    "pauses": 2,
+    "updates": 3,
+    "resumes": 1,
+    "result": {
+     "id": "d8434586-cd93-4e17-8d23-9a22c2e98ed6",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "몰도바의 주요 종교는 동방정교입니다.",
+     "translated_text": "The main religion in Moldova is Eastern Orthodoxy.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 247,
+     "mt_ms": 33,
+     "tts_ms": 119,
+     "audio_id": "a3c7aa07-f3b9-4f31-b408-ffde9635b16d",
+     "created_at": "2026-11-02T15:45:14.195391Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": false,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.1,
+       "started_ms": 0.2,
+       "wait_ms": 0.1,
+       "run_ms": 4.0
+      },
+      "stt": {
+       "queued_ms": 4.3,
+       "started_ms": 4.4,
+       "wait_ms": 0.1,
+       "run_ms": 247.5
+      },
+      "mt": {
+       "queued_ms": 251.9,
+       "started_ms": 252.1,
+       "wait_ms": 0.1,
+       "run_ms": 33.4
+      },
+      "tts": {
+       "queued_ms": 285.6,
+       "started_ms": 285.7,
+       "wait_ms": 0.1,
+       "run_ms": 118.8
+      }
+     },
+     "prepared_ms": 404.7,
+     "end_ms": 798.4,
+     "save_started_ms": 798.5,
+     "save_ms": 33.0,
+     "final_ms": 831.5,
+     "redone": false
+    },
+    "audio_sha256": "505ee391c8d0b44a32fe00e70b61341284385b2d92cb5bb2ec68ad0b35a54646"
+   },
+   {
+    "key": "28-1629",
+    "outcome": "final",
+    "lags": [
+     0.73,
+     0.31000000000000005,
+     0.97,
+     0.3899999999999999,
+     0.9100000000000001,
+     0.4500000000000002,
+     0.7970000000204891,
+     0.9489999999105931,
+     1.1199999998696146,
+     0.6799999998696151,
+     0.3199999998696148,
+     0.9709999998286367,
+     1.250999999828637,
+     0.8509999998286366,
+     0.9069999998901039,
+     1.1269999998901046,
+     1.4250000000000007,
+     1.0850000000000009,
+     0.625,
+     0.24499999999999922,
+     0.8049999998696151,
+     1.2870000000204893,
+     0.7870000000204893
+    ],
+    "final_s": 1.6469999998901041,
+    "audio_s": 1.6620000000204893,
+    "pause_sent_s": 0.33399999980814776,
+    "end_sent_s": 1.1309999998286369,
+    "pauses": 2,
+    "updates": 13,
+    "resumes": 1,
+    "result": {
+     "id": "a6dcd047-52bb-45cc-be04-345cf081e06a",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "일부 보도에 따르면 공식 사망자 수는 8명으로 집계됐으며 공식 보도에 따르면 최대 30명이 부상을 입었다고 전해진다. 그러나 최종 사망자 수는 아직 알려지지 않았다.",
+     "translated_text": "According to some reports, the official death toll was eight, and official reports say up to 30 people were injured. However, the final death toll remains unknown.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 511,
+     "mt_ms": 106,
+     "tts_ms": 205,
+     "audio_id": "89a875ae-377b-4a5a-86c3-ef411fab77ed",
+     "created_at": "2026-11-02T15:45:29.115566Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": true,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.2,
+       "started_ms": 457.0,
+       "wait_ms": 456.8,
+       "run_ms": 5.8
+      },
+      "stt": {
+       "queued_ms": 463.0,
+       "started_ms": 463.1,
+       "wait_ms": 0.1,
+       "run_ms": 511.4
+      },
+      "mt": {
+       "queued_ms": 974.6,
+       "started_ms": 974.7,
+       "wait_ms": 0.1,
+       "run_ms": 106.4
+      },
+      "tts": {
+       "queued_ms": 1081.3,
+       "started_ms": 1081.4,
+       "wait_ms": 0.1,
+       "run_ms": 204.8
+      }
+     },
+     "prepared_ms": 1286.4,
+     "end_ms": 807.8,
+     "save_started_ms": 1286.4,
+     "save_ms": 38.5,
+     "final_ms": 1325.0,
+     "redone": false
+    },
+    "audio_sha256": "f937552c94c9a0ac22bcb176ffe820dadfbc824897be73ff11b9fd5d9da275e4"
+   },
+   {
+    "key": "97-1595",
+    "outcome": "final",
+    "lags": [
+     0.7390000000409782,
+     0.2190000000409782,
+     0.6860000000614672,
+     1.0809999999590216,
+     0.6609999999590217,
+     0.2809999999590218,
+     0.9840000000409779,
+     1.5549999999999997,
+     1.1550000000000002,
+     0.915,
+     0.4950000000000001,
+     1.031000000061467,
+     0.7310000000614671,
+     1.1910000000614671,
+     0.5910000000614675,
+     0.4220000000204891
+    ],
+    "final_s": 1.4370000001508743,
+    "audio_s": 1.452999999979511,
+    "pause_sent_s": 0.5779999999795109,
+    "end_sent_s": 1.3910000000614673,
+    "pauses": 1,
+    "updates": 9,
+    "resumes": 0,
+    "result": {
+     "id": "a303e77b-8a2a-4852-abcb-6c617a4e9aab",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "티벳 불교는 부처님이 가르침을 기반으로 하지만 대승불교의 사랑의 관념 및 인도 요가의 많은 기술을 바탕으로 확장되었습니다.",
+     "translated_text": "Tibetan Buddhism is based on the Buddha's teachings but expanded on the notion of love of Buddhism and many techniques of Indian yoga.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 418,
+     "mt_ms": 82,
+     "tts_ms": 157,
+     "audio_id": "35fc1011-ba08-4595-963a-cdfca5f8150c",
+     "created_at": "2026-11-02T15:45:40.066903Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": false,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.2,
+       "started_ms": 0.3,
+       "wait_ms": 0.1,
+       "run_ms": 5.1
+      },
+      "stt": {
+       "queued_ms": 5.5,
+       "started_ms": 5.6,
+       "wait_ms": 0.1,
+       "run_ms": 417.6
+      },
+      "mt": {
+       "queued_ms": 423.5,
+       "started_ms": 423.6,
+       "wait_ms": 0.2,
+       "run_ms": 82.2
+      },
+      "tts": {
+       "queued_ms": 506.0,
+       "started_ms": 506.1,
+       "wait_ms": 0.1,
+       "run_ms": 156.6
+      }
+     },
+     "prepared_ms": 662.9,
+     "end_ms": 804.6,
+     "save_started_ms": 804.7,
+     "save_ms": 43.2,
+     "final_ms": 847.9,
+     "redone": false
+    },
+    "audio_sha256": "e4ebd82c7e765c14cfc23bb8d68b57334223d67901b685875e7ef8bd283d287d"
+   },
+   {
+    "key": "57-1542",
+    "outcome": "final",
+    "lags": [
+     0.6390000000409782,
+     0.19900000004097818,
+     0.8140000001713634,
+     6.231000000061467,
+     1.1660000000614672,
+     0.6860000000614672,
+     0.42600000006146743,
+     1.3079999999795113,
+     0.5679999999795111,
+     0.9640000000409783,
+     0.644000000040978,
+     0.2040000000409785,
+     0.6710000000614675,
+     0.071000000061467
+    ],
+    "final_s": 1.321000000061467,
+    "audio_s": 1.3360000001918522,
+    "pause_sent_s": 0.4930000000819561,
+    "end_sent_s": 1.289000000171363,
+    "pauses": 3,
+    "updates": 8,
+    "resumes": 2,
+    "result": {
+     "id": "f9b13004-830b-47e0-bc60-814730458a97",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "부시의 대변인 고든 존드로는 북한의 약속에 대해 한반도의 비핵화를 달성하기 위한 주요 단계라고 평했습니다.",
+     "translated_text": "Bush's spokesman, Gordon Johndro, said the North's commitments were a major step toward achieving denuclearization.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 376,
+     "mt_ms": 79,
+     "tts_ms": 166,
+     "audio_id": "33c7b50b-24c4-4394-a25d-75263797192a",
+     "created_at": "2026-11-02T15:45:50.235307Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": false,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.1,
+       "started_ms": 0.3,
+       "wait_ms": 0.1,
+       "run_ms": 4.8
+      },
+      "stt": {
+       "queued_ms": 5.2,
+       "started_ms": 5.3,
+       "wait_ms": 0.1,
+       "run_ms": 375.6
+      },
+      "mt": {
+       "queued_ms": 381.1,
+       "started_ms": 381.2,
+       "wait_ms": 0.1,
+       "run_ms": 78.5
+      },
+      "tts": {
+       "queued_ms": 460.0,
+       "started_ms": 460.1,
+       "wait_ms": 0.2,
+       "run_ms": 165.7
+      }
+     },
+     "prepared_ms": 625.9,
+     "end_ms": 791.9,
+     "save_started_ms": 792.0,
+     "save_ms": 41.1,
+     "final_ms": 833.1,
+     "redone": false
+    },
+    "audio_sha256": "8b8cd39eaadc3f371b1dc671bfa4ae6a8cb94b353b06b59ecf5e6d27be9cab7a"
+   },
+   {
+    "key": "34-1583",
+    "outcome": "final",
+    "lags": [
+     0.69,
+     0.8790000000409781,
+     1.1340000001713633,
+     0.8140000001713634,
+     0.3140000001713634,
+     0.9860000000614675,
+     0.5060000000614675,
+     1.1609999999590217,
+     0.5809999999590216,
+     0.4170000000204892,
+     0.9120000001508739,
+     0.33200000015087383,
+     0.5240000000409779,
+     0.8790000001713629,
+     1.2910000000614676,
+     0.7510000000614667,
+     0.3910000000614673,
+     0.5970000001508744,
+     1.032999999979511,
+     0.5129999999795114
+    ],
+    "final_s": 1.2940000001713639,
+    "audio_s": 1.3100000000000005,
+    "pause_sent_s": 0.29400000017136385,
+    "end_sent_s": 1.0909999999590223,
+    "pauses": 3,
+    "updates": 12,
+    "resumes": 2,
+    "result": {
+     "id": "c7f37e1c-dfeb-490c-89bd-1136ab6600bb",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "그녀는 피임약이 의학적으로 꼭 필요한 것으로 여겨야 한다고 촉구하는 여성과 남성 모두의 긍정적인 의견과 격려가 쇄도했기 때문에 이런 결론을 내렸다.",
+     "translated_text": "She came to this conclusion because of the positive opinions and encouragement of both women and men who called for contraceptives to be considered medically necessary.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 462,
+     "mt_ms": 94,
+     "tts_ms": 190,
+     "audio_id": "fc1d83c1-b056-4d95-956e-e788a162d001",
+     "created_at": "2026-11-02T15:46:04.000442Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": true,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.2,
+       "started_ms": 211.4,
+       "wait_ms": 211.2,
+       "run_ms": 5.5
+      },
+      "stt": {
+       "queued_ms": 217.0,
+       "started_ms": 217.2,
+       "wait_ms": 0.2,
+       "run_ms": 461.9
+      },
+      "mt": {
+       "queued_ms": 679.2,
+       "started_ms": 679.3,
+       "wait_ms": 0.1,
+       "run_ms": 93.9
+      },
+      "tts": {
+       "queued_ms": 773.3,
+       "started_ms": 773.4,
+       "wait_ms": 0.1,
+       "run_ms": 190.2
+      }
+     },
+     "prepared_ms": 963.9,
+     "end_ms": 796.2,
+     "save_started_ms": 963.9,
+     "save_ms": 36.0,
+     "final_ms": 1000.0,
+     "redone": false
+    },
+    "audio_sha256": "69d979d8834d10eeb75625418b200b4347cd36d73496049960ff884566e31a72"
+   },
+   {
+    "key": "87-1529",
+    "outcome": "final",
+    "lags": [
+     1.658000000109896,
+     1.0580000001098961,
+     0.658000000109896,
+     0.8700000000000001,
+     1.1160000000894068,
+     0.796000000089407,
+     0.49600000008940714,
+     1.0879999999795107,
+     0.5279999999795111,
+     1.1230000001098963,
+     0.803000000109896,
+     -0.3120000000204888,
+     1.2099999998975548,
+     1.0099999998975546,
+     0.5499999998975547,
+     0.9059999999590218,
+     0.4259999999590214
+    ],
+    "final_s": 1.409999999897554,
+    "audio_s": 1.7229999999795105,
+    "pause_sent_s": 0.5660000000894065,
+    "end_sent_s": 1.3789999999385323,
+    "pauses": 1,
+    "updates": 8,
+    "resumes": 0,
+    "result": {
+     "id": "e1b2c33b-f918-47a4-954a-0b76e7ae8672",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "링의 CEO인 제이미 시민호프는 차고에 있던 그의 숍에서 초인종 소리를 들을 수 없었을 때 회사를 시작했다고 말했습니다.",
+     "translated_text": "The CEO of Ling, Jamie Citizenhoff, said he started the company when he couldn't hear the doorbell in his garage.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 408,
+     "mt_ms": 91,
+     "tts_ms": 164,
+     "audio_id": "6e5f9763-6fae-45cb-9f16-98a054d0023d",
+     "created_at": "2026-11-02T15:46:13.932883Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": true,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.1,
+       "started_ms": 0.5,
+       "wait_ms": 0.4,
+       "run_ms": 6.5
+      },
+      "stt": {
+       "queued_ms": 7.1,
+       "started_ms": 7.3,
+       "wait_ms": 0.1,
+       "run_ms": 407.8
+      },
+      "mt": {
+       "queued_ms": 415.2,
+       "started_ms": 415.3,
+       "wait_ms": 0.1,
+       "run_ms": 90.6
+      },
+      "tts": {
+       "queued_ms": 506.1,
+       "started_ms": 506.3,
+       "wait_ms": 0.1,
+       "run_ms": 163.7
+      }
+     },
+     "prepared_ms": 670.1,
+     "end_ms": 812.4,
+     "save_started_ms": 812.5,
+     "save_ms": 26.5,
+     "final_ms": 839.0,
+     "redone": false
+    },
+    "audio_sha256": "b4d23523496694796d69c1422e764bb08a182ff658f6162702ca7e968af04c8b"
+   },
+   {
+    "key": "77-1545",
+    "outcome": "final",
+    "lags": [
+     0.7259999998286366,
+     1.314999999869615,
+     0.9549999998696148,
+     0.7149999998696148,
+     0.8069999998901038,
+     0.9309999998286367,
+     0.7309999998286365,
+     0.5109999998286368,
+     0.1709999998286369
+    ],
+    "final_s": 1.2329999999795112,
+    "audio_s": 1.2329999999795112,
+    "pause_sent_s": 0.40500000000000025,
+    "end_sent_s": 1.1869999998901042,
+    "pauses": 2,
+    "updates": 4,
+    "resumes": 1,
+    "result": {
+     "id": "fe4d9278-5ef6-432b-9cb6-f72d3a17ce43",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "카레는 물의 양에 따라 되직하거나 묽게 될 수 있다.",
+     "translated_text": "Curry can be reversed or diluted depending on the amount of water.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 264,
+     "mt_ms": 51,
+     "tts_ms": 125,
+     "audio_id": "2eed1f8a-553d-43a8-8b65-9a0f0442cbb9",
+     "created_at": "2026-11-02T15:46:20.200112Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": false,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.1,
+       "started_ms": 0.2,
+       "wait_ms": 0.1,
+       "run_ms": 4.0
+      },
+      "stt": {
+       "queued_ms": 4.4,
+       "started_ms": 4.5,
+       "wait_ms": 0.1,
+       "run_ms": 263.6
+      },
+      "mt": {
+       "queued_ms": 268.2,
+       "started_ms": 268.4,
+       "wait_ms": 0.2,
+       "run_ms": 51.0
+      },
+      "tts": {
+       "queued_ms": 319.6,
+       "started_ms": 319.8,
+       "wait_ms": 0.1,
+       "run_ms": 124.6
+      }
+     },
+     "prepared_ms": 444.5,
+     "end_ms": 792.3,
+     "save_started_ms": 792.4,
+     "save_ms": 33.4,
+     "final_ms": 825.8,
+     "redone": false
+    },
+    "audio_sha256": "173f6935f1699b818da21c0ef83c25c27ca40583bcdf36ca7d71269823d79475"
+   },
+   {
+    "key": "187-1579",
+    "outcome": "final",
+    "lags": [
+     0.9299999999999999,
+     0.44999999999999996,
+     0.9460000000614672,
+     0.5060000000614673,
+     0.9410000001918526,
+     1.4610000001918526,
+     0.9810000001918526,
+     0.5610000001918523,
+     0.3410000001918525,
+     0.8550000000000004,
+     0.47499999999999964,
+     1.1349999999999998,
+     0.875,
+     0.7949999999999999,
+     0.5549999999999997,
+     0.375,
+     0.9310000000614673,
+     0.7310000000614671
+    ],
+    "final_s": 1.4030000000819562,
+    "audio_s": 1.4179999999795108,
+    "pause_sent_s": 0.3710000001918523,
+    "end_sent_s": 1.1530000000819562,
+    "pauses": 2,
+    "updates": 7,
+    "resumes": 1,
+    "result": {
+     "id": "8266bbff-89a2-4294-b927-edf59096e686",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "이 시점에서 이라크의 행동이 종파적인 전쟁이나 폭력이 증가하는 것 혹은 혼돈의 상태를 막을 수 있다는 데 보장은 없다.",
+     "translated_text": "At this point, there is no guarantee that Iraq’s actions will prevent sectarian wars, violence, or chaos.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 388,
+     "mt_ms": 75,
+     "tts_ms": 166,
+     "audio_id": "bf8b2f3c-c788-4b4b-9490-4c1bb1128b92",
+     "created_at": "2026-11-02T15:46:28.786920Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": true,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.2,
+       "started_ms": 370.3,
+       "wait_ms": 370.2,
+       "run_ms": 4.9
+      },
+      "stt": {
+       "queued_ms": 375.4,
+       "started_ms": 375.5,
+       "wait_ms": 0.1,
+       "run_ms": 387.5
+      },
+      "mt": {
+       "queued_ms": 763.3,
+       "started_ms": 763.4,
+       "wait_ms": 0.2,
+       "run_ms": 74.6
+      },
+      "tts": {
+       "queued_ms": 838.2,
+       "started_ms": 838.4,
+       "wait_ms": 0.2,
+       "run_ms": 166.4
+      }
+     },
+     "prepared_ms": 1005.0,
+     "end_ms": 790.1,
+     "save_started_ms": 1005.0,
+     "save_ms": 32.2,
+     "final_ms": 1037.2,
+     "redone": false
+    },
+    "audio_sha256": "dda93bb2b4641d29f936368e77626e09f3437c27d6379f074227580894439a4f"
+   },
+   {
+    "key": "216-1569",
+    "outcome": "final",
+    "lags": [
+     0.4280000000819564,
+     0.6190000000409781,
+     0.19900000004097818,
+     0.6860000000614672,
+     0.34600000006146736,
+     1.1410000001918528,
+     2.264000000040978,
+     0.7930000000819568,
+     0.5730000000819562,
+     1.0840000000409784,
+     0.5440000000409784
+    ],
+    "final_s": 1.1690000000409784,
+    "audio_s": 1.1850000001024457,
+    "pause_sent_s": 0.3250000000000002,
+    "end_sent_s": 1.1380000000819566,
+    "pauses": 4,
+    "updates": 7,
+    "resumes": 3,
+    "result": {
+     "id": "96a2eda2-6878-415a-8e53-56e8e4acca68",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "보고서는 미국의 중동 정책에 관해 공개토론과 의견일치 형성에 대한 탄원으로 시작한다.",
+     "translated_text": "The report begins with a plea for a forum and consensus on U.S. Middle East policy.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 334,
+     "mt_ms": 65,
+     "tts_ms": 144,
+     "audio_id": "b6f49ccc-e93c-47e9-988d-253f9a8c1bc5",
+     "created_at": "2026-11-02T15:46:37.272248Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": true,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.1,
+       "started_ms": 208.1,
+       "wait_ms": 208.0,
+       "run_ms": 5.4
+      },
+      "stt": {
+       "queued_ms": 213.7,
+       "started_ms": 213.8,
+       "wait_ms": 0.1,
+       "run_ms": 334.0
+      },
+      "mt": {
+       "queued_ms": 548.0,
+       "started_ms": 548.1,
+       "wait_ms": 0.1,
+       "run_ms": 65.0
+      },
+      "tts": {
+       "queued_ms": 613.3,
+       "started_ms": 613.4,
+       "wait_ms": 0.1,
+       "run_ms": 144.4
+      }
+     },
+     "prepared_ms": 758.1,
+     "end_ms": 804.8,
+     "save_started_ms": 804.9,
+     "save_ms": 29.9,
+     "final_ms": 834.8,
+     "redone": false
+    },
+    "audio_sha256": "8a4599ec8a0c80732efcfcd00617f2df239a43e321505b1b5f8d30c29939a50d"
+   },
+   {
+    "key": "73-1521",
+    "outcome": "final",
+    "lags": [
+     0.5829999999795109,
+     0.3229999999795109,
+     0.6939999999385327,
+     0.9139999999385329,
+     0.5739999999385326,
+     0.29399999993853276,
+     0.7049999998975545,
+     0.8809999999590215,
+     1.1679999999795108,
+     0.3879999999795105
+    ],
+    "final_s": 1.1689999999385323,
+    "audio_s": 1.1849999999999996,
+    "pause_sent_s": 0.3409999999590214,
+    "end_sent_s": 1.1379999999795105,
+    "pauses": 2,
+    "updates": 6,
+    "resumes": 1,
+    "result": {
+     "id": "6253a4fe-6fe6-494b-a91a-29cc60b2f21c",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "우주에 있는 위성은 신호를 받고 나서 거의 즉각적으로 반사에 내려보낸다.",
+     "translated_text": "A satellite in space receives a signal and then sends it back to reflect almost immediately.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 336,
+     "mt_ms": 71,
+     "tts_ms": 126,
+     "audio_id": "c3cd9364-9a93-4e9b-b82c-a7ba759ada42",
+     "created_at": "2026-11-02T15:46:44.900303Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": true,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.1,
+       "started_ms": 52.0,
+       "wait_ms": 51.9,
+       "run_ms": 5.0
+      },
+      "stt": {
+       "queued_ms": 57.1,
+       "started_ms": 57.2,
+       "wait_ms": 0.1,
+       "run_ms": 336.1
+      },
+      "mt": {
+       "queued_ms": 393.5,
+       "started_ms": 393.6,
+       "wait_ms": 0.1,
+       "run_ms": 71.0
+      },
+      "tts": {
+       "queued_ms": 464.7,
+       "started_ms": 464.9,
+       "wait_ms": 0.1,
+       "run_ms": 126.2
+      }
+     },
+     "prepared_ms": 591.2,
+     "end_ms": 805.7,
+     "save_started_ms": 805.8,
+     "save_ms": 24.1,
+     "final_ms": 829.9,
+     "redone": false
+    },
+    "audio_sha256": "20e133b9bec9431e4595bd4cb3ead394e9f1e5b787d900dd10660339d9afb1b0"
+   },
+   {
+    "key": "193-1566",
+    "outcome": "final",
+    "lags": [
+     0.7739999999385327,
+     0.43399999993853267,
+     0.9029999999795109,
+     0.562999999979511,
+     1.025999999959022,
+     0.5480000001098961,
+     0.8280000001098964,
+     1.0680000001098957,
+     0.7680000001098959,
+     0.3280000001098964,
+     1.2460000000894071,
+     1.1849999999999996,
+     0.3849999999999998,
+     1.1680000001098954
+    ],
+    "final_s": 1.1680000001098954,
+    "audio_s": 1.183999999938532,
+    "pause_sent_s": 0.3399999998975538,
+    "end_sent_s": 1.136999999918043,
+    "pauses": 3,
+    "updates": 8,
+    "resumes": 2,
+    "result": {
+     "id": "91566dc0-9dc3-4813-a72b-d61d7e08389f",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "비록 우리 물품의 80%가 중앙아메리카 국가들에서 관세를 통해 세금이 부과된다 우리가 당신을 대접한다",
+     "translated_text": "Even though 80% of our goods are taxed through tariffs in Central American countries, we will treat you",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 399,
+     "mt_ms": 73,
+     "tts_ms": 146,
+     "audio_id": "15787e40-af56-4510-97ed-53e695421e8f",
+     "created_at": "2026-11-02T15:46:55.882494Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": false,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.1,
+       "started_ms": 0.3,
+       "wait_ms": 0.1,
+       "run_ms": 4.7
+      },
+      "stt": {
+       "queued_ms": 5.1,
+       "started_ms": 5.1,
+       "wait_ms": 0.1,
+       "run_ms": 399.2
+      },
+      "mt": {
+       "queued_ms": 404.4,
+       "started_ms": 404.5,
+       "wait_ms": 0.1,
+       "run_ms": 72.8
+      },
+      "tts": {
+       "queued_ms": 477.5,
+       "started_ms": 477.6,
+       "wait_ms": 0.1,
+       "run_ms": 146.0
+      }
+     },
+     "prepared_ms": 623.9,
+     "end_ms": 800.0,
+     "save_started_ms": 800.1,
+     "save_ms": 28.1,
+     "final_ms": 828.2,
+     "redone": false
+    },
+    "audio_sha256": "04e4602f8be515acfdb3eeb69383c9f907099c14ce08b5f8f19323e0035b2d87"
+   },
+   {
+    "key": "9-1577",
+    "outcome": "final",
+    "lags": [
+     0.8629999999795108,
+     0.38299999997951095,
+     1.1940000001713633,
+     1.0340000001713634,
+     0.7740000001713634,
+     0.6340000001713633,
+     1.0540000001713632,
+     1.1009999999590216,
+     0.500999999959022,
+     1.2090000000409784
+    ],
+    "final_s": 1.2090000000409784,
+    "audio_s": 1.2240000001713636,
+    "pause_sent_s": 0.395999999959022,
+    "end_sent_s": 1.1929999999795111,
+    "pauses": 2,
+    "updates": 4,
+    "resumes": 1,
+    "result": {
+     "id": "8aaef806-bff3-4a86-b1fe-58370e111f5f",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "그게 저에겐 말이 안 되는 것 같았습니다. 확실히 공평하지 않았어요.",
+     "translated_text": "It didn't make sense to me. It certainly wasn't fair.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 280,
+     "mt_ms": 63,
+     "tts_ms": 121,
+     "audio_id": "825113e6-c184-42d9-ada5-70f094cd340d",
+     "created_at": "2026-11-02T15:47:01.875626Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": false,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.1,
+       "started_ms": 0.2,
+       "wait_ms": 0.1,
+       "run_ms": 4.0
+      },
+      "stt": {
+       "queued_ms": 4.3,
+       "started_ms": 4.4,
+       "wait_ms": 0.1,
+       "run_ms": 279.6
+      },
+      "mt": {
+       "queued_ms": 284.1,
+       "started_ms": 284.2,
+       "wait_ms": 0.1,
+       "run_ms": 63.3
+      },
+      "tts": {
+       "queued_ms": 347.7,
+       "started_ms": 347.8,
+       "wait_ms": 0.1,
+       "run_ms": 120.6
+      }
+     },
+     "prepared_ms": 468.6,
+     "end_ms": 796.9,
+     "save_started_ms": 797.0,
+     "save_ms": 26.0,
+     "final_ms": 823.1,
+     "redone": false
+    },
+    "audio_sha256": "ef8eaecca5486311985064e6901aaaa207d92ac363651bc1030681c4933a68ba"
+   },
+   {
+    "key": "68-1611",
+    "outcome": "final",
+    "lags": [
+     0.37,
+     1.1859999998286366,
+     0.8059999998286367,
+     0.3459999998286367,
+     0.841999999890104,
+     1.0439999998081477,
+     1.0399999998696146,
+     0.599999999869615,
+     0.599999999869615,
+     -0.040000000130385516
+    ],
+    "final_s": 1.1319999998901036,
+    "audio_s": 1.146999999787658,
+    "pause_sent_s": 0.30299999997951055,
+    "end_sent_s": 1.0999999999999996,
+    "pauses": 1,
+    "updates": 6,
+    "resumes": 0,
+    "result": {
+     "id": "4124d9ad-236c-44dd-99de-b215e37b0e9f",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "과학자들은 이 공룡 깃털의 위쪽이 진갈색이고 아래쪽은 희거나 노란빛이었다고 밝혔다.",
+     "translated_text": "Scientists said the upper part of the dinosaur feather was dark brown and the lower part white or yellow.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 364,
+     "mt_ms": 70,
+     "tts_ms": 149,
+     "audio_id": "75f9ca4a-a8e4-4a56-844e-9ba8d19b13ea",
+     "created_at": "2026-11-02T15:47:09.913974Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": false,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.1,
+       "started_ms": 0.3,
+       "wait_ms": 0.1,
+       "run_ms": 4.5
+      },
+      "stt": {
+       "queued_ms": 4.9,
+       "started_ms": 5.0,
+       "wait_ms": 0.1,
+       "run_ms": 364.1
+      },
+      "mt": {
+       "queued_ms": 369.2,
+       "started_ms": 369.3,
+       "wait_ms": 0.1,
+       "run_ms": 69.7
+      },
+      "tts": {
+       "queued_ms": 439.1,
+       "started_ms": 439.2,
+       "wait_ms": 0.1,
+       "run_ms": 148.7
+      }
+     },
+     "prepared_ms": 588.0,
+     "end_ms": 797.8,
+     "save_started_ms": 797.8,
+     "save_ms": 25.9,
+     "final_ms": 823.8,
+     "redone": false
+    },
+    "audio_sha256": "8b911cd0818ade0a583ef837f50342b9bcf16472d97bba1c1690d50943069bbc"
+   },
+   {
+    "key": "4-1527",
+    "outcome": "final",
+    "lags": [
+     0.6150000001024455,
+     0.31500000010244544,
+     0.2750000001024455,
+     0.9100000000000001,
+     0.4500000000000002,
+     0.6060000000614671,
+     1.08,
+     0.9660000001918521,
+     1.2780000000819562,
+     0.6980000000819562,
+     1.078000000081956,
+     0.513000000212342,
+     0.7450000001024453,
+     1.2960000000614667,
+     0.6160000000614669,
+     1.283000000081957,
+     0.4230000000819558,
+     1.0,
+     1.0299999999999994,
+     -0.6799999999999997,
+     0.8460000001918537,
+     0.2660000001918519
+    ],
+    "final_s": 1.4070000000204885,
+    "audio_s": 1.4230000000819558,
+    "pause_sent_s": 0.3910000001918519,
+    "end_sent_s": 1.1730000000819558,
+    "pauses": 7,
+    "updates": 17,
+    "resumes": 6,
+    "result": {
+     "id": "5527b337-b15b-46e1-81d5-fd5ff8a617d8",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "폴란드 남자 시각장애인 스키 선수 마키 크레젤과 가이드 안나 오가진 스카가 슈퍼대회전에서 13위로 경기를 마쳤다. 한국의 박종석은 남자 좌식스키 슈퍼대회전에서 24위를 차지했다.",
+     "translated_text": "Polish man-visual skier Marki Cressel and guide Anna Ogazin finished 13th in the Super Tournament. Park Jong-seok of Korea finished 24th in the men's sit-down ski Super Tournament.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 574,
+     "mt_ms": 152,
+     "tts_ms": 214,
+     "audio_id": "a329331a-bce0-4ca0-bb08-0745ce90d3a7",
+     "created_at": "2026-11-02T15:47:29.470111Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": true,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.2,
+       "started_ms": 31.3,
+       "wait_ms": 31.1,
+       "run_ms": 6.2
+      },
+      "stt": {
+       "queued_ms": 37.6,
+       "started_ms": 37.7,
+       "wait_ms": 0.1,
+       "run_ms": 574.5
+      },
+      "mt": {
+       "queued_ms": 612.3,
+       "started_ms": 612.5,
+       "wait_ms": 0.2,
+       "run_ms": 152.4
+      },
+      "tts": {
+       "queued_ms": 765.0,
+       "started_ms": 765.2,
+       "wait_ms": 0.1,
+       "run_ms": 214.1
+      }
+     },
+     "prepared_ms": 979.5,
+     "end_ms": 790.3,
+     "save_started_ms": 979.5,
+     "save_ms": 38.8,
+     "final_ms": 1018.3,
+     "redone": false
+    },
+    "audio_sha256": "ac3d041f08698754faab4e12acf62c7602205bfe81fe2e462ebbb80543d2976a"
+   },
+   {
+    "key": "199-1646",
+    "outcome": "final",
+    "lags": [
+     0.26299999997951096,
+     1.09,
+     0.79,
+     0.3500000000000001,
+     0.7859999998286367,
+     0.5659999998286365,
+     0.14599999982863654,
+     0.4619999998901041,
+     -0.15800000010989645,
+     1.1929999998491256,
+     0.7929999998491262,
+     0.592999999849126,
+     1.2079999999795108,
+     1.027999999979511,
+     0.6879999999795112,
+     0.42799999997951055,
+     0.06799999997951112
+    ],
+    "final_s": 1.4119999997876587,
+    "audio_s": 1.427999999849126,
+    "pause_sent_s": 0.5679999999795111,
+    "end_sent_s": 1.3809999998286369,
+    "pauses": 3,
+    "updates": 7,
+    "resumes": 2,
+    "result": {
+     "id": "88fe4256-7884-44b2-b979-32f0ef2f856f",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "오클랜드가 두 개의 항구를 가로지르고 있기 때문에 해변이 많습니다. 가장 인기 있는 곳이 세 지역 안에 있습니다.",
+     "translated_text": "There are many beaches as Auckland crosses two ports. The most popular are in three areas.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 384,
+     "mt_ms": 71,
+     "tts_ms": 148,
+     "audio_id": "c7409cd8-0b06-4cad-a89f-8fe8a5257754",
+     "created_at": "2026-11-02T15:47:39.174590Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": false,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.1,
+       "started_ms": 0.3,
+       "wait_ms": 0.1,
+       "run_ms": 4.7
+      },
+      "stt": {
+       "queued_ms": 5.0,
+       "started_ms": 5.1,
+       "wait_ms": 0.1,
+       "run_ms": 383.9
+      },
+      "mt": {
+       "queued_ms": 389.1,
+       "started_ms": 389.2,
+       "wait_ms": 0.1,
+       "run_ms": 71.4
+      },
+      "tts": {
+       "queued_ms": 460.8,
+       "started_ms": 460.9,
+       "wait_ms": 0.1,
+       "run_ms": 147.9
+      }
+     },
+     "prepared_ms": 608.9,
+     "end_ms": 802.7,
+     "save_started_ms": 802.8,
+     "save_ms": 33.0,
+     "final_ms": 835.8,
+     "redone": false
+    },
+    "audio_sha256": "26355b2d609369e01868345ff06acc7074aecc86a79ecd0fe6531a32f2b966bf"
+   },
+   {
+    "key": "185-1633",
+    "outcome": "final",
+    "lags": [
+     0.95,
+     0.27,
+     0.99,
+     0.4099999999999999,
+     1.085000000130385,
+     0.46500000013038534,
+     1.145000000130385,
+     0.545000000130385,
+     0.7570000000204891,
+     0.31700000002048867,
+     1.0440000000409784,
+     0.2840000000409786,
+     0.6100000001303849,
+     0.718999999938533,
+     0.31899999993853356,
+     0.650000000130385,
+     0.41000000013038473
+    ],
+    "final_s": 1.2850000001303847,
+    "audio_s": 1.3009999999590214,
+    "pause_sent_s": 0.4259999999590214,
+    "end_sent_s": 1.2539999999385323,
+    "pauses": 1,
+    "updates": 9,
+    "resumes": 0,
+    "result": {
+     "id": "da52645f-30c1-4826-aaec-7a382d4c53cd",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "이 역동적인 수송 셔틀은 어떤 식으로든 모든 사람들이 자가용을 기반으로 하는 수송 시스템과 연결되고 이를 지원하도록 한다.",
+     "translated_text": "This dynamic transport shuttle allows everyone to connect and support a vehicle-based transport system in one way or another.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 411,
+     "mt_ms": 72,
+     "tts_ms": 178,
+     "audio_id": "8064f0ae-e23a-42e4-a1e7-daff5a73ffeb",
+     "created_at": "2026-11-02T15:47:49.956459Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": true,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.1,
+       "started_ms": 25.5,
+       "wait_ms": 25.4,
+       "run_ms": 5.1
+      },
+      "stt": {
+       "queued_ms": 30.7,
+       "started_ms": 30.9,
+       "wait_ms": 0.1,
+       "run_ms": 410.9
+      },
+      "mt": {
+       "queued_ms": 441.9,
+       "started_ms": 442.0,
+       "wait_ms": 0.1,
+       "run_ms": 72.0
+      },
+      "tts": {
+       "queued_ms": 514.2,
+       "started_ms": 514.3,
+       "wait_ms": 0.1,
+       "run_ms": 178.1
+      }
+     },
+     "prepared_ms": 692.6,
+     "end_ms": 798.0,
+     "save_started_ms": 798.0,
+     "save_ms": 33.5,
+     "final_ms": 831.6,
+     "redone": false
+    },
+    "audio_sha256": "5d9d481da8ab051964db3c58b36fba54d3e0e7d5c0611d1f4ddc8b6c549b4c30"
+   },
+   {
+    "key": "102-1618",
+    "outcome": "final",
+    "lags": [
+     0.41399999993853276,
+     1.03,
+     0.42999999999999994,
+     0.8900000000000001,
+     0.33000000000000007,
+     0.8770000000204892,
+     0.5570000000204889,
+     0.03700000002048931,
+     0.7030000001098964,
+     0.5830000001098963,
+     1.1989999999385326,
+     0.9859999999590219,
+     0.5059999999590215,
+     1.145999999959022,
+     0.44200000002048867
+    ],
+    "final_s": 1.2380000001098956,
+    "audio_s": 1.2539999999385323,
+    "pause_sent_s": 0.3949999999999996,
+    "end_sent_s": 1.1920000000204887,
+    "pauses": 1,
+    "updates": 10,
+    "resumes": 0,
+    "result": {
+     "id": "e108c954-e60e-4861-b1c1-9f82baa60f8e",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "북부지역 또는 센티넬 산맥에는 남극 대륙에서 가장 높은 산인 빈슨산괴가 있는데 빈슨산 높이는 4,892m입니다.",
+     "translated_text": "In the northern region or the Sentinel Mountains, Vinson is the highest mountain in Antarctica, with a height of 4,892 m.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 425,
+     "mt_ms": 92,
+     "tts_ms": 230,
+     "audio_id": "46eda7d9-0d58-4711-b083-4717b84128d0",
+     "created_at": "2026-11-02T15:48:01.701502Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": true,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.1,
+       "started_ms": 44.2,
+       "wait_ms": 44.0,
+       "run_ms": 6.2
+      },
+      "stt": {
+       "queued_ms": 50.6,
+       "started_ms": 50.7,
+       "wait_ms": 0.1,
+       "run_ms": 425.3
+      },
+      "mt": {
+       "queued_ms": 476.2,
+       "started_ms": 476.4,
+       "wait_ms": 0.2,
+       "run_ms": 91.6
+      },
+      "tts": {
+       "queued_ms": 568.2,
+       "started_ms": 568.4,
+       "wait_ms": 0.2,
+       "run_ms": 229.8
+      }
+     },
+     "prepared_ms": 798.4,
+     "end_ms": 796.1,
+     "save_started_ms": 798.4,
+     "save_ms": 38.6,
+     "final_ms": 837.0,
+     "redone": false
+    },
+    "audio_sha256": "890ee2559ed1cef79a174029f957666946a8c5b1852c6f69af101d5115c66cad"
+   },
+   {
+    "key": "188-1640",
+    "outcome": "final",
+    "lags": [
+     0.71,
+     0.29000000000000004,
+     0.77,
+     0.51,
+     0.8250000001303852,
+     0.7679999999795109,
+     1.0319999999180434,
+     0.23199999991804354,
+     0.30799999997951133,
+     0.9030000001098957,
+     0.22300000010989596,
+     0.9589999999385324,
+     0.6989999999385326,
+     0.27899999993853264,
+     0.5950000000000006,
+     0.3149999999999995,
+     1.1220000000204884,
+     0.9220000000204891,
+     0.5620000000204897
+    ],
+    "final_s": 1.3120000000204897,
+    "audio_s": 1.3269999999180442,
+    "pause_sent_s": 0.39000000000000057,
+    "end_sent_s": 1.1870000000204897,
+    "pauses": 2,
+    "updates": 10,
+    "resumes": 1,
+    "result": {
+     "id": "dfd2e416-8c99-4022-af0e-9ffc04a8cd69",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "얼음이 덮이고 눈이 쌓인 도로에서는 마찰력이 줄어들어서 당신의 마치 맨 아스펠트 위에 있는 것처럼 운전을 제대로 할 수가 없다.",
+     "translated_text": "On ice-covered, snow-covered roads, friction is reduced and you can’t drive as well as you can on top of a man Asfeld.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 413,
+     "mt_ms": 124,
+     "tts_ms": 167,
+     "audio_id": "113f9eb4-11d5-4c3c-a599-48f6ec44769e",
+     "created_at": "2026-11-02T15:48:13.409043Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": true,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.2,
+       "started_ms": 178.2,
+       "wait_ms": 177.9,
+       "run_ms": 5.7
+      },
+      "stt": {
+       "queued_ms": 183.9,
+       "started_ms": 184.0,
+       "wait_ms": 0.1,
+       "run_ms": 412.6
+      },
+      "mt": {
+       "queued_ms": 596.8,
+       "started_ms": 596.9,
+       "wait_ms": 0.1,
+       "run_ms": 124.3
+      },
+      "tts": {
+       "queued_ms": 721.3,
+       "started_ms": 721.4,
+       "wait_ms": 0.1,
+       "run_ms": 167.2
+      }
+     },
+     "prepared_ms": 888.8,
+     "end_ms": 799.5,
+     "save_started_ms": 888.8,
+     "save_ms": 29.6,
+     "final_ms": 918.5,
+     "redone": false
+    },
+    "audio_sha256": "9037680c88aa3976c5e51f062a0786329069accf63bf6d407a30a2bf2ea16315"
+   },
+   {
+    "key": "51-1657",
+    "outcome": "final",
+    "lags": [
+     0.6880000000819564,
+     0.1880000000819564,
+     0.6750000001024454,
+     0.7950000001024455,
+     0.49500000010244527,
+     0.8700000000000001,
+     0.5299999999999998,
+     0.8570000000204887,
+     0.5970000000204889,
+     1.137000000020489,
+     0.5770000000204893,
+     0.11700000002048938,
+     0.7280000002123419,
+     1.5110000001918529,
+     1.2710000001918527
+    ],
+    "final_s": 1.2710000001918527,
+    "audio_s": 1.2870000000204893,
+    "pause_sent_s": 0.4120000000204893,
+    "end_sent_s": 1.2400000000000002,
+    "pauses": 1,
+    "updates": 7,
+    "resumes": 0,
+    "result": {
+     "id": "9d7f1aa1-d06e-436d-b0e0-444610512e76",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "하지만 모든 수정이나 요청사항이 있으면 호텔로 직접 연락하지 말고 우선 여행사를 통해 일을 진행해야 합니다.",
+     "translated_text": "However, if you have any modifications or requests, you should not contact the hotel directly, but first work through a travel agent.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 337,
+     "mt_ms": 93,
+     "tts_ms": 184,
+     "audio_id": "d2171d66-ac57-4bca-a7fe-7b2f587879dc",
+     "created_at": "2026-11-02T15:48:22.459902Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": false,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.1,
+       "started_ms": 0.2,
+       "wait_ms": 0.1,
+       "run_ms": 4.7
+      },
+      "stt": {
+       "queued_ms": 5.0,
+       "started_ms": 5.1,
+       "wait_ms": 0.1,
+       "run_ms": 337.0
+      },
+      "mt": {
+       "queued_ms": 342.2,
+       "started_ms": 342.3,
+       "wait_ms": 0.1,
+       "run_ms": 93.2
+      },
+      "tts": {
+       "queued_ms": 435.7,
+       "started_ms": 435.8,
+       "wait_ms": 0.1,
+       "run_ms": 184.1
+      }
+     },
+     "prepared_ms": 620.0,
+     "end_ms": 820.4,
+     "save_started_ms": 820.5,
+     "save_ms": 30.1,
+     "final_ms": 850.7,
+     "redone": false
+    },
+    "audio_sha256": "dab7060f9d1e786f67bd5cd1b7f83a7ab6db97f06bce1762a4ae7629488314b6"
+   },
+   {
+    "key": "59-1636",
+    "outcome": "final",
+    "lags": [
+     0.8810000001918524,
+     0.5210000001918524,
+     0.9540000001713633,
+     0.7540000001713634,
+     1.237000000020489,
+     0.8370000000204891,
+     0.5170000000204893,
+     1.1420000000204893
+    ],
+    "final_s": 1.1420000000204893,
+    "audio_s": 1.1420000000204893,
+    "pause_sent_s": 0.3140000000409784,
+    "end_sent_s": 1.1110000000614675,
+    "pauses": 1,
+    "updates": 3,
+    "resumes": 0,
+    "result": {
+     "id": "a0d9f83b-7d8c-4865-b1b6-82babce55de2",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "스페인 사람들이 3세기 동안 지속된 시민지 시대를 시작했다.",
+     "translated_text": "The Spanish began a three-century civilisation.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 254,
+     "mt_ms": 39,
+     "tts_ms": 120,
+     "audio_id": "bd9c8cbd-2e99-4d53-8409-46529fa4b9e3",
+     "created_at": "2026-11-02T15:48:27.394549Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": false,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.1,
+       "started_ms": 0.2,
+       "wait_ms": 0.1,
+       "run_ms": 3.9
+      },
+      "stt": {
+       "queued_ms": 4.2,
+       "started_ms": 4.3,
+       "wait_ms": 0.1,
+       "run_ms": 253.7
+      },
+      "mt": {
+       "queued_ms": 258.1,
+       "started_ms": 258.3,
+       "wait_ms": 0.1,
+       "run_ms": 39.2
+      },
+      "tts": {
+       "queued_ms": 297.7,
+       "started_ms": 297.8,
+       "wait_ms": 0.1,
+       "run_ms": 120.5
+      }
+     },
+     "prepared_ms": 418.5,
+     "end_ms": 796.5,
+     "save_started_ms": 796.6,
+     "save_ms": 28.8,
+     "final_ms": 825.5,
+     "redone": false
+    },
+    "audio_sha256": "a893b97d7e75f89ebb9c2008f7f4d20bd2756b3690f3885062be65991a3df78b"
+   },
+   {
+    "key": "180-1573",
+    "outcome": "final",
+    "lags": [
+     5.378999999938532,
+     0.5249999998975545,
+     0.9700000000000002,
+     0.9919999999180438,
+     1.2809999999590218,
+     0.8009999999590214,
+     1.0789999999385325,
+     0.5789999999385325,
+     1.343000000109896,
+     0.9430000001098957,
+     0.4430000001098957,
+     0.8699999998975549,
+     0.4699999998975546,
+     0.329999999897554,
+     1.2219999999180438
+    ],
+    "final_s": 1.2219999999180438,
+    "audio_s": 1.237999999979511,
+    "pause_sent_s": 0.3780000001098962,
+    "end_sent_s": 1.1749999998975547,
+    "pauses": 1,
+    "updates": 8,
+    "resumes": 0,
+    "result": {
+     "id": "50624053-818e-47d9-ba48-fc3d0dce40ac",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "위성전화는 실루엣에서 위성과 송수신선이 직결된 곳에서 전화를 사용해야 하기 때문에 보통 휴대폰을 대체할 수 없다.",
+     "translated_text": "Satellite telephones cannot normally replace mobile phones because they have to be used in Silhouette where the satellite and the transceiver are directly connected.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 384,
+     "mt_ms": 83,
+     "tts_ms": 189,
+     "audio_id": "95d4f80d-8b40-432b-9758-bb253c18bb23",
+     "created_at": "2026-11-02T15:48:37.465189Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": false,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.1,
+       "started_ms": 0.3,
+       "wait_ms": 0.1,
+       "run_ms": 4.6
+      },
+      "stt": {
+       "queued_ms": 5.0,
+       "started_ms": 5.0,
+       "wait_ms": 0.1,
+       "run_ms": 384.5
+      },
+      "mt": {
+       "queued_ms": 389.7,
+       "started_ms": 389.8,
+       "wait_ms": 0.1,
+       "run_ms": 82.8
+      },
+      "tts": {
+       "queued_ms": 472.7,
+       "started_ms": 472.9,
+       "wait_ms": 0.1,
+       "run_ms": 189.3
+      }
+     },
+     "prepared_ms": 662.4,
+     "end_ms": 795.7,
+     "save_started_ms": 795.8,
+     "save_ms": 48.9,
+     "final_ms": 844.7,
+     "redone": false
+    },
+    "audio_sha256": "a497989039dafd934980745e8e12a40c1ddba78cf602e00de788548c2b726391"
+   },
+   {
+    "key": "2-1631",
+    "outcome": "final",
+    "lags": [
+     0.7949999998696149,
+     0.25499999986961486,
+     0.44999999999999996,
+     0.7619999998901039,
+     1.1129999998491256,
+     0.41299999984912583,
+     1.1479999999795112,
+     0.2679999999795113,
+     1.1749999999999998,
+     0.9550000000000001,
+     0.6349999999999998,
+     1.0109999998286368,
+     1.446999999890104,
+     1.0069999998901036,
+     0.5869999998901037,
+     1.2979999998491252,
+     0.2179999998491251
+    ],
+    "final_s": 1.2799999999999994,
+    "audio_s": 1.295999999828636,
+    "pause_sent_s": 0.4369999998901033,
+    "end_sent_s": 1.248999999808147,
+    "pauses": 3,
+    "updates": 10,
+    "resumes": 2,
+    "result": {
+     "id": "5565bdcb-f667-410a-933e-82c10da9e575",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "고대 신왕국 이집트인들은 조상의 기념비적인 건축물을 보고 경탄했고, 이것은 그 당시 기준으로 천 년은 족히 넘은 건축물이었습니다.",
+     "translated_text": "The ancient New Kingdom Egyptians marveled at the monumental architecture of their ancestors, which at that time was well over a thousand years old.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 432,
+     "mt_ms": 85,
+     "tts_ms": 178,
+     "audio_id": "b3f0c4f0-d09c-4f75-a69f-33c69bd7cdc4",
+     "created_at": "2026-11-02T15:48:49.503665Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": false,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.2,
+       "started_ms": 0.3,
+       "wait_ms": 0.2,
+       "run_ms": 5.0
+      },
+      "stt": {
+       "queued_ms": 5.5,
+       "started_ms": 5.6,
+       "wait_ms": 0.1,
+       "run_ms": 431.8
+      },
+      "mt": {
+       "queued_ms": 437.5,
+       "started_ms": 437.6,
+       "wait_ms": 0.1,
+       "run_ms": 85.3
+      },
+      "tts": {
+       "queued_ms": 523.1,
+       "started_ms": 523.2,
+       "wait_ms": 0.1,
+       "run_ms": 178.3
+      }
+     },
+     "prepared_ms": 701.7,
+     "end_ms": 805.8,
+     "save_started_ms": 805.9,
+     "save_ms": 26.8,
+     "final_ms": 832.7,
+     "redone": false
+    },
+    "audio_sha256": "24834035c41bfd70f68ba209adb3f699dec1a3c1c18fc675d42112bff27a8338"
+   },
+   {
+    "key": "132-1515",
+    "outcome": "final",
+    "lags": [
+     0.40299999997951086,
+     0.9740000001713633,
+     0.49400000017136336,
+     1.1140000001713632,
+     0.8340000001713634,
+     1.4700000000000002,
+     0.29000000000000004
+    ],
+    "final_s": 1.1490000001713634,
+    "audio_s": 1.165,
+    "pause_sent_s": 0.33700000002048913,
+    "end_sent_s": 1.117999999979511,
+    "pauses": 1,
+    "updates": 4,
+    "resumes": 0,
+    "result": {
+     "id": "69684beb-bf81-4980-a71c-f69d7066b149",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "마첼리가 4년 만에 다섯 번째 한은 CEP이다.",
+     "translated_text": "Marcelli is the fifth one in four years.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 270,
+     "mt_ms": 39,
+     "tts_ms": 131,
+     "audio_id": "51e01e25-493b-4bb0-99a1-f5d8bda803c2",
+     "created_at": "2026-11-02T15:48:55.137853Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": false,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.1,
+       "started_ms": 0.2,
+       "wait_ms": 0.1,
+       "run_ms": 4.0
+      },
+      "stt": {
+       "queued_ms": 4.4,
+       "started_ms": 4.5,
+       "wait_ms": 0.1,
+       "run_ms": 269.7
+      },
+      "mt": {
+       "queued_ms": 274.3,
+       "started_ms": 274.4,
+       "wait_ms": 0.1,
+       "run_ms": 39.0
+      },
+      "tts": {
+       "queued_ms": 313.5,
+       "started_ms": 313.7,
+       "wait_ms": 0.1,
+       "run_ms": 131.1
+      }
+     },
+     "prepared_ms": 445.0,
+     "end_ms": 750.8,
+     "save_started_ms": 750.9,
+     "save_ms": 24.2,
+     "final_ms": 775.2,
+     "redone": false
+    },
+    "audio_sha256": "b8f8556a00c8d35910329f923a1e1314090ddf2eff9cec0a56dab7249304c4d8"
+   },
+   {
+    "key": "130-1525",
+    "outcome": "final",
+    "lags": [
+     0.9809999999590218,
+     0.5609999999590218,
+     0.73,
+     0.31000000000000005,
+     0.77,
+     1.2009999999590217,
+     0.7609999999590218,
+     0.3009999999590218,
+     1.1720000001508746,
+     0.9120000001508739,
+     0.5920000001508745,
+     1.1520000001508741,
+     1.1879999999795112,
+     0.8479999999795105,
+     0.7590000001713637,
+     0.3790000001713629,
+     0.8910000000614673,
+     0.49100000006146693,
+     0.5929999999795115,
+     0.729000000040978,
+     1.3709999999590217,
+     0.6709999999590224,
+     0.9909999999590227,
+     0.5509999999590214,
+     1.162000000150874,
+     0.5820000001508738,
+     0.5220000001508751,
+     1.1540000000409787,
+     0.854000000040978,
+     1.3049999999999997,
+     0.7650000000000006,
+     1.2959999999590224,
+     0.8959999999590202
+    ],
+    "final_s": 1.9590000000409766,
+    "audio_s": 1.9740000001713618,
+    "pause_sent_s": 0.5679999999795093,
+    "end_sent_s": 1.3490000001713618,
+    "pauses": 3,
+    "updates": 18,
+    "resumes": 2,
+    "result": {
+     "id": "4ca744bb-3e67-4728-98d4-f3aed4de4d90",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "이 도시는 전통적인 터키의 모습보다 지중해 유럽의 분위기를 더 많이 가지고 있지만 넓은 대로, 정면이 유리로 장식된 건물, 현대적인 쇼핑센터들 사이에 띄엄띄엄 전통적인 붉은 기와 주문과 18세기 시장 그리고 오래된 모스크와 교회들이 있습니다.",
+     "translated_text": "The city has more of a Mediterranean European atmosphere than a traditional Turkish one, but on the widest street there are buildings with glass facades, traditional red roof tiles, 18th-century markets and old mosques and churches.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 625,
+     "mt_ms": 142,
+     "tts_ms": 264,
+     "audio_id": "3669fbb1-d3bf-424f-a4cb-7d8aebad8a97",
+     "created_at": "2026-11-02T15:49:15.370160Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": true,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.2,
+       "started_ms": 332.1,
+       "wait_ms": 331.9,
+       "run_ms": 6.6
+      },
+      "stt": {
+       "queued_ms": 338.9,
+       "started_ms": 339.0,
+       "wait_ms": 0.1,
+       "run_ms": 625.5
+      },
+      "mt": {
+       "queued_ms": 964.6,
+       "started_ms": 964.7,
+       "wait_ms": 0.1,
+       "run_ms": 141.9
+      },
+      "tts": {
+       "queued_ms": 1106.8,
+       "started_ms": 1106.9,
+       "wait_ms": 0.1,
+       "run_ms": 264.3
+      }
+     },
+     "prepared_ms": 1371.3,
+     "end_ms": 794.1,
+     "save_started_ms": 1371.3,
+     "save_ms": 25.8,
+     "final_ms": 1397.1,
+     "redone": false
+    },
+    "audio_sha256": "a4fd909e8a7b7fbdc79d93fbff339a941983646abf73bc739ee4973424a70d75"
+   },
+   {
+    "key": "80-1524",
+    "outcome": "final",
+    "lags": [
+     0.48299999997951093,
+     1.1740000001713633,
+     0.4340000001713633,
+     0.8460000000614674,
+     0.32600000006146734,
+     0.8899999999999997,
+     0.8120000001508743,
+     0.33200000015087383,
+     1.1190000001713631,
+     0.5190000001713635,
+     2.2490000000409784,
+     1.6290000000409783,
+     1.6329999999795106,
+     1.1329999999795106,
+     1.5729999999795101,
+     0.9329999999795113,
+     0.5529999999795105,
+     2.566000000061468,
+     2.3460000000614674,
+     2.304000000040979,
+     2.024000000040978,
+     1.6640000000409785,
+     1.104000000040978,
+     0.4040000000409787
+    ],
+    "final_s": 1.4820000000204896,
+    "audio_s": 1.4970000001508748,
+    "pause_sent_s": 0.41900000017136385,
+    "end_sent_s": 1.2320000000204896,
+    "pauses": 2,
+    "updates": 12,
+    "resumes": 1,
+    "result": {
+     "id": "c99953e9-b36d-4a20-8710-84d5644355eb",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "미터법 사용 절대주의 체제에서 공화주의로의 전환, 민족주의와 국가는 한 통치자가 아닌 여러 사람의 소유라는 생각의 발생과 같이 사회 및 정치적인 면에 많은 영향들을 미쳤습니다.",
+     "translated_text": "The transition from the metric system to republicanism has had many effects on social and political aspects, such as the rise of the idea that nationalism and the state are the property of many, not just one ruler.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 500,
+     "mt_ms": 143,
+     "tts_ms": 250,
+     "audio_id": "270f33aa-8fa5-4561-9f22-c3fe01ae77c9",
+     "created_at": "2026-11-02T15:49:31.298551Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": true,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.2,
+       "started_ms": 84.0,
+       "wait_ms": 83.8,
+       "run_ms": 6.1
+      },
+      "stt": {
+       "queued_ms": 90.3,
+       "started_ms": 90.4,
+       "wait_ms": 0.1,
+       "run_ms": 500.0
+      },
+      "mt": {
+       "queued_ms": 590.6,
+       "started_ms": 590.7,
+       "wait_ms": 0.1,
+       "run_ms": 142.6
+      },
+      "tts": {
+       "queued_ms": 733.4,
+       "started_ms": 733.5,
+       "wait_ms": 0.1,
+       "run_ms": 250.4
+      }
+     },
+     "prepared_ms": 984.1,
+     "end_ms": 794.5,
+     "save_started_ms": 984.1,
+     "save_ms": 46.9,
+     "final_ms": 1031.1,
+     "redone": false
+    },
+    "audio_sha256": "721117e240fd38fdc6810be84c5fa1c54fdbc2cf1ba6fa95f57ad41c544d20bc"
+   },
+   {
+    "key": "154-1555",
+    "outcome": "final",
+    "lags": [
+     0.7429999999795109,
+     3.387999999979511,
+     0.7770000000204891,
+     0.3970000000204892,
+     3.602999999979511,
+     0.5770000000204889,
+     1.047999999979511,
+     0.6679999999795108,
+     1.5029999999795107,
+     1.202999999979511
+    ],
+    "final_s": 1.202999999979511,
+    "audio_s": 1.2190000000409782,
+    "pause_sent_s": 0.375,
+    "end_sent_s": 1.172000000020489,
+    "pauses": 1,
+    "updates": 4,
+    "resumes": 0,
+    "result": {
+     "id": "18310e1c-d532-4394-8ac3-8e262da81ebc",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "교회 뜰에는 몇몇 무덤 위에 비둘기의 흥미로운 대리석 조각들이 있다.",
+     "translated_text": "In the church courtyard there are interesting marble sculptures of pigeons on some graves.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 327,
+     "mt_ms": 54,
+     "tts_ms": 138,
+     "audio_id": "652753f1-b4c6-499f-a213-b08350ff14bf",
+     "created_at": "2026-11-02T15:49:37.549419Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": false,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.1,
+       "started_ms": 0.2,
+       "wait_ms": 0.1,
+       "run_ms": 4.1
+      },
+      "stt": {
+       "queued_ms": 4.4,
+       "started_ms": 4.5,
+       "wait_ms": 0.1,
+       "run_ms": 327.5
+      },
+      "mt": {
+       "queued_ms": 332.1,
+       "started_ms": 332.2,
+       "wait_ms": 0.1,
+       "run_ms": 54.2
+      },
+      "tts": {
+       "queued_ms": 386.6,
+       "started_ms": 386.7,
+       "wait_ms": 0.1,
+       "run_ms": 138.4
+      }
+     },
+     "prepared_ms": 525.3,
+     "end_ms": 790.4,
+     "save_started_ms": 790.5,
+     "save_ms": 29.8,
+     "final_ms": 820.3,
+     "redone": false
+    },
+    "audio_sha256": "eb72078befcf921278f791b60729420f82f8e732bd721791dc53d38e04db36c6"
+   },
+   {
+    "key": "139-1567",
+    "outcome": "final",
+    "lags": [
+     0.9859999998286366,
+     3.445999999828637,
+     1.1589999998081475,
+     0.6389999998081475,
+     0.37899999980814747,
+     0.8300000000000001,
+     0.33000000000000007,
+     0.14599999982863654,
+     0.5619999998901042,
+     1.793999999910593,
+     1.0939999999105927,
+     0.3539999999105934,
+     0.7489999998081478
+    ],
+    "final_s": 1.3589999999105933,
+    "audio_s": 1.3739999998081478,
+    "pause_sent_s": 0.467999999849126,
+    "end_sent_s": 1.2800000000000002,
+    "pauses": 3,
+    "updates": 8,
+    "resumes": 2,
+    "result": {
+     "id": "af4b0133-e6e1-473f-b9a0-f24d6d2af2c3",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "그 해의 가장 규모가 큰 토너먼트 경기는 12월에 라스 카니타스의 폴로 경기장에서 열립니다.",
+     "translated_text": "The biggest tournament of the year takes place at the Polo Stadium in Las Carnitas in December.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 371,
+     "mt_ms": 66,
+     "tts_ms": 144,
+     "audio_id": "7c036864-f986-4189-84b9-16bcbc68fe12",
+     "created_at": "2026-11-02T15:49:47.166026Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": true,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.2,
+       "started_ms": 275.6,
+       "wait_ms": 275.4,
+       "run_ms": 5.0
+      },
+      "stt": {
+       "queued_ms": 280.7,
+       "started_ms": 280.9,
+       "wait_ms": 0.2,
+       "run_ms": 370.8
+      },
+      "mt": {
+       "queued_ms": 651.9,
+       "started_ms": 652.1,
+       "wait_ms": 0.2,
+       "run_ms": 66.4
+      },
+      "tts": {
+       "queued_ms": 718.7,
+       "started_ms": 718.9,
+       "wait_ms": 0.2,
+       "run_ms": 144.0
+      }
+     },
+     "prepared_ms": 862.9,
+     "end_ms": 814.4,
+     "save_started_ms": 863.0,
+     "save_ms": 29.0,
+     "final_ms": 892.0,
+     "redone": false
+    },
+    "audio_sha256": "3845456d7c111802d9d3f112cc119b61e153ab4703a03cf5c3d1d36a58edeca0"
+   },
+   {
+    "key": "171-1573",
+    "outcome": "final",
+    "lags": [
+     4.412000000150874,
+     0.4739999999385327,
+     0.9050000001303853,
+     1.132000000150874,
+     0.6920000001508742,
+     0.23200000015087419,
+     0.5120000001508744,
+     0.9720000001508744,
+     0.7720000001508742,
+     0.33200000015087383,
+     4.01,
+     3.3899999999999997,
+     2.9699999999999998,
+     2.8499999999999996,
+     2.5700000000000003
+    ],
+    "final_s": 2.5700000000000003,
+    "audio_s": 2.5700000000000003,
+    "pause_sent_s": 0.3979999999795112,
+    "end_sent_s": 1.2100000001303854,
+    "pauses": 1,
+    "updates": 6,
+    "resumes": 0,
+    "result": {
+     "id": "1ddd046c-fb6b-4807-82a2-5846c14ef174",
+     "mode": "speech",
+     "source_lang": "ko",
+     "target_lang": "en",
+     "source_text": "위성전화는 실외에서 위성과 송수신선이 직결된 곳에서 전화를 사용해야 하기 때문에 보통 휴대폰을 대체할 수 없다.",
+     "translated_text": "Satellite telephones usually cannot replace mobile phones because they need to be used outdoors where satellites and transceivers are directly connected.",
+     "stt_model": "faster-whisper/large-v3-turbo",
+     "mt_model": "ko->en: ctranslate2/opus-mt-tc-big-ko-en, en->ko: ctranslate2/opus-mt-tc-big-en-ko",
+     "tts_model": "ko: melotts/KR/KR, en: kokoro/Kokoro-82M/af_heart",
+     "stt_ms": 379,
+     "mt_ms": 86,
+     "tts_ms": 182,
+     "audio_id": "5b7497b7-b823-4be0-9dee-2f039af739dd",
+     "created_at": "2026-11-02T15:49:58.433971Z",
+     "tts_error": null
+    },
+    "detail": null,
+    "timings": {
+     "from": "pause",
+     "update_busy": true,
+     "stages": {
+      "validate": {
+       "queued_ms": 0.1,
+       "started_ms": 1479.3,
+       "wait_ms": 1479.2,
+       "run_ms": 4.9
+      },
+      "stt": {
+       "queued_ms": 1484.3,
+       "started_ms": 1484.4,
+       "wait_ms": 0.1,
+       "run_ms": 378.8
+      },
+      "mt": {
+       "queued_ms": 1863.4,
+       "started_ms": 1863.5,
+       "wait_ms": 0.1,
+       "run_ms": 86.2
+      },
+      "tts": {
+       "queued_ms": 1949.9,
+       "started_ms": 1950.0,
+       "wait_ms": 0.1,
+       "run_ms": 181.9
+      }
+     },
+     "prepared_ms": 2132.1,
+     "end_ms": 808.7,
+     "save_started_ms": 2132.2,
+     "save_ms": 34.9,
+     "final_ms": 2167.1,
+     "redone": false
+    },
+    "audio_sha256": "14f90c6b7a24cf103f28deb20c3327ec869486aa852f8c7c254711d706141047"
+   }
+  ]
+ }
+}

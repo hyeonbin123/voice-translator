@@ -1,0 +1,414 @@
+{
+ "tag": "t105_dev",
+ "a": [
+  "eval\\reports\\stream_t105_live_en_a1_20261102_150911.json",
+  "eval\\reports\\stream_t105_live_en_a2_20261102_153908.json",
+  "eval\\reports\\stream_t105_live_ko_a_20261102_154958.json",
+  "eval\\reports\\stream_t105_conv_en_a_20261102_162044.json"
+ ],
+ "b": [
+  "eval\\reports\\stream_t105_live_en_b1_20261102_151911.json",
+  "eval\\reports\\stream_t105_live_en_b2_20261102_152905.json",
+  "eval\\reports\\stream_t105_live_ko_b_20261102_160047.json",
+  "eval\\reports\\stream_t105_conv_en_b_20261102_161040.json"
+ ],
+ "stages": "eval\\reports\\tts_t105_dev_melo_stages_20261102_162426.json",
+ "result": {
+  "primary": {
+   "modes": [
+    "live",
+    "conversation"
+   ],
+   "clips": 40,
+   "point_ms": 330.6206249999999,
+   "low_ms": 287.25409375,
+   "high_ms": 376.83621874999994
+  },
+  "modes": {
+   "live": {
+    "blocks": [
+     2,
+     2
+    ],
+    "clips": 40,
+    "point_ms": 334.82624999999996,
+    "low_ms": 290.79990625,
+    "high_ms": 381.3320625,
+    "median_ms": 300.125
+   },
+   "conversation": {
+    "blocks": [
+     1,
+     1
+    ],
+    "clips": 40,
+    "point_ms": 326.4149999999999,
+    "low_ms": 283.3087500000001,
+    "high_ms": 372.6281874999999,
+    "median_ms": 298.85
+   }
+  },
+  "excluded": {
+   "missing": [],
+   "unusable": [],
+   "text_differs": []
+  },
+  "errors": 0,
+  "ko_audio_p50_ms": {
+   "A": 1301.4999998733401,
+   "B": 1290.4999999143188
+  },
+  "ko_regression_ms": -10.999999959021352,
+  "rows": {
+   "A": [
+    {
+     "mode": "live",
+     "lang": "en",
+     "utterances": 80,
+     "used": 80,
+     "audio_p50": 1547.999999965541,
+     "audio_p90": 2004.000000171363,
+     "processing_bound": 0.775,
+     "update_busy": 0.4625,
+     "anchor_p50": 431.4999999245632,
+     "first_wait_p50": 0.2,
+     "stt_p50": 310.1,
+     "mt_p50": 75.4,
+     "tts_p50": 564.25,
+     "between_wait_p50": 0.30000000000000004,
+     "prepared_p50": 1011.6500000000001,
+     "end_p50": 801.25,
+     "save_wait_p50": 0.0,
+     "save_p50": 34.0,
+     "final_server_p50": 1048.5,
+     "delivery_p50": 4.249999975785613,
+     "audio_get_p50": 15.999999828636646
+    },
+    {
+     "mode": "live",
+     "lang": "ko",
+     "utterances": 40,
+     "used": 40,
+     "audio_p50": 1301.4999998733401,
+     "audio_p90": 1599.0000000409789,
+     "processing_bound": 0.325,
+     "update_busy": 0.55,
+     "anchor_p50": 395.4999999795108,
+     "first_wait_p50": 28.25,
+     "stt_p50": 384.2,
+     "mt_p50": 79.95,
+     "tts_p50": 161.0,
+     "between_wait_p50": 0.30000000000000004,
+     "prepared_p50": 666.5,
+     "end_p50": 797.3499999999999,
+     "save_wait_p50": 0.0999999999999659,
+     "save_p50": 31.3,
+     "final_server_p50": 840.4,
+     "delivery_p50": 4.949999914318369,
+     "audio_get_p50": 15.499999979510903
+    },
+    {
+     "mode": "conversation",
+     "lang": "en",
+     "utterances": 40,
+     "used": 40,
+     "audio_p50": 1469.0000000409782,
+     "audio_p90": 1956.9999998901046,
+     "processing_bound": 0.75,
+     "update_busy": 0.0,
+     "anchor_p50": 431.0000001918528,
+     "first_wait_p50": 0.1,
+     "stt_p50": 340.05,
+     "mt_p50": 74.2,
+     "tts_p50": 571.1,
+     "between_wait_p50": 0.30000000000000004,
+     "prepared_p50": 1007.15,
+     "end_p50": 802.8,
+     "save_wait_p50": 0.0,
+     "save_p50": 32.2,
+     "final_server_p50": 1037.4,
+     "delivery_p50": 1.8499999245628374,
+     "audio_get_p50": 15.999999828636646
+    }
+   ],
+   "B": [
+    {
+     "mode": "live",
+     "lang": "en",
+     "utterances": 80,
+     "used": 80,
+     "audio_p50": 1372.4999999860297,
+     "audio_p90": 1639.0000000409782,
+     "processing_bound": 0.375,
+     "update_busy": 0.475,
+     "anchor_p50": 431.00000007543747,
+     "first_wait_p50": 0.2,
+     "stt_p50": 317.55,
+     "mt_p50": 77.05,
+     "tts_p50": 249.64999999999998,
+     "between_wait_p50": 0.30000000000000004,
+     "prepared_p50": 722.8,
+     "end_p50": 799.45,
+     "save_wait_p50": 0.09999999999990905,
+     "save_p50": 34.150000000000006,
+     "final_server_p50": 852.05,
+     "delivery_p50": 3.450000010244537,
+     "audio_get_p50": 15.999999828636646
+    },
+    {
+     "mode": "live",
+     "lang": "ko",
+     "utterances": 40,
+     "used": 40,
+     "audio_p50": 1290.4999999143188,
+     "audio_p90": 1512.9999999795114,
+     "processing_bound": 0.3,
+     "update_busy": 0.525,
+     "anchor_p50": 392.9999999795104,
+     "first_wait_p50": 7.25,
+     "stt_p50": 389.5,
+     "mt_p50": 79.2,
+     "tts_p50": 157.35000000000002,
+     "between_wait_p50": 0.30000000000000004,
+     "prepared_p50": 679.4,
+     "end_p50": 797.4000000000001,
+     "save_wait_p50": 0.049999999999954525,
+     "save_p50": 38.45,
+     "final_server_p50": 841.05,
+     "delivery_p50": 3.4500000651926257,
+     "audio_get_p50": 15.499999979510903
+    },
+    {
+     "mode": "conversation",
+     "lang": "en",
+     "utterances": 40,
+     "used": 40,
+     "audio_p50": 1290.0,
+     "audio_p90": 1639.0000000409782,
+     "processing_bound": 0.225,
+     "update_busy": 0.0,
+     "anchor_p50": 430.99999995902215,
+     "first_wait_p50": 0.1,
+     "stt_p50": 343.4,
+     "mt_p50": 74.55,
+     "tts_p50": 256.8,
+     "between_wait_p50": 0.30000000000000004,
+     "prepared_p50": 699.4,
+     "end_p50": 799.85,
+     "save_wait_p50": 0.0,
+     "save_p50": 37.0,
+     "final_server_p50": 847.0,
+     "delivery_p50": 1.5000000102445483,
+     "audio_get_p50": 16.00000006146729
+    }
+   ]
+  },
+  "rule_iii": {
+   "A": {
+    "i_live_en_within_goal": false,
+    "ii_queue_condition": false,
+    "ii_open_a9": false,
+    "iii_open_a3": true,
+    "iv_cache_condition": false,
+    "iv_a3_skip_cache_variant": false,
+    "values": {
+     "live_en_audio_p50_ms": 1547.999999965541,
+     "live_first_wait_p50_ms": 28.25,
+     "en_source_tts_p50_ms": 567.675,
+     "multi_piece_ratio": 0.45,
+     "en_source_processing_bound_max": 0.775,
+     "empty_cache_share": 0.004190999351128415
+    }
+   },
+   "B": {
+    "i_live_en_within_goal": true,
+    "ii_queue_condition": false,
+    "ii_open_a9": false,
+    "iii_open_a3": false,
+    "iv_cache_condition": false,
+    "iv_a3_skip_cache_variant": false,
+    "values": {
+     "live_en_audio_p50_ms": 1372.4999999860297,
+     "live_first_wait_p50_ms": 7.25,
+     "en_source_tts_p50_ms": 253.225,
+     "multi_piece_ratio": 0.45,
+     "en_source_processing_bound_max": 0.375,
+     "empty_cache_share": 0.00977468522200132
+    }
+   }
+  },
+  "melo_text_p50_ms": {
+   "A": 329.65,
+   "B": 34.15
+  },
+  "gpu": [
+   {
+    "block": "stream_t105_live_en_a1_20261102_150911",
+    "condition": "A",
+    "mode": "live",
+    "langs": [
+     "en"
+    ],
+    "samples": 722,
+    "mean_util": 22.0,
+    "p90_util": 36.0,
+    "max_memory_mb": 7755.546875,
+    "mean_cpu": 22.201108033240995,
+    "sm_clock_p50_mhz": 1860.0,
+    "busy_sm_clock_p50_mhz": 1860.0,
+    "memory_clock_p50_mhz": 6800.0,
+    "pstates": {
+     "P2": 722
+    },
+    "limited_ratio": 0.14681440443213298
+   },
+   {
+    "block": "stream_t105_live_en_a2_20261102_153908",
+    "condition": "A",
+    "mode": "live",
+    "langs": [
+     "en"
+    ],
+    "samples": 712,
+    "mean_util": 21.831460674157302,
+    "p90_util": 35.89999999999998,
+    "max_memory_mb": 7846.1015625,
+    "mean_cpu": 21.702808988764048,
+    "sm_clock_p50_mhz": 1860.0,
+    "busy_sm_clock_p50_mhz": 1860.0,
+    "memory_clock_p50_mhz": 6800.0,
+    "pstates": {
+     "P2": 712
+    },
+    "limited_ratio": 0.10112359550561797
+   },
+   {
+    "block": "stream_t105_live_ko_a_20261102_154958",
+    "condition": "A",
+    "mode": "live",
+    "langs": [
+     "ko"
+    ],
+    "samples": 802,
+    "mean_util": 24.316708229426435,
+    "p90_util": 42.89999999999998,
+    "max_memory_mb": 8197.2734375,
+    "mean_cpu": 23.23890274314214,
+    "sm_clock_p50_mhz": 1860.0,
+    "busy_sm_clock_p50_mhz": 1860.0,
+    "memory_clock_p50_mhz": 6800.0,
+    "pstates": {
+     "P2": 802
+    },
+    "limited_ratio": 0.13591022443890274
+   },
+   {
+    "block": "stream_t105_conv_en_a_20261102_162044",
+    "condition": "A",
+    "mode": "conversation",
+    "langs": [
+     "en"
+    ],
+    "samples": 701,
+    "mean_util": 8.166904422253923,
+    "p90_util": 26.0,
+    "max_memory_mb": 7843.2734375,
+    "mean_cpu": 12.876034236804566,
+    "sm_clock_p50_mhz": 1350.0,
+    "busy_sm_clock_p50_mhz": 1350.0,
+    "memory_clock_p50_mhz": 6800.0,
+    "pstates": {
+     "P2": 701
+    },
+    "limited_ratio": 0.02282453637660485
+   },
+   {
+    "block": "stream_t105_live_en_b1_20261102_151911",
+    "condition": "B",
+    "mode": "live",
+    "langs": [
+     "en"
+    ],
+    "samples": 702,
+    "mean_util": 22.74074074074074,
+    "p90_util": 38.0,
+    "max_memory_mb": 7808.984375,
+    "mean_cpu": 21.891025641025642,
+    "sm_clock_p50_mhz": 1860.0,
+    "busy_sm_clock_p50_mhz": 1860.0,
+    "memory_clock_p50_mhz": 6800.0,
+    "pstates": {
+     "P2": 702
+    },
+    "limited_ratio": 0.21794871794871795
+   },
+   {
+    "block": "stream_t105_live_en_b2_20261102_152905",
+    "condition": "B",
+    "mode": "live",
+    "langs": [
+     "en"
+    ],
+    "samples": 696,
+    "mean_util": 22.205459770114942,
+    "p90_util": 38.0,
+    "max_memory_mb": 7598.1015625,
+    "mean_cpu": 21.782327586206897,
+    "sm_clock_p50_mhz": 1875.0,
+    "busy_sm_clock_p50_mhz": 1875.0,
+    "memory_clock_p50_mhz": 6800.0,
+    "pstates": {
+     "P2": 696
+    },
+    "limited_ratio": 0.20545977011494254
+   },
+   {
+    "block": "stream_t105_live_ko_b_20261102_160047",
+    "condition": "B",
+    "mode": "live",
+    "langs": [
+     "ko"
+    ],
+    "samples": 798,
+    "mean_util": 23.67794486215539,
+    "p90_util": 39.0,
+    "max_memory_mb": 8165.7109375,
+    "mean_cpu": 22.680200501253136,
+    "sm_clock_p50_mhz": 1860.0,
+    "busy_sm_clock_p50_mhz": 1860.0,
+    "memory_clock_p50_mhz": 6800.0,
+    "pstates": {
+     "P2": 798
+    },
+    "limited_ratio": 0.20676691729323307
+   },
+   {
+    "block": "stream_t105_conv_en_b_20261102_161040",
+    "condition": "B",
+    "mode": "conversation",
+    "langs": [
+     "en"
+    ],
+    "samples": 683,
+    "mean_util": 8.316251830161054,
+    "p90_util": 27.800000000000068,
+    "max_memory_mb": 7661.2734375,
+    "mean_cpu": 12.813909224011715,
+    "sm_clock_p50_mhz": 1350.0,
+    "busy_sm_clock_p50_mhz": 1350.0,
+    "memory_clock_p50_mhz": 6800.0,
+    "pstates": {
+     "P2": 683
+    },
+    "limited_ratio": 0.01903367496339678
+   }
+  ],
+  "decision": {
+   "a_primary_low_over_100": true,
+   "b_ko_regression_within_50": true,
+   "c_no_errors": true,
+   "adopt": true,
+   "text_differs_warning": false
+  }
+ }
+}
