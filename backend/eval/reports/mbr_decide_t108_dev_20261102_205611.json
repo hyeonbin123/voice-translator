@@ -1,0 +1,242 @@
+{
+ "created": "2026-11-02T20:56:11+00:00",
+ "rounds": 10000,
+ "seed": 12345,
+ "directions": {
+  "ko-en": {
+   "baseline": "opus-mt-tc-big-ko-en",
+   "arms": {
+    "opus-mt-tc-big-ko-en/b8": {
+     "chrf": {
+      "point": 0.20171867220776107,
+      "low": -0.5060530120050173,
+      "high": 0.9550228988021411,
+      "contains_zero": true,
+      "a": 56.648563679630236,
+      "b": 56.446845007422475
+     },
+     "comet": {
+      "point": 0.028388444767443843,
+      "low": -0.27707122093023256,
+      "high": 0.302441027737403,
+      "contains_zero": true,
+      "a": 87.09877664728683,
+      "b": 87.07038820251938
+     },
+     "both_above_zero": false,
+     "checks": {
+      "flagged": 0,
+      "empty": 0
+     },
+     "baseline_checks": {
+      "flagged": 0,
+      "empty": 0
+     },
+     "latency_p50": 0.094224400119856,
+     "baseline_latency_p50": 0.08884600014425814,
+     "p50_increase_ms": 5.378,
+     "latency_p95": 0.1815145000582561,
+     "rules": {
+      "quality": false,
+      "checks": true,
+      "latency": true
+     },
+     "passes": false
+    },
+    "opus-mt-tc-big-ko-en/b8-mbr": {
+     "chrf": {
+      "point": 0.8718353226758211,
+      "low": 0.034372803295077164,
+      "high": 1.786682969615081,
+      "contains_zero": false,
+      "a": 57.318680330098296,
+      "b": 56.446845007422475
+     },
+     "comet": {
+      "point": 0.40311591569766847,
+      "low": 0.08931004723837212,
+      "high": 0.7415061773255814,
+      "contains_zero": false,
+      "a": 87.47350411821705,
+      "b": 87.07038820251938
+     },
+     "both_above_zero": true,
+     "checks": {
+      "flagged": 0,
+      "empty": 0
+     },
+     "baseline_checks": {
+      "flagged": 0,
+      "empty": 0
+     },
+     "latency_p50": 0.10128649999387562,
+     "baseline_latency_p50": 0.08884600014425814,
+     "p50_increase_ms": 12.44,
+     "latency_p95": 0.19446645001880825,
+     "rules": {
+      "quality": true,
+      "checks": true,
+      "latency": true
+     },
+     "passes": true
+    }
+   },
+   "mbr_vs_b8": {
+    "chrf": {
+     "point": 0.67011665046806,
+     "low": -0.07956524846612692,
+     "high": 1.4915275853903347,
+     "contains_zero": true,
+     "a": 57.318680330098296,
+     "b": 56.648563679630236
+    },
+    "comet": {
+     "point": 0.3747274709302246,
+     "low": 0.07304346838662791,
+     "high": 0.7384970021802323,
+     "contains_zero": false,
+     "a": 87.47350411821705,
+     "b": 87.09877664728683
+    },
+    "both_above_zero": false,
+    "used": false
+   },
+   "pick": "opus-mt-tc-big-ko-en/b8-mbr",
+   "mbr_choices": {
+    "inputs": 129,
+    "sentences": 129,
+    "not_first": 74,
+    "same_as_b8": 55
+   }
+  },
+  "en-ko": {
+   "baseline": "opus-mt-tc-big-en-ko/split",
+   "arms": {
+    "opus-mt-tc-big-en-ko/split/b8": {
+     "chrf": {
+      "point": 0.17496785278679994,
+      "low": -0.43760896137485494,
+      "high": 0.8207360742578025,
+      "contains_zero": true,
+      "a": 36.321745202990016,
+      "b": 36.146777350203216
+     },
+     "comet": {
+      "point": -0.08175872093023884,
+      "low": -0.6722762233527132,
+      "high": 0.4875336876211239,
+      "contains_zero": true,
+      "a": 87.03897165697674,
+      "b": 87.12073037790698
+     },
+     "both_above_zero": false,
+     "checks": {
+      "flagged": 0,
+      "empty": 0
+     },
+     "baseline_checks": {
+      "flagged": 0,
+      "empty": 0
+     },
+     "latency_p50": 0.08816000004298985,
+     "baseline_latency_p50": 0.08222949993796647,
+     "p50_increase_ms": 5.931,
+     "latency_p95": 0.17722424992825836,
+     "rules": {
+      "quality": false,
+      "checks": true,
+      "latency": true
+     },
+     "passes": false
+    },
+    "opus-mt-tc-big-en-ko/split/b8-mbr": {
+     "chrf": {
+      "point": 0.7813501115091768,
+      "low": 0.0343790658356401,
+      "high": 1.5685006215467954,
+      "contains_zero": false,
+      "a": 36.92812746171239,
+      "b": 36.146777350203216
+     },
+     "comet": {
+      "point": 0.055262839147289355,
+      "low": -0.48146802325581395,
+      "high": 0.6328919876453486,
+      "contains_zero": true,
+      "a": 87.17599321705427,
+      "b": 87.12073037790698
+     },
+     "both_above_zero": false,
+     "checks": {
+      "flagged": 0,
+      "empty": 0
+     },
+     "baseline_checks": {
+      "flagged": 0,
+      "empty": 0
+     },
+     "latency_p50": 0.09337179991416633,
+     "baseline_latency_p50": 0.08222949993796647,
+     "p50_increase_ms": 11.142,
+     "latency_p95": 0.18911650008521974,
+     "rules": {
+      "quality": false,
+      "checks": true,
+      "latency": true
+     },
+     "passes": false
+    }
+   },
+   "mbr_vs_b8": {
+    "chrf": {
+     "point": 0.6063822587223768,
+     "low": -0.178507659853382,
+     "high": 1.3941379473041149,
+     "contains_zero": true,
+     "a": 36.92812746171239,
+     "b": 36.321745202990016
+    },
+    "comet": {
+     "point": 0.1370215600775282,
+     "low": -0.2134811046511628,
+     "high": 0.48942625060562006,
+     "contains_zero": true,
+     "a": 87.17599321705427,
+     "b": 87.03897165697674
+    },
+    "both_above_zero": false,
+    "used": false
+   },
+   "pick": null,
+   "mbr_choices": {
+    "inputs": 129,
+    "sentences": 144,
+    "not_first": 80,
+    "same_as_b8": 54
+   }
+  }
+ },
+ "report": "eval\\reports\\mt_t108_dev_20261102_205405.json",
+ "comet_meta": {
+  "model": "Unbabel/wmt22-comet-da",
+  "revision": "2760a223ac957f30acfb18c8aa649b01cf1d75f2",
+  "checkpoint_sha256": "e213091cde220f97b89f8bdfa750c458cfea741ad62affb455b59900210ff2af",
+  "encoder": "FacebookAI/xlm-roberta-large",
+  "encoder_revision": "c23d21b0620b635a76227c604d44e43a9f0ee389",
+  "device": "cuda",
+  "gpu": "NVIDIA GeForce RTX 2080 Ti",
+  "precision": "fp16",
+  "batch_size": 32,
+  "segments": 478,
+  "load_s": 24.5,
+  "score_s": 2.1,
+  "versions": {
+   "unbabel-comet": "2.2.7",
+   "torch": "2.11.0+cu128",
+   "transformers": "4.57.6",
+   "python": "3.11.16"
+  },
+  "input": "../work/mbr/comet_input_dev.jsonl",
+  "created": "2026-11-02T20:56:07+00:00"
+ }
+}
