@@ -71,6 +71,9 @@ jobs:
       #   측정 팔을 만드는 eval.mt_eval을 불러온다(그 모듈은 머리에서 sacrebleu와 pyarrow.parquet를 import한다).
       # - test_register_eval: 말투 후처리 시험 도구(eval/register_eval.py)의 판정이 sacrebleu chrF·spBLEU를 쓰고,
       #   COMET 키를 eval.reanalysis(머리에서 jiwer·sacrebleu를 import)에서 가져온다.
+      # - test_mbr_service: 서비스 안의 문장 chrF(app/services/mbr.py, 표준 라이브러리만)가 sacrebleu 공개 함수와
+      #   측정 도구 eval/mbr.py와 끝자리까지 같은지, MBR 고르기가 측정 도구와 같은 후보를 고르는지 본다(20절 채택
+      #   반영). 가짜 효용 표로 돌아가는 나머지 테스트는 위 Test 단계에서도 돈다.
       # - test_ort_swap_check: 교체 점검 도구(eval/ort_swap_check.py)가 복사해 둔 무음·잡음 입력이
       #   eval/stt_eval.py의 것과 바이트까지 같은지 보는 테스트가 eval.stt_eval을 불러온다. 그 모듈은 머리에서
       #   jiwer와 pyarrow.parquet를 import하므로(나머지 faster-whisper·av·numpy는 주 의존성) 위 실행에서는 이
@@ -80,7 +83,7 @@ jobs:
         run: >-
           uv run --with sacrebleu==2.6.0 --with jiwer==4.0.0 --with pyarrow==25.0.1
           pytest -q -rs tests/test_mt_decide.py tests/test_significance_corpus.py tests/test_reanalysis.py
-          tests/test_ort_swap_check.py tests/test_mbr.py tests/test_register_eval.py
+          tests/test_ort_swap_check.py tests/test_mbr.py tests/test_register_eval.py tests/test_mbr_service.py
 
       # MeloTTS 한국어 전처리(g2pkk)의 정규식 캐시(app/services/tts.py _cache_g2pkk_regex)를 켜기 전후로 실제
       # g2pkk의 출력이 같은지 보는 테스트는 맨 위 Test 단계에서 건너뛴다: g2pkk와 형태소 분석기(python-mecab-ko와

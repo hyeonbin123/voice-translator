@@ -82,9 +82,10 @@ def load_translation(settings: Settings, engine: dict) -> Translator:
     영→한만 문장 단위로 번역한다: opus-mt가 여러 문장 입력에서 문장을 빠뜨려 나눠 번역하니 누락이 줄었고,
     한→영은 차이가 없었다(README 설계 판단). Hy-MT2를 쓰면 서버 시작이 Ollama가 그 모델로 답할 때까지
     HYMT_PREPARE_TIMEOUT_S만큼 기다리고(compose가 두 컨테이너를 함께 시작하므로), Ollama에 HYMT_DIGEST와
-    다른 빌드가 있으면 바로 멈춘다. KO_REGISTER=formal이면 영→한 번역기(opus든 Hy-MT2든)를
-    FormalRegisterTranslator로 감싸 문장 끝 말투를 합쇼체로 맞춘다(docs/experiments.md 21절, 기본 asis는
-    감싸지 않음).
+    다른 빌드가 있으면 바로 멈춘다. 한→영 opus의 디코딩은 KO_EN_DECODING이 정한다(_opus_korean_to_english,
+    기본 mbr8 = 빔 8의 가설 8개에서 문장 chrF MBR로 고르기. docs/experiments.md 20절의 validation 측정으로
+    채택). KO_REGISTER=formal이면 영→한 번역기(opus든 Hy-MT2든)를 FormalRegisterTranslator로 감싸 문장 끝
+    말투를 합쇼체로 맞춘다(docs/experiments.md 21절, 기본 asis는 감싸지 않음).
     """
     from app.services.translation import (
         DirectionalTranslator,
@@ -118,7 +119,7 @@ def load_translation(settings: Settings, engine: dict) -> Translator:
     if settings.ko_en_translation == "hy-mt2":
         ko_en = hymt(by_sentence=False)
     else:
-        ko_en = MarianTranslator(settings.ct2_dir / "opus-mt-tc-big-ko-en", "ko", "en", **engine)
+        ko_en = _opus_korean_to_english(settings, engine)
     if settings.en_ko_translation == "opus":
         # 영→한만 한 문장씩 번역한다(docs/experiments.md 2-1절).
         en_ko = MarianTranslator(
@@ -129,6 +130,27 @@ def load_translation(settings: Settings, engine: dict) -> Translator:
     if formalize is not None:
         en_ko = FormalRegisterTranslator(en_ko, formalize)
     return DirectionalTranslator({("ko", "en"): ko_en, ("en", "ko"): en_ko})
+
+
+def _opus_korean_to_english(settings: Settings, engine: dict) -> Translator:
+    """한→영 opus-mt-tc-big 번역기를 KO_EN_DECODING대로 만든다(docs/experiments.md 20절).
+
+    beam4는 빔 4의 1-best(20절 측정 전까지의 서비스 설정, 2절), beam8은 빔 8의 1-best(20절의 B8:
+    validation에서 chrF·COMET-22 차이가 유의하지 않아 채택되지 않은 비교용), mbr8(기본)은 빔 8의 가설 8개에서
+    문장 chrF MBR로 고르는 20절의 B8-MBR(chrF +0.87 [+0.03, +1.79]·COMET-22 +0.40 [+0.09, +0.74], 번역 시간
+    p50 +12.4ms로 채택)이다. 세 값 모두 같은 모델 폴더 하나를 올리고, mbr8은 빔 8 번역기를 services/mbr.py의
+    MbrTranslator로 감싼다. 동시통역 자막 갱신과 최종 번역이 같은 번역기를 쓰므로 둘 다 이 디코딩이다.
+    """
+    from app.services.mbr import MbrTranslator
+    from app.services.translation import MarianTranslator
+
+    model_dir = settings.ct2_dir / "opus-mt-tc-big-ko-en"
+    if settings.ko_en_decoding == "beam4":
+        return MarianTranslator(model_dir, "ko", "en", **engine)
+    beam8 = MarianTranslator(model_dir, "ko", "en", beam_size=8, **engine)
+    if settings.ko_en_decoding == "beam8":
+        return beam8
+    return MbrTranslator(beam8, beam=8, n=8)
 
 
 def _wait_until_ready(model, timeout_s: float) -> None:

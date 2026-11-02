@@ -66,6 +66,9 @@ services:
       # 방향별 번역(docs/experiments.md 15절): 기본 opus. Hy-MT2 시험 설정은 Ollama 모델과 digest가 필요하다.
       EN_KO_TRANSLATION: ${EN_KO_TRANSLATION:-opus}
       KO_EN_TRANSLATION: ${KO_EN_TRANSLATION:-opus}
+      # 한→영 opus 번역의 디코딩(docs/experiments.md 20절, docs/api.md): 기본 mbr8(빔 8의 가설 8개에서 문장 chrF
+      # MBR로 고르기, 측정으로 채택). beam4가 2026-11-03 전까지의 설정이다.
+      KO_EN_DECODING: ${KO_EN_DECODING:-mbr8}
       HYMT_MODEL: ${HYMT_MODEL:-hy-mt2:1.8b-q8_0}
       HYMT_DIGEST: ${HYMT_DIGEST:-}
       # 오타 교정 모델의 기대 빌드(docs/api.md): 비우면(기본) 확인하지 않고, 주면 Ollama에 다른 빌드가 있을 때

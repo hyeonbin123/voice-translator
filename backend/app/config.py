@@ -71,6 +71,15 @@ class Settings(BaseSettings):
     # 때 Ollama와 모델을 기다리는 최대 시간(초)이다.
     en_ko_translation: Literal["opus", "hy-mt2", "hy-mt2-split"] = "opus"
     ko_en_translation: Literal["opus", "hy-mt2"] = "opus"
+    # 한→영 opus 번역의 디코딩(docs/experiments.md 20절, services/models.py _opus_korean_to_english). beam4는
+    # 빔 4의 1-best(20절 측정 전까지의 서비스 설정), beam8은 빔 8의 1-best(20절의 B8: validation에서
+    # chrF·COMET-22 차이가 유의하지 않아 채택되지 않은 비교용), mbr8은 빔 8의 가설 8개에서 문장 chrF MBR(다른
+    # 가설들을 참조로 둔 문장 chrF의 평균이 가장 큰 가설)로 고르는 디코딩(services/mbr.py)이다. 측정 규칙을
+    # 먼저 정해 validation에서 잰 결과(20절: mbr8이 beam4보다 chrF +0.87 [+0.03, +1.79]·COMET-22 +0.40 [+0.09,
+    # +0.74], 출력 점검 같음, 번역 시간 p50 +12.4ms)로 2026-11-03부터 기본은 mbr8이다. 동시통역 자막 갱신과
+    # 최종 번역에 같은 번역기를 쓴다. KO_EN_TRANSLATION=hy-mt2(LLM, 빔 탐색 없음)에는 적용되지 않는다. beam4면
+    # 이 설정이 없던 때와 같다. 영→한은 같은 측정에서 채택된 디코딩이 없어 설정이 없다(빔 4의 1-best 그대로).
+    ko_en_decoding: Literal["beam4", "beam8", "mbr8"] = "mbr8"
     hymt_model: str = "hy-mt2:1.8b-q8_0"
     hymt_digest: str | None = None
     hymt_timeout_s: float = Field(default=30, gt=0)

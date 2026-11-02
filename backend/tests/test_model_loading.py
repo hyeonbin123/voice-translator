@@ -22,7 +22,7 @@ from pydantic import ValidationError
 # 확인한다.
 from app import main
 from app.config import Settings
-from app.services import correction, inference, models, register, stt, translation, tts
+from app.services import correction, inference, mbr, models, register, stt, translation, tts
 from app.services.interfaces import ModelError
 from app.services.pipeline import PipelineModels
 from tests.fakes import FakeSpeechToText, FakeTextToSpeech, FakeTranslator
@@ -111,11 +111,12 @@ def test_only_english_to_korean_translates_sentence_by_sentence(fake_model_class
     assert marian == {"opus-mt-tc-big-en-ko": True, "opus-mt-tc-big-ko-en": False}
 
 
-# 영→한 말투 후처리(KO_REGISTER, docs/experiments.md 21절)는 기본 asis라 번역기를 감싸지 않는다: 이 설정이
-# 없던 때와 같은 번역기 묶음이다. 측정으로 효과를 보기 전에는 기본값을 바꾸지 않는다.
+# 영→한 말투 후처리(KO_REGISTER, docs/experiments.md 21절)는 기본 asis라 번역기를 감싸지 않는다: 영→한은 이
+# 설정이 없던 때와 같은 번역기다. 21절 측정에서 자동 관문(모든 문장 끝 높임 98%)을 통과하지 못해 기본값은
+# 그대로다. 한→영의 '/b8-mbr8'은 20절에서 채택된 MBR 디코딩(KO_EN_DECODING 기본 mbr8)이다.
 def test_korean_register_is_left_as_it_is_by_default(fake_model_classes):
     bundle = models.load_models(Settings(model_device="cpu", tts_enabled=False))
-    assert bundle.translator.model_name == "ko->en: Marian, en->ko: Marian"
+    assert bundle.translator.model_name == "ko->en: Marian/b8-mbr8, en->ko: Marian"
 
 
 # formal이면 영→한 번역기만 FormalRegisterTranslator로 감싼다(한→영은 그대로). 감싼 것은 model_name 끝의
@@ -123,7 +124,58 @@ def test_korean_register_is_left_as_it_is_by_default(fake_model_classes):
 def test_the_formal_register_wraps_only_english_to_korean(fake_model_classes, monkeypatch):
     monkeypatch.setattr(register, "load_formalizer", lambda: lambda text: text)
     bundle = models.load_models(Settings(model_device="cpu", tts_enabled=False, ko_register="formal"))
-    assert bundle.translator.model_name == "ko->en: Marian, en->ko: Marian+formal"
+    assert bundle.translator.model_name == "ko->en: Marian/b8-mbr8, en->ko: Marian+formal"
+
+
+# 한→영 디코딩(KO_EN_DECODING, docs/experiments.md 20절)의 기본 mbr8: 한→영 opus 번역기를 빔 8로 만들고
+# MbrTranslator로 감싼다(측정에서 채택된 B8-MBR 팔과 같은 구성: 빔 8, 가설 8개). 영→한은 빔 크기를 넘기지
+# 않아(기본 4) 20절 측정 전과 같다.
+def test_korean_to_english_decodes_with_beam_8_mbr_by_default(fake_model_classes, tmp_path):
+    bundle = models.load_models(Settings(model_device="cpu", ct2_dir=tmp_path, tts_enabled=False))
+    beams = {
+        args[0].name: kwargs.get("beam_size") for name, args, kwargs in fake_model_classes if name == "Marian"
+    }
+    assert beams == {"opus-mt-tc-big-ko-en": 8, "opus-mt-tc-big-en-ko": None}
+    ko_en = bundle.translator._by_direction[("ko", "en")]
+    assert isinstance(ko_en, mbr.MbrTranslator)
+    assert (ko_en.beam, ko_en.n) == (8, 8)
+    assert bundle.translator.model_name == "ko->en: Marian/b8-mbr8, en->ko: Marian"
+
+
+# beam4는 이 설정이 없던 때(20절 측정 전)와 같다: 빔 크기를 넘기지 않은 opus 번역기 하나, 감싸개 없음. beam8은
+# 빔 8의 1-best(20절의 B8, 비교용)라 감싸개 없이 빔 크기만 8이다.
+@pytest.mark.parametrize(("decoding", "beam"), [("beam4", None), ("beam8", 8)])
+def test_korean_to_english_1_best_decodings_do_not_wrap(fake_model_classes, tmp_path, decoding, beam):
+    bundle = models.load_models(
+        Settings(model_device="cpu", ct2_dir=tmp_path, tts_enabled=False, ko_en_decoding=decoding)
+    )
+    ko_en_builds = [
+        kwargs.get("beam_size")
+        for name, args, kwargs in fake_model_classes
+        if name == "Marian" and args[0].name == "opus-mt-tc-big-ko-en"
+    ]
+    assert ko_en_builds == [beam]
+    assert bundle.translator.model_name == "ko->en: Marian, en->ko: Marian"
+
+
+# KO_EN_TRANSLATION=hy-mt2(LLM, 빔 탐색 없음)에는 디코딩 설정이 적용되지 않는다: 기본 mbr8이어도 Hy-MT2
+# 번역기를 그대로 쓰고 opus 모델을 올리지 않는다.
+def test_the_decoding_setting_does_not_apply_to_hy_mt2(fake_model_classes, tmp_path):
+    bundle = models.load_models(
+        Settings(model_device="cpu", ct2_dir=tmp_path, tts_enabled=False, ko_en_translation="hy-mt2")
+    )
+    assert "ko->en: HyMt," in bundle.translator.model_name
+    assert "mbr" not in bundle.translator.model_name
+    assert [args[0].name for name, args, _ in fake_model_classes if name == "Marian"] == [
+        "opus-mt-tc-big-en-ko"
+    ]
+
+
+# 등록되지 않은 디코딩 값은 시작 때 거절한다(20절은 빔 8·가설 8개 설정 하나만 쟀다).
+@pytest.mark.parametrize("value", ["beam16", "mbr4", "sampling"])
+def test_an_unknown_korean_to_english_decoding_is_rejected(value):
+    with pytest.raises(ValidationError):
+        Settings(ko_en_decoding=value)
 
 
 # formal인데 형태소 분석기(python-mecab-ko)가 없으면 번역 모델을 올리기 전에 분명한 오류로 시작을

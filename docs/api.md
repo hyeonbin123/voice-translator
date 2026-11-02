@@ -420,6 +420,7 @@ backend 폴더에서 `uv sync` 후 `uv run alembic upgrade head`를 실행해 �
 | `CT2_DIR` | `<프로젝트>/data/models/ct2` | 변환한 번역 모델 폴더 (`eval.mt_convert`) |
 | `EN_KO_TRANSLATION` | `opus` | 영→한 번역. `opus`(opus-mt-tc-big, 문장 단위, 2·2-1절에서 고름), `hy-mt2`(Hy-MT2-1.8B, 입력 통째로) 또는 `hy-mt2-split`(Hy-MT2, 문장 단위). Hy-MT2는 시험에서 채택하지 않은 비교용 설정이다(docs/experiments.md 15절: validation에서 COMET-22는 opus보다 높았지만 chrF 차이가 유의하지 않았고, 영→한은 번역 시간 기준도 넘었다): `OLLAMA_URL`의 Ollama에 `eval.hymt_setup`으로 만든 모델이 있어야 하고, 서버가 시작할 때 그 모델을 기다렸다가(`HYMT_PREPARE_TIMEOUT_S`) 올린다. 번역은 필수라 끝내 준비되지 않으면 서버가 뜨지 않는다. 번역 호출은 opus처럼 모델 스레드에서 돈다 |
 | `KO_EN_TRANSLATION` | `opus` | 한→영 번역. `opus`(입력 통째로) 또는 `hy-mt2`(시험 설정, 위와 같음) |
+| `KO_EN_DECODING` | `mbr8` | 한→영 opus 번역의 디코딩. `beam4`(빔 4의 1-best, 2026-11-03 전까지의 서비스 설정), `beam8`(빔 8의 1-best. 비교용 — docs/experiments.md 20절에서 chrF·COMET-22 차이가 유의하지 않아 채택되지 않음) 또는 `mbr8`(빔 8의 가설 8개 중, 다른 가설들을 참조로 둔 문장 chrF의 평균이 가장 큰 가설을 고르는 MBR 디코딩). validation에서 `mbr8`이 `beam4`보다 chrF +0.87 [+0.03, +1.79]·COMET-22 +0.40 [+0.09, +0.74] 높고 번역 시간 p50이 12ms 늘어(20절) 2026-11-03부터 기본은 `mbr8`이다(test 재확인은 아직 없다). 동시통역 자막 갱신과 최종 번역에 같은 번역기가 쓰이고, 번역 기록·상태 확인의 한→영 모델 이름 끝에 `/b8-mbr8`이 붙는다. `KO_EN_TRANSLATION=hy-mt2`에는 적용되지 않는다(LLM은 빔 탐색을 쓰지 않음). `beam4`면 이 설정이 없던 때와 같다. 영→한은 같은 측정에서 채택된 디코딩이 없어 그대로 빔 4의 1-best다 |
 | `HYMT_MODEL` | `hy-mt2:1.8b-q8_0` | Hy-MT2의 Ollama 모델 이름 |
 | `HYMT_DIGEST` | 없음 | 기대하는 모델 빌드(Ollama `/api/tags`의 digest). 주면 다른 빌드일 때 서버가 바로 멈춘다. 측정한 빌드는 docs/experiments.md 15절에 적는다 |
 | `HYMT_TIMEOUT_S` | `30` | Hy-MT2 번역 요청 하나의 제한 시간(초). 넘으면 그 번역은 실패(503)한다 |
