@@ -462,16 +462,16 @@ def test_melo_stays_the_default_on_the_model_thread(fake_model_classes):
 
 
 # MELO_REGEX_CACHE(melo_regex_cache)는 한국어 MeloTTS 생성 인자 regex_cache로 그대로 간다. 기본은
-# 끔(False)이라 서비스의 합성이 이 설정이 없던 때와 같다. 영어 Kokoro에는 넘기지 않는다(g2pkk는 한국어
-# 전처리만 쓴다).
+# 켬(True, docs/experiments.md 18절 측정 뒤)이고, 끄면 서비스의 합성이 이 설정이 없던 때와 같다. 영어
+# Kokoro에는 넘기지 않는다(g2pkk는 한국어 전처리만 쓴다).
 def test_melo_regex_cache_setting_reaches_the_korean_synthesizer(fake_model_classes):
     models.load_models(Settings(model_device="cpu"))
-    models.load_models(Settings(model_device="cpu", melo_regex_cache=True))
+    models.load_models(Settings(model_device="cpu", melo_regex_cache=False))
 
     melo = [(args, kwargs) for name, args, kwargs in fake_model_classes if name == "Melo"]
     assert melo == [
-        (("ko",), {"device": "cpu", "regex_cache": False}),
         (("ko",), {"device": "cpu", "regex_cache": True}),
+        (("ko",), {"device": "cpu", "regex_cache": False}),
     ]
     kokoro = [kwargs for name, _, kwargs in fake_model_classes if name == "Kokoro"]
     assert all("regex_cache" not in kwargs for kwargs in kokoro)

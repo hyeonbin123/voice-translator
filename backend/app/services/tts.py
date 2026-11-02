@@ -15,7 +15,7 @@
 # 고정)를 각자 환경에서 측정할 수 있고, tts 그룹을 설치하지 않은 환경에서도 이 모듈을 불러올 수 있다.
 # Windows에서만 필요한 작은 우회 세 가지(MeloTTS의 일본어 모듈과 g2pkk 형태소 분석기, Kokoro의 espeak-ng
 # 데이터 경로, README 알려진 한계)와, 모든 OS에서 켤 수 있는 MeloTTS 한국어 전처리(g2pkk)의 정규식 캐시(설정
-# MELO_REGEX_CACHE, 기본 끔, _cache_g2pkk_regex)가 들어 있다.
+# MELO_REGEX_CACHE, 기본 켬, _cache_g2pkk_regex)가 들어 있다.
 # [연결] services/models.load_speech_synthesis가 서비스용 합성기를 만들고, eval/tts_candidates.py가 측정
 # 후보로 쓴다.
 
@@ -344,8 +344,10 @@ def _prepare_melo_on_windows() -> None:
 #   가장 오래 안 쓴 것부터 버림)은 g2pkk가 바뀌어 입력에 따라 패턴이 늘어나도 메모리가 묶이게 둔 것이다.
 # - 서드파티 모듈의 전역 이름을 바꾸므로 g2pkk 판이 바뀌면(re를 쓰는 모듈·함수가 달라지면) 끼우는 자리가
 #   어긋날 수 있다. 판은 uv.lock이 고정하고, 다섯 모듈과 출력 동일성은 위 테스트가 지킨다.
-# - 기본은 끔이다(설정 MELO_REGEX_CACHE, docs/api.md). 지연에 주는 효과는 측정 규칙을 먼저
-#   docs/experiments.md에 적고 서비스에서 잰 뒤 기본값을 정한다.
+# - 기본은 켬이다(설정 MELO_REGEX_CACHE, docs/api.md). 지연에 주는 효과는 측정 규칙을 먼저
+#   docs/experiments.md 18절에 적고 서비스에서 끔·켬을 짝지어 잰 뒤 정했다(2026-11-03, validation: 영어
+#   원문 마디의 서버 합성 실행 시간 331ms [287, 377] 단축, 한국어 원문 회귀 없음). 끄면 이 설정이 없던
+#   때와 같다.
 _G2PKK_REGEX_MODULES = ("g2pkk.g2pkk", "g2pkk.special", "g2pkk.utils", "g2pkk.english", "g2pkk.numerals")
 _G2PKK_REGEX_CACHE_SIZE = 2048
 

@@ -100,9 +100,11 @@ class Settings(BaseSettings):
     # MeloTTS 한국어 전처리(g2pkk)가 쓰는 정규식을 패턴마다 한 번만 컴파일해 두고 다시
     # 쓸지(app/services/tts.py _cache_g2pkk_regex). g2pkk가 어절마다 서로 다른 정규식 약 570개를 쓰는데
     # Python의 re 캐시는 512개라, 끄면 호출마다 모두 다시 컴파일한다. 켜도 음소 출력은
-    # 같고(tests/test_g2pkk_regex_cache.py) 컴파일 시간만 준다. 서비스 지연에 주는 효과를 측정 규칙을 먼저
-    # 정해 잰 뒤 기본값을 정하므로 지금은 끔이다(끄면 이 설정이 없던 때와 같다).
-    melo_regex_cache: bool = False
+    # 같고(tests/test_g2pkk_regex_cache.py) 컴파일 시간만 준다. 측정 규칙을 먼저 정해 서비스에서 끔·켬을
+    # 짝지어 잰 결과(docs/experiments.md 18절, validation: 영어 원문 마디의 서버 합성 실행 시간 331ms
+    # [287, 377] 단축, 한국어 원문 회귀 없음, 오류 0)로 2026-11-03부터 기본은 켬이다. 끄면 이 설정이
+    # 없던 때와 같다.
+    melo_regex_cache: bool = True
     # 모델을 올린 직후 gc.freeze()를 불러 올린 모델 객체를 가비지 컬렉터가 훑는 대상에서 뺄지. 끄는 것은
     # 이것 없이 측정할 때뿐이다. faster-whisper가 업로드를 풀 때마다 부르는 전체 가비지 컬렉션이
     # 모델의 수많은 객체를 훑으며 GIL을 쥐어 다른 요청이 약 0.3초씩 막혔고, freeze로 0.33초 → 0.03초가
