@@ -1,0 +1,90 @@
+{
+ "created": "2026-11-02T20:59:55+00:00",
+ "rounds": 10000,
+ "seed": 12345,
+ "model": "opus-mt-tc-big-en-ko/split",
+ "before": {
+  "outputs": 129,
+  "all_honorific": 91,
+  "ratio": 0.7054263565891473,
+  "mixed": 3,
+  "ends": {
+   "formal": 104,
+   "polite": 0,
+   "plain": 37,
+   "other": 2
+  }
+ },
+ "after": {
+  "outputs": 129,
+  "all_honorific": 126,
+  "ratio": 0.9767441860465116,
+  "mixed": 0,
+  "ends": {
+   "formal": 140,
+   "polite": 0,
+   "plain": 1,
+   "other": 2
+  }
+ },
+ "comet": {
+  "point": -0.021953730620154488,
+  "low": -0.07759508236434108,
+  "high": 0.025360343992248062,
+  "contains_zero": true,
+  "a": 87.10369731104652,
+  "b": 87.12565104166667
+ },
+ "chrf": {
+  "point": 0.6047048126674923,
+  "low": 0.2683797279256869,
+  "high": 0.9848024379139231,
+  "contains_zero": false,
+  "a": 36.75148216287071,
+  "b": 36.146777350203216
+ },
+ "spbleu": {
+  "point": 0.2803958159876565,
+  "low": 0.06286247849970979,
+  "high": 0.5500095970916437,
+  "contains_zero": false,
+  "a": 24.391110196447585,
+  "b": 24.110714380459928
+ },
+ "changed": 35,
+ "char_increase_median": 2.0,
+ "char_increase_rate": 0.008793804961281008,
+ "postprocess_p50_ms": 0.039,
+ "postprocess_p95_ms": 90.022,
+ "rules": {
+  "consistency": false,
+  "comet": true,
+  "latency": true
+ },
+ "automatic_passes": false,
+ "human_check": null,
+ "verdict": "rejected",
+ "report": "eval\\reports\\register_t109_dev_20261102_205858.json",
+ "comet_meta": {
+  "model": "Unbabel/wmt22-comet-da",
+  "revision": "2760a223ac957f30acfb18c8aa649b01cf1d75f2",
+  "checkpoint_sha256": "e213091cde220f97b89f8bdfa750c458cfea741ad62affb455b59900210ff2af",
+  "encoder": "FacebookAI/xlm-roberta-large",
+  "encoder_revision": "c23d21b0620b635a76227c604d44e43a9f0ee389",
+  "device": "cuda",
+  "gpu": "NVIDIA GeForce RTX 2080 Ti",
+  "precision": "fp16",
+  "batch_size": 32,
+  "segments": 164,
+  "load_s": 10.0,
+  "score_s": 0.8,
+  "versions": {
+   "unbabel-comet": "2.2.7",
+   "torch": "2.11.0+cu128",
+   "transformers": "4.57.6",
+   "python": "3.11.16"
+  },
+  "input": "../work/register/comet_input_t109_dev.jsonl",
+  "created": "2026-11-02T20:59:53+00:00"
+ }
+}

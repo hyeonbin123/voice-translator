@@ -1,0 +1,2129 @@
+[
+ {
+  "model": "opus-mt-tc-big-en-ko/split",
+  "register": "asis",
+  "directions": {
+   "en-ko": {
+    "count": 129,
+    "items": [
+     {
+      "id": 1510,
+      "source": "The U.N. also hopes to finalize a fund to help countries affected by global warming to cope with the impacts.",
+      "reference": "또한 유엔은 지구 온난화의 영향을 받는 국가들의 대처를 돕기 위한 기금의 조성을 완료하기를 기대하고 있습니다.",
+      "hypothesis": "유엔은 또한 지구 온난화의 영향을받는 국가들이 그 영향에 대처할 수 있도록 기금을 마무리하기를 희망합니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1511,
+      "source": "Soon, officers equipped with riot gear entered the yard and cornered the inmates with tear gas.",
+      "reference": "곧, 폭동 진압 장비를 갖춘 경찰들이 마당으로 진입해 최루 가스를 이용하여 수감자들을 코너로 몰아넣었습니다.",
+      "hypothesis": "곧, 폭동 장비를 갖춘 장교가 마당에 들어 와서 수감자들을 최루 가스로 모았습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1513,
+      "source": "Argentina is well known for having one of the best polo teams and players in the world.",
+      "reference": "아르헨티나는 세계 최고의 폴로 팀과 선수를 보유한 것으로 유명합니다.",
+      "hypothesis": "아르헨티나는 세계 최고의 폴로 팀과 선수들 중 한 명으로 잘 알려져 있습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1514,
+      "source": "When the fighting ceased after the wounded were transported to the hospital, about 40 of the other remaining inmates stayed in the yard and refused to return to their cells.",
+      "reference": "부상자들이 병원으로 이송되고 싸움이 중단되자, 약 40명의 수감자들은 교도소 마당에서 버티며 각자 유치장으로 돌아가길 거부했습니다.",
+      "hypothesis": "부상자들이 병원으로 이송된 후 전투가 끝났을 때, 나머지 수감자들 중 약 40명이 마당에 남아서 그들의 감방으로 돌아가기를 거부했다.",
+      "sentences": 1
+     },
+     {
+      "id": 1515,
+      "source": "It is Martelly's fifth CEP in four years.",
+      "reference": "마텔리가 4년 만에 다섯 번째 하는 CEP다.",
+      "hypothesis": "마텔리의 5번째 CEP이다.",
+      "sentences": 1
+     },
+     {
+      "id": 1516,
+      "source": "Please treat the site with all of the dignity, solemnity and respect it deserves. Do not make jokes about the Holocaust or Nazis.",
+      "reference": "본 장소에 밎는 존엄, 엄숙함, 경의를 다해 대해 주십시오. 홀로코스트나 나치에 대한 농담을 하지 마십시오.",
+      "hypothesis": "사이트를 모든 존엄성, 엄숙함 및 존중으로 대우하십시오. 홀로코스트나 나치에 대한 농담을 하지 마라.",
+      "sentences": 2
+     },
+     {
+      "id": 1517,
+      "source": "Research in AI involves making machines to automate tasks that require intelligent behavior.",
+      "reference": "AI 연구는 기계가 지능적 행동을 요구하는 작업을 자동화하는 연구를 포함합니다.",
+      "hypothesis": "AI에 대한 연구는 지능적인 행동이 필요한 작업을 자동화하는 기계를 만드는 것과 관련이 있습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1518,
+      "source": "A former Filipino policeman has kept Hong Kong tourists hostage by hijacking their bus in Manila, the capital of the Philippines.",
+      "reference": "한 전직 필리핀 경찰관이 필리핀의 수도 마닐라에서 버스를 납치하여 홍콩 관광객들을 인질로 삼았다.",
+      "hypothesis": "전 필리핀 경찰이 필리핀의 수도 마닐라에서 버스 납치로 홍콩 관광객을 인질로 잡았습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1519,
+      "source": "In many cases, enrolling on a gap-year course abroad can actually improve your chances of moving into higher education back in your home country.",
+      "reference": "대부분의 경우, 해외 갭 이어(gap-year) 코스에 등록하면 실제로 고국에서 고등 교육에 진학할 가능성을 높일 수 있습니다.",
+      "hypothesis": "많은 경우, 해외에서 갭 이어 과정에 등록하면 실제로 본국에서 고등 교육으로 이동할 가능성이 높아집니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1521,
+      "source": "The satellite in space gets the call and then reflects it back down, almost instantly.",
+      "reference": "우주에 있는 위성은 신호를 받고 나서 거의 즉각적으로 반사해 내려보낸다.",
+      "hypothesis": "우주의 위성은 전화를 받고 거의 즉시 그것을 반영합니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1522,
+      "source": "Technology offers the solution with virtual field trips. Students can look at museum artifacts, visit an aquarium, or admire beautiful art while sitting with their class.",
+      "reference": "기술은 가상 현장학습에 도움을 줍니다. 학생들은 교실에 앉은 상태로 박물관 전시품들을 볼 수 있고, 수족관을 구경할 수 있으며, 아름다운 예술 작품을 감상할 수 있습니다.",
+      "hypothesis": "기술은 가상 필드 트립을 통해 솔루션을 제공합니다. 학생들은 박물관 유물을 보거나 수족관을 방문하거나 수업 중에 아름다운 예술을 감상 할 수 있습니다.",
+      "sentences": 2
+     },
+     {
+      "id": 1523,
+      "source": "The final score was a one-point victory, 21 to 20, ending the All Blacks' 15 game winning streak.",
+      "reference": "최종 점수는 21 대 20으로 1점 차 승부였으며, 올블랙스(All Blacks)의 15연승으로 끝났다.",
+      "hypothesis": "최종 득점은 21 대 20으로 올 블랙스의 15개의 경기 연승을 끝냈다.",
+      "sentences": 1
+     },
+     {
+      "id": 1524,
+      "source": "There are a lot of social and political effects such as the use of metric system, a shift from absolutism to republicanism, nationalism and the belief the country belongs to the people not to one sole ruler.",
+      "reference": "미터법 사용, 절대주의 체제에서 공화주의로의 전환, 민족주의와 국가는 한 통치자가 아닌 여러 사람의 소유라는 생각의 발생과 같이, 사회 및 정치적인 면에 많은 영향들을 미쳤습니다.",
+      "hypothesis": "메트릭 시스템의 사용, 절대주의에서 공화주의로의 전환, 민족주의 및 국가가 한 명의 통치자가 아닌 국민에 속한다는 신념과 같은 많은 사회적 및 정치적 효과가 있습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1525,
+      "source": "The broad boulevards, glass-fronted buildings and modern shopping centers are dotted with traditional red-tiled roofs, the 18th century market, and old mosques and churches, although the city has an atmosphere more of Mediterranean Europe than traditional Turkey.",
+      "reference": "이 도시는 전통적인 터키의 모습보다 지중해 유럽의 분위기를 더 많이 가지고 있지만 넓은 대로, 정면이 유리로 장식된 건물, 현대적인 쇼핑센터들 사이에 띄엄띄엄 전통적인 붉은 기와 지붕과 18세기 시장 그리고 오래된 모스크와 교회들이 있습니다.",
+      "hypothesis": "넓은 가로수길, 유리로 된 건물과 현대적인 쇼핑 센터에는 전통적인 붉은 기와 지붕, 18 세기 시장, 오래된 모스크와 교회가 있지만, 도시는 전통적인 터키보다 지중해 유럽의 분위기를 가지고 있습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1527,
+      "source": "Poland's men's visually impaired skier Maciej Krezel and guide Anna Ogarzynska finished thirteenth in the Super-G. South Korea's Jong Seork Park finished twenty-fourth in the men's sitting Super-G.",
+      "reference": "폴란드 남자 시각 장애인 스키 선수 마키 크레젤(Maciej Krezel)과 가이드 안나 오가진스카(Anna Ogarzynska)가 슈퍼대회전(Super G)에서 13위로 경기를 마쳤다. 한국의 박종석은 남자 좌식스키 슈퍼대회전(Super G)에서 24위를 차지했다.",
+      "hypothesis": "폴란드의 남자 시각 장애인 스키 선수 Maciej Krezel과 가이드 Anna Ogarzynska는 Super-G에서 13 위를 차지했습니다. 한국의 Jong Seork Park는 남자 Super-G에서 24 위를 차지했습니다.",
+      "sentences": 2
+     },
+     {
+      "id": 1528,
+      "source": "Some festivals have special camping areas for families with young children.",
+      "reference": "일부 축제들은 어린아이들이 있는 가족들을 위한 특별한 캠핑 공간을 가지고 있습니다.",
+      "hypothesis": "일부 축제에는 어린 자녀가있는 가족을위한 특별한 캠핑 공간이 있습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1529,
+      "source": "Previously, Ring's CEO, Jamie Siminoff, remarked the company started when his doorbell wasn't audible from his shop in his garage.",
+      "reference": "링의 CEO인 제이미 시미노프 (Jamie Siminoff)는 차고에 있던 그의 숍에서 초인종 소리를 들을 수 없었을 때 회사를 시작했다고 말했습니다.",
+      "hypothesis": "이전에 링의 CEO 인 제이미 시미 노프 (Jamie Siminoff)는 자신의 차고에서 초인종을 들을 수 없을 때 회사가 시작되었다고 말했습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1530,
+      "source": "It had been scheduled to be cut down on Tuesday, but was saved after an emergency court ruling.",
+      "reference": "화요일에 베어 쓰러뜨릴 예정이었으나 긴급 법원의 판결로 구조되었다.",
+      "hypothesis": "그것은 화요일에 삭감 될 예정 이었지만 긴급 법원 판결 후에 저장되었습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1531,
+      "source": "The East African Islands are in the Indian Ocean off the eastern coast of Africa.",
+      "reference": "동아프리카의 섬들은 아프리카 동부 연안을 따라 인도양에 자리 잡고 있다.",
+      "hypothesis": "동아프리카의 섬들은 아프리카의 동쪽 해안에 있는 인도양에 있다.",
+      "sentences": 1
+     },
+     {
+      "id": 1532,
+      "source": "108 plates of Chhappan Bhog (in Hinduism, 56 different edible items, like, sweets, fruits, nuts, dishes etc. which are offered to deity) were served to Baba Shyam.",
+      "reference": "108 접시의 Chhappan Bhog(힌두교에서는 신에게 바치는 단것, 과일, 견과류, 요리 등 56가지 다른 먹을거리들)가 Baba Shyam에게 차려졌습니다.",
+      "hypothesis": "108 접시의 Chhappan Bhog (힌두교, 56 가지 식용 품목, 과자, 과일, 견과류, 요리 등)이 바바 샴에게 제공되었습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1533,
+      "source": "Many common formats (APS family of formats, for example) are equal to or closely approximate this aspect ratio.",
+      "reference": "여러 일반적인 형식(예: APS 형식)은 이 가로 세로 비율과 동일하거나 거의 비슷합니다.",
+      "hypothesis": "많은 일반적인 형식 (예 : APS 계열)은이 종횡비와 같거나 근접합니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1534,
+      "source": "Combined with its relative inaccessibility, \"Timbuktu\" has come to be used as a metaphor for exotic, distant lands.",
+      "reference": "상대적인 접근이 불가능한 의미를 결합하여, 'Timbuktu'는 이국적이고 멀리 떨어진 지역에 대한 은유로 사용하게 되었다.",
+      "hypothesis": "상대적으로 접근하기 어려운 \"팀북투\"는 이국적이고 먼 땅에 대한 은유로 사용되었습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1535,
+      "source": "It uses satellite-based technology as opposed to older ground-radar-based technology to allow air traffic controllers to pinpoint aircraft with greater precision and give pilots more accurate information.",
+      "reference": "이것은 종전에 지상 레이더 기반 기술을 사용했던 것과 달리 위성 기반 기술을 이용하여 항공관제사들이 매우 높은 정확도로 항공기를 특정할 수 있게 하며, 조종사들에게 더 정확한 정보를 제공한다.",
+      "hypothesis": "기존의 지상 레이더 기반 기술과는 달리 위성 기반 기술을 사용하여 항공 교통 관제사가 항공기를 더 정확하게 정확하게 파악하고 조종사에게보다 정확한 정보를 제공 할 수 있습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1536,
+      "source": "Local authorities are warning residents in the vicinity of the plant to stay indoors, turn off air-conditioners and not to drink tap water.",
+      "reference": "현지 당국은 그 발전소 인근 주민들에게 실내에 머물며 에어컨을 끄고 수돗물을 마시지 말라고 경고하고 있다.",
+      "hypothesis": "지역 당국은 공장 주변의 주민들에게 실내에 머물며 에어컨을 끄고 수돗물을 마시지 말라고 경고하고 있습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1537,
+      "source": "You can see the pyramids in the dark and you can see them in silence before the show begins.",
+      "reference": "어둠 속에서 피라미드를 볼 수 있고 쇼가 시작하기 전에 고요 속에서 피라미드를 볼 수 있습니다.",
+      "hypothesis": "어둠 속에서 피라미드를 볼 수 있으며 쇼가 시작되기 전에 침묵 속에서 볼 수 있습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1538,
+      "source": "The stretch between Point Marion and Fairmont presents the most challenging driving conditions on the Buffalo-Pittsburgh Highway, passing frequently through isolated backwoods terrain.",
+      "reference": "고립된 산간 지형에 위치한 포인트 마리온과 페어몬트 사이의 길은 버팔로 피츠버그 고속도로 중에서 가장 운전하기 힘든 곳으로 알려져 있다.",
+      "hypothesis": "포인트 마리온(Point Marion)과 페어몬트(Fairmont) 사이의 구간은 버팔로-피츠버그 고속도로(Buffalo-Pittsburgh Highway)에서 가장 까다로운 주행 조건을 보여 주며, 종종 고립된 백우드 지형을 통과합니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1539,
+      "source": "Members of a subculture often signal their membership through a distinctive and symbolic use of style, which includes fashions, mannerisms, and argot.",
+      "reference": "하위문화의 구성원들은 종종 패션, 매너리즘, 그리고 특정 속어를 포함하는 독특하고 상징적인 스타일을 통해 소속감을 나타낸다.",
+      "hypothesis": "하위 문화의 구성원은 종종 패션, 매너리즘 및 아르고를 포함하는 독특하고 상징적 인 스타일의 사용을 통해 회원임을 알립니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1540,
+      "source": "In principle the Tibetan Buddhism is very simple. It consists of Kundalini Yoga, meditation and the path of all-embracing love.",
+      "reference": "티베트 불교는 이론상으로 매우 간단합니다. 쿤달리니 요가, 명상 및 모두를 포용하는 사랑의 길로 구성되어 있습니다.",
+      "hypothesis": "원칙적으로 티베트 불교는 매우 간단합니다. 그것은 Kundalini 요가, 명상 및 모든 것을 포용하는 사랑의 길로 구성됩니다.",
+      "sentences": 2
+     },
+     {
+      "id": 1541,
+      "source": "Courier companies are well paid for delivering things quickly. Frequently, time is very important with business documents, merchandise or spare parts for an urgent repair.",
+      "reference": "택배회사는 물건을 빨리 배달해 주는 대가로 많은 보수를 받습니다. 종종 업무 서류, 긴급 수리를 위한 상품이나 예비 부품의 경우에는 시간이 매우 중요합니다.",
+      "hypothesis": "택배 회사는 물건을 빨리 배달하기 위해 잘 지불됩니다. 종종 긴급한 수리를 위해 비즈니스 문서, 제품 또는 예비 부품이 매우 중요합니다.",
+      "sentences": 2
+     },
+     {
+      "id": 1542,
+      "source": "Bush spokesman Gordon Johndroe called North Korea's pledge \"a major step towards the goal of achieving the verifiable denuclearization of the Korean peninsula.\"",
+      "reference": "\"부시의 대변인 고든 존드로는 북한의 약속에 대해 \"\"한반도의 비핵화를 달성하기 위한 주요 단계\"\"라고 평했습니다.\"",
+      "hypothesis": "고든 존드로 부시 대변인은 \"북한의 약속은 한반도의 검증 가능한 비핵화를 달성하기 위한 주요 단계\"라고 말했다.",
+      "sentences": 1
+     },
+     {
+      "id": 1543,
+      "source": "The patient had been to Nigeria, where some cases of the Ebola virus have occurred.",
+      "reference": "그 환자는 에볼라 바이러스 감염이 발생한 나이지리아에 방문한 적이 있었다.",
+      "hypothesis": "환자는 에볼라 바이러스가 발생한 나이지리아에 있었다.",
+      "sentences": 1
+     },
+     {
+      "id": 1544,
+      "source": "Insects were the first animals to take to the air. Their ability to fly helped them evade enemies more easily and find food and mates more efficiently.",
+      "reference": "곤충은 공중에서 날 수 있었던 첫 번째 동물입니다. 곤충의 비행 능력은 더 쉽게 적을 피하고 더 효율적으로 음식과 짝을 찾는 데 도움을 주었습니다.",
+      "hypothesis": "곤충은 공중에 떠있는 최초의 동물이다. 그들의 비행 능력은 적을 더 쉽게 피하고 음식과 짝을 더 효율적으로 찾는 데 도움이되었습니다.",
+      "sentences": 2
+     },
+     {
+      "id": 1545,
+      "source": "A curry can be either \"dry\" or \"wet\" depending on the amount of liquid.",
+      "reference": "\"카레는 물의 양에 따라 \"\"되직\"\"하거나 \"\"묽게\"\"될 수 있다.\"",
+      "hypothesis": "카레는 액체의 양에 따라 \"건조한\"또는 \"젖은\"것일 수 있습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1546,
+      "source": "The feathers' structure suggests that they were not used in flight but rather for temperature regulation or display. The researchers suggested that, even though this is the tail of a young dinosaur, the sample shows adult plumage and not a chick's down.",
+      "reference": "깃털의 구조는 비행 용이 아니라 체온 조절이나 과시용으로 쓰였음을 암시한다. 연구원들은 어린 공룡의 꼬리에서 나온 샘플을 조사하니 유아의 솜털이 아닌 성인 공룡의 깃털이라고 이야기하였다.",
+      "hypothesis": "깃털의 구조는 비행에 사용되지 않았으며 오히려 온도 조절이나 디스플레이에 사용되었음을 시사합니다. 연구자들은 이것이 젊은 공룡의 꼬리 일지라도, 샘플은 병아리가 아닌 성인 깃털을 보여줍니다.",
+      "sentences": 2
+     },
+     {
+      "id": 1548,
+      "source": "When you call someone who is thousands of miles away, you are using a satellite.",
+      "reference": "수천 km(마일) 떨어진 사람과 통화한다면 인공위성을 쓰고 있는 겁니다.",
+      "hypothesis": "수천 마일 떨어진 곳에 있는 사람에게 전화를 걸면 위성을 사용하는 것입니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1550,
+      "source": "Skiing is a major travelling activity with many enthusiasts, occasionally known as \"ski bums,\" planning entire vacations around skiing at a particular location.",
+      "reference": "\"스키여행은 스키광(\"\"ski bums\"\")이라고 불리는 애호가들이 즐기는 여행 방식이다. 그 사람들은 휴가 일정을 어느 한 특정 장소에서 줄곧 스키를 타는 시간으로 계획한다.\"",
+      "hypothesis": "스키는 가끔 \"스키 부랑자\"로 알려진 많은 매니아와 함께 주요 여행 활동, 특정 위치에서 스키 주위에 전체 휴가를 계획입니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1551,
+      "source": "They are still trying to determine just how large the crash was and how the Earth will be affected.",
+      "reference": "그들은 여전히 충돌의 크기와 지구가 어떤 영향을 받을 것인지에 대해 연구 중이다.",
+      "hypothesis": "그들은 여전히 충돌이 얼마나 큰지, 지구가 어떻게 영향을 받을지 결정하려고 노력하고 있다.",
+      "sentences": 1
+     },
+     {
+      "id": 1552,
+      "source": "The result of plotting analysis will be posted to a public website.",
+      "reference": "도표화된 분석 결과가 공개 웹사이트에 게시될 예정입니다.",
+      "hypothesis": "분석의 결과는 공개 웹 사이트에 게시됩니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1553,
+      "source": "Christmas is one of the most important holidays of Christianity, and is celebrated as the birthday of Jesus.",
+      "reference": "크리스마스는 기독교에서 가장 중요한 큰 명절 중 하나로 예수님의 생일을 기념하는 명절이다.",
+      "hypothesis": "크리스마스는 기독교의 가장 중요한 휴일 중 하나이며, 예수님의 생일로 축하됩니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1555,
+      "source": "In the churchyard, there are interesting marble sculptures of doves over some tombs.",
+      "reference": "교회 뜰에는 몇몇 무덤 위에 비둘기의 흥미로운 대리석 조각들이 있다.",
+      "hypothesis": "교회 마당에는 일부 무덤 위에 비둘기의 흥미로운 대리석 조각이 있습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1556,
+      "source": "His 1,000th stamp was the magnificent \"Great Deeds by Swedish Kings\" by David Klöcker Ehrenstrahl in 2000, which is listed in the Guinness Book of World Records.",
+      "reference": "그의 1,000번째 도장은 2000년에 다비드 클뢰커 에렌슈트랄의 장대한 작품인 '스웨덴 역대 왕의 위업'을 새긴 것이다. 그리고 이는 기네스 세계 기록에 등재되어 있다.",
+      "hypothesis": "그의 1000번째 우표는 2000년 기네스북에 등재된 데이비드 클뢰커 에렌스탈의 \"스웨덴 왕들의 위대한 업적\"이었다.",
+      "sentences": 1
+     },
+     {
+      "id": 1557,
+      "source": "After seeing the horrors and atrocities of war during World War I, nations desired to avoid such a situation again in the future.",
+      "reference": "1차 세계대전을 통해 전생의 참상과 만행을 겪은 국가들은 미래에 그러한 상황을 다시는 겪지 않기를 기도했습니다.",
+      "hypothesis": "제 1 차 세계 대전 중 에 전쟁 의 참상 과 잔학 행위 를 목격 한 후 에, 나라 들 은 장래 에 그러한 상황 을 다시 피하기 를 원하였다.",
+      "sentences": 1
+     },
+     {
+      "id": 1558,
+      "source": "Before an organization can be innovative, leadership must create a culture of innovation as well as shared knowledge and organizational learning.",
+      "reference": "조직이 혁신적이 되려면, 리더십은 혁신 문화뿐만 아니라 공유 지식 및 조직적인 학습을 창조해야 합니다.",
+      "hypothesis": "조직이 혁신적일 수 있기 전에 리더십은 지식과 조직 학습을 공유하는 것뿐만 아니라 혁신의 문화를 창조해야 한다.",
+      "sentences": 1
+     },
+     {
+      "id": 1559,
+      "source": "Pronunciation is relatively easy in Italian since most words are pronounced exactly how they are written",
+      "reference": "이탈리아어는 대부분의 단어들이 정확히 쓰여진대로 발음되기 때문에 발음이 비교적 쉽다.",
+      "hypothesis": "발음은 대부분의 단어들이 정확히 어떻게 쓰여졌는지 발음되기 때문에 이탈리아어로는 비교적 쉽습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1560,
+      "source": "As soon as you get out of the current, swimming back is no more difficult than normally.",
+      "reference": "해류를 벗어나기만 하면, 평소처럼 수영해서 돌아오는 것은 그다지 어렵지 않다.",
+      "hypothesis": "지금처럼 수영을 계속하면 평소처럼 수영을 할 수 없다.",
+      "sentences": 1
+     },
+     {
+      "id": 1561,
+      "source": "Most districts are served by small Japanese Coaster Buses, which are comfortable and sturdy.",
+      "reference": "대부분의 구역에서는 편안하고 튼튼한 소형 일제 코스터 버스가 운행된다.",
+      "hypothesis": "대부분의 지구는 편안하고 튼튼한 작은 일본 코스터 버스에 의해 제공됩니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1562,
+      "source": "This became common practice, but the iron caused more wear on the wooden wheels of the wagons.",
+      "reference": "이것은 일반적인 관행이 되었지만, 철은 마차의 나무 바퀴를 더 많이 마모되게 하였습니다.",
+      "hypothesis": "이것은 일반적인 관행이되었지만, 철은 마차의 나무 바퀴에 더 많은 마모를 일으켰습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1563,
+      "source": "The researchers suggested that, even though this is the tail of a young dinosaur, the sample shows adult plumage and not a chick's down.",
+      "reference": "이것은 젊은 공룡의 꼬리이지만, 샘플을 보면 어린 개체의 솜털이 아닌 성체의 깃털임을 알 수 있다고 연구진은 말합니다.",
+      "hypothesis": "연구자들은 이것이 젊은 공룡의 꼬리 일지라도, 샘플은 병아리가 아닌 성인 깃털을 보여줍니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1564,
+      "source": "Some patients might have contracted the bug in the hospital, Dr. Moll thinks, and at least two were hospital health workers.",
+      "reference": "Moll 박사는 일부 환자가 병원에서 질병에 감염되었을 수 있다고 생각하며, 그중 적어도 2명은 건강한 병원 근로자였을 것으로 생각했습니다.",
+      "hypothesis": "몇몇 환자는 병원에 있는 벌레를 계약할 수 있었습니다, Moll 박사는 생각하고, 적어도 2개는 병원 건강 요원이었습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1565,
+      "source": "Science’s main goal is to figure out the way the world works through the scientific method. This method in fact guides most scientific research.",
+      "reference": "과학의 주요 목적은 과학적 방법을 통해 세상이 어떻게 움직이는지 이해하는 것이다. 이 방식이 사실 대부분의 과학적 연구를 이끌어간다.",
+      "hypothesis": "과학의 주요 목표는 과학적 방법을 통해 세상이 어떻게 작동하는지 알아내는 것입니다. 이 방법은 실제로 대부분의 과학적 연구를 안내합니다.",
+      "sentences": 2
+     },
+     {
+      "id": 1566,
+      "source": "Yet eighty percent of our goods were taxed through tariffs in Central American countries. we treat you.",
+      "reference": "비록 우리 물품의 팔십 퍼센트가 중앙아메리카 국가들에서 관세를 통해 세금이 부과된다. 우리가 당신을 대접한다.",
+      "hypothesis": "그러나 우리 상품의 80 %는 중앙 아메리카 국가에서 관세를 부과했습니다. 우리는 당신을 치료합니다.",
+      "sentences": 2
+     },
+     {
+      "id": 1567,
+      "source": "The largest tournament of the year takes place in December at the polo fields in Las Cañitas.",
+      "reference": "그 해의 가장 규모가 큰 토너먼트 경기는 12월에 라스 카니타스의 폴로 경기장에서 열립니다.",
+      "hypothesis": "올해의 가장 큰 대회는 12 월 Las Cañitas의 폴로 필드에서 열립니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1568,
+      "source": "Though it is widely used, especially among non-Romani, the word \"Gypsy\" is often considered offensive because of its associations with negative stereotypes and inaccurate perceptions of Romani people.",
+      "reference": "특히 비(非)로마니, 사이에서는 널리 쓰이지만, 로마니, 사람들에 대한 부정적인 고정관념과 부정확한 인식을 주기 때문에 '집시'라는 말은 종종 불쾌하게 여겨지고 있다.",
+      "hypothesis": "특히 비 로마니 (non-Romani) 사이에서 널리 사용되지만, \"집시 (Gypsy)\"라는 단어는 종종 부정적인 고정 관념과 로마인에 대한 부정확 한 인식과의 연관성 때문에 공격적으로 간주됩니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1569,
+      "source": "The Report opens with plea for open debate and the formation of a consensus in the United States about the policy towards the Middle East.",
+      "reference": "보고서는 미국의 중동 정책에 관해 공개 토론과 의견 일치 형성에 대한 탄원으로 시작한다.",
+      "hypothesis": "이 보고서는 공개 토론과 중동에 대한 정책에 대한 미국의 합의의 형성에 대한 항변으로 시작됩니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1570,
+      "source": "It also had no authority to override tax laws and tariffs between states.",
+      "reference": "또한 의회는 주(州) 간의 세법과 관세를 무효화할 권한이 없었습니다.",
+      "hypothesis": "또한 국가 간의 세금 법과 관세를 무시할 권한이 없었습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1571,
+      "source": "The Arabs also brought Islam to the lands, and it took in a big way in the Comoros and Mayotte.",
+      "reference": "아랍인들을 통해서도 이슬람교가 전해졌으며, 코모로스와 마요트 지방에서 큰 변화가 일어났습니다.",
+      "hypothesis": "아랍인들은 또한 이슬람을 그 땅에 가져왔고, 그것은 코모로와 마요트에서 큰 역할을 했다.",
+      "sentences": 1
+     },
+     {
+      "id": 1572,
+      "source": "Three more bombs exploded near government buildings in a period of two hours.",
+      "reference": "정부청사 근처에서 2시간 만에 폭탄 3개가 추가로 폭발했다.",
+      "hypothesis": "두 시간 만에 정부 건물 근처에서 폭탄이 터졌다.",
+      "sentences": 1
+     },
+     {
+      "id": 1573,
+      "source": "A satellite phone is not generally a replacement for a mobile phone, as you have to be outdoors with clear line of sight to the satellite to make a phone call.",
+      "reference": "위성 전화는 실외에서 위성과 송수신선이 직결된 곳에서 전화를 사용해야 하기 때문에, 보통 휴대폰을 대체할 수 없다.",
+      "hypothesis": "위성 전화는 일반적으로 전화를 걸기 위해 위성에 대한 명확한 시야를 가져야하기 때문에 휴대 전화를 대체하지 않습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1574,
+      "source": "The winter can be deceptively chilly: temperatures rarely go below freezing, but the wind and humidity combine to make it feel colder than what the thermometer says.",
+      "reference": "겨울은 믿을 수 없을 만큼 쌀쌀해지기도 한다. 영하 이하로 내려가는 날은 드물지만, 바람과 습도가 합쳐져서 실제 온도보다 더 춥게 느껴진다.",
+      "hypothesis": "겨울은 믿을 수 없을만큼 쌀쌀할 수 있습니다 : 온도는 거의 동결되지 않지만 바람과 습도가 결합하여 온도계가 말하는 것보다 더 차가워집니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1575,
+      "source": "Israel demands an ongoing military presence in the valley for ten years once an agreement is signed while the PA agrees to leave such presence only for five years.",
+      "reference": "이스라엘은 협정이 이루어지자 이 구역의 현재 주둔군을 10년간 두는 것을 요구했고, PA는 주둔군이 5년 후에 떠나는 것에 동의했다.",
+      "hypothesis": "이스라엘은 협정이 체결되면 10년 동안 이 계곡에 계속 주둔할 것을 요구하며, PA는 5년 동안만 이 계곡을 떠날 것을 동의한다.",
+      "sentences": 1
+     },
+     {
+      "id": 1576,
+      "source": "A course will normally cover all the issues discussed here in far greater detail, usually with practical experience.",
+      "reference": "강의은 일반적으로 여기에서 논의되는 모든 문제에 대해 훨씬 더 자세히 다루며, 보통 실무 경험이 동반됩니다.",
+      "hypothesis": "코스는 일반적으로 여기에 설명 된 모든 문제를 훨씬 더 자세하게 다루며, 일반적으로 실제 경험으로 다룹니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1577,
+      "source": "That didn't seem to make sense to me; it certainly wasn't fair.",
+      "reference": "그게 저에겐 말이 안 되는 것 같았습니다. 확실히 공평하지 않았어요.",
+      "hypothesis": "그것은 나에게 의미가 없어 보였다; 그것은 확실히 공정하지 않았다.",
+      "sentences": 1
+     },
+     {
+      "id": 1578,
+      "source": "Then, Lakkha Singh took the lead in singing the bhajans.",
+      "reference": "그러고, 라카 싱은 바잔들을 노래하는 데 앞장섰다.",
+      "hypothesis": "그런 다음 Lakkha Singh은 bhajans를 노래하는 데 주도권을 잡았습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1579,
+      "source": "It warns No one can guarantee that any course of action in Iraq at this point will stop sectarian warfare, growing violence, or a slide toward chaos.",
+      "reference": "이 시점에서 이라크의 행동이 종파적인 전쟁이나 폭력이 증가하는 것, 혹은 혼돈의 상태를 막을 수 있다는 데에 보장은 없다.",
+      "hypothesis": "그 누구도 이 시점에서 이라크에서의 어떤 행동 방침도 종파간의 전쟁, 증가하는 폭력, 또는 혼란을 막을 수는 없을 것이라고 경고합니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1581,
+      "source": "The Amazon is also the widest river on Earth, at times six miles wide.",
+      "reference": "아마존은 또한 지구상에서 가장 넓은 강으로, 때때로 폭이 6마일이 되곤 한다.",
+      "hypothesis": "아마존 강은 또한 지구에서 가장 넓은 강으로, 폭이 6마일에 달합니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1582,
+      "source": "Most of the life of the Hebrew family happened in the open air.",
+      "reference": "히브리 가족의 삶은 거의 야외에서 이루어졌습니다.",
+      "hypothesis": "히브리 가족의 삶 대부분은 야외에서 일어났다.",
+      "sentences": 1
+     },
+     {
+      "id": 1583,
+      "source": "She came to this conclusion due to the multitude of positive comments and encouragement sent to her by both female and male individuals urging that contraception medication be considered a medical necessity.",
+      "reference": "그녀는 피임약이 의학적으로 꼭 필요한 것으로 여겨야 한다고 촉구하는 여성과 남성 모두의 긍정적인 의견과 격려가 쇄도했기 때문에 이런 결론을 내렸다.",
+      "hypothesis": "그녀는 피임약이 의학적 필요성으로 간주 될 것을 촉구하는 여성과 남성 모두가 그녀에게 보낸 긍정적 인 의견과 격려가 많기 때문에이 결론에 도달했습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1584,
+      "source": "Widespread looting reportedly continued overnight, as law enforcement officers were not present on Bishkek's streets.",
+      "reference": "비슈케크 시가지에 법 집행관들이 나타나지 않자, 간밤에 광범위한 약탈이 계속되었다고 전해진다.",
+      "hypothesis": "널리 퍼진 약탈은 비슈케크의 거리에 법 집행관이 없었기 때문에 밤새 계속되었다.",
+      "sentences": 1
+     },
+     {
+      "id": 1586,
+      "source": "Her first was the Slalom, where she earned a Did Not Finish in her first run. 36 of the 116 competitors had the same result in that race.",
+      "reference": "그녀의 첫 번째 경기는 활강 경기였는데, 1회전에서 결승선을 통과하지 못했습니다. 116명의 선수 중 36명이 그 경기에서 같은 결과를 얻었습니다.",
+      "hypothesis": "그녀의 첫 번째는 슬라럼이었고, 그곳에서 그녀는 첫 득점에서 끝내지 않았다. 116명의 선수 중 36명이 이 대회에서 같은 결과를 얻었다.",
+      "sentences": 2
+     },
+     {
+      "id": 1587,
+      "source": "The first cases of the disease this season were reported in late July.",
+      "reference": "이번 시즌의 첫 발병 사례는 7월 말에 보고되었습니다.",
+      "hypothesis": "이 질병의 첫 번째 사례는 7 월 말에보고되었습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1588,
+      "source": "According to police, the driver of the vehicle that hit the photographer is unlikely to face criminal charges.",
+      "reference": "경찰에 따르면 사진기자를 친 차량의 운전자는 형사 고발을 당할 가능성이 낮다.",
+      "hypothesis": "경찰에 따르면, 사진가를 때린 차량의 운전자는 범죄 혐의에 직면하지 않을 것입니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1589,
+      "source": "The qualities that determine a subculture as distinct may be linguistic, aesthetic, religious, political, sexual, geographical, or a combination of factors.",
+      "reference": "하위문화를 명확하게 구분하는 특징은 언어적, 미적, 종교적, 정치적, 성적, 지리적 요소가 있으며, 이러한 요소들의 결합일 수도 있다.",
+      "hypothesis": "하위 문화를 구별하는 특성은 언어적, 미적, 종교적, 정치적, 성적, 지리적 또는 복합적인 요소 일 수 있습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1590,
+      "source": "The main local beer is 'Number One', it is not a complex beer, but pleasant and refreshing. The other local beer is called \"Manta\".",
+      "reference": "주요 지역 맥주는 '넘버원(Number One)'으로, 복합적인 풍미는 아니지만 기분 좋은 상큼한 맥주입니다. 또 다른 지역 맥주로는 '만타(Manta)'가 있습니다.",
+      "hypothesis": "주요 지역 맥주는 '번호 하나'이며, 복잡한 맥주가 아니라 쾌적하고 상쾌합니다. 다른 지역 맥주는 \"만타\"라고합니다.",
+      "sentences": 2
+     },
+     {
+      "id": 1591,
+      "source": "Former House Speaker Newt Gingrich, Texas governor Rick Perry, and Congresswoman Michele Bachmann finished in fourth, fifth, and sixth place, respectively.",
+      "reference": "뉴트 깅리치 전 하원의장, 릭 페리 텍사스 주지사, 미셸 바흐만 하원 의원이 각각 4위, 5위, 6위를 차지했습니다.",
+      "hypothesis": "뉴트 깅리치, 텍사스 주지사 릭 페리, 하원의원 미셸 바흐만은 각각 4위, 5위, 6위를 차지했다.",
+      "sentences": 1
+     },
+     {
+      "id": 1593,
+      "source": "Eventually, wooden wheels were replaced by iron wheels. In 1767, the first full-iron rails were introduced.",
+      "reference": "시간이 흘러 나무 바퀴는 철 바퀴로 대체되었다. 그리고 1767년에 드디어 철로만 만든 철도가 소개되었다.",
+      "hypothesis": "결국, 나무 바퀴는 철 바퀴로 대체되었습니다. 1767년에는 최초의 철제 레일이 도입되었다.",
+      "sentences": 2
+     },
+     {
+      "id": 1594,
+      "source": "Some animals, such as elephants and giraffes, tend to approach closely to cars and standard equipment will allow good viewing.",
+      "reference": "코끼리나 기린처럼 일부 동물은 자동차에 가까이 접근하는 경향이 있으며 표준 장비를 이용하여 잘 관찰할 수 있습니다.",
+      "hypothesis": "코끼리와 기린과 같은 일부 동물은 자동차에 가깝게 접근하는 경향이 있으며 표준 장비를 사용하면 잘 볼 수 있습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1595,
+      "source": "The Tibetan Buddhism is based on the teachings of Buddha, but were extended by the mahayana path of love and by a lot of techniques from Indian Yoga.",
+      "reference": "티벳 불교는 부처님의 가르침을 기반으로 하지만, 대승불교의 사랑의 관념 및 인도 요가의 많은 기술을 바탕으로 확장되었습니다.",
+      "hypothesis": "티베트 불교는 부처의 가르침에 기초하지만, 사랑의 마하야나 경로와 인도 요가에서 많은 기술에 의해 확장되었다.",
+      "sentences": 1
+     },
+     {
+      "id": 1596,
+      "source": "Naturalists and philosophers focused on classical texts and, in particular, on the Bible in Latin.",
+      "reference": "박물학자나 철학자는 고전 텍스트와 특별히 라틴어 성경에 초점을 맞췄습니다.",
+      "hypothesis": "박물학자들과 철학자들은 고전 문학에 초점을 맞추었고, 특히 라틴어로 된 성경에 초점을 맞추었다.",
+      "sentences": 1
+     },
+     {
+      "id": 1598,
+      "source": "Although three people were inside the house when the car impacted it, none of them were hurt.",
+      "reference": "차가 집에 충돌했을 때 세 명이 안에 있었지만, 그들 중 한 명도 다치지 않았다.",
+      "hypothesis": "자동차가 영향을 줄 때 3 명이 집에 있었지만 아무도 다치지 않았습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1599,
+      "source": "The original population hasn't changed at all, they still need the same adaptations as before.",
+      "reference": "원래 인구는 전혀 변동이 없었지만 여전히 전과 같은 적응이 필요합니다.",
+      "hypothesis": "원래의 인구는 전혀 변하지 않았으며, 여전히 이전과 같은 적응이 필요합니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1600,
+      "source": "Examples of on-site activities include hunting, fishing, photography, bird watching, and visiting parks and studying information about the ecosystem.",
+      "reference": "현장 활동의 예로는 사냥, 낚시, 사진, 조류 관찰 및 공원 및 생태계에 대한 연구가 있다.",
+      "hypothesis": "현장 활동의 예로는 사냥, 낚시, 사진 촬영, 조류 관찰, 공원 방문 및 생태계에 대한 정보 연구 등이 있습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1601,
+      "source": "Scientists think that ocelots follow and find animals to eat (prey) by smell, sniffing for where they've been on the ground.",
+      "reference": "과학자들은 오셀롯이 잡아먹을 동물(먹이)을 쫓고, 또 찾는 데에 냄새를 사용한다고 생각합니다. 어디에 있었는지 냄새를 맡으면서 말이지요.",
+      "hypothesis": "과학자들은 오셀롯이 냄새에 의해 먹고, 그들이 땅에 있었던 곳을 냄새 맡는 동물을 찾을 수 있다고 생각합니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1604,
+      "source": "As NSA, he assisted Carter in diplomatically handling world affairs, such as the Camp David Accords, 1978; normalizing US–China relations thought the late 1970s; the Iranian Revolution, which led to the Iran hostage crisis, 1979; and the Soviet invasion in Afghanistan, 1979.",
+      "reference": "그는 NSA로서 1978년 캠프 데이비드 어코드, 1970년대 후반에 미국과 중국의 관계 정상화, 1979년 이란 인질 위기로 이어진 이란 혁명, 1979년 소련의 아프가니스탄 침공과 같은 세계 문제를 외교적으로 다루는 일에서 카터 대통령을 보좌하였습니다.",
+      "hypothesis": "국가 안보국 (NSA)으로서 그는 카터가 1978년 캠프데이비드 협정과 같은 세계사들을 외교적으로 다루는 것을 도왔고, 1970년대 후반 미국과 중국의 관계를 정상화하는 것을 도왔고, 1979년 이란의 인질 사태를 초래한 이란 혁명을 도왔다.",
+      "sentences": 1
+     },
+     {
+      "id": 1605,
+      "source": "Due to the long distance from the continent mammals were unable to make the journey making the giant tortoise the primary grazing animal in the Galapagos.",
+      "reference": "포유류는 대륙으로부터의 먼 거리로 인해 갈라파고스의 일차 방목 동물인 거대 거북이처럼 여행할 수 없었습니다.",
+      "hypothesis": "대륙에서 멀리 떨어져 있었기 때문에 포유류는 거대한 거북이를 갈라파고스에서 가장 먼저 풀을 뜯는 동물로 만들 수 없었다.",
+      "sentences": 1
+     },
+     {
+      "id": 1606,
+      "source": "The Portuguese destroyed it and rebuilt it under the name Casa Branca, only to abandon it after an earthquake in 1755.",
+      "reference": "포르투갈인들은 이곳을 파괴한 다음 Casa Branca라는 이름으로 재건했지만, 1755년 지진 이후에 그곳을 버리고 떠났습니다.",
+      "hypothesis": "포르투갈 인은 그것을 파괴하고 1755의 지진 후에 만 Casa Branca라는 이름으로 재건했습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1607,
+      "source": "It's worth half an hour to stroll about the intriguing village.",
+      "reference": "이 흥미로운 마을을 산책하는데 30분을 투자할만합니다.",
+      "hypothesis": "흥미로운 마을을 산책하는 데 30 분이 걸립니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1609,
+      "source": "Robin Uthappa made the innings highest score, 70 runs in just 41 balls by hitting 11 fours and 2 sixes.",
+      "reference": "로빈 우타파(Robin Uthappa)가 이닝 최고점을 기록했다. 4점 11개와 6점 2개로 41 투구만에 70 런을 쳐 이닝 최고점을 기록했다.",
+      "hypothesis": "로빈 우타파 (Robin Uthappa)는 11 개의 4와 2 개의 6을 치면서 41 개의 공에서 70 점을 기록했습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1611,
+      "source": ". Scientists say this animal's plumage was chestnut-brown on top with a pale or carotenoid-colored underside.",
+      "reference": ". 과학자들은 이 공룡 깃털의 윗쪽이 진갈색이고 아랫쪽은 희거나 노란빛이었다고 밝혔다.",
+      "hypothesis": "이름 * 과학자들은이 동물의 깃털이 밤색 또는 카로티노이드 색의 밑면 위에 있다고 말합니다.",
+      "sentences": 2
+     },
+     {
+      "id": 1612,
+      "source": "Water is spilling over the levee in a section 100 feet wide.",
+      "reference": "100피트 너비의 제방 너머로 물이 흘러넘칩니다.",
+      "hypothesis": "물이 제방 위로 100피트 폭으로 쏟아지고 있습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1613,
+      "source": "Next, some saddles, particularly English saddles, have safety bars that allow a stirrup leather to fall off the saddle if pulled backwards by a falling rider.",
+      "reference": "다음으로 일부 안장, 특히 영국의 안장에는 떨어지는 기수가 뒤로 당길 경우 등자 가죽이 안장에서 떨어질 수 있는 안전바가 있다.",
+      "hypothesis": "다음으로, 일부 안장, 특히 영어 안장은 낙하하는 라이더가 뒤로 당기면 등자 가죽이 안장에서 떨어질 수있는 안전 막대가 있습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1615,
+      "source": "Thousands of years ago, a man called Aristarchus said that the Solar System moved around the Sun.",
+      "reference": "수천 년 전에 아리스다고라는 사람이 태양계가 태양을 중심으로 움직인다고 주장했다.",
+      "hypothesis": "수천 년 전, 아리스타르코스(Aristarchus)라는 사람이 태양계가 태양 주위를 돌고 있다고 말했다.",
+      "sentences": 1
+     },
+     {
+      "id": 1616,
+      "source": "Science now indicates that this massive carbon economy has dislodged the biosphere from one of its stable states that has supported human evolution for the past two million years.",
+      "reference": "이제 과학적 데이터가 거대한 규모의 이 탄소 경제는 지난 이백만 년 동안 인류의 진화를 도왔던 안정적인 상태에서 생물권을 몰아냈음을 보여줍니다.",
+      "hypothesis": "과학은 이제이 거대한 탄소 경제가 지난 2 백만 년 동안 인간의 진화를 지원해온 안정된 상태 중 하나에서 생물권을 제거했음을 나타냅니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1617,
+      "source": "The Kruger National Park (KNP) lies in the north-east of South Africa and runs along the border of Mozambique in the east, Zimbabwe in the north, and the southern border is the Crocodile River.",
+      "reference": "크루거 국립공원(KNP)은 남아프리카의 북동쪽에 위치하여 동쪽으로는 모잠비크, 북쪽으로는 짐바브웨 국경을 따라 형성되어 있으며, 남쪽으로는 크로커다일 강을 경계로 하고 있습니다.",
+      "hypothesis": "크루거 국립공원(Kruger National Park, KNP)은 남아프리카 공화국 북동부에 위치해 있으며, 동쪽의 모잠비크, 북쪽의 짐바브웨, 그리고 남쪽의 크로커다일 강과 접하고 있다.",
+      "sentences": 1
+     },
+     {
+      "id": 1618,
+      "source": "The northern part or Sentinel Range has Antarctica's highest mountains, the Vinson Massif, peaking at 4892 m Mount Vinson.",
+      "reference": "북부 지역 또는 센티넬 산맥에는 남극 대륙에서 가장 높은 산인 빈슨 산괴(Vinson Massif)가 있는데, 빈슨 산 높이는 4,892m입니다.",
+      "hypothesis": "남극 대륙에서 가장 높은 산인 빈슨 대산맥(Vinson Massif)은 4892m 높이에 달합니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1619,
+      "source": "However, most signs are indicated only in Catalan because it is established by law as the first official language.",
+      "reference": "하지만 대부분의 표지판은 법으로 최초 공식 언어로 확립된 카탈로니아어로만 표기되어 있습니다.",
+      "hypothesis": "그러나 대부분의 징후는 법률에 의해 첫 번째 공식 언어로 설정되기 때문에 카탈로니아 어로 만 표시됩니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1620,
+      "source": "Now widely available throughout the archipelago, Javanese cuisine features an array of simply seasoned dishes, the predominant flavorings the Javanese favor being peanuts, chillies, sugar (especially Javanese coconut sugar) and various aromatic spices.",
+      "reference": "이제 군도 전체에서 폭넓게 이용할 수 있는 자바식 요리법은 다양한 단순 제철 요리가 특징적이며, 자바인들이 선호하는 주요 향은 땅콩, 칠리, 설탕(특히 자바 코코넛 설탕)과 다양한 향신료입니다.",
+      "hypothesis": "이제 군도 전역에서 널리 이용 가능한 Javanese 요리는 단순히 노련한 요리, Javanese가 좋아하는 땅콩, 칠리, 설탕 (특히 Javanese 코코넛 설탕) 및 다양한 향료를 특징으로합니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1621,
+      "source": "At the beginning dress was heavily influenced by the Byzantine culture in the east.",
+      "reference": "초기에는 드레스가 동양의 비잔틴 문화에 크게 영향을 받았습니다.",
+      "hypothesis": "처음에 드레스는 동쪽의 비잔틴 문화에 크게 영향을 받았다.",
+      "sentences": 1
+     },
+     {
+      "id": 1622,
+      "source": "U.S. President George W. Bush welcomed the announcement.",
+      "reference": "조지 W. 부시 미국 대통령은 이 같은 발표를 환영했습니다.",
+      "hypothesis": "미국의 조지 W. 부시 대통령은 이 발표를 환영했습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1623,
+      "source": "The Articles required unanimous consent from all the states before they could be amended and states took the central government so lightly that their representatives were often absent.",
+      "reference": "이 조항들은 모든 주에서 만장일치의 동의를 얻어야만 수정이 가능했으며, 중앙 정부를 무시한 주 대표들은 대부분 회의에 불참석했습니다.",
+      "hypothesis": "이 조항은 수정되기 전에 모든 주에서 만장일치의 동의가 필요했으며 주정부는 중앙 정부를 너무 가볍게 받아 들여서 대표들이 종종 결석했습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1624,
+      "source": "Inland waterways can be a good theme to base a holiday around.",
+      "reference": "내륙 수로는 휴일을 보내기용으로 좋은 주제가 될 수 있습니다.",
+      "hypothesis": "내륙 수로는 주변의 휴가를 기반으로하는 좋은 주제가 될 수 있습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1627,
+      "source": "Ancient Roman meals couldn't have included foods that came to Europe from America or from Asia in later centuries.",
+      "reference": "고대 로마 식사는 몇 세기가 지난 후 미국이나 아시아에서 유럽으로 온 음식을 포함할 수 없었습니다.",
+      "hypothesis": "고대 로마의 식사에는 미국이나 아시아에서 온 음식이 포함될 수 없었습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1628,
+      "source": "Handicraft products might be defined as antiques, though they are younger than similar mass-produced goods.",
+      "reference": "수공예 제품들은 대량 생산된 유사 제품들만큼 낡지 않을지라도 골동품으로 정의할 수 있을 것입니다.",
+      "hypothesis": "수공예품은 비슷한 대량 생산 제품보다 젊지 만 골동품으로 정의 될 수 있습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1629,
+      "source": "Some reports put the official death toll at eight, and official reports confirm that up to 30 were injured; but final numbers are not yet known.",
+      "reference": "일부 보도에 따르면 공식 사망자 수는 8명으로 집계됐으며, 공식 보도에 따르면 최대 30명이 부상을 있었다고 전해진다. 그러나 최종 사망자 수는 아직 알려지지 않았다.",
+      "hypothesis": "일부 보고서에 따르면 공식 사망자는 8 명이며 공식 보고서에 따르면 최대 30 명이 부상당한 것으로 확인되었지만 최종 수치는 아직 알려지지 않았습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1630,
+      "source": "Arly Velasquez of Mexico finished fifteenth in the men's sitting Super-G. New Zealand's Adam Hall finished ninth in the men's standing Super-G.",
+      "reference": "멕시코 선수 알리 벨라스케스는 남자 슈퍼대회전 좌식에서 15위로 끝마쳤습니다. 뉴질랜드 선수 아담 홀은 남자 슈퍼대회전 입식에서 9위로 끝마쳤습니다.",
+      "hypothesis": "멕시코의 알리 벨라스케스는 남자 슈퍼-G에서 15위를 하였다. 뉴질랜드의 아담 홀 (Adam Hall)은 남자 슈퍼 G에서 9 위를 차지했습니다.",
+      "sentences": 2
+     },
+     {
+      "id": 1631,
+      "source": "New Kingdom ancient Egyptians marvelled at their predecessors monuments, which were then well over a thousand year old.",
+      "reference": "고대 신왕국 이집트인들은 조상의 기념비적인 건축물을 보고 경탄했고 이것은 그 당시 기준으로 1000년은 족히 넘은 건축물이었습니다.",
+      "hypothesis": "새로운 왕국 고대 이집트인은 그들의 전임자 기념물에 놀랬다, 그때 잘 천 년 오래되었던.",
+      "sentences": 1
+     },
+     {
+      "id": 1632,
+      "source": "Women should realize that cultural differences may result in what they would consider harassment and it is not uncommon to be followed, grabbed by the arm, etc.",
+      "reference": "여성들은 문화적 차이로 인해 괴롭힘으로 간주되는 결과가 초래될 수 있고 팔을 잡는 등의 행위가 드문 일이 아니라는 것을 알아야 합니다.",
+      "hypothesis": "여성들은 문화적 차이가 괴롭힘을 초래할 수 있으며 팔에 붙잡히는 것이 드문 일이 아니라는 것을 인식해야합니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1633,
+      "source": "In this dynamic transport shuttle everyone is somehow connected with, and supporting, a transport system based on private cars.",
+      "reference": "이 역동적인 수송 셔틀은 어떤 식으로든 모든 사람들이 자가용을 기반으로 하는 수송 시스템과 연결되고 이를 지원하도록 한다.",
+      "hypothesis": "이 역동적 인 운송 셔틀에서 모든 사람은 어떻게 든 개인 차량을 기반으로하는 운송 시스템과 연결되어 있습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1635,
+      "source": "We can start living more friendly to the environment, we can join to the environmental movement, and we can even be activists in order to reduce the future suffering in some degree.",
+      "reference": "우리는 보다 환경친화적인 삶을 시작할 수 있고, 환경 운동에 참여할 수도 있습니다. 또한, 미래에 겪을 고통을 어느 정도 줄이기 위해 활동가가 될 수도 있습니다.",
+      "hypothesis": "우리는 환경에 좀 더 우호적인 생활을 시작할 수 있고, 환경 운동에 동참할 수 있으며, 미래의 고통을 어느 정도 줄이기 위해 활동가가 될 수도 있습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1636,
+      "source": "The Spaniards started the colonization period which lasted for three centuries.",
+      "reference": "스페인 사람들이 3세기 동안 지속된 식민지 시대를 시작했다.",
+      "hypothesis": "스페인 사람들은 3 세기 동안 지속 된 식민지 시대를 시작했습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1637,
+      "source": "The terrified King Louis XVI, Queen Marie Antoinette their two young children (11 year old Marie Therese and four year old Louis-Charles) and the King's sister, Madam Elizabeth, on the 6th October 1789 were forced back to Paris from Versailles by a mob of market women.",
+      "reference": "겁에 질린 프랑스의 왕 루이 16세, 마리 앙투아네트 여왕 그리고 그들의 두 어린아이들 (11살 마리 테레즈 그리고 4살 루이 샤를) 그리고 왕의 여동생인 엘리자베스 공주, 1789년 10월 6일에 여성노동자 집단에 의해 베르사유에서 파리로 강제추방되었다.",
+      "hypothesis": "겁에 질린 루이 16 세, 마리 앙투아네트 (Marie Antoinette)의 두 어린 자녀 (11 세 마리 테레세와 4 세 루이 찰스)와 왕의 여동생 엘리자베스 (Madam Elizabeth)는 1789 년 10 월 6 일 베르사유에서 시장 여성들의 군중에 의해 파리로 강제되었다.",
+      "sentences": 1
+     },
+     {
+      "id": 1638,
+      "source": "Safaris are perhaps the greatest tourism draw in Africa and the highlight for many visitors.",
+      "reference": "사파리는 아마도 아프리카에서 가장 멋진 관광명소이며 많은 방문객에게 하이라이트가 될 것이다.",
+      "hypothesis": "사파리는 아마도 아프리카에서 가장 큰 관광 무승부와 많은 방문자를위한 하이라이트입니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1639,
+      "source": "Since students are often the most critical audience, the blog writer begins to strive to improve writing to avoid criticism.",
+      "reference": "대부분 학생들이 가장 비판적인 청중이므로, 블로그 작가는 비판을 피하기 위해 글쓰기를 향상시키려고 노력하기 시작합니다.",
+      "hypothesis": "학생들은 종종 가장 비판적인 청중이기 때문에 블로그 작성자는 비판을 피하기 위해 글쓰기를 개선하기 위해 노력합니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1640,
+      "source": "On icy and snowy roadways, friction is low and you cannot drive as if you were on bare asphalt.",
+      "reference": "얼음이 덮히고 눈이 쌓인 도로에서는 마찰력이 줄어들어서 당신은 마치 맨 아스팔트 위에 있는 것처럼 운전을 제대로 할 수가 없다.",
+      "hypothesis": "빙판길과 눈 덮인 도로에서는 마찰력이 낮아 마치 아스팔트 위에 있는 것처럼 운전할 수 없습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1642,
+      "source": "The war expenditures of U.S. imperialism in the conquest of the Philippines were paid for by the Filipino people themselves.",
+      "reference": "필리핀 정복에 사용된 미국 제국주의의 전쟁 비용은 필리핀인 자신들에 의해 지급되었다.",
+      "hypothesis": "필리핀 정복에서 미국 제국주의의 전쟁 비용은 필리핀 국민이 직접 지불했다.",
+      "sentences": 1
+     },
+     {
+      "id": 1644,
+      "source": "When asked for comment, Miller said, \"Mike talks a lot during the hearing...I was getting ready so I wasn't really hearing what he was saying.\"",
+      "reference": "\"의견을 물었을 때 밀러는 \"\"청문회 동안 마이크는 많은 이야기를 했습니다… 저는 준비를 하고 있었기 때문에 그가 하는 말을 듣지 못했습니다\"\"라고 말했습니다.\"",
+      "hypothesis": "의견을 물었을 때, 밀러는 말했다, \"마이크는 청문회 동안 많은 이야기...나는 그가 말하는 것을 정말 듣고되지 않도록 준비하고있다.\"",
+      "sentences": 1
+     },
+     {
+      "id": 1645,
+      "source": "Its all-pervading power affected everyone from king to commoner.",
+      "reference": "그것의 만연한 힘은 왕에서 평민에 이르는 모든 사람에게 영향을 미칩니다.",
+      "hypothesis": "이 모든 권력은 왕으로부터 평민에 이르기까지 모든 사람에게 영향을 미쳤다.",
+      "sentences": 1
+     },
+     {
+      "id": 1646,
+      "source": "There are many beaches, due to Auckland's straddling of two harbours. The most popular ones are in three areas.",
+      "reference": "오클랜드가 두 개의 항구를 가로지르고 있기 때문에 해변이 많습니다. 가장 인기 있는 곳이 세 지역 안에 있습니다.",
+      "hypothesis": "오클랜드의 두 개의 항구로 인해 많은 해변이 있습니다. 가장 인기있는 것은 세 가지입니다.",
+      "sentences": 2
+     },
+     {
+      "id": 1647,
+      "source": "The views presented are often cursory, general and oversimplified compared to the more detailed information available elsewhere.",
+      "reference": "제시된 견해는 다른 곳에서 얻을 수 있는 더 상세한 정보와 비교해 주로 피상적이고, 일반적이며, 지나치게 단순화된 모습이다.",
+      "hypothesis": "제시된 뷰는 종종 커서가 있고 일반적이며 다른 곳에서 사용할 수있는보다 자세한 정보에 비해 지나치게 단순화됩니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1648,
+      "source": "There were no large forests in the land of Canaan, so wood was extremely expensive.",
+      "reference": "가나안에는 큰 숲이 없었기 때문에 나무가 무척 비쌌다.",
+      "hypothesis": "가나안 땅에는 큰 숲이 없었기 때문에 나무는 매우 비쌌습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1649,
+      "source": "In Japan, the first cherry blossom parties were hosted by the emperor only for himself and other members of the aristocracy around the Imperial Court.",
+      "reference": "일본에서 첫 벚꽃 파티가 천황의 주최로 황궁 주변에서 개최되었습니다. 이 파티에는 천황과 귀족 구성원만이 참여했습니다.",
+      "hypothesis": "일본에서는 첫 번째 벚꽃 파티는 황제와 제국 법원 주변의 다른 귀족들에게만 개최되었습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1650,
+      "source": "Saltwater Crocodiles do not actively live in the ocean, their primary habitat is in river estuaries north from Rockhampton.",
+      "reference": "바다 악어는 바다에서 살지 않으며, 록햄프턴 북쪽 강어귀에 주로 서식한다.",
+      "hypothesis": "해수 악어는 바다에 살지 않으며, 그들의 주요 서식지는 Rockhampton에서 북쪽으로 강어귀에 있습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1651,
+      "source": "An increasingly more popular option for those planning a gap-year is to travel and learn.",
+      "reference": "갭이어를 여행과 공부에 사용하는 사람들이 점점 더 늘어나고 있다.",
+      "hypothesis": "간격 년을 계획하는 사람들에게 점점 더 인기있는 옵션은 여행하고 배우는 것입니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1652,
+      "source": "The major religion in Moldova is Orthodox Christian.",
+      "reference": "몰도바의 주요 종교는 동방정교입니다.",
+      "hypothesis": "몰도바의 주요 종교는 정통 기독교입니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1653,
+      "source": "In a partnership of NPWS and the Sporting Shooters Association of Australia (NSW) Inc, qualified volunteers were recruited, under the Sporting Shooters Association's hunting program.",
+      "reference": "NPWS와 '오스트레일리아 스포츠 슈터 협회'의 파트너쉽으로 '스포츠 슈터 협회'의 사냥 프로그램에 따라 자격을 갖춘 자원봉사자를 모집했다.",
+      "hypothesis": "NPWS와 Sporting Shooters Association of Australia (NSW) Inc의 파트너십으로 Sporting Shooters Association의 사냥 프로그램에 따라 자격을 갖춘 자원 봉사자가 모집되었습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1654,
+      "source": "I don't know if you realize it or not, but most of the goods from Central America came into this country duty-free.",
+      "reference": "아실지 모르겠지만, 중앙아메리카에서 온 대부분의 물품은 이 나라에 면세로 들어왔습니다.",
+      "hypothesis": "여러분이 알고 계실지 모르겠지만, 중앙아메리카에서 온 대부분의 물품들은 이 나라에 면세품으로 들어왔습니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1656,
+      "source": "Police said that the body appeared to have been there for about a day.",
+      "reference": "경찰은 시체가 하루 정도 있었던 것으로 보인다고 말했습니다.",
+      "hypothesis": "경찰은 시신이 약 1일 동안 그곳에 있었다고 밝혔다.",
+      "sentences": 1
+     },
+     {
+      "id": 1657,
+      "source": "Any amendments or requests though should be coursed through the travel agent first and not directly with the hotel.",
+      "reference": "하지만 모든 수정이나 요청 사항이 있으면 호텔로 직접 연락하지 말고 우선 여행사를 통해 이를 진행해야 합니다.",
+      "hypothesis": "모든 수정 또는 요청은 먼저 여행사를 통해 진행되어야하며 호텔과 직접 진행되어서는 안됩니다.",
+      "sentences": 1
+     },
+     {
+      "id": 1658,
+      "source": "With only eighteen medals available a day, a number of countries have failed to make the medal podium.",
+      "reference": "하루에 열여덟 개의 메달만 주어지기 때문에, 많은 국가가 메달 단상에 오르지 못했습니다.",
+      "hypothesis": "하루에 18개의 메달만 획득할 수 있기 때문에 많은 국가들이 메달 시상에 실패했다.",
+      "sentences": 1
+     },
+     {
+      "id": 1659,
+      "source": "Scientists say the explosion caused by the collision was massive.",
+      "reference": "과학자들은 충돌로 인한 폭발이 거대했다고 말한다.",
+      "hypothesis": "과학자들은 충돌로 인한 폭발이 엄청났다고 말한다.",
+      "sentences": 1
+     }
+    ],
+    "consistency": {
+     "outputs": 129,
+     "all_honorific": 91,
+     "ratio": 0.7054263565891473,
+     "mixed": 3,
+     "ends": {
+      "formal": 104,
+      "polite": 0,
+      "plain": 37,
+      "other": 2
+     }
+    }
+   }
+  },
+  "source_report": "eval\\reports\\mt_t17_dev_20260913_054853.json",
+  "created": "2026-11-02T20:58:58+00:00",
+  "analyzer": {
+   "python-mecab-ko": "1.3.7",
+   "python-mecab-ko-dic": "2.1.1.post2"
+  }
+ },
+ {
+  "model": "opus-mt-tc-big-en-ko/split+formal",
+  "register": "formal",
+  "directions": {
+   "en-ko": {
+    "count": 129,
+    "items": [
+     {
+      "id": 1510,
+      "source": "The U.N. also hopes to finalize a fund to help countries affected by global warming to cope with the impacts.",
+      "reference": "또한 유엔은 지구 온난화의 영향을 받는 국가들의 대처를 돕기 위한 기금의 조성을 완료하기를 기대하고 있습니다.",
+      "hypothesis": "유엔은 또한 지구 온난화의 영향을받는 국가들이 그 영향에 대처할 수 있도록 기금을 마무리하기를 희망합니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.058
+     },
+     {
+      "id": 1511,
+      "source": "Soon, officers equipped with riot gear entered the yard and cornered the inmates with tear gas.",
+      "reference": "곧, 폭동 진압 장비를 갖춘 경찰들이 마당으로 진입해 최루 가스를 이용하여 수감자들을 코너로 몰아넣었습니다.",
+      "hypothesis": "곧, 폭동 장비를 갖춘 장교가 마당에 들어 와서 수감자들을 최루 가스로 모았습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.029
+     },
+     {
+      "id": 1513,
+      "source": "Argentina is well known for having one of the best polo teams and players in the world.",
+      "reference": "아르헨티나는 세계 최고의 폴로 팀과 선수를 보유한 것으로 유명합니다.",
+      "hypothesis": "아르헨티나는 세계 최고의 폴로 팀과 선수들 중 한 명으로 잘 알려져 있습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.027
+     },
+     {
+      "id": 1514,
+      "source": "When the fighting ceased after the wounded were transported to the hospital, about 40 of the other remaining inmates stayed in the yard and refused to return to their cells.",
+      "reference": "부상자들이 병원으로 이송되고 싸움이 중단되자, 약 40명의 수감자들은 교도소 마당에서 버티며 각자 유치장으로 돌아가길 거부했습니다.",
+      "hypothesis": "부상자들이 병원으로 이송된 후 전투가 끝났을 때, 나머지 수감자들 중 약 40명이 마당에 남아서 그들의 감방으로 돌아가기를 거부했습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 488.488
+     },
+     {
+      "id": 1515,
+      "source": "It is Martelly's fifth CEP in four years.",
+      "reference": "마텔리가 4년 만에 다섯 번째 하는 CEP다.",
+      "hypothesis": "마텔리의 5번째 CEP입니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 20.186
+     },
+     {
+      "id": 1516,
+      "source": "Please treat the site with all of the dignity, solemnity and respect it deserves. Do not make jokes about the Holocaust or Nazis.",
+      "reference": "본 장소에 밎는 존엄, 엄숙함, 경의를 다해 대해 주십시오. 홀로코스트나 나치에 대한 농담을 하지 마십시오.",
+      "hypothesis": "사이트를 모든 존엄성, 엄숙함 및 존중으로 대우하십시오. 홀로코스트나 나치에 대한 농담을 하지 마라.",
+      "sentences": 2,
+      "changed": false,
+      "postprocess_ms": 0.047
+     },
+     {
+      "id": 1517,
+      "source": "Research in AI involves making machines to automate tasks that require intelligent behavior.",
+      "reference": "AI 연구는 기계가 지능적 행동을 요구하는 작업을 자동화하는 연구를 포함합니다.",
+      "hypothesis": "AI에 대한 연구는 지능적인 행동이 필요한 작업을 자동화하는 기계를 만드는 것과 관련이 있습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.032
+     },
+     {
+      "id": 1518,
+      "source": "A former Filipino policeman has kept Hong Kong tourists hostage by hijacking their bus in Manila, the capital of the Philippines.",
+      "reference": "한 전직 필리핀 경찰관이 필리핀의 수도 마닐라에서 버스를 납치하여 홍콩 관광객들을 인질로 삼았다.",
+      "hypothesis": "전 필리핀 경찰이 필리핀의 수도 마닐라에서 버스 납치로 홍콩 관광객을 인질로 잡았습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.028
+     },
+     {
+      "id": 1519,
+      "source": "In many cases, enrolling on a gap-year course abroad can actually improve your chances of moving into higher education back in your home country.",
+      "reference": "대부분의 경우, 해외 갭 이어(gap-year) 코스에 등록하면 실제로 고국에서 고등 교육에 진학할 가능성을 높일 수 있습니다.",
+      "hypothesis": "많은 경우, 해외에서 갭 이어 과정에 등록하면 실제로 본국에서 고등 교육으로 이동할 가능성이 높아집니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.031
+     },
+     {
+      "id": 1521,
+      "source": "The satellite in space gets the call and then reflects it back down, almost instantly.",
+      "reference": "우주에 있는 위성은 신호를 받고 나서 거의 즉각적으로 반사해 내려보낸다.",
+      "hypothesis": "우주의 위성은 전화를 받고 거의 즉시 그것을 반영합니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.019
+     },
+     {
+      "id": 1522,
+      "source": "Technology offers the solution with virtual field trips. Students can look at museum artifacts, visit an aquarium, or admire beautiful art while sitting with their class.",
+      "reference": "기술은 가상 현장학습에 도움을 줍니다. 학생들은 교실에 앉은 상태로 박물관 전시품들을 볼 수 있고, 수족관을 구경할 수 있으며, 아름다운 예술 작품을 감상할 수 있습니다.",
+      "hypothesis": "기술은 가상 필드 트립을 통해 솔루션을 제공합니다. 학생들은 박물관 유물을 보거나 수족관을 방문하거나 수업 중에 아름다운 예술을 감상 할 수 있습니다.",
+      "sentences": 2,
+      "changed": false,
+      "postprocess_ms": 0.049
+     },
+     {
+      "id": 1523,
+      "source": "The final score was a one-point victory, 21 to 20, ending the All Blacks' 15 game winning streak.",
+      "reference": "최종 점수는 21 대 20으로 1점 차 승부였으며, 올블랙스(All Blacks)의 15연승으로 끝났다.",
+      "hypothesis": "최종 득점은 21 대 20으로 올 블랙스의 15개의 경기 연승을 끝냈습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 138.739
+     },
+     {
+      "id": 1524,
+      "source": "There are a lot of social and political effects such as the use of metric system, a shift from absolutism to republicanism, nationalism and the belief the country belongs to the people not to one sole ruler.",
+      "reference": "미터법 사용, 절대주의 체제에서 공화주의로의 전환, 민족주의와 국가는 한 통치자가 아닌 여러 사람의 소유라는 생각의 발생과 같이, 사회 및 정치적인 면에 많은 영향들을 미쳤습니다.",
+      "hypothesis": "메트릭 시스템의 사용, 절대주의에서 공화주의로의 전환, 민족주의 및 국가가 한 명의 통치자가 아닌 국민에 속한다는 신념과 같은 많은 사회적 및 정치적 효과가 있습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.066
+     },
+     {
+      "id": 1525,
+      "source": "The broad boulevards, glass-fronted buildings and modern shopping centers are dotted with traditional red-tiled roofs, the 18th century market, and old mosques and churches, although the city has an atmosphere more of Mediterranean Europe than traditional Turkey.",
+      "reference": "이 도시는 전통적인 터키의 모습보다 지중해 유럽의 분위기를 더 많이 가지고 있지만 넓은 대로, 정면이 유리로 장식된 건물, 현대적인 쇼핑센터들 사이에 띄엄띄엄 전통적인 붉은 기와 지붕과 18세기 시장 그리고 오래된 모스크와 교회들이 있습니다.",
+      "hypothesis": "넓은 가로수길, 유리로 된 건물과 현대적인 쇼핑 센터에는 전통적인 붉은 기와 지붕, 18 세기 시장, 오래된 모스크와 교회가 있지만, 도시는 전통적인 터키보다 지중해 유럽의 분위기를 가지고 있습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.052
+     },
+     {
+      "id": 1527,
+      "source": "Poland's men's visually impaired skier Maciej Krezel and guide Anna Ogarzynska finished thirteenth in the Super-G. South Korea's Jong Seork Park finished twenty-fourth in the men's sitting Super-G.",
+      "reference": "폴란드 남자 시각 장애인 스키 선수 마키 크레젤(Maciej Krezel)과 가이드 안나 오가진스카(Anna Ogarzynska)가 슈퍼대회전(Super G)에서 13위로 경기를 마쳤다. 한국의 박종석은 남자 좌식스키 슈퍼대회전(Super G)에서 24위를 차지했다.",
+      "hypothesis": "폴란드의 남자 시각 장애인 스키 선수 Maciej Krezel과 가이드 Anna Ogarzynska는 Super-G에서 13 위를 차지했습니다. 한국의 Jong Seork Park는 남자 Super-G에서 24 위를 차지했습니다.",
+      "sentences": 2,
+      "changed": false,
+      "postprocess_ms": 0.049
+     },
+     {
+      "id": 1528,
+      "source": "Some festivals have special camping areas for families with young children.",
+      "reference": "일부 축제들은 어린아이들이 있는 가족들을 위한 특별한 캠핑 공간을 가지고 있습니다.",
+      "hypothesis": "일부 축제에는 어린 자녀가있는 가족을위한 특별한 캠핑 공간이 있습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.018
+     },
+     {
+      "id": 1529,
+      "source": "Previously, Ring's CEO, Jamie Siminoff, remarked the company started when his doorbell wasn't audible from his shop in his garage.",
+      "reference": "링의 CEO인 제이미 시미노프 (Jamie Siminoff)는 차고에 있던 그의 숍에서 초인종 소리를 들을 수 없었을 때 회사를 시작했다고 말했습니다.",
+      "hypothesis": "이전에 링의 CEO 인 제이미 시미 노프 (Jamie Siminoff)는 자신의 차고에서 초인종을 들을 수 없을 때 회사가 시작되었다고 말했습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.036
+     },
+     {
+      "id": 1530,
+      "source": "It had been scheduled to be cut down on Tuesday, but was saved after an emergency court ruling.",
+      "reference": "화요일에 베어 쓰러뜨릴 예정이었으나 긴급 법원의 판결로 구조되었다.",
+      "hypothesis": "그것은 화요일에 삭감 될 예정 이었지만 긴급 법원 판결 후에 저장되었습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.023
+     },
+     {
+      "id": 1531,
+      "source": "The East African Islands are in the Indian Ocean off the eastern coast of Africa.",
+      "reference": "동아프리카의 섬들은 아프리카 동부 연안을 따라 인도양에 자리 잡고 있다.",
+      "hypothesis": "동아프리카의 섬들은 아프리카의 동쪽 해안에 있는 인도양에 있습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 67.617
+     },
+     {
+      "id": 1532,
+      "source": "108 plates of Chhappan Bhog (in Hinduism, 56 different edible items, like, sweets, fruits, nuts, dishes etc. which are offered to deity) were served to Baba Shyam.",
+      "reference": "108 접시의 Chhappan Bhog(힌두교에서는 신에게 바치는 단것, 과일, 견과류, 요리 등 56가지 다른 먹을거리들)가 Baba Shyam에게 차려졌습니다.",
+      "hypothesis": "108 접시의 Chhappan Bhog (힌두교, 56 가지 식용 품목, 과자, 과일, 견과류, 요리 등)이 바바 샴에게 제공되었습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.052
+     },
+     {
+      "id": 1533,
+      "source": "Many common formats (APS family of formats, for example) are equal to or closely approximate this aspect ratio.",
+      "reference": "여러 일반적인 형식(예: APS 형식)은 이 가로 세로 비율과 동일하거나 거의 비슷합니다.",
+      "hypothesis": "많은 일반적인 형식 (예 : APS 계열)은이 종횡비와 같거나 근접합니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.021
+     },
+     {
+      "id": 1534,
+      "source": "Combined with its relative inaccessibility, \"Timbuktu\" has come to be used as a metaphor for exotic, distant lands.",
+      "reference": "상대적인 접근이 불가능한 의미를 결합하여, 'Timbuktu'는 이국적이고 멀리 떨어진 지역에 대한 은유로 사용하게 되었다.",
+      "hypothesis": "상대적으로 접근하기 어려운 \"팀북투\"는 이국적이고 먼 땅에 대한 은유로 사용되었습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.021
+     },
+     {
+      "id": 1535,
+      "source": "It uses satellite-based technology as opposed to older ground-radar-based technology to allow air traffic controllers to pinpoint aircraft with greater precision and give pilots more accurate information.",
+      "reference": "이것은 종전에 지상 레이더 기반 기술을 사용했던 것과 달리 위성 기반 기술을 이용하여 항공관제사들이 매우 높은 정확도로 항공기를 특정할 수 있게 하며, 조종사들에게 더 정확한 정보를 제공한다.",
+      "hypothesis": "기존의 지상 레이더 기반 기술과는 달리 위성 기반 기술을 사용하여 항공 교통 관제사가 항공기를 더 정확하게 정확하게 파악하고 조종사에게보다 정확한 정보를 제공 할 수 있습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.047
+     },
+     {
+      "id": 1536,
+      "source": "Local authorities are warning residents in the vicinity of the plant to stay indoors, turn off air-conditioners and not to drink tap water.",
+      "reference": "현지 당국은 그 발전소 인근 주민들에게 실내에 머물며 에어컨을 끄고 수돗물을 마시지 말라고 경고하고 있다.",
+      "hypothesis": "지역 당국은 공장 주변의 주민들에게 실내에 머물며 에어컨을 끄고 수돗물을 마시지 말라고 경고하고 있습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.025
+     },
+     {
+      "id": 1537,
+      "source": "You can see the pyramids in the dark and you can see them in silence before the show begins.",
+      "reference": "어둠 속에서 피라미드를 볼 수 있고 쇼가 시작하기 전에 고요 속에서 피라미드를 볼 수 있습니다.",
+      "hypothesis": "어둠 속에서 피라미드를 볼 수 있으며 쇼가 시작되기 전에 침묵 속에서 볼 수 있습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.022
+     },
+     {
+      "id": 1538,
+      "source": "The stretch between Point Marion and Fairmont presents the most challenging driving conditions on the Buffalo-Pittsburgh Highway, passing frequently through isolated backwoods terrain.",
+      "reference": "고립된 산간 지형에 위치한 포인트 마리온과 페어몬트 사이의 길은 버팔로 피츠버그 고속도로 중에서 가장 운전하기 힘든 곳으로 알려져 있다.",
+      "hypothesis": "포인트 마리온(Point Marion)과 페어몬트(Fairmont) 사이의 구간은 버팔로-피츠버그 고속도로(Buffalo-Pittsburgh Highway)에서 가장 까다로운 주행 조건을 보여 주며, 종종 고립된 백우드 지형을 통과합니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.049
+     },
+     {
+      "id": 1539,
+      "source": "Members of a subculture often signal their membership through a distinctive and symbolic use of style, which includes fashions, mannerisms, and argot.",
+      "reference": "하위문화의 구성원들은 종종 패션, 매너리즘, 그리고 특정 속어를 포함하는 독특하고 상징적인 스타일을 통해 소속감을 나타낸다.",
+      "hypothesis": "하위 문화의 구성원은 종종 패션, 매너리즘 및 아르고를 포함하는 독특하고 상징적 인 스타일의 사용을 통해 회원임을 알립니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.086
+     },
+     {
+      "id": 1540,
+      "source": "In principle the Tibetan Buddhism is very simple. It consists of Kundalini Yoga, meditation and the path of all-embracing love.",
+      "reference": "티베트 불교는 이론상으로 매우 간단합니다. 쿤달리니 요가, 명상 및 모두를 포용하는 사랑의 길로 구성되어 있습니다.",
+      "hypothesis": "원칙적으로 티베트 불교는 매우 간단합니다. 그것은 Kundalini 요가, 명상 및 모든 것을 포용하는 사랑의 길로 구성됩니다.",
+      "sentences": 2,
+      "changed": false,
+      "postprocess_ms": 0.032
+     },
+     {
+      "id": 1541,
+      "source": "Courier companies are well paid for delivering things quickly. Frequently, time is very important with business documents, merchandise or spare parts for an urgent repair.",
+      "reference": "택배회사는 물건을 빨리 배달해 주는 대가로 많은 보수를 받습니다. 종종 업무 서류, 긴급 수리를 위한 상품이나 예비 부품의 경우에는 시간이 매우 중요합니다.",
+      "hypothesis": "택배 회사는 물건을 빨리 배달하기 위해 잘 지불됩니다. 종종 긴급한 수리를 위해 비즈니스 문서, 제품 또는 예비 부품이 매우 중요합니다.",
+      "sentences": 2,
+      "changed": false,
+      "postprocess_ms": 0.033
+     },
+     {
+      "id": 1542,
+      "source": "Bush spokesman Gordon Johndroe called North Korea's pledge \"a major step towards the goal of achieving the verifiable denuclearization of the Korean peninsula.\"",
+      "reference": "\"부시의 대변인 고든 존드로는 북한의 약속에 대해 \"\"한반도의 비핵화를 달성하기 위한 주요 단계\"\"라고 평했습니다.\"",
+      "hypothesis": "고든 존드로 부시 대변인은 \"북한의 약속은 한반도의 검증 가능한 비핵화를 달성하기 위한 주요 단계\"라고 말했습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 141.382
+     },
+     {
+      "id": 1543,
+      "source": "The patient had been to Nigeria, where some cases of the Ebola virus have occurred.",
+      "reference": "그 환자는 에볼라 바이러스 감염이 발생한 나이지리아에 방문한 적이 있었다.",
+      "hypothesis": "환자는 에볼라 바이러스가 발생한 나이지리아에 있었습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 93.885
+     },
+     {
+      "id": 1544,
+      "source": "Insects were the first animals to take to the air. Their ability to fly helped them evade enemies more easily and find food and mates more efficiently.",
+      "reference": "곤충은 공중에서 날 수 있었던 첫 번째 동물입니다. 곤충의 비행 능력은 더 쉽게 적을 피하고 더 효율적으로 음식과 짝을 찾는 데 도움을 주었습니다.",
+      "hypothesis": "곤충은 공중에 떠있는 최초의 동물입니다. 그들의 비행 능력은 적을 더 쉽게 피하고 음식과 짝을 더 효율적으로 찾는 데 도움이되었습니다.",
+      "sentences": 2,
+      "changed": true,
+      "postprocess_ms": 191.533
+     },
+     {
+      "id": 1545,
+      "source": "A curry can be either \"dry\" or \"wet\" depending on the amount of liquid.",
+      "reference": "\"카레는 물의 양에 따라 \"\"되직\"\"하거나 \"\"묽게\"\"될 수 있다.\"",
+      "hypothesis": "카레는 액체의 양에 따라 \"건조한\"또는 \"젖은\"것일 수 있습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.035
+     },
+     {
+      "id": 1546,
+      "source": "The feathers' structure suggests that they were not used in flight but rather for temperature regulation or display. The researchers suggested that, even though this is the tail of a young dinosaur, the sample shows adult plumage and not a chick's down.",
+      "reference": "깃털의 구조는 비행 용이 아니라 체온 조절이나 과시용으로 쓰였음을 암시한다. 연구원들은 어린 공룡의 꼬리에서 나온 샘플을 조사하니 유아의 솜털이 아닌 성인 공룡의 깃털이라고 이야기하였다.",
+      "hypothesis": "깃털의 구조는 비행에 사용되지 않았으며 오히려 온도 조절이나 디스플레이에 사용되었음을 시사합니다. 연구자들은 이것이 젊은 공룡의 꼬리 일지라도, 샘플은 병아리가 아닌 성인 깃털을 보여줍니다.",
+      "sentences": 2,
+      "changed": false,
+      "postprocess_ms": 0.048
+     },
+     {
+      "id": 1548,
+      "source": "When you call someone who is thousands of miles away, you are using a satellite.",
+      "reference": "수천 km(마일) 떨어진 사람과 통화한다면 인공위성을 쓰고 있는 겁니다.",
+      "hypothesis": "수천 마일 떨어진 곳에 있는 사람에게 전화를 걸면 위성을 사용하는 것입니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.02
+     },
+     {
+      "id": 1550,
+      "source": "Skiing is a major travelling activity with many enthusiasts, occasionally known as \"ski bums,\" planning entire vacations around skiing at a particular location.",
+      "reference": "\"스키여행은 스키광(\"\"ski bums\"\")이라고 불리는 애호가들이 즐기는 여행 방식이다. 그 사람들은 휴가 일정을 어느 한 특정 장소에서 줄곧 스키를 타는 시간으로 계획한다.\"",
+      "hypothesis": "스키는 가끔 \"스키 부랑자\"로 알려진 많은 매니아와 함께 주요 여행 활동, 특정 위치에서 스키 주위에 전체 휴가를 계획입니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.03
+     },
+     {
+      "id": 1551,
+      "source": "They are still trying to determine just how large the crash was and how the Earth will be affected.",
+      "reference": "그들은 여전히 충돌의 크기와 지구가 어떤 영향을 받을 것인지에 대해 연구 중이다.",
+      "hypothesis": "그들은 여전히 충돌이 얼마나 큰지, 지구가 어떻게 영향을 받을지 결정하려고 노력하고 있습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 36.492
+     },
+     {
+      "id": 1552,
+      "source": "The result of plotting analysis will be posted to a public website.",
+      "reference": "도표화된 분석 결과가 공개 웹사이트에 게시될 예정입니다.",
+      "hypothesis": "분석의 결과는 공개 웹 사이트에 게시됩니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.028
+     },
+     {
+      "id": 1553,
+      "source": "Christmas is one of the most important holidays of Christianity, and is celebrated as the birthday of Jesus.",
+      "reference": "크리스마스는 기독교에서 가장 중요한 큰 명절 중 하나로 예수님의 생일을 기념하는 명절이다.",
+      "hypothesis": "크리스마스는 기독교의 가장 중요한 휴일 중 하나이며, 예수님의 생일로 축하됩니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.022
+     },
+     {
+      "id": 1555,
+      "source": "In the churchyard, there are interesting marble sculptures of doves over some tombs.",
+      "reference": "교회 뜰에는 몇몇 무덤 위에 비둘기의 흥미로운 대리석 조각들이 있다.",
+      "hypothesis": "교회 마당에는 일부 무덤 위에 비둘기의 흥미로운 대리석 조각이 있습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.018
+     },
+     {
+      "id": 1556,
+      "source": "His 1,000th stamp was the magnificent \"Great Deeds by Swedish Kings\" by David Klöcker Ehrenstrahl in 2000, which is listed in the Guinness Book of World Records.",
+      "reference": "그의 1,000번째 도장은 2000년에 다비드 클뢰커 에렌슈트랄의 장대한 작품인 '스웨덴 역대 왕의 위업'을 새긴 것이다. 그리고 이는 기네스 세계 기록에 등재되어 있다.",
+      "hypothesis": "그의 1000번째 우표는 2000년 기네스북에 등재된 데이비드 클뢰커 에렌스탈의 \"스웨덴 왕들의 위대한 업적\"이었습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 76.492
+     },
+     {
+      "id": 1557,
+      "source": "After seeing the horrors and atrocities of war during World War I, nations desired to avoid such a situation again in the future.",
+      "reference": "1차 세계대전을 통해 전생의 참상과 만행을 겪은 국가들은 미래에 그러한 상황을 다시는 겪지 않기를 기도했습니다.",
+      "hypothesis": "제 1 차 세계 대전 중 에 전쟁 의 참상 과 잔학 행위 를 목격 한 후 에, 나라 들 은 장래 에 그러한 상황 을 다시 피하기 를 원하였습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 58.785
+     },
+     {
+      "id": 1558,
+      "source": "Before an organization can be innovative, leadership must create a culture of innovation as well as shared knowledge and organizational learning.",
+      "reference": "조직이 혁신적이 되려면, 리더십은 혁신 문화뿐만 아니라 공유 지식 및 조직적인 학습을 창조해야 합니다.",
+      "hypothesis": "조직이 혁신적일 수 있기 전에 리더십은 지식과 조직 학습을 공유하는 것뿐만 아니라 혁신의 문화를 창조해야 합니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 121.991
+     },
+     {
+      "id": 1559,
+      "source": "Pronunciation is relatively easy in Italian since most words are pronounced exactly how they are written",
+      "reference": "이탈리아어는 대부분의 단어들이 정확히 쓰여진대로 발음되기 때문에 발음이 비교적 쉽다.",
+      "hypothesis": "발음은 대부분의 단어들이 정확히 어떻게 쓰여졌는지 발음되기 때문에 이탈리아어로는 비교적 쉽습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.039
+     },
+     {
+      "id": 1560,
+      "source": "As soon as you get out of the current, swimming back is no more difficult than normally.",
+      "reference": "해류를 벗어나기만 하면, 평소처럼 수영해서 돌아오는 것은 그다지 어렵지 않다.",
+      "hypothesis": "지금처럼 수영을 계속하면 평소처럼 수영을 할 수 없습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 57.094
+     },
+     {
+      "id": 1561,
+      "source": "Most districts are served by small Japanese Coaster Buses, which are comfortable and sturdy.",
+      "reference": "대부분의 구역에서는 편안하고 튼튼한 소형 일제 코스터 버스가 운행된다.",
+      "hypothesis": "대부분의 지구는 편안하고 튼튼한 작은 일본 코스터 버스에 의해 제공됩니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.038
+     },
+     {
+      "id": 1562,
+      "source": "This became common practice, but the iron caused more wear on the wooden wheels of the wagons.",
+      "reference": "이것은 일반적인 관행이 되었지만, 철은 마차의 나무 바퀴를 더 많이 마모되게 하였습니다.",
+      "hypothesis": "이것은 일반적인 관행이되었지만, 철은 마차의 나무 바퀴에 더 많은 마모를 일으켰습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.022
+     },
+     {
+      "id": 1563,
+      "source": "The researchers suggested that, even though this is the tail of a young dinosaur, the sample shows adult plumage and not a chick's down.",
+      "reference": "이것은 젊은 공룡의 꼬리이지만, 샘플을 보면 어린 개체의 솜털이 아닌 성체의 깃털임을 알 수 있다고 연구진은 말합니다.",
+      "hypothesis": "연구자들은 이것이 젊은 공룡의 꼬리 일지라도, 샘플은 병아리가 아닌 성인 깃털을 보여줍니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.022
+     },
+     {
+      "id": 1564,
+      "source": "Some patients might have contracted the bug in the hospital, Dr. Moll thinks, and at least two were hospital health workers.",
+      "reference": "Moll 박사는 일부 환자가 병원에서 질병에 감염되었을 수 있다고 생각하며, 그중 적어도 2명은 건강한 병원 근로자였을 것으로 생각했습니다.",
+      "hypothesis": "몇몇 환자는 병원에 있는 벌레를 계약할 수 있었습니다, Moll 박사는 생각하고, 적어도 2개는 병원 건강 요원이었습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.03
+     },
+     {
+      "id": 1565,
+      "source": "Science’s main goal is to figure out the way the world works through the scientific method. This method in fact guides most scientific research.",
+      "reference": "과학의 주요 목적은 과학적 방법을 통해 세상이 어떻게 움직이는지 이해하는 것이다. 이 방식이 사실 대부분의 과학적 연구를 이끌어간다.",
+      "hypothesis": "과학의 주요 목표는 과학적 방법을 통해 세상이 어떻게 작동하는지 알아내는 것입니다. 이 방법은 실제로 대부분의 과학적 연구를 안내합니다.",
+      "sentences": 2,
+      "changed": false,
+      "postprocess_ms": 0.034
+     },
+     {
+      "id": 1566,
+      "source": "Yet eighty percent of our goods were taxed through tariffs in Central American countries. we treat you.",
+      "reference": "비록 우리 물품의 팔십 퍼센트가 중앙아메리카 국가들에서 관세를 통해 세금이 부과된다. 우리가 당신을 대접한다.",
+      "hypothesis": "그러나 우리 상품의 80 %는 중앙 아메리카 국가에서 관세를 부과했습니다. 우리는 당신을 치료합니다.",
+      "sentences": 2,
+      "changed": false,
+      "postprocess_ms": 0.025
+     },
+     {
+      "id": 1567,
+      "source": "The largest tournament of the year takes place in December at the polo fields in Las Cañitas.",
+      "reference": "그 해의 가장 규모가 큰 토너먼트 경기는 12월에 라스 카니타스의 폴로 경기장에서 열립니다.",
+      "hypothesis": "올해의 가장 큰 대회는 12 월 Las Cañitas의 폴로 필드에서 열립니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.02
+     },
+     {
+      "id": 1568,
+      "source": "Though it is widely used, especially among non-Romani, the word \"Gypsy\" is often considered offensive because of its associations with negative stereotypes and inaccurate perceptions of Romani people.",
+      "reference": "특히 비(非)로마니, 사이에서는 널리 쓰이지만, 로마니, 사람들에 대한 부정적인 고정관념과 부정확한 인식을 주기 때문에 '집시'라는 말은 종종 불쾌하게 여겨지고 있다.",
+      "hypothesis": "특히 비 로마니 (non-Romani) 사이에서 널리 사용되지만, \"집시 (Gypsy)\"라는 단어는 종종 부정적인 고정 관념과 로마인에 대한 부정확 한 인식과의 연관성 때문에 공격적으로 간주됩니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.047
+     },
+     {
+      "id": 1569,
+      "source": "The Report opens with plea for open debate and the formation of a consensus in the United States about the policy towards the Middle East.",
+      "reference": "보고서는 미국의 중동 정책에 관해 공개 토론과 의견 일치 형성에 대한 탄원으로 시작한다.",
+      "hypothesis": "이 보고서는 공개 토론과 중동에 대한 정책에 대한 미국의 합의의 형성에 대한 항변으로 시작됩니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.023
+     },
+     {
+      "id": 1570,
+      "source": "It also had no authority to override tax laws and tariffs between states.",
+      "reference": "또한 의회는 주(州) 간의 세법과 관세를 무효화할 권한이 없었습니다.",
+      "hypothesis": "또한 국가 간의 세금 법과 관세를 무시할 권한이 없었습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.015
+     },
+     {
+      "id": 1571,
+      "source": "The Arabs also brought Islam to the lands, and it took in a big way in the Comoros and Mayotte.",
+      "reference": "아랍인들을 통해서도 이슬람교가 전해졌으며, 코모로스와 마요트 지방에서 큰 변화가 일어났습니다.",
+      "hypothesis": "아랍인들은 또한 이슬람을 그 땅에 가져왔고, 그것은 코모로와 마요트에서 큰 역할을 했습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 86.159
+     },
+     {
+      "id": 1572,
+      "source": "Three more bombs exploded near government buildings in a period of two hours.",
+      "reference": "정부청사 근처에서 2시간 만에 폭탄 3개가 추가로 폭발했다.",
+      "hypothesis": "두 시간 만에 정부 건물 근처에서 폭탄이 터졌습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 14.126
+     },
+     {
+      "id": 1573,
+      "source": "A satellite phone is not generally a replacement for a mobile phone, as you have to be outdoors with clear line of sight to the satellite to make a phone call.",
+      "reference": "위성 전화는 실외에서 위성과 송수신선이 직결된 곳에서 전화를 사용해야 하기 때문에, 보통 휴대폰을 대체할 수 없다.",
+      "hypothesis": "위성 전화는 일반적으로 전화를 걸기 위해 위성에 대한 명확한 시야를 가져야하기 때문에 휴대 전화를 대체하지 않습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.044
+     },
+     {
+      "id": 1574,
+      "source": "The winter can be deceptively chilly: temperatures rarely go below freezing, but the wind and humidity combine to make it feel colder than what the thermometer says.",
+      "reference": "겨울은 믿을 수 없을 만큼 쌀쌀해지기도 한다. 영하 이하로 내려가는 날은 드물지만, 바람과 습도가 합쳐져서 실제 온도보다 더 춥게 느껴진다.",
+      "hypothesis": "겨울은 믿을 수 없을만큼 쌀쌀할 수 있습니다 : 온도는 거의 동결되지 않지만 바람과 습도가 결합하여 온도계가 말하는 것보다 더 차가워집니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.04
+     },
+     {
+      "id": 1575,
+      "source": "Israel demands an ongoing military presence in the valley for ten years once an agreement is signed while the PA agrees to leave such presence only for five years.",
+      "reference": "이스라엘은 협정이 이루어지자 이 구역의 현재 주둔군을 10년간 두는 것을 요구했고, PA는 주둔군이 5년 후에 떠나는 것에 동의했다.",
+      "hypothesis": "이스라엘은 협정이 체결되면 10년 동안 이 계곡에 계속 주둔할 것을 요구하며, PA는 5년 동안만 이 계곡을 떠날 것을 동의합니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 54.588
+     },
+     {
+      "id": 1576,
+      "source": "A course will normally cover all the issues discussed here in far greater detail, usually with practical experience.",
+      "reference": "강의은 일반적으로 여기에서 논의되는 모든 문제에 대해 훨씬 더 자세히 다루며, 보통 실무 경험이 동반됩니다.",
+      "hypothesis": "코스는 일반적으로 여기에 설명 된 모든 문제를 훨씬 더 자세하게 다루며, 일반적으로 실제 경험으로 다룹니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.052
+     },
+     {
+      "id": 1577,
+      "source": "That didn't seem to make sense to me; it certainly wasn't fair.",
+      "reference": "그게 저에겐 말이 안 되는 것 같았습니다. 확실히 공평하지 않았어요.",
+      "hypothesis": "그것은 나에게 의미가 없어 보였다; 그것은 확실히 공정하지 않았습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 22.858
+     },
+     {
+      "id": 1578,
+      "source": "Then, Lakkha Singh took the lead in singing the bhajans.",
+      "reference": "그러고, 라카 싱은 바잔들을 노래하는 데 앞장섰다.",
+      "hypothesis": "그런 다음 Lakkha Singh은 bhajans를 노래하는 데 주도권을 잡았습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.04
+     },
+     {
+      "id": 1579,
+      "source": "It warns No one can guarantee that any course of action in Iraq at this point will stop sectarian warfare, growing violence, or a slide toward chaos.",
+      "reference": "이 시점에서 이라크의 행동이 종파적인 전쟁이나 폭력이 증가하는 것, 혹은 혼돈의 상태를 막을 수 있다는 데에 보장은 없다.",
+      "hypothesis": "그 누구도 이 시점에서 이라크에서의 어떤 행동 방침도 종파간의 전쟁, 증가하는 폭력, 또는 혼란을 막을 수는 없을 것이라고 경고합니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.04
+     },
+     {
+      "id": 1581,
+      "source": "The Amazon is also the widest river on Earth, at times six miles wide.",
+      "reference": "아마존은 또한 지구상에서 가장 넓은 강으로, 때때로 폭이 6마일이 되곤 한다.",
+      "hypothesis": "아마존 강은 또한 지구에서 가장 넓은 강으로, 폭이 6마일에 달합니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.021
+     },
+     {
+      "id": 1582,
+      "source": "Most of the life of the Hebrew family happened in the open air.",
+      "reference": "히브리 가족의 삶은 거의 야외에서 이루어졌습니다.",
+      "hypothesis": "히브리 가족의 삶 대부분은 야외에서 일어났습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 19.817
+     },
+     {
+      "id": 1583,
+      "source": "She came to this conclusion due to the multitude of positive comments and encouragement sent to her by both female and male individuals urging that contraception medication be considered a medical necessity.",
+      "reference": "그녀는 피임약이 의학적으로 꼭 필요한 것으로 여겨야 한다고 촉구하는 여성과 남성 모두의 긍정적인 의견과 격려가 쇄도했기 때문에 이런 결론을 내렸다.",
+      "hypothesis": "그녀는 피임약이 의학적 필요성으로 간주 될 것을 촉구하는 여성과 남성 모두가 그녀에게 보낸 긍정적 인 의견과 격려가 많기 때문에이 결론에 도달했습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.054
+     },
+     {
+      "id": 1584,
+      "source": "Widespread looting reportedly continued overnight, as law enforcement officers were not present on Bishkek's streets.",
+      "reference": "비슈케크 시가지에 법 집행관들이 나타나지 않자, 간밤에 광범위한 약탈이 계속되었다고 전해진다.",
+      "hypothesis": "널리 퍼진 약탈은 비슈케크의 거리에 법 집행관이 없었기 때문에 밤새 계속되었습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 13.4
+     },
+     {
+      "id": 1586,
+      "source": "Her first was the Slalom, where she earned a Did Not Finish in her first run. 36 of the 116 competitors had the same result in that race.",
+      "reference": "그녀의 첫 번째 경기는 활강 경기였는데, 1회전에서 결승선을 통과하지 못했습니다. 116명의 선수 중 36명이 그 경기에서 같은 결과를 얻었습니다.",
+      "hypothesis": "그녀의 첫 번째는 슬라럼이었고, 그곳에서 그녀는 첫 득점에서 끝내지 않았습니다. 116명의 선수 중 36명이 이 대회에서 같은 결과를 얻었습니다.",
+      "sentences": 2,
+      "changed": true,
+      "postprocess_ms": 7.888
+     },
+     {
+      "id": 1587,
+      "source": "The first cases of the disease this season were reported in late July.",
+      "reference": "이번 시즌의 첫 발병 사례는 7월 말에 보고되었습니다.",
+      "hypothesis": "이 질병의 첫 번째 사례는 7 월 말에보고되었습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.029
+     },
+     {
+      "id": 1588,
+      "source": "According to police, the driver of the vehicle that hit the photographer is unlikely to face criminal charges.",
+      "reference": "경찰에 따르면 사진기자를 친 차량의 운전자는 형사 고발을 당할 가능성이 낮다.",
+      "hypothesis": "경찰에 따르면, 사진가를 때린 차량의 운전자는 범죄 혐의에 직면하지 않을 것입니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.022
+     },
+     {
+      "id": 1589,
+      "source": "The qualities that determine a subculture as distinct may be linguistic, aesthetic, religious, political, sexual, geographical, or a combination of factors.",
+      "reference": "하위문화를 명확하게 구분하는 특징은 언어적, 미적, 종교적, 정치적, 성적, 지리적 요소가 있으며, 이러한 요소들의 결합일 수도 있다.",
+      "hypothesis": "하위 문화를 구별하는 특성은 언어적, 미적, 종교적, 정치적, 성적, 지리적 또는 복합적인 요소 일 수 있습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.027
+     },
+     {
+      "id": 1590,
+      "source": "The main local beer is 'Number One', it is not a complex beer, but pleasant and refreshing. The other local beer is called \"Manta\".",
+      "reference": "주요 지역 맥주는 '넘버원(Number One)'으로, 복합적인 풍미는 아니지만 기분 좋은 상큼한 맥주입니다. 또 다른 지역 맥주로는 '만타(Manta)'가 있습니다.",
+      "hypothesis": "주요 지역 맥주는 '번호 하나'이며, 복잡한 맥주가 아니라 쾌적하고 상쾌합니다. 다른 지역 맥주는 \"만타\"라고합니다.",
+      "sentences": 2,
+      "changed": false,
+      "postprocess_ms": 0.037
+     },
+     {
+      "id": 1591,
+      "source": "Former House Speaker Newt Gingrich, Texas governor Rick Perry, and Congresswoman Michele Bachmann finished in fourth, fifth, and sixth place, respectively.",
+      "reference": "뉴트 깅리치 전 하원의장, 릭 페리 텍사스 주지사, 미셸 바흐만 하원 의원이 각각 4위, 5위, 6위를 차지했습니다.",
+      "hypothesis": "뉴트 깅리치, 텍사스 주지사 릭 페리, 하원의원 미셸 바흐만은 각각 4위, 5위, 6위를 차지했습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 76.152
+     },
+     {
+      "id": 1593,
+      "source": "Eventually, wooden wheels were replaced by iron wheels. In 1767, the first full-iron rails were introduced.",
+      "reference": "시간이 흘러 나무 바퀴는 철 바퀴로 대체되었다. 그리고 1767년에 드디어 철로만 만든 철도가 소개되었다.",
+      "hypothesis": "결국, 나무 바퀴는 철 바퀴로 대체되었습니다. 1767년에는 최초의 철제 레일이 도입되었습니다.",
+      "sentences": 2,
+      "changed": true,
+      "postprocess_ms": 23.216
+     },
+     {
+      "id": 1594,
+      "source": "Some animals, such as elephants and giraffes, tend to approach closely to cars and standard equipment will allow good viewing.",
+      "reference": "코끼리나 기린처럼 일부 동물은 자동차에 가까이 접근하는 경향이 있으며 표준 장비를 이용하여 잘 관찰할 수 있습니다.",
+      "hypothesis": "코끼리와 기린과 같은 일부 동물은 자동차에 가깝게 접근하는 경향이 있으며 표준 장비를 사용하면 잘 볼 수 있습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.045
+     },
+     {
+      "id": 1595,
+      "source": "The Tibetan Buddhism is based on the teachings of Buddha, but were extended by the mahayana path of love and by a lot of techniques from Indian Yoga.",
+      "reference": "티벳 불교는 부처님의 가르침을 기반으로 하지만, 대승불교의 사랑의 관념 및 인도 요가의 많은 기술을 바탕으로 확장되었습니다.",
+      "hypothesis": "티베트 불교는 부처의 가르침에 기초하지만, 사랑의 마하야나 경로와 인도 요가에서 많은 기술에 의해 확장되었습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 30.405
+     },
+     {
+      "id": 1596,
+      "source": "Naturalists and philosophers focused on classical texts and, in particular, on the Bible in Latin.",
+      "reference": "박물학자나 철학자는 고전 텍스트와 특별히 라틴어 성경에 초점을 맞췄습니다.",
+      "hypothesis": "박물학자들과 철학자들은 고전 문학에 초점을 맞추었고, 특히 라틴어로 된 성경에 초점을 맞추었습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 21.022
+     },
+     {
+      "id": 1598,
+      "source": "Although three people were inside the house when the car impacted it, none of them were hurt.",
+      "reference": "차가 집에 충돌했을 때 세 명이 안에 있었지만, 그들 중 한 명도 다치지 않았다.",
+      "hypothesis": "자동차가 영향을 줄 때 3 명이 집에 있었지만 아무도 다치지 않았습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.039
+     },
+     {
+      "id": 1599,
+      "source": "The original population hasn't changed at all, they still need the same adaptations as before.",
+      "reference": "원래 인구는 전혀 변동이 없었지만 여전히 전과 같은 적응이 필요합니다.",
+      "hypothesis": "원래의 인구는 전혀 변하지 않았으며, 여전히 이전과 같은 적응이 필요합니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.023
+     },
+     {
+      "id": 1600,
+      "source": "Examples of on-site activities include hunting, fishing, photography, bird watching, and visiting parks and studying information about the ecosystem.",
+      "reference": "현장 활동의 예로는 사냥, 낚시, 사진, 조류 관찰 및 공원 및 생태계에 대한 연구가 있다.",
+      "hypothesis": "현장 활동의 예로는 사냥, 낚시, 사진 촬영, 조류 관찰, 공원 방문 및 생태계에 대한 정보 연구 등이 있습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.033
+     },
+     {
+      "id": 1601,
+      "source": "Scientists think that ocelots follow and find animals to eat (prey) by smell, sniffing for where they've been on the ground.",
+      "reference": "과학자들은 오셀롯이 잡아먹을 동물(먹이)을 쫓고, 또 찾는 데에 냄새를 사용한다고 생각합니다. 어디에 있었는지 냄새를 맡으면서 말이지요.",
+      "hypothesis": "과학자들은 오셀롯이 냄새에 의해 먹고, 그들이 땅에 있었던 곳을 냄새 맡는 동물을 찾을 수 있다고 생각합니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.03
+     },
+     {
+      "id": 1604,
+      "source": "As NSA, he assisted Carter in diplomatically handling world affairs, such as the Camp David Accords, 1978; normalizing US–China relations thought the late 1970s; the Iranian Revolution, which led to the Iran hostage crisis, 1979; and the Soviet invasion in Afghanistan, 1979.",
+      "reference": "그는 NSA로서 1978년 캠프 데이비드 어코드, 1970년대 후반에 미국과 중국의 관계 정상화, 1979년 이란 인질 위기로 이어진 이란 혁명, 1979년 소련의 아프가니스탄 침공과 같은 세계 문제를 외교적으로 다루는 일에서 카터 대통령을 보좌하였습니다.",
+      "hypothesis": "국가 안보국 (NSA)으로서 그는 카터가 1978년 캠프데이비드 협정과 같은 세계사들을 외교적으로 다루는 것을 도왔고, 1970년대 후반 미국과 중국의 관계를 정상화하는 것을 도왔고, 1979년 이란의 인질 사태를 초래한 이란 혁명을 도왔습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 80.047
+     },
+     {
+      "id": 1605,
+      "source": "Due to the long distance from the continent mammals were unable to make the journey making the giant tortoise the primary grazing animal in the Galapagos.",
+      "reference": "포유류는 대륙으로부터의 먼 거리로 인해 갈라파고스의 일차 방목 동물인 거대 거북이처럼 여행할 수 없었습니다.",
+      "hypothesis": "대륙에서 멀리 떨어져 있었기 때문에 포유류는 거대한 거북이를 갈라파고스에서 가장 먼저 풀을 뜯는 동물로 만들 수 없었습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 42.69
+     },
+     {
+      "id": 1606,
+      "source": "The Portuguese destroyed it and rebuilt it under the name Casa Branca, only to abandon it after an earthquake in 1755.",
+      "reference": "포르투갈인들은 이곳을 파괴한 다음 Casa Branca라는 이름으로 재건했지만, 1755년 지진 이후에 그곳을 버리고 떠났습니다.",
+      "hypothesis": "포르투갈 인은 그것을 파괴하고 1755의 지진 후에 만 Casa Branca라는 이름으로 재건했습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.046
+     },
+     {
+      "id": 1607,
+      "source": "It's worth half an hour to stroll about the intriguing village.",
+      "reference": "이 흥미로운 마을을 산책하는데 30분을 투자할만합니다.",
+      "hypothesis": "흥미로운 마을을 산책하는 데 30 분이 걸립니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.018
+     },
+     {
+      "id": 1609,
+      "source": "Robin Uthappa made the innings highest score, 70 runs in just 41 balls by hitting 11 fours and 2 sixes.",
+      "reference": "로빈 우타파(Robin Uthappa)가 이닝 최고점을 기록했다. 4점 11개와 6점 2개로 41 투구만에 70 런을 쳐 이닝 최고점을 기록했다.",
+      "hypothesis": "로빈 우타파 (Robin Uthappa)는 11 개의 4와 2 개의 6을 치면서 41 개의 공에서 70 점을 기록했습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.042
+     },
+     {
+      "id": 1611,
+      "source": ". Scientists say this animal's plumage was chestnut-brown on top with a pale or carotenoid-colored underside.",
+      "reference": ". 과학자들은 이 공룡 깃털의 윗쪽이 진갈색이고 아랫쪽은 희거나 노란빛이었다고 밝혔다.",
+      "hypothesis": "이름 * 과학자들은이 동물의 깃털이 밤색 또는 카로티노이드 색의 밑면 위에 있다고 말합니다.",
+      "sentences": 2,
+      "changed": false,
+      "postprocess_ms": 0.026
+     },
+     {
+      "id": 1612,
+      "source": "Water is spilling over the levee in a section 100 feet wide.",
+      "reference": "100피트 너비의 제방 너머로 물이 흘러넘칩니다.",
+      "hypothesis": "물이 제방 위로 100피트 폭으로 쏟아지고 있습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.016
+     },
+     {
+      "id": 1613,
+      "source": "Next, some saddles, particularly English saddles, have safety bars that allow a stirrup leather to fall off the saddle if pulled backwards by a falling rider.",
+      "reference": "다음으로 일부 안장, 특히 영국의 안장에는 떨어지는 기수가 뒤로 당길 경우 등자 가죽이 안장에서 떨어질 수 있는 안전바가 있다.",
+      "hypothesis": "다음으로, 일부 안장, 특히 영어 안장은 낙하하는 라이더가 뒤로 당기면 등자 가죽이 안장에서 떨어질 수있는 안전 막대가 있습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.035
+     },
+     {
+      "id": 1615,
+      "source": "Thousands of years ago, a man called Aristarchus said that the Solar System moved around the Sun.",
+      "reference": "수천 년 전에 아리스다고라는 사람이 태양계가 태양을 중심으로 움직인다고 주장했다.",
+      "hypothesis": "수천 년 전, 아리스타르코스(Aristarchus)라는 사람이 태양계가 태양 주위를 돌고 있다고 말했습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 33.055
+     },
+     {
+      "id": 1616,
+      "source": "Science now indicates that this massive carbon economy has dislodged the biosphere from one of its stable states that has supported human evolution for the past two million years.",
+      "reference": "이제 과학적 데이터가 거대한 규모의 이 탄소 경제는 지난 이백만 년 동안 인류의 진화를 도왔던 안정적인 상태에서 생물권을 몰아냈음을 보여줍니다.",
+      "hypothesis": "과학은 이제이 거대한 탄소 경제가 지난 2 백만 년 동안 인간의 진화를 지원해온 안정된 상태 중 하나에서 생물권을 제거했음을 나타냅니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.052
+     },
+     {
+      "id": 1617,
+      "source": "The Kruger National Park (KNP) lies in the north-east of South Africa and runs along the border of Mozambique in the east, Zimbabwe in the north, and the southern border is the Crocodile River.",
+      "reference": "크루거 국립공원(KNP)은 남아프리카의 북동쪽에 위치하여 동쪽으로는 모잠비크, 북쪽으로는 짐바브웨 국경을 따라 형성되어 있으며, 남쪽으로는 크로커다일 강을 경계로 하고 있습니다.",
+      "hypothesis": "크루거 국립공원(Kruger National Park, KNP)은 남아프리카 공화국 북동부에 위치해 있으며, 동쪽의 모잠비크, 북쪽의 짐바브웨, 그리고 남쪽의 크로커다일 강과 접하고 있습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 55.0
+     },
+     {
+      "id": 1618,
+      "source": "The northern part or Sentinel Range has Antarctica's highest mountains, the Vinson Massif, peaking at 4892 m Mount Vinson.",
+      "reference": "북부 지역 또는 센티넬 산맥에는 남극 대륙에서 가장 높은 산인 빈슨 산괴(Vinson Massif)가 있는데, 빈슨 산 높이는 4,892m입니다.",
+      "hypothesis": "남극 대륙에서 가장 높은 산인 빈슨 대산맥(Vinson Massif)은 4892m 높이에 달합니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.04
+     },
+     {
+      "id": 1619,
+      "source": "However, most signs are indicated only in Catalan because it is established by law as the first official language.",
+      "reference": "하지만 대부분의 표지판은 법으로 최초 공식 언어로 확립된 카탈로니아어로만 표기되어 있습니다.",
+      "hypothesis": "그러나 대부분의 징후는 법률에 의해 첫 번째 공식 언어로 설정되기 때문에 카탈로니아 어로 만 표시됩니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.027
+     },
+     {
+      "id": 1620,
+      "source": "Now widely available throughout the archipelago, Javanese cuisine features an array of simply seasoned dishes, the predominant flavorings the Javanese favor being peanuts, chillies, sugar (especially Javanese coconut sugar) and various aromatic spices.",
+      "reference": "이제 군도 전체에서 폭넓게 이용할 수 있는 자바식 요리법은 다양한 단순 제철 요리가 특징적이며, 자바인들이 선호하는 주요 향은 땅콩, 칠리, 설탕(특히 자바 코코넛 설탕)과 다양한 향신료입니다.",
+      "hypothesis": "이제 군도 전역에서 널리 이용 가능한 Javanese 요리는 단순히 노련한 요리, Javanese가 좋아하는 땅콩, 칠리, 설탕 (특히 Javanese 코코넛 설탕) 및 다양한 향료를 특징으로합니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.045
+     },
+     {
+      "id": 1621,
+      "source": "At the beginning dress was heavily influenced by the Byzantine culture in the east.",
+      "reference": "초기에는 드레스가 동양의 비잔틴 문화에 크게 영향을 받았습니다.",
+      "hypothesis": "처음에 드레스는 동쪽의 비잔틴 문화에 크게 영향을 받았습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 3.495
+     },
+     {
+      "id": 1622,
+      "source": "U.S. President George W. Bush welcomed the announcement.",
+      "reference": "조지 W. 부시 미국 대통령은 이 같은 발표를 환영했습니다.",
+      "hypothesis": "미국의 조지 W. 부시 대통령은 이 발표를 환영했습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.033
+     },
+     {
+      "id": 1623,
+      "source": "The Articles required unanimous consent from all the states before they could be amended and states took the central government so lightly that their representatives were often absent.",
+      "reference": "이 조항들은 모든 주에서 만장일치의 동의를 얻어야만 수정이 가능했으며, 중앙 정부를 무시한 주 대표들은 대부분 회의에 불참석했습니다.",
+      "hypothesis": "이 조항은 수정되기 전에 모든 주에서 만장일치의 동의가 필요했으며 주정부는 중앙 정부를 너무 가볍게 받아 들여서 대표들이 종종 결석했습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.037
+     },
+     {
+      "id": 1624,
+      "source": "Inland waterways can be a good theme to base a holiday around.",
+      "reference": "내륙 수로는 휴일을 보내기용으로 좋은 주제가 될 수 있습니다.",
+      "hypothesis": "내륙 수로는 주변의 휴가를 기반으로하는 좋은 주제가 될 수 있습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.018
+     },
+     {
+      "id": 1627,
+      "source": "Ancient Roman meals couldn't have included foods that came to Europe from America or from Asia in later centuries.",
+      "reference": "고대 로마 식사는 몇 세기가 지난 후 미국이나 아시아에서 유럽으로 온 음식을 포함할 수 없었습니다.",
+      "hypothesis": "고대 로마의 식사에는 미국이나 아시아에서 온 음식이 포함될 수 없었습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.018
+     },
+     {
+      "id": 1628,
+      "source": "Handicraft products might be defined as antiques, though they are younger than similar mass-produced goods.",
+      "reference": "수공예 제품들은 대량 생산된 유사 제품들만큼 낡지 않을지라도 골동품으로 정의할 수 있을 것입니다.",
+      "hypothesis": "수공예품은 비슷한 대량 생산 제품보다 젊지 만 골동품으로 정의 될 수 있습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.02
+     },
+     {
+      "id": 1629,
+      "source": "Some reports put the official death toll at eight, and official reports confirm that up to 30 were injured; but final numbers are not yet known.",
+      "reference": "일부 보도에 따르면 공식 사망자 수는 8명으로 집계됐으며, 공식 보도에 따르면 최대 30명이 부상을 있었다고 전해진다. 그러나 최종 사망자 수는 아직 알려지지 않았다.",
+      "hypothesis": "일부 보고서에 따르면 공식 사망자는 8 명이며 공식 보고서에 따르면 최대 30 명이 부상당한 것으로 확인되었지만 최종 수치는 아직 알려지지 않았습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.034
+     },
+     {
+      "id": 1630,
+      "source": "Arly Velasquez of Mexico finished fifteenth in the men's sitting Super-G. New Zealand's Adam Hall finished ninth in the men's standing Super-G.",
+      "reference": "멕시코 선수 알리 벨라스케스는 남자 슈퍼대회전 좌식에서 15위로 끝마쳤습니다. 뉴질랜드 선수 아담 홀은 남자 슈퍼대회전 입식에서 9위로 끝마쳤습니다.",
+      "hypothesis": "멕시코의 알리 벨라스케스는 남자 슈퍼-G에서 15위를 하였습니다. 뉴질랜드의 아담 홀 (Adam Hall)은 남자 슈퍼 G에서 9 위를 차지했습니다.",
+      "sentences": 2,
+      "changed": true,
+      "postprocess_ms": 40.455
+     },
+     {
+      "id": 1631,
+      "source": "New Kingdom ancient Egyptians marvelled at their predecessors monuments, which were then well over a thousand year old.",
+      "reference": "고대 신왕국 이집트인들은 조상의 기념비적인 건축물을 보고 경탄했고 이것은 그 당시 기준으로 1000년은 족히 넘은 건축물이었습니다.",
+      "hypothesis": "새로운 왕국 고대 이집트인은 그들의 전임자 기념물에 놀랬다, 그때 잘 천 년 오래되었던.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.042
+     },
+     {
+      "id": 1632,
+      "source": "Women should realize that cultural differences may result in what they would consider harassment and it is not uncommon to be followed, grabbed by the arm, etc.",
+      "reference": "여성들은 문화적 차이로 인해 괴롭힘으로 간주되는 결과가 초래될 수 있고 팔을 잡는 등의 행위가 드문 일이 아니라는 것을 알아야 합니다.",
+      "hypothesis": "여성들은 문화적 차이가 괴롭힘을 초래할 수 있으며 팔에 붙잡히는 것이 드문 일이 아니라는 것을 인식해야합니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.032
+     },
+     {
+      "id": 1633,
+      "source": "In this dynamic transport shuttle everyone is somehow connected with, and supporting, a transport system based on private cars.",
+      "reference": "이 역동적인 수송 셔틀은 어떤 식으로든 모든 사람들이 자가용을 기반으로 하는 수송 시스템과 연결되고 이를 지원하도록 한다.",
+      "hypothesis": "이 역동적 인 운송 셔틀에서 모든 사람은 어떻게 든 개인 차량을 기반으로하는 운송 시스템과 연결되어 있습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.031
+     },
+     {
+      "id": 1635,
+      "source": "We can start living more friendly to the environment, we can join to the environmental movement, and we can even be activists in order to reduce the future suffering in some degree.",
+      "reference": "우리는 보다 환경친화적인 삶을 시작할 수 있고, 환경 운동에 참여할 수도 있습니다. 또한, 미래에 겪을 고통을 어느 정도 줄이기 위해 활동가가 될 수도 있습니다.",
+      "hypothesis": "우리는 환경에 좀 더 우호적인 생활을 시작할 수 있고, 환경 운동에 동참할 수 있으며, 미래의 고통을 어느 정도 줄이기 위해 활동가가 될 수도 있습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.044
+     },
+     {
+      "id": 1636,
+      "source": "The Spaniards started the colonization period which lasted for three centuries.",
+      "reference": "스페인 사람들이 3세기 동안 지속된 식민지 시대를 시작했다.",
+      "hypothesis": "스페인 사람들은 3 세기 동안 지속 된 식민지 시대를 시작했습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.021
+     },
+     {
+      "id": 1637,
+      "source": "The terrified King Louis XVI, Queen Marie Antoinette their two young children (11 year old Marie Therese and four year old Louis-Charles) and the King's sister, Madam Elizabeth, on the 6th October 1789 were forced back to Paris from Versailles by a mob of market women.",
+      "reference": "겁에 질린 프랑스의 왕 루이 16세, 마리 앙투아네트 여왕 그리고 그들의 두 어린아이들 (11살 마리 테레즈 그리고 4살 루이 샤를) 그리고 왕의 여동생인 엘리자베스 공주, 1789년 10월 6일에 여성노동자 집단에 의해 베르사유에서 파리로 강제추방되었다.",
+      "hypothesis": "겁에 질린 루이 16 세, 마리 앙투아네트 (Marie Antoinette)의 두 어린 자녀 (11 세 마리 테레세와 4 세 루이 찰스)와 왕의 여동생 엘리자베스 (Madam Elizabeth)는 1789 년 10 월 6 일 베르사유에서 시장 여성들의 군중에 의해 파리로 강제되었습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 82.743
+     },
+     {
+      "id": 1638,
+      "source": "Safaris are perhaps the greatest tourism draw in Africa and the highlight for many visitors.",
+      "reference": "사파리는 아마도 아프리카에서 가장 멋진 관광명소이며 많은 방문객에게 하이라이트가 될 것이다.",
+      "hypothesis": "사파리는 아마도 아프리카에서 가장 큰 관광 무승부와 많은 방문자를위한 하이라이트입니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.037
+     },
+     {
+      "id": 1639,
+      "source": "Since students are often the most critical audience, the blog writer begins to strive to improve writing to avoid criticism.",
+      "reference": "대부분 학생들이 가장 비판적인 청중이므로, 블로그 작가는 비판을 피하기 위해 글쓰기를 향상시키려고 노력하기 시작합니다.",
+      "hypothesis": "학생들은 종종 가장 비판적인 청중이기 때문에 블로그 작성자는 비판을 피하기 위해 글쓰기를 개선하기 위해 노력합니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.027
+     },
+     {
+      "id": 1640,
+      "source": "On icy and snowy roadways, friction is low and you cannot drive as if you were on bare asphalt.",
+      "reference": "얼음이 덮히고 눈이 쌓인 도로에서는 마찰력이 줄어들어서 당신은 마치 맨 아스팔트 위에 있는 것처럼 운전을 제대로 할 수가 없다.",
+      "hypothesis": "빙판길과 눈 덮인 도로에서는 마찰력이 낮아 마치 아스팔트 위에 있는 것처럼 운전할 수 없습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.023
+     },
+     {
+      "id": 1642,
+      "source": "The war expenditures of U.S. imperialism in the conquest of the Philippines were paid for by the Filipino people themselves.",
+      "reference": "필리핀 정복에 사용된 미국 제국주의의 전쟁 비용은 필리핀인 자신들에 의해 지급되었다.",
+      "hypothesis": "필리핀 정복에서 미국 제국주의의 전쟁 비용은 필리핀 국민이 직접 지불했습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 25.832
+     },
+     {
+      "id": 1644,
+      "source": "When asked for comment, Miller said, \"Mike talks a lot during the hearing...I was getting ready so I wasn't really hearing what he was saying.\"",
+      "reference": "\"의견을 물었을 때 밀러는 \"\"청문회 동안 마이크는 많은 이야기를 했습니다… 저는 준비를 하고 있었기 때문에 그가 하는 말을 듣지 못했습니다\"\"라고 말했습니다.\"",
+      "hypothesis": "의견을 물었을 때, 밀러는 말했다, \"마이크는 청문회 동안 많은 이야기...나는 그가 말하는 것을 정말 듣고되지 않도록 준비하고있다.\"",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.052
+     },
+     {
+      "id": 1645,
+      "source": "Its all-pervading power affected everyone from king to commoner.",
+      "reference": "그것의 만연한 힘은 왕에서 평민에 이르는 모든 사람에게 영향을 미칩니다.",
+      "hypothesis": "이 모든 권력은 왕으로부터 평민에 이르기까지 모든 사람에게 영향을 미쳤습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 29.992
+     },
+     {
+      "id": 1646,
+      "source": "There are many beaches, due to Auckland's straddling of two harbours. The most popular ones are in three areas.",
+      "reference": "오클랜드가 두 개의 항구를 가로지르고 있기 때문에 해변이 많습니다. 가장 인기 있는 곳이 세 지역 안에 있습니다.",
+      "hypothesis": "오클랜드의 두 개의 항구로 인해 많은 해변이 있습니다. 가장 인기있는 것은 세 가지입니다.",
+      "sentences": 2,
+      "changed": false,
+      "postprocess_ms": 0.041
+     },
+     {
+      "id": 1647,
+      "source": "The views presented are often cursory, general and oversimplified compared to the more detailed information available elsewhere.",
+      "reference": "제시된 견해는 다른 곳에서 얻을 수 있는 더 상세한 정보와 비교해 주로 피상적이고, 일반적이며, 지나치게 단순화된 모습이다.",
+      "hypothesis": "제시된 뷰는 종종 커서가 있고 일반적이며 다른 곳에서 사용할 수있는보다 자세한 정보에 비해 지나치게 단순화됩니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.027
+     },
+     {
+      "id": 1648,
+      "source": "There were no large forests in the land of Canaan, so wood was extremely expensive.",
+      "reference": "가나안에는 큰 숲이 없었기 때문에 나무가 무척 비쌌다.",
+      "hypothesis": "가나안 땅에는 큰 숲이 없었기 때문에 나무는 매우 비쌌습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.016
+     },
+     {
+      "id": 1649,
+      "source": "In Japan, the first cherry blossom parties were hosted by the emperor only for himself and other members of the aristocracy around the Imperial Court.",
+      "reference": "일본에서 첫 벚꽃 파티가 천황의 주최로 황궁 주변에서 개최되었습니다. 이 파티에는 천황과 귀족 구성원만이 참여했습니다.",
+      "hypothesis": "일본에서는 첫 번째 벚꽃 파티는 황제와 제국 법원 주변의 다른 귀족들에게만 개최되었습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.021
+     },
+     {
+      "id": 1650,
+      "source": "Saltwater Crocodiles do not actively live in the ocean, their primary habitat is in river estuaries north from Rockhampton.",
+      "reference": "바다 악어는 바다에서 살지 않으며, 록햄프턴 북쪽 강어귀에 주로 서식한다.",
+      "hypothesis": "해수 악어는 바다에 살지 않으며, 그들의 주요 서식지는 Rockhampton에서 북쪽으로 강어귀에 있습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.023
+     },
+     {
+      "id": 1651,
+      "source": "An increasingly more popular option for those planning a gap-year is to travel and learn.",
+      "reference": "갭이어를 여행과 공부에 사용하는 사람들이 점점 더 늘어나고 있다.",
+      "hypothesis": "간격 년을 계획하는 사람들에게 점점 더 인기있는 옵션은 여행하고 배우는 것입니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.02
+     },
+     {
+      "id": 1652,
+      "source": "The major religion in Moldova is Orthodox Christian.",
+      "reference": "몰도바의 주요 종교는 동방정교입니다.",
+      "hypothesis": "몰도바의 주요 종교는 정통 기독교입니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.011
+     },
+     {
+      "id": 1653,
+      "source": "In a partnership of NPWS and the Sporting Shooters Association of Australia (NSW) Inc, qualified volunteers were recruited, under the Sporting Shooters Association's hunting program.",
+      "reference": "NPWS와 '오스트레일리아 스포츠 슈터 협회'의 파트너쉽으로 '스포츠 슈터 협회'의 사냥 프로그램에 따라 자격을 갖춘 자원봉사자를 모집했다.",
+      "hypothesis": "NPWS와 Sporting Shooters Association of Australia (NSW) Inc의 파트너십으로 Sporting Shooters Association의 사냥 프로그램에 따라 자격을 갖춘 자원 봉사자가 모집되었습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.049
+     },
+     {
+      "id": 1654,
+      "source": "I don't know if you realize it or not, but most of the goods from Central America came into this country duty-free.",
+      "reference": "아실지 모르겠지만, 중앙아메리카에서 온 대부분의 물품은 이 나라에 면세로 들어왔습니다.",
+      "hypothesis": "여러분이 알고 계실지 모르겠지만, 중앙아메리카에서 온 대부분의 물품들은 이 나라에 면세품으로 들어왔습니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.024
+     },
+     {
+      "id": 1656,
+      "source": "Police said that the body appeared to have been there for about a day.",
+      "reference": "경찰은 시체가 하루 정도 있었던 것으로 보인다고 말했습니다.",
+      "hypothesis": "경찰은 시신이 약 1일 동안 그곳에 있었다고 밝혔습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 5.128
+     },
+     {
+      "id": 1657,
+      "source": "Any amendments or requests though should be coursed through the travel agent first and not directly with the hotel.",
+      "reference": "하지만 모든 수정이나 요청 사항이 있으면 호텔로 직접 연락하지 말고 우선 여행사를 통해 이를 진행해야 합니다.",
+      "hypothesis": "모든 수정 또는 요청은 먼저 여행사를 통해 진행되어야하며 호텔과 직접 진행되어서는 안됩니다.",
+      "sentences": 1,
+      "changed": false,
+      "postprocess_ms": 0.033
+     },
+     {
+      "id": 1658,
+      "source": "With only eighteen medals available a day, a number of countries have failed to make the medal podium.",
+      "reference": "하루에 열여덟 개의 메달만 주어지기 때문에, 많은 국가가 메달 단상에 오르지 못했습니다.",
+      "hypothesis": "하루에 18개의 메달만 획득할 수 있기 때문에 많은 국가들이 메달 시상에 실패했습니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 13.505
+     },
+     {
+      "id": 1659,
+      "source": "Scientists say the explosion caused by the collision was massive.",
+      "reference": "과학자들은 충돌로 인한 폭발이 거대했다고 말한다.",
+      "hypothesis": "과학자들은 충돌로 인한 폭발이 엄청났다고 말합니다.",
+      "sentences": 1,
+      "changed": true,
+      "postprocess_ms": 5.107
+     }
+    ],
+    "consistency": {
+     "outputs": 129,
+     "all_honorific": 126,
+     "ratio": 0.9767441860465116,
+     "mixed": 0,
+     "ends": {
+      "formal": 140,
+      "polite": 0,
+      "plain": 1,
+      "other": 2
+     }
+    },
+    "changed": 35,
+    "char_increase_median": 2.0,
+    "char_increase_rate": 0.008793804961281008,
+    "postprocess_p50_ms": 0.039,
+    "postprocess_p95_ms": 90.022
+   }
+  },
+  "source_report": "eval\\reports\\mt_t17_dev_20260913_054853.json",
+  "created": "2026-11-02T20:58:58+00:00",
+  "analyzer": {
+   "python-mecab-ko": "1.3.7",
+   "python-mecab-ko-dic": "2.1.1.post2"
+  }
+ }
+]
