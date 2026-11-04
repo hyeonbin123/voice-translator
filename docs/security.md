@@ -91,6 +91,14 @@ CI의 `audit` 작업이 같은 검사를 push마다 돌린다. 위 '받아들인
 
 - 확인: 잠금 diff는 pyasn1의 판·sdist·wheel 세 줄뿐이다(다른 판 변경 없음, 잠금 revision 5 그대로). `uv lock --check` 통과. CI와 같은 `uv export` → `pip-audit` 2.10.1(같은 제외 3개)에서 서버 환경 0건(제외 4, 10-30과 같음), 도구 환경 0건. 다시 내려가지 않게 `backend/tests/test_lock_security_floors.py`에 pyasn1 하한 0.6.5를 더했다(바꾸기 전 잠금에서 pyasn1 사례만 실패, 새 잠금에서 통과). 새 잠금으로 서버 이미지를 다시 빌드해 설치되는 판을 보는 확인은 이날 하지 않았다
 
+**2026-11-05 덧붙임: 프런트엔드 개발 도구의 새 권고 — minimatch를 `overrides`로 11.0.3에 고정** (2026-10-30(UTC)에 공개된 minimatch 권고 때문에 2026-11-01의 push부터 CI `audit` 작업의 npm 단계가 moderate 권고로 실패했다. 권고는 하나이고, 이 판에 기대는 eslint 쪽 패키지마다 세어져 10~12건으로 나왔다. 배포 의존성 검사 `npm audit --omit=dev`는 0건이었다)
+
+| 조치 | 패키지 | 권고 | 판단 |
+|---|---|---|---|
+| `overrides`로 고정 | minimatch 10.2.6 → 11.0.3(개발 도구: eslint 10.10.0, @eslint/config-array 0.23.5, @typescript-eslint/typescript-estree 8.70.0이 씀) | CVE-2026-118764 / GHSA-g3hv-75wg-m249(공격자가 준 glob 패턴을 `optimizationLevel` 2 이상으로 컴파일할 때 패턴 조각(globParts)이 크게 불어나는 서비스 거부, GitHub 심각도 중간, 영향 판 7.0.0 이상 11.0.1 미만, 고친 판 11.0.1) | 닿지 않았다: 설치돼 있던 10.2.6에서 그 처리(`firstPhasePreProcess`)는 `optimizationLevel`이 2 이상일 때만 도는데 기본값은 1이고, eslint·@eslint/config-array·typescript-estree 어디에도 이 옵션을 주는 곳이 없다. typescript-estree가 minimatch를 부르는 `allowDefaultProject` 경로는 이 저장소의 `frontend/eslint.config.js`가 쓰지 않고, 패턴은 이 저장소의 설정 파일에서만 온다. 그래도 세 상위 패키지가 최신판까지 `minimatch ^10`을 요구해 범위 안의 갱신으로는 고칠 수 없어, `frontend/package.json`의 `overrides`로 고친 판 11.0.3(2026-10-28 공개, 11.0.4와 코드가 같고 지원 Node 판만 다름)에 정확히 고정했다. 11은 major지만 eslint·config-array가 쓰는 `Minimatch` 생성자와 `match(path)`·`match(path, partial)`, typescript-estree가 쓰는 `minimatch()`는 그대로 있다. 새 간접 의존성 @isaacs/nonrecursive-glob-match 1.0.3(minimatch와 같은 관리자, BlueOak-1.0.0, 2026-10-28 공개)이 함께 들어온다 |
+
+- 확인: lock diff는 minimatch 한 항목과 새 의존성 한 항목뿐이다. `npm ci` 뒤 `npm ls minimatch`는 세 곳 모두 11.0.3(invalid 없음)이고, `npm audit --audit-level=moderate`와 `--omit=dev` 모두 0건이다. eslint가 검사한 파일 49개와 결과(`eslint -f json`)가 고정 전과 같고(minimatch 11의 바뀐 부분 일치 규칙이 검사 대상 고르기를 바꾸지 않음), `npm run lint`·`npm test`(184개)·`npm run build`가 통과했으며, 빌드 결과 11개 파일의 SHA-256이 고정 전과 같다(배포되는 화면 파일은 바뀌지 않음). 실제 브라우저 검사(`npm run test:a11y`)는 이날 로컬에서 돌리지 않았다(CI의 e2e 작업이 같은 검사를 Chromium으로 돌린다). 세 상위 패키지가 11.0.1 이상을 요구하게 되면 이 override를 지운다
+
 ## 화면 서버(nginx)의 보안 머리글과 ZAP 기준 스캔 (2026-10-15)
 
 `frontend/nginx.conf`에 보안 머리글·압축·캐시를 넣고, OWASP ZAP 기준 스캔(baseline: 수동 검사, 공격 요청 없음)을 바꾸기 전후로 한 번씩 돌렸다. 이 저장소에서 처음 한 동적 검사다.
