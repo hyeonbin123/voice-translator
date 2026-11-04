@@ -1,8 +1,9 @@
 """uv.lock의 판이 알려진 보안 권고를 고친 판 아래로 돌아가지 않는지 지키는 테스트다. 모델·DB 없이 잠금 파일만
 읽는다."""
 
-# [파일 역할] backend/uv.lock을 tomllib로 읽어, 2026-10-30에 권고 때문에 올린 세 패키지가 고친 판 아래로
-# 내려가지 않았는지 확인한다(docs/security.md '의존성 취약점' 2026-10-30 덧붙임).
+# [파일 역할] backend/uv.lock을 tomllib로 읽어, 권고 때문에 올린 네 패키지(2026-10-30의 세 개와 2026-11-05의
+# pyasn1)가 고친 판 아래로 내려가지 않았는지 확인한다(docs/security.md '의존성 취약점'의 2026-10-30·2026-11-05
+# 덧붙임).
 # - filelock ≥ 4.2.1(잠금의 모든 항목): MeloTTS가 고정한 cached-path 1.8.10이 `filelock<4.0`을 요구해, 그냥
 #   잠그면 고친 판이 없는 3.x에 묶인다(2026-10 공개 권고 13건, 고친 판 4.2.1 — 하나는 4.0.9). pyproject.toml의
 #   [tool.uv] override-dependencies "filelock>=4.2.1"이 그 상한을 덮어 서버·도구 환경 모두 4.x를 쓴다. 그
@@ -12,6 +13,12 @@
 #   (GHSA-xmj3-9gf7-h52w, 고친 판 84.1.0). 서버 환경(tts 그룹)은 torch 2.11.0+cu128이 `setuptools<82`를
 #   요구하고 MeloTTS의 중국어 전처리가 import 때 부르는 cn2an·jieba가 pkg_resources(84.0.0에는 없음)를 쓰므로
 #   81.0.0을 받아들였다. 그래서 setuptools는 eval 그룹 쪽만 본다.
+# - pyasn1 ≥ 0.6.5(잠금의 모든 항목): MeloTTS → cached-path → google-cloud-storage → google-auth →
+#   pyasn1-modules 0.4.2가 끌어오는 패키지로, 서버 환경(tts 그룹)에만 있다. 0.6.4에는 조작한 BER/CER/DER
+#   입력을 디코딩할 때 CPU 시간이 입력 크기의 제곱에 가깝게 느는 권고 4건(CVE-2026-119194·119195·119196·
+#   119197)이 있고 고친 판은 0.6.5다. pyasn1-modules가 요구하는 범위(`pyasn1>=0.6.1,<0.7.0`) 안이라
+#   override 없이 잠금의 판만 올렸다. 서비스 코드는 google-auth·pyasn1을 직접 쓰지 않는다.
+#   MeloTTS·cached-path를 바꿔 다시 잠글 때 내려가지 않게 지킨다.
 # [왜 중요한가] 서버 이미지와 CI는 `--locked`로 이 파일 그대로 설치하므로 잠금의 판이 곧 설치되는 판이다. CI의
 # audit 작업(pip-audit)은 보고만 해서(continue-on-error) 판이 내려가도 워크플로가 통과한다. 이 테스트는 맨 위
 # Test 단계에서 돌아 바로 실패로 드러난다. `uv lock --check`는 pyproject와 잠금이 어긋났는지만 보고 판이
@@ -33,6 +40,7 @@ LOCK_PATH = BACKEND / "uv.lock"
 FLOORS = {
     "filelock": ("4.2.1", "CVE-2026-112907 등 13건, cached-path의 filelock<4.0을 override로 덮음"),
     "dnspython": ("2.9.0", "CVE-2026-114605, email-validator의 의존성"),
+    "pyasn1": ("0.6.5", "CVE-2026-119194~119197, cached-path → google-auth → pyasn1-modules의 의존성"),
 }
 # 도구 환경(eval 그룹)의 setuptools 하한(GHSA-xmj3-9gf7-h52w).
 EVAL_SETUPTOOLS_FLOOR = "84.1.0"
@@ -56,8 +64,9 @@ def test_every_locked_version_is_at_or_above_the_advisory_fix(name: str):
     )
     too_old = sorted(v for v in versions if Version(v) < Version(floor))
     assert not too_old, (
-        f"uv.lock의 {name} {too_old}는 권고를 고친 {floor}보다 낮다({why}). docs/security.md '의존성 취약점' "
-        "2026-10-30 덧붙임을 보고, filelock이면 pyproject.toml의 override-dependencies가 남아 있는지 확인한다"
+        f"uv.lock의 {name} {too_old}는 권고를 고친 {floor}보다 낮다({why}). docs/security.md "
+        "'의존성 취약점'의 날짜 붙은 덧붙임(2026-10-30·2026-11-05)을 보고, filelock이면 pyproject.toml의 "
+        "override-dependencies가 남아 있는지 확인한다"
     )
 
 

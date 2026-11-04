@@ -83,6 +83,14 @@ CI의 `audit` 작업이 같은 검사를 push마다 돌린다. 위 '받아들인
 - 서버 이미지 안 확인: 새 잠금으로 이미지를 다시 빌드하고(이미지의 uv 0.12.24 `uv sync --locked`가 filelock 4.2.4·dnspython 2.9.1·setuptools 81.0.0을 설치) 그 안에서 CPU로만(네트워크 없음, `hfcache` 볼륨 읽기 전용, 합성·추론 없음) 확인했다: pkg_resources와 `import melo.api`·`kokoro`·`app.services.tts`·`app.main`; filelock 사용처 — cached-path 하위 클래스의 생성(기본·`read_only_ok=True`)·잠그기·풀기와 압축 풀기 경로의 잠금, huggingface_hub 0.36.2의 `WeakFileLock`·`SoftFileLock`, torch의 `torch.utils._filelock.FileLock`, 같은 경로의 두 번째 잠금이 기다리지 않으면 잡지 못함; 고정한 합성 모델의 적재(위 재현성 표의 고정 파일 5개 SHA-256, MeloTTS 한국어·Kokoro 생성, 감싼 `from_pretrained`에 고정 커밋이 들어감) 14개 항목. 두 언어 한 문장씩의 실제 합성은 아직 하지 않았다
 - CI `audit` 작업의 제외 목록은 PYSEC-2026-3740·PYSEC-2026-3447·GHSA-xmj3-9gf7-h52w 셋이다. 같은 날 이 작업이 서버 환경 검사가 실패해도 도구 환경까지 검사한 뒤 한 번에 실패하게 고쳤다(단계 셸이 `bash -e`라 전에는 서버 환경 실패에서 바로 끝나, 도구 환경 결과가 로그에 남지 않았다)
 
+**2026-11-05 덧붙임: 그 뒤 공개된 Python 권고 4건 — pyasn1을 올림** (2026-10-30(UTC)에 공개된 pyasn1 권고 4건 때문에 2026-11-01의 push부터 CI `audit` 작업의 Python 단계가 서버 환경에서 'Found 4 known vulnerabilities'로 실패했다(보고만 하므로 워크플로는 통과, 도구 환경은 0건). 2026-11-05에 로컬에서 CI와 같은 명령으로 다시 검사해 같은 4건을 확인했다)
+
+| 조치 | 패키지 | 권고 | 판단 |
+|---|---|---|---|
+| lock에서 판만 올림 | pyasn1 0.6.4 → 0.6.5 | CVE-2026-119194 / GHSA-fm9c-5rcf-2q5p(스키마 없이 디코딩할 때 서로 다른 긴 태그 번호가 많은 컨테이너), CVE-2026-119195 / GHSA-9m75-vc3g-4x39(여러 조각으로 된 OCTET STRING·문자열과 길이를 정하지 않은 ANY), CVE-2026-119196 / GHSA-2qm8-x737-gmw5(여러 조각으로 된 BIT STRING), CVE-2026-119197 / GHSA-mm57-4v3p-rchx(이진 REAL의 긴 가수) — 모두 조작한 BER·CER·DER 입력을 디코딩할 때 CPU 시간이 입력 크기의 제곱에 가깝게 늘어나는 서비스 거부 문제, GitHub 심각도 높음, 고친 판 0.6.5 | MeloTTS → cached-path → google-cloud-storage → google-auth → pyasn1-modules 0.4.2가 끌어오는 패키지라 서버 환경에만 있다. 서비스 코드는 google-auth·pyasn1을 직접 쓰지 않고(`backend/app`에 import 없음), 사용자가 보낸 데이터를 ASN.1로 디코딩하는 경로도 없어 닿지 않는다고 본다(재현하지 않음). 그래도 고친 판이 pyasn1-modules가 요구하는 범위(`pyasn1>=0.6.1,<0.7.0`) 안이라 `uv lock --upgrade-package pyasn1`로 올렸다(override 없음) |
+
+- 확인: 잠금 diff는 pyasn1의 판·sdist·wheel 세 줄뿐이다(다른 판 변경 없음, 잠금 revision 5 그대로). `uv lock --check` 통과. CI와 같은 `uv export` → `pip-audit` 2.10.1(같은 제외 3개)에서 서버 환경 0건(제외 4, 10-30과 같음), 도구 환경 0건. 다시 내려가지 않게 `backend/tests/test_lock_security_floors.py`에 pyasn1 하한 0.6.5를 더했다(바꾸기 전 잠금에서 pyasn1 사례만 실패, 새 잠금에서 통과). 새 잠금으로 서버 이미지를 다시 빌드해 설치되는 판을 보는 확인은 이날 하지 않았다
+
 ## 화면 서버(nginx)의 보안 머리글과 ZAP 기준 스캔 (2026-10-15)
 
 `frontend/nginx.conf`에 보안 머리글·압축·캐시를 넣고, OWASP ZAP 기준 스캔(baseline: 수동 검사, 공격 요청 없음)을 바꾸기 전후로 한 번씩 돌렸다. 이 저장소에서 처음 한 동적 검사다.
