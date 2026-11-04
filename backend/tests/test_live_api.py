@@ -15,12 +15,15 @@ import logging
 import threading
 import time
 from dataclasses import replace
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from uuid import uuid4
 
-# jwt: 곧 만료되는 토큰(만료 시각이 정수 초)을 직접 만든다. NullPool: 테스트 클라이언트가 자기 이벤트
-# 루프에서 앱을 돌리므로, 루프 사이에 연결을 공유하지 않는 엔진을 만든다. TestClient·WebSocketDisconnect:
-# 웹소켓 연결과 닫힘 코드 확인.
+# anyio: Starlette 테스트 클라이언트처럼 연결 처리를 anyio CancelScope로 감싸 취소해 보려고 쓴다. jwt: 곧
+# 만료되는 토큰(만료 시각이 정수 초)을 직접 만든다. NullPool: 테스트 클라이언트가 자기 이벤트 루프에서 앱을
+# 돌리므로, 루프 사이에 연결을 공유하지 않는 엔진을 만든다. TestClient·WebSocketDisconnect: 웹소켓 연결과 닫힘
+# 코드 확인.
+import anyio
 import jwt
 import pytest
 from sqlalchemy import func, select
@@ -31,14 +34,16 @@ from starlette.websockets import WebSocketDisconnect
 
 # 앱의 의존성(get_sessions·get_models·get_audio_store·get_live_options·get_db)을 바꿔 끼워 테스트 DB, 가짜
 # 모델, 임시 음성 폴더, 빠른 갱신 설정을 쓴다. wav_from_pcm은 대화 모드 결과를 HTTP 업로드와 견줄 때 같은
-# WAV를 만들려고 가져온다.
+# WAV를 만들려고 가져온다. LiveConnection·LanguagePair는 연결 처리(run)를 웹소켓 없이 바로 돌려 보는 테스트에
+# 쓴다.
 from app.config import get_settings
 from app.core.security import create_token
 from app.db.session import ENGINE_OPTIONS
 from app.dependencies import get_audio_store, get_db, get_models, get_sessions
 from app.main import app
 from app.models import Translation
-from app.routers.live import LiveOptions, get_live_options
+from app.routers.live import LiveConnection, LiveOptions, get_live_options
+from app.schemas.translate import LanguagePair
 from app.services.audio_store import AudioStore
 from app.services.interfaces import ModelError
 from app.services.live import wav_from_pcm
@@ -422,6 +427,123 @@ async def test_a_connection_closed_while_the_final_is_prepared_saves_nothing(liv
     await asyncio.sleep(0.3)
     assert await records(db_session) == 0
     assert not list((tmp_path / "audio").glob("*.wav"))
+
+
+# 아래 두 테스트: 연결을 정리하는 동안(run()의 finally가 남은 작업을 취소하고 끝나길 기다리는 동안) run()
+# 자신이 취소되는 경우. Starlette 테스트 클라이언트는 웹소켓 블록을 나올 때 close를 보낸 뒤 앱 작업을 감싼
+# anyio CancelScope를 취소하고, 서버를 끌 때도 앱 작업이 취소된다. 그때 run()이 올리는 취소는 run() 자신의
+# 것이어야 anyio 범위가 자기 취소로 알아보고 삼키고, 이미 취소를 받은 남은 작업의 정리는 다시 끊기지 않아야
+# 한다. asyncio.gather(return_exceptions=True)로 기다리면 둘 다 어긋난다: gather는 자기가 취소되면 자식 작업을
+# 한 번 더 취소하고, 다 끝나면 마지막 자식의 CancelledError를 올린다. 그 자식이 run()이 먼저 보낸 메시지 없는
+# 취소로 끝났으면 anyio는 그것을 자기 취소로 알아보지 못해 범위 밖으로 내보낸다(CI에서 위 테스트가 웹소켓
+# 블록을 나올 때 CancelledError로 실패한 원인 — 실제로는 최종 처리 → 저장 사슬이 풀리는 한두 번의 루프 사이라
+# 드물게만 난다). 웹소켓 대신 받기를 부르면 바로 끊김을 주는 가짜를 쓰고, 작업의 모양으로 그 창을 일부러
+# 넓힌다. DB는 쓰지 않는다.
+class Disconnected:
+    """받기는 늘 연결 끊김을 돌려주고 보내기는 버리는 웹소켓 가짜."""
+
+    async def receive(self) -> dict:
+        return {"type": "websocket.disconnect"}
+
+    async def send_json(self, message: dict) -> None:
+        pass
+
+
+def disconnected_connection(tmp_path) -> LiveConnection:
+    """가짜 모델과 Disconnected로 만든 동시통역 연결. run()은 첫 받기에서 끊김을 보고 바로 정리에 들어간다."""
+    models = PipelineModels(FakeLiveSpeechToText(), FakeTranslator(), FakeTextToSpeech())
+    return LiveConnection(
+        Disconnected(),
+        models,
+        models.stt,
+        models.translator,
+        AudioStore(tmp_path / "audio"),
+        sessions=None,
+        user_id=uuid4(),
+        pair=LanguagePair(source_lang="ko", target_lang="en"),
+        expires_at=datetime.now(UTC) + timedelta(minutes=5),
+        options=LiveOptions(interval_s=0.0),
+    )
+
+
+async def cancel_while_cleaning(connection: LiveConnection, cleaning: asyncio.Event) -> asyncio.Task:
+    """run()을 anyio CancelScope 안에서 돌리다가 cleaning이 켜지면(정리 중) 그 범위를 취소한다.
+
+    Starlette 테스트 클라이언트의 웹소켓 세션이 앱을 감싸는 방식과 같다. 돌려주는 작업의 결과는 범위가 취소를
+    잡았는지(cancelled_caught)이고, 취소가 범위 밖으로 새면 작업 자체가 취소된 채 끝난다. cleaning을
+    asyncio.wait_for 대신 asyncio.timeout 안에서 기다리는 것은, wait_for가 기다림을 새 작업으로 감싸 깨어나는
+    시점이 루프 몇 번 늦어지기 때문이다(그러면 창이 닫힌 뒤에 취소할 수 있다).
+    """
+    scopes: list[anyio.CancelScope] = []
+
+    async def host() -> bool:
+        with anyio.CancelScope() as scope:
+            scopes.append(scope)
+            await connection.run()
+        return scope.cancelled_caught
+
+    hosting = asyncio.create_task(host())
+    async with asyncio.timeout(5):
+        await cleaning.wait()
+    scopes[0].cancel()
+    await asyncio.wait({hosting}, timeout=5)
+    return hosting
+
+
+# 남은 작업이 서로를 기다리는 사슬(최종 처리 ← 저장 ← 다음 마디 저장, 두 사람 대화의 저장 순서)이면 취소가
+# 루프 한 번에 한 고리씩 풀린다. 바깥 취소가 그 사이에 들어와도 범위가 잡아야 한다. 맨 안쪽은 모델 스레드에
+# 붙잡힌 호출의 future처럼 끝나지 않는 future라, 취소되면 메시지 없는 CancelledError로 끝난다.
+async def test_a_cancel_while_the_task_chain_unwinds_stays_inside_the_cancel_scope(tmp_path):
+    connection = disconnected_connection(tmp_path)
+    held = asyncio.get_running_loop().create_future()
+    cleaning = asyncio.Event()
+
+    async def wait_on(awaitable) -> None:
+        await awaitable
+
+    async def notice() -> None:
+        try:
+            await asyncio.sleep(60)
+        except asyncio.CancelledError:
+            cleaning.set()  # run()이 남은 작업을 취소했다
+            raise
+
+    final = connection.spawn(wait_on(held))
+    saving = connection.spawn(wait_on(final))
+    connection.spawn(wait_on(saving))
+    connection.spawn(notice())
+    await asyncio.sleep(0)  # 작업들이 먼저 시작해 각자 기다림에 들어가게 한다
+    hosting = await cancel_while_cleaning(connection, cleaning)
+    assert hosting.done()
+    assert not hosting.cancelled(), "run()이 정리 중에 받은 취소가 anyio 범위 밖으로 새어 나갔다"
+    assert hosting.result() is True  # 범위가 자기 취소를 잡았다
+
+
+# 남은 작업의 정리(예: pipeline.save가 이미 쓴 음성 파일을 지우는 일)는 run()이 취소돼도 끊기지 않아야 한다.
+# 끊기면 어느 기록도 가리키지 않는 음성 파일이 남는다(서버를 끌 때 저장 중이던 마디).
+async def test_a_cancel_while_cleaning_up_lets_the_tasks_finish_their_cleanup(tmp_path):
+    connection = disconnected_connection(tmp_path)
+    cleaning, finish, cleaned = asyncio.Event(), asyncio.Event(), asyncio.Event()
+
+    async def slow_to_stop() -> None:
+        try:
+            await asyncio.sleep(60)
+        except asyncio.CancelledError:
+            cleaning.set()
+            await finish.wait()  # 정리에 시간이 걸린다(쓰던 음성 파일이 다 써지길 기다렸다가 지우는 것처럼)
+            cleaned.set()
+            raise
+
+    connection.spawn(slow_to_stop())
+    await asyncio.sleep(0)  # 작업이 먼저 시작해 sleep에 들어가게 한다(시작 전에 취소되면 정리 코드가 안 돎)
+    hosting = await cancel_while_cleaning(connection, cleaning)
+    assert hosting.done()
+    assert not hosting.cancelled(), "run()이 정리 중에 받은 취소가 anyio 범위 밖으로 새어 나갔다"
+    assert hosting.result() is True
+    assert not cleaned.is_set()
+    finish.set()
+    async with asyncio.timeout(5):
+        await cleaned.wait()  # 정리는 run()의 취소로 끊기지 않고 끝까지 갔다
 
 
 # 자막 갱신은 한 마디에서 한 번에 하나만 돌고, 두 갱신의 시작은 갱신 간격(여기서는 0.3초, 서비스는

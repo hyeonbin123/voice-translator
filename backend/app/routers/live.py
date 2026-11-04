@@ -287,9 +287,18 @@ class LiveConnection:
                     return
         finally:
             self.drop(self.current)
-            for task in list(self.tasks):
+            remaining = list(self.tasks)
+            for task in remaining:
                 task.cancel()
-            await asyncio.gather(*self.tasks, return_exceptions=True)
+            # 남은 작업이 끝나길 asyncio.wait로 기다린다(작업의 실패·취소는 spawn의 콜백이 꺼내 둔다).
+            # gather와 달리, 기다리는 동안 run() 자신이 취소되면(서버 종료, 테스트 클라이언트가 연결을 닫으며
+            # 앱 작업을 취소함) 남은 작업을 한 번 더 취소하지 않아 이미 시작한 정리(pipeline.save가 쓴 음성
+            # 파일 지우기 등)가 끊기지 않고, 올라가는 취소도 run() 자신의 것이다. gather는 마지막 자식이
+            # 위에서 받은 메시지 없는 CancelledError를 올려, 앱 작업을 감싼 anyio CancelScope(Starlette 테스트
+            # 클라이언트 등)가 그것을 자기 취소로 알아보지 못하고 밖으로 내보냈다(tests/test_live_api.py의 두
+            # 회귀 테스트).
+            if remaining:
+                await asyncio.wait(remaining)
 
     def control(self, text: str | None) -> bool:
         """제어 메시지 하나를 처리한다. 계약을 어기면 False를 돌려준다(→ 4422로 닫힘).
