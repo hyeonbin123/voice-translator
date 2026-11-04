@@ -107,6 +107,13 @@ services:
     # 수는 0으로 돌아가지 않으므로(Docker 엔진은 사람이 시작할 때만 센 수를 지운다), 네 번째로 끝나면 멈춘 채
     # 남는다. 그래서 분류가 틀려 되풀이해 끝나도 GPU에 모델을 올리는 것은 세 번까지다. 모델 적재 중의 실패(모델
     # 파일 없음 등)로 0이 아닌 코드로 끝나도 같은 상한 안에서 다시 띄운다.
+    # 2026-11-05 덧붙임: 위의 'Docker 데몬이 다시 시작될 때는 띄우지 않는다'와 달리, 이 PC에서 Docker Desktop을
+    # 켤 때 사람이 docker compose stop으로 멈춰 둔 api만 다시 뜬 일이 두 번 있었다(2026-11-02, 2026-11-05). db는
+    # restart 정책이 없어 멈춘 채라 api는 시작 명령의 마이그레이션(alembic upgrade)에서 db 이름을 찾지 못해
+    # 끝나기를 되풀이했고(2026-11-05에는 처음 한 번과 자동 다시 띄우기 세 번), 그 뒤 멈춘 채 남았다. 서버가
+    # 시작되기 전에 끝나 모델은 GPU에 올라가지 않았다. 왜 다시 떴는지는 확인하지 않았다(추정: on-failure가
+    # 사람이 멈춘 것인지는 보지 않고 마지막 종료 코드만 보는데, stop 제한 시간을 넘겨 강제로 끝난 컨테이너는
+    # 0이 아닌 코드로 끝난다).
     restart: on-failure:3
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
