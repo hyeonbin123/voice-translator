@@ -15,7 +15,7 @@
   "-e",
   "TRANSFORMERS_OFFLINE=1",
   "-v",
-  "D:/coding/voice-translator/backend/eval:/app/eval",
+  "<project>/backend/eval:/app/eval",
   "-v",
   "voice-translator_hfcache:/models/hf:ro",
   "--entrypoint",
