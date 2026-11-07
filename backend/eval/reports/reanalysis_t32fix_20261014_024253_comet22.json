@@ -18,7 +18,7 @@
 "transformers": "4.57.6",
 "python": "3.11.16"
 },
-"input": "D:\\coding\\voice-translator\\work\\claude\\t90-remeasure\\IN.jsonl",
+"input": "<project>/work/claude/t90-remeasure/IN.jsonl",
 "created": "2026-10-14T02:41:37+00:00"
 },
 "scores": {
