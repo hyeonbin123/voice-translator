@@ -662,11 +662,24 @@ def test_hy_mt2_that_never_gets_ready_stops_startup(fake_model_classes, monkeypa
 
 
 # 회귀 테스트(커밋 605eed4): 시작 대기 한도가 적재 요청이 멈춰 버리는 경우까지 포함한 전체 대기를 묶는지
-# 확인한다(docs/api.md). 가짜 시계(time.monotonic·time.sleep)로, 시도마다 주어진 시간을 다 쓰는 경우(None)와
-# 1초씩 쓰는 경우를 돌린다. 전체 시간이 10초를 넘지 않고, 첫 시도는 정확히 10초를 받으며, 이후 시도의 제한은
-# 점점 줄어야 한다.
-@pytest.mark.parametrize("attempt_s", [None, 1.0])
-def test_hy_mt2_startup_waits_no_longer_than_its_limit(fake_model_classes, monkeypatch, attempt_s):
+# 확인한다(docs/api.md). 가짜 시계(time.monotonic·time.sleep)로 세 경우를 돌린다: 시도마다 주어진 시간을 다
+# 쓰는 경우(None), 1초씩 쓰는 경우, 1.5초씩 쓰는 경우. 어느 경우든 전체 시간은 한도 10초(마지막 시도가 받는
+# 최소 요청 제한 HYMT_MIN_REQUEST_S 0.01초까지)를 넘지 않고, 시도마다 넘긴 제한은 그 시도가 시작될 때 남은
+# 시간이어야 한다(그보다 더 받지 않는다):
+# - None: 첫 시도가 10초를 다 쓰고 끝난다 → [10]
+# - 1.0: 시도 1초 + 쉼 2초(HYMT_RETRY_S)씩 → [10, 7, 4, 1], 시계 10초
+# - 1.5: 시도 1.5초 + 쉼 2초씩인데 세 번째 시도 뒤의 쉼은 남은 1.5초로 잘리고, 마감에 닿은 마지막 시도는 최소
+#   요청 제한 0.01초만 받는다 → [10, 6.5, 3, 0.01], 시계 10.01초
+# 넘긴 제한을 비증가(<=)로만 보던 전 단언은 시도마다 전체 한도를 다시 주는 회귀([10, 10, 10, 10])도
+# 통과시켰고, 쉼을 남은 시간으로 자르지 않는 회귀는 1.0 경우에서는 시계가 정확히 10초에 끝나 드러나지
+# 않았다(1.5 경우에서는 10.51초로 드러난다). 그래서 기대 목록을 그대로 대고 1.5 경우를 더했다.
+@pytest.mark.parametrize(
+    ("attempt_s", "expected_limits", "limit_s"),
+    [(None, [10], 10), (1.0, [10, 7, 4, 1], 10), (1.5, [10, 6.5, 3, 0.01], 10.01)],
+)
+def test_hy_mt2_startup_waits_no_longer_than_its_limit(
+    fake_model_classes, monkeypatch, attempt_s, expected_limits, limit_s
+):
     clock = [0.0]
     asked = []
 
@@ -690,9 +703,8 @@ def test_hy_mt2_startup_waits_no_longer_than_its_limit(fake_model_classes, monke
     )
     with pytest.raises(ModelError, match="could not load"):
         models.load_models(settings)
-    assert clock[0] <= 10 + 0.01
-    assert asked[0] == pytest.approx(10)  # 시도마다 남은 시간만 받고, 그보다 더 받지 않는다
-    assert all(later <= earlier for earlier, later in zip(asked, asked[1:], strict=False))
+    assert clock[0] <= limit_s + 1e-9  # 멈춘 요청과 쉼을 합쳐도 한도 안에 끝난다
+    assert asked == pytest.approx(expected_limits)  # 시도마다 그때 남은 시간만 받고, 그보다 더 받지 않는다
 
 
 # 설치된 모델이 측정한 빌드와 다르면(RuntimeError) 기다려도 풀리지 않으므로 재시도 없이 한 번에 시작을 멈춘다.
