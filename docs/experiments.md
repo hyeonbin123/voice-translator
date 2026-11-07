@@ -1326,14 +1326,14 @@
   1. api 이미지를 이 절을 커밋한 코드로 빌드하고(이미지 안의 앱 코드가 그 커밋과 같은지 확인), compose 서비스(db·api·ollama·web)를 `LIVE_TIMINGS=true`만 더해 띄운다(커밋하지 않는 compose 덧붙임 파일). 나머지 설정은 기본값(`LIVE_UPDATE_MS` 1000, 자막 인식 beam 5와 temperature 재시도, `MODEL_THREADS` 1, `LIVE_UPDATE_THREAD` false, `KO_TTS` melo, 번역 opus). `/api/health`로 모델 이름을 적는다
   2. 동시통역: `uv run --no-sync python -m eval.stream_eval service --split validation --mode live --tag t95_live_dev`
   3. 대화 모드: 같은 명령에 `--mode conversation --tag t95_conv_dev`
-  4. 서비스를 멈춘 뒤, MeloTTS 단계: api 이미지 안에서(측정 도구 폴더를 연결) `python -m eval.tts_eval melo-stages --from-stream <2·3의 보고서> --tag t95_dev`. 서버를 멈추고 재므로 GPU를 다투는 다른 모델이 없다. 이미지 안에는 사용률 기록기가 없어 호스트에서 `uv run --no-sync python -m eval.usage_log --tag t95_dev_melo -- docker run ...`으로 감싸 그동안 0.5초마다 GPU·CPU 사용률을 남긴다(`reports/usage_t95_dev_melo_*.json`)
+  4. 서비스를 멈춘 뒤, MeloTTS 단계: api 이미지 안에서(측정 도구 폴더를 연결) `python -m eval.tts_eval melo-stages --from-stream <2·3의 보고서> --tag t95_dev`. 서버를 멈추고 재므로 GPU를 다투는 다른 모델이 없다. 이미지 안에는 사용률 기록기가 없어 호스트에서 `uv run --no-sync python -m eval.usage_log --tag t95_dev_melo -- docker run ...`으로 감싸 그동안 0.5초마다 GPU·CPU 사용률을 남긴다(`reports/usage_t95_dev_melo_*.json`) (2026-11-07 단서: 이 단계 끝의 '이미지 안에는 사용률 기록기가 없어 … 남긴다' 문장은 2026-10-15 측정 전(23시대 측정 전의 교차 검토 반영)에 날짜 표시 없이 제자리에 덧붙인 것이다. 처음 등록한 절차에는 없었고 아래 '측정 전 정정'에도 적지 않았다. 측정 결과·문턱은 바뀌지 않았다)
   5. `uv run --no-sync python -m eval.latency_breakdown --stream <2·3의 보고서> --stages <4의 보고서> --tag t95_dev`
 - **측정 환경** (2026-10-04 사용자 지시 그대로): 2·3·4는 지연 측정이라 각각 시작 전에 쉬는 상태(CPU 1분 평균 15% 미만, GPU 10% 미만)를 최대 10분 기다리고, 그래도 아니면 그대로 재서 결과 옆에 '부하 조건'으로 표시하고 GPU·CPU 사용률과 함께 돌던 프로그램을 일반명(예: 데스크톱 배경 앱, 다른 프로젝트의 학습)으로 적는다. 프로그램 이름은 커밋하지 않는 `work/`에만 둔다. 측정 도구가 측정 중 0.5초마다 GPU·CPU 사용률을 남긴다. 다른 GPU 작업과 겹치지 않게 하고(GPU 메모리 11GB), 각 단계 전후에 Windows 공유 GPU 메모리로 넘쳤는지 확인해 넘쳤으면 그 단계를 다시 잰다
 - **지표** (마디마다, `eval/latency_breakdown.py`의 정의. 요약은 모드 × 원문 언어별 중앙값)
   - 말 끝 → 음성: 이 PC 최종 인식의 마지막 단어 끝부터 번역 음성 받기 끝까지(8절 T58과 같은 정의). p50·p90
   - 말 끝 → 기준점(측정 도구가 `pause`를 보낸 때, `pause` 없이 끝난 마디는 `end`), 첫 대기(최종 처리의 첫 단계가 모델 스레드를 기다린 시간), 인식·번역·합성 실행, 단계 사이 대기(첫 단계 뒤 단계들이 다시 줄 선 시간의 합), 처리 끝, `end` 받음, 저장, `final` 보냄(모두 기준점부터), 전달(`final`을 보낸 때 → 받은 때), 음성 받기(`final` 받음 → 음성 받기 끝)
   - 처리가 확정보다 늦음: 처리 끝이 `end` 받음보다 늦은 마디의 비율. 이 비율이 낮으면 말 끝 → 음성은 1초 확정(7절 D9)에 묶여 있어 모델 시간을 줄여도 줄지 않는다
-  - 갱신 중 pause: 최종 처리를 시작할 때 동시통역 자막 갱신의 모델 호출이 돌고 있던 마디의 비율(동시통역만)
+  - 갱신 중 pause: 최종 처리를 시작할 때 동시통역 자막 갱신의 모델 호출이 돌고 있던 마디의 비율(동시통역만) (2026-11-07 덧붙임: 서버는 자막 갱신의 모델 호출을 모델 스레드 대기열에 넣기 전에 이 표시(`update_busy`, docs/api.md)를 켜므로, 호출이 돌고 있던 마디뿐 아니라 대기열에서 차례를 기다리던 마디도 센다. 기록 수치는 그대로다)
   - MeloTTS: 합성 전체 p50, 단계별 p50과 전체 합에서의 몫, 조각 2개 이상인 번역문의 비율, 계측 없이 잰 합성 p50
 - **판단 규칙** (다음 작업만 정한다. 계산은 `eval.latency_breakdown`의 `decide`)
   - i. 동시통역 영어 원문의 말 끝 → 음성 p50이 1500ms 이하면 동시통역 지연 개선 작업을 열지 않는다. 이때 README의 1.73초를 바꾸려면 test를 세 번째로 써야 하므로 사용자 결정으로 남긴다(validation 값을 README에 넣지 않는다)
