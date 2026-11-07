@@ -199,20 +199,38 @@ jobs:
   # 알려진 취약점 검사(docs/security.md '의존성 취약점'). 처음에는 보고만 한다(continue-on-error): 새 권고가
   # 공개되는 날 코드와 상관없는 push가 막히지 않게 하려는 것이다. 실패하면 이 작업만 빨간색으로 남고 워크플로는
   # 통과하므로, 실패를 보면 docs/security.md에 판단을 적고 고치거나 받아들일 목록에 더한다.
-  # - 서버 환경(gpu + tts 그룹)과 도구 환경(gpu + eval + dev 그룹)을 uv.lock 그대로 내보내 따로 검사한다.
-  #   두 그룹(tts·eval)은 함께 설치할 수 없어 한 번에 내보낼 수 없다
-  # - MeloTTS가 선언만 하고 서버가 쓰지 않는 gradio·tensorboard는 pyproject의 exclude-dependencies로 잠금에서
-  #   뺐으므로(2026-10-24, 그 밑의 pillow·brotli 등 15개도 함께) 여기 목록에도 없다. tests/test_lock_hygiene.py가 지킨다
-  # - transformers 4.27.4는 MeloTTS가 고정한 판이라 올릴 수 없어 목록에서 빼고(받아들인 위험, 고정된 공개 모델만
-  #   읽음), MeloTTS는 PyPI에 없는 git 의존성이라 뺀다. 고칠 판이 없거나 올릴 수 없거나 이 서비스와 상관없는 권고는
-  #   ID로 제외한다(판단은 docs/security.md '의존성 취약점'): PYSEC-2026-3740(nltk, 사용자 입력 경로로 모델을 읽고
-  #   쓰지 않음), PYSEC-2026-3447(setuptools, macOS에서 sdist를 만들 때만 해당), GHSA-xmj3-9gf7-h52w(setuptools
-  #   84.1.0 미만: Windows에서 옛 egg 방식으로 조작된 wheel을 설치할 때만 해당. 서버 환경에만 남는다 — torch
-  #   cu128이 setuptools<82를 요구하고 MeloTTS의 중국어 전처리(cn2an·jieba)가 pkg_resources를 써서 올릴 수 없음.
-  #   도구 환경은 eval 그룹의 하한으로 84.1.0 이상). filelock은 2026-10-30부터 pyproject의 override-dependencies로
-  #   4.2.1 이상이라(cached-path의 filelock<4.0을 덮음) 2026-10-24에 제외했던 CVE 3개를 목록에서 뺐다
-  # - 두 환경을 모두 검사한 뒤 한 번에 실패시킨다(아래 status). 단계 셸이 `bash -e`라 전에는 서버 환경 검사가
-  #   실패하면 그 자리에서 끝나, 도구 환경 결과가 로그에 남지 않았다
+  # - Python은 uv.lock에 잠긴 모든 패키지를 대조한다(2026-11-07부터). 서버 환경(gpu + tts 그룹)과 도구 환경(gpu +
+  #   eval + dev 그룹)을 따로 내보내 합친다 — 두 그룹(tts·eval)은 함께 설치할 수 없어 한 번에 내보낼 수 없지만, 둘을
+  #   합치면 잠금의 모든 그룹이다. 내보낸 줄의 환경 표지(`; python_full_version >= '3.13'` 따위)는 뗀다: pip-audit은
+  #   표지를 자기를 돌리는 파이썬(이 러너의 3.11, Linux)으로 판단해 맞지 않는 줄을 말없이 건너뛰므로, 표지를 두면
+  #   Python 3.13 이상의 갈래(audioop-lts·standard-aifc 등), Windows 전용 판(tzdata·win32-setctime), 설치하지 않는
+  #   unidic·plac, 그리고 도구 환경의 둘째 numpy 판이 어느 대조에도 들지 않았다(2026-11-07 확인: 잠금 257개 가운데
+  #   243개만 대조). torch·torchaudio의 로컬 판 표시(`+cu128`)도 떼어 PyPI의 같은 판으로 대조한다(그대로 두면 'not
+  #   found on PyPI'로 건너뜀). 같은 이름이 판을 달리해 또 나오면(numpy 1.26.4·2.4.6·2.5.3, torch 2.11.0·2.14.0,
+  #   setuptools 81.0.0·84.2.1 등) pip-audit이 한 목록 안의 같은 이름을 거절하므로 둘째 판부터는 다음 목록(audit-2,
+  #   audit-3)으로 나눈다. --strict는 대조하지 못한 패키지가 하나라도 있으면 실패로 본다. 내보낸 (이름, 판) 수가
+  #   잠금의 패키지 수에서 아래 셋을 뺀 값과 다르면 대조 범위가 빠진 것이므로 멈춘다
+  # - 대조하지 않는 셋: 프로젝트 자신(--no-emit-project), MeloTTS(PyPI에 없는 git 의존성), transformers 4.27.4(MeloTTS가
+  #   고정한 판이라 올릴 수 없고 권고 30건을 받아들인 위험으로 적음 — 고정된 공개 모델만 읽음. 도구 환경의 transformers
+  #   5.17.0은 대조한다). MeloTTS가 선언만 하고 서버가 쓰지 않는 gradio·tensorboard는 pyproject의
+  #   exclude-dependencies로 잠금에서 뺐으므로(2026-10-24, 그 밑의 pillow·brotli 등 15개도 함께) 여기 목록에도 없다.
+  #   tests/test_lock_hygiene.py가 지킨다
+  # - 목록마다 두 권고 데이터베이스와 대조한다: pip-audit 기본값인 PyPI의 권고 정보와 OSV. 2026-11-07에 OSV에만 있던
+  #   권고 둘(mako 1.4.1의 PYSEC-2026-4243, nltk 3.10.3의 GHSA-j456-xh4h-cpf2)이 PyPI 쪽 검사에는 나오지 않았다
+  # - 고칠 판이 없거나 올릴 수 없거나 이 서비스와 상관없는 권고는 ID로 제외한다(판단은 docs/security.md '의존성
+  #   취약점'): PYSEC-2026-3740·GHSA-j456-xh4h-cpf2(nltk 3.10.3: 모델 저장·읽기 API와 WekaClassifier의 경로. 서비스는
+  #   MeloTTS 전처리가 이미지에 넣은 데이터만 읽고 그 API를 부르지 않는다. 고친 판 3.10.4는 합성 전처리의 측정 경로라
+  #   동일성 관문 뒤에 올린다), PYSEC-2026-3447(setuptools, macOS에서 sdist를 만들 때만 해당), GHSA-xmj3-9gf7-h52w(setuptools
+  #   84.1.0 미만: Windows에서 옛 egg 방식으로 조작된 wheel을 설치할 때만 해당. 서버 환경에만 남는다 — torch cu128이
+  #   setuptools<82를 요구하고 MeloTTS의 중국어 전처리(cn2an·jieba)가 pkg_resources를 써서 올릴 수 없음. 도구 환경은
+  #   eval 그룹의 하한으로 84.1.0 이상), PYSEC-2025-194(torch 2.11.0: 서비스가 부르지 않는 torch.jit.script의 메모리
+  #   손상. 로컬 판 표시를 떼면서 대조 대상이 됐다. tts 그룹의 고정 판이라 올리지 않는다). filelock은 2026-10-30부터
+  #   pyproject의 override-dependencies로 4.2.1 이상이라(cached-path의 filelock<4.0을 덮음) 2026-10-24에 제외했던
+  #   CVE 3개를 목록에서 뺐다
+  # - 목록 하나나 데이터베이스 하나가 실패해도 나머지를 끝까지 대조해 로그에 남긴 뒤 한 번에 실패시킨다(아래
+  #   status). shell: bash는 pipefail을 켜서 내보내기나 grep이 실패하면 빈 목록으로 지나가지 않고 바로 멈춘다.
+  #   소켓 제한 시간은 60초다(--timeout): 기본 15초에서는 2026-11-07의 한 실행이 pypi.org 응답을 기다리다 끊겨 권고가
+  #   없는데도 실패로 끝났다
   # - npm은 배포되는 의존성과 개발 도구를 함께 본다(moderate 이상). Python 단계가 실패해도 돌게 해(`!cancelled()`)
   #   두 결과가 따로 남는다(전에는 Python 실패 뒤 건너뛰어 npm 결과가 기록되지 않았다)
   audit:
@@ -223,23 +241,41 @@ jobs:
 
       - uses: astral-sh/setup-uv@v10.1.0
 
-      - name: Audit the Python dependencies
+      - name: Audit every locked Python package
         working-directory: backend
+        shell: bash
         run: |
           export_locked() {
-            uv export --locked --no-hashes --format requirements-txt --no-emit-project "$@"
+            uv export --locked --no-hashes --no-annotate --format requirements-txt --no-emit-project "$@"
           }
-          export_locked --group gpu --group tts --no-group dev \
-            | grep -v -e '^melotts @ git' -e '^transformers==' > /tmp/server.txt
-          export_locked --group gpu --group eval --group dev > /tmp/tools.txt
-          # 한 환경이 실패해도 다음 환경을 검사하고, 하나라도 실패했으면 마지막에 실패로 끝낸다(`|| status=1`이라
-          # bash -e가 루프 중간에 멈추지 않는다). 어느 환경의 결과인지 로그에서 보이게 이름을 먼저 찍는다.
+          # 두 환경을 합쳐 패키지 줄만 남기고(첫 글자가 영문·숫자), MeloTTS와 transformers 4.27.4를 빼고, 환경 표지와
+          # 로컬 판 표시를 떼고, 두 환경에 같은 판으로 든 패키지를 하나로 합친다(sort -u). 두 내보내기 중 하나가
+          # 실패하면 그룹 전체가 실패해(&&) pipefail로 단계가 멈춘다.
+          { export_locked --group gpu --group tts --no-group dev \
+              && export_locked --group gpu --group eval --group dev; } \
+            | grep -E '^[A-Za-z0-9]' \
+            | grep -v -e '^melotts @ git' -e '^transformers==4\.27\.4' \
+            | sed -E -e 's/[[:space:]]*;.*$//' -e 's/\+[^[:space:]]*$//' \
+            | sort -u > "$RUNNER_TEMP/pinned.txt"
+          locked=$(grep -c '^\[\[package\]\]' uv.lock)
+          exported=$(wc -l < "$RUNNER_TEMP/pinned.txt")
+          echo "uv.lock packages: $locked; audited (name, version) pairs: $exported (left out: the project, melotts, transformers 4.27.4)"
+          test "$exported" -eq "$((locked - 3))"
+          # 같은 이름의 둘째 판부터는 다음 목록으로(이름은 PyPI 규칙대로 소문자, -·_·.은 - 하나로 본다).
+          awk -F'==' -v dir="$RUNNER_TEMP" '{
+            name = tolower($1); gsub(/[-_.]+/, "-", name)
+            print > (dir "/audit-" (++seen[name]) ".txt")
+          }' "$RUNNER_TEMP/pinned.txt"
           status=0
-          for requirements in /tmp/server.txt /tmp/tools.txt; do
-            echo "pip-audit: $requirements"
-            uvx pip-audit==2.10.1 -r "$requirements" --disable-pip --no-deps \
-              --ignore-vuln PYSEC-2026-3740 --ignore-vuln PYSEC-2026-3447 \
-              --ignore-vuln GHSA-xmj3-9gf7-h52w || status=1
+          for list in "$RUNNER_TEMP"/audit-*.txt; do
+            for service in pypi osv; do
+              echo "== $(basename "$list"): $(wc -l < "$list") packages, $service"
+              uvx pip-audit==2.10.1 -r "$list" --no-deps --disable-pip --strict --progress-spinner off --timeout 60 \
+                -s "$service" \
+                --ignore-vuln PYSEC-2026-3740 --ignore-vuln GHSA-j456-xh4h-cpf2 \
+                --ignore-vuln PYSEC-2026-3447 --ignore-vuln GHSA-xmj3-9gf7-h52w \
+                --ignore-vuln PYSEC-2025-194 || status=1
+            done
           done
           exit "$status"
 
