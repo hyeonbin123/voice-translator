@@ -106,6 +106,14 @@ CI의 `audit` 작업이 같은 검사를 push마다 돌린다. 위 '받아들인
 |---|---|---|---|
 | 받아들임(판 유지) | nltk 3.10.3 | PYSEC-2026-3740(모델 저장·읽기 API 여섯 개가 경로 제한(pathsec)을 거치지 않음), GHSA-j456-xh4h-cpf2 / CVE-2026-109956(`WekaClassifier`의 모델 경로) — 둘 다 고친 판 3.10.4 | 서비스가 쓰는 nltk는 MeloTTS 전처리 안의 것뿐이다: 영어 g2p_en의 `pos_tag`·`cmudict`·`TweetTokenizer`·`word_tokenize`와 한국어 g2pkk의 `cmudict`가 이미지에 미리 넣은 데이터(`backend/Dockerfile`, SHA-256 대조)만 읽고, 서비스 코드(`backend/app`)는 nltk를 import하지 않으며(git grep 0), 두 권고의 경로(모델 저장·읽기 API, `WekaClassifier`)는 어디서도 부르지 않는다. 그래도 올리지 않는 이유: nltk는 한국어·영어 합성 전처리의 측정 경로(README의 합성 품질, 17·18절의 지연)에 들어가고, 3.10.3 → 3.10.4는 커밋 1,209개 차이로(GitHub compare, 2026-11-07 확인) 데이터 찾기·내려받기(`nltk/data.py` +1,086/−108행, `nltk/downloader.py` +953/−169행, 경로 제한 pathsec)가 크게 바뀌고 `TweetTokenizer`의 모듈(`nltk/tokenize/casual.py`)도 바뀌어, 올리려면 전처리 출력이 같은지와 이미지 빌드의 NLTK 데이터 처리(3.10이 받은 파일을 0600으로 만드는 것에 맞춘 `chmod`, CI의 `nltk-3.10.3` 캐시 키)를 19절처럼 동일성 관문을 먼저 등록한 뒤 확인해야 한다. 이번에는 판을 두고 CI 제외 ID(PYSEC-2026-3740)도 그대로 둔다 |
 
+**2026-11-07 덧붙임: OSV에만 있던 권고 — mako를 1.4.3으로 올림** (2026-11-07에 CI와 같은 두 환경 목록을 `pip-audit -s osv`(OSV 서비스)로도 검사했다. PyPI 서비스에는 없는 권고가 둘 나왔다: 위 nltk GHSA-j456-xh4h-cpf2(판 유지, 위 덧붙임)와 아래 mako. PyPI의 1.4.1 권고 정보(`/pypi/mako/1.4.1/json`의 `vulnerabilities`)는 비어 있어 CI의 pip-audit에는 나오지 않았다)
+
+| 조치 | 패키지 | 권고 | 판단 |
+|---|---|---|---|
+| lock에서 판만 올림 | mako 1.4.1 → 1.4.3(두 환경 모두) | PYSEC-2026-4243 / CVE-2026-102991 / GHSA-5639-2j2p-m4mx(Windows에서 `C:/../..` 같은 드라이브 문자로 시작하는 `TemplateLookup` URI가 템플릿 폴더 밖 파일을 읽음 — `posixpath`로 풀고 `ntpath`로 확인하는 불일치의 세 번째 변형, GitHub 심각도 중간, 고친 판 1.4.2. 1.4.3은 같은 날 1.4.2의 테스트 묶음 회귀만 고친 판) | alembic이 끌어오는 템플릿 라이브러리다. 서비스는 컨테이너 시작 때 `alembic upgrade head`만 돌리고, Mako 템플릿은 새 마이그레이션 파일을 만들 때(`alembic revision`, 개발 PC)만 `script.py.mako`를 파일 이름으로 읽으며 `TemplateLookup` URI를 사용자 입력으로 정하지 않는다. 서버 이미지는 Linux다. 닿지 않지만 고친 판이 alembic의 요구(`Mako`, 상한 없음) 안이라 `uv lock --upgrade-package mako`로 올렸다 |
+
+- 확인: 잠금 diff는 mako의 판·sdist·wheel 세 줄뿐이다(다른 판 변경 없음, 잠금 revision 5 그대로). `uv lock --check` 통과. 다시 내려가지 않게 `backend/tests/test_lock_security_floors.py`에 mako 하한 1.4.2를 더했다(바꾸기 전 잠금에서 mako 사례만 실패, 새 잠금에서 통과). 올린 뒤 같은 OSV 검사에서 서버 환경에 남는 것은 위에서 받아들인 nltk 2건·setuptools 3줄과 torch 2.11.0의 PYSEC-2025-194(10-15에 받아들임)뿐이고 도구 환경은 0건이다. 새 잠금으로 서버 이미지를 다시 빌드해 설치되는 판을 보는 확인은 아래 ZAP 3차 스캔의 이미지 빌드에서 한다
+
 ## 화면 서버(nginx)의 보안 머리글과 ZAP 기준 스캔 (2026-10-15)
 
 `frontend/nginx.conf`에 보안 머리글·압축·캐시를 넣고, OWASP ZAP 기준 스캔(baseline: 수동 검사, 공격 요청 없음)을 바꾸기 전후로 한 번씩 돌렸다. 이 저장소에서 처음 한 동적 검사다.
