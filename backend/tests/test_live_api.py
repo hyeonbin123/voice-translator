@@ -362,6 +362,9 @@ async def test_the_connection_closes_once_the_token_expires(live, user):
 
 # 첫 최종 인식을 모델 스레드 안에서 풀어 줄 때까지 붙잡고, 자막 갱신이 시작된 시각을 기록하는 가짜 인식기.
 # 빠른 가짜로는 서버가 모델 호출 도중인 순간을 잡을 수 없어서 만들었다.
+# 붙잡는 가짜(이것과 아래 Turns의 hold=True)를 쓰는 테스트는 release.set()을 try/finally로도 부른다. 테스트가
+# 풀기 전에 실패하면 모델 스레드(MODEL_THREADS 기본 1)가 release.wait의 상한 5초 동안 붙잡혀, 다음 테스트의
+# 모델 호출이 그 뒤에 줄을 서다 이어서 실패하기 때문이다(앞 테스트 하나의 실패가 둘로 보임).
 class HeldFinal(FakeLiveSpeechToText):
     """첫 최종 인식을 풀어 줄 때까지 모델 스레드 안에 붙잡고, 각 자막 갱신이 시작된 시각을 적는다(위의
     빠른 가짜로는 서버가 호출 도중인 순간을 잡을 수 없다)."""
@@ -392,18 +395,21 @@ class HeldFinal(FakeLiveSpeechToText):
 async def test_speech_while_the_final_is_prepared_drops_that_final(live, db_session):
     stt = HeldFinal()
     app.dependency_overrides[get_models] = lambda: replace(live.models, stt=stt)
-    with live.client.websocket_connect("/api/translate/live") as ws:
-        start(ws, live.token)
-        ws.send_json({"type": "utterance", "id": 1})
-        ws.send_bytes(SECOND)
-        ws.send_json({"type": "pause", "id": 1})
-        assert stt.entered.wait(5)  # 미리 처리한 최종 인식이 인식 모델 안에 있다
-        ws.send_json({"type": "resume", "id": 1})
-        ws.send_bytes(SECOND)
-        stt.release.set()
-        ws.send_json({"type": "pause", "id": 1})
-        ws.send_json({"type": "end", "id": 1})
-        final = until(ws, "final")[-1]
+    try:
+        with live.client.websocket_connect("/api/translate/live") as ws:
+            start(ws, live.token)
+            ws.send_json({"type": "utterance", "id": 1})
+            ws.send_bytes(SECOND)
+            ws.send_json({"type": "pause", "id": 1})
+            assert stt.entered.wait(5)  # 미리 처리한 최종 인식이 인식 모델 안에 있다
+            ws.send_json({"type": "resume", "id": 1})
+            ws.send_bytes(SECOND)
+            stt.release.set()
+            ws.send_json({"type": "pause", "id": 1})
+            ws.send_json({"type": "end", "id": 1})
+            final = until(ws, "final")[-1]
+    finally:
+        stt.release.set()  # 중간에 실패해도 모델 스레드를 푼다(HeldFinal 위 주석)
     assert final["result"]["source_text"] == words(2 * len(SECOND))
     assert await records(db_session) == 1
 
@@ -414,15 +420,18 @@ async def test_speech_while_the_final_is_prepared_drops_that_final(live, db_sess
 async def test_a_connection_closed_while_the_final_is_prepared_saves_nothing(live, db_session, tmp_path):
     stt = HeldFinal()
     app.dependency_overrides[get_models] = lambda: replace(live.models, stt=stt)
-    with live.client.websocket_connect("/api/translate/live") as ws:
-        start(ws, live.token)
-        ws.send_json({"type": "utterance", "id": 1})
-        ws.send_bytes(SECOND)
-        ws.send_json({"type": "pause", "id": 1})
-        ws.send_json({"type": "end", "id": 1})
-        assert stt.entered.wait(5)
-    time.sleep(0.2)  # 서버가 연결 끊김을 보고 최종 처리를 취소할 시간
-    stt.release.set()
+    try:
+        with live.client.websocket_connect("/api/translate/live") as ws:
+            start(ws, live.token)
+            ws.send_json({"type": "utterance", "id": 1})
+            ws.send_bytes(SECOND)
+            ws.send_json({"type": "pause", "id": 1})
+            ws.send_json({"type": "end", "id": 1})
+            assert stt.entered.wait(5)
+        time.sleep(0.2)  # 서버가 연결 끊김을 보고 최종 처리를 취소할 시간
+        stt.release.set()  # 정상 경로에서는 여기서, 연결이 끊긴 뒤에 푼다
+    finally:
+        stt.release.set()  # 중간에 실패해도 모델 스레드를 푼다(HeldFinal 위 주석)
     assert stt.left.wait(5)
     await asyncio.sleep(0.3)
     assert await records(db_session) == 0
@@ -431,14 +440,15 @@ async def test_a_connection_closed_while_the_final_is_prepared_saves_nothing(liv
 
 # 아래 두 테스트: 연결을 정리하는 동안(run()의 finally가 남은 작업을 취소하고 끝나길 기다리는 동안) run()
 # 자신이 취소되는 경우. Starlette 테스트 클라이언트는 웹소켓 블록을 나올 때 close를 보낸 뒤 앱 작업을 감싼
-# anyio CancelScope를 취소하고, 서버를 끌 때도 앱 작업이 취소된다. 그때 run()이 올리는 취소는 run() 자신의
-# 것이어야 anyio 범위가 자기 취소로 알아보고 삼키고, 이미 취소를 받은 남은 작업의 정리는 다시 끊기지 않아야
-# 한다. asyncio.gather(return_exceptions=True)로 기다리면 둘 다 어긋난다: gather는 자기가 취소되면 자식 작업을
-# 한 번 더 취소하고, 다 끝나면 마지막 자식의 CancelledError를 올린다. 그 자식이 run()이 먼저 보낸 메시지 없는
-# 취소로 끝났으면 anyio는 그것을 자기 취소로 알아보지 못해 범위 밖으로 내보낸다(CI에서 위 테스트가 웹소켓
-# 블록을 나올 때 CancelledError로 실패한 원인 — 실제로는 최종 처리 → 저장 사슬이 풀리는 한두 번의 루프 사이라
-# 드물게만 난다). 웹소켓 대신 받기를 부르면 바로 끊김을 주는 가짜를 쓰고, 작업의 모양으로 그 창을 일부러
-# 넓힌다. DB는 쓰지 않는다.
+# anyio CancelScope를 취소한다(uvicorn은 보통 종료 때 앱 작업을 취소하지 않고 웹소켓에 끊김을 넣어 run()이
+# 정상 경로로 끝난다 — live.py run()의 주석). 그때 run()이 올리는 취소는 run() 자신의 것이어야 anyio 범위가
+# 자기 취소로 알아보고 삼키고, run()은 남은 작업을 기다리지 않고 끝나되, 이미 취소를 받은 남은 작업의 정리는
+# 다시 끊기지 않아야 한다. asyncio.gather(return_exceptions=True)로 기다리면 둘 다 어긋난다: gather는 자기가
+# 취소되면 자식 작업을 한 번 더 취소하고, 다 끝나면 마지막 자식의 CancelledError를 올린다. 그 자식이 run()이
+# 먼저 보낸 메시지 없는 취소로 끝났으면 anyio는 그것을 자기 취소로 알아보지 못해 범위 밖으로 내보낸다(CI에서
+# 위 테스트가 웹소켓 블록을 나올 때 CancelledError로 실패한 원인 — 실제로는 최종 처리 → 저장 사슬이 풀리는
+# 한두 번의 루프 사이라 드물게만 난다). 웹소켓 대신 받기를 부르면 바로 끊김을 주는 가짜를 쓰고, 작업의
+# 모양으로 그 창을 일부러 넓힌다. DB는 쓰지 않는다.
 class Disconnected:
     """받기는 늘 연결 끊김을 돌려주고 보내기는 버리는 웹소켓 가짜."""
 
@@ -520,7 +530,8 @@ async def test_a_cancel_while_the_task_chain_unwinds_stays_inside_the_cancel_sco
 
 
 # 남은 작업의 정리(예: pipeline.save가 이미 쓴 음성 파일을 지우는 일)는 run()이 취소돼도 끊기지 않아야 한다.
-# 끊기면 어느 기록도 가리키지 않는 음성 파일이 남는다(서버를 끌 때 저장 중이던 마디).
+# 끊기면 어느 기록도 가리키지 않는 음성 파일이 남는다(앱 작업을 감싼 범위가 취소될 때 저장 중이던 마디).
+# run()은 그 정리가 끝나길 기다리지 않고 먼저 끝난다(아래 hosting이 끝난 뒤에도 cleaned는 아직 꺼져 있다).
 async def test_a_cancel_while_cleaning_up_lets_the_tasks_finish_their_cleanup(tmp_path):
     connection = disconnected_connection(tmp_path)
     cleaning, finish, cleaned = asyncio.Event(), asyncio.Event(), asyncio.Event()
@@ -722,18 +733,21 @@ async def test_conversation_mode_sends_no_updates_and_answers_as_the_speech_api(
 async def test_conversation_mode_drops_a_prepared_final_when_speech_resumes(live, db_session):
     stt = HeldFinal()
     app.dependency_overrides[get_models] = lambda: replace(live.models, stt=stt)
-    with live.client.websocket_connect("/api/translate/live") as ws:
-        start(ws, live.token, mode="conversation")
-        ws.send_json({"type": "utterance", "id": 1})
-        ws.send_bytes(SECOND)
-        ws.send_json({"type": "pause", "id": 1})
-        assert stt.entered.wait(5)
-        ws.send_json({"type": "resume", "id": 1})
-        ws.send_bytes(SECOND)
-        stt.release.set()
-        ws.send_json({"type": "pause", "id": 1})
-        ws.send_json({"type": "end", "id": 1})
-        messages = until(ws, "final")
+    try:
+        with live.client.websocket_connect("/api/translate/live") as ws:
+            start(ws, live.token, mode="conversation")
+            ws.send_json({"type": "utterance", "id": 1})
+            ws.send_bytes(SECOND)
+            ws.send_json({"type": "pause", "id": 1})
+            assert stt.entered.wait(5)
+            ws.send_json({"type": "resume", "id": 1})
+            ws.send_bytes(SECOND)
+            stt.release.set()
+            ws.send_json({"type": "pause", "id": 1})
+            ws.send_json({"type": "end", "id": 1})
+            messages = until(ws, "final")
+    finally:
+        stt.release.set()  # 중간에 실패해도 모델 스레드를 푼다(HeldFinal 위 주석)
     assert [message["type"] for message in messages] == ["final"]
     assert messages[-1]["result"]["source_text"] == words(2 * len(SECOND))
     assert await records(db_session) == 1
@@ -784,20 +798,23 @@ async def test_a_dialog_turn_prepared_before_the_turn_ahead_was_saved_is_redone_
 ):
     stt = Turns([("ko", 1.0), ("ko", 0.55)], hold=True)
     app.dependency_overrides[get_models] = lambda: replace(live.models, stt=stt)
-    with live.client.websocket_connect("/api/translate/live") as ws:
-        start_dialog(ws, live.token)
-        ws.send_json({"type": "utterance", "id": 1})
-        ws.send_bytes(SECOND)
-        ws.send_json({"type": "pause", "id": 1})
-        ws.send_json({"type": "end", "id": 1})
-        assert stt.entered.wait(5)  # 마디 2가 쉴 때 마디 1은 아직 인식 중이다
-        ws.send_json({"type": "utterance", "id": 2})
-        ws.send_bytes(SECOND)
-        ws.send_json({"type": "pause", "id": 2})
-        ws.send_json({"type": "end", "id": 2})
-        stt.release.set()
-        messages = until(ws, "final")
-        messages += until(ws, "final")
+    try:
+        with live.client.websocket_connect("/api/translate/live") as ws:
+            start_dialog(ws, live.token)
+            ws.send_json({"type": "utterance", "id": 1})
+            ws.send_bytes(SECOND)
+            ws.send_json({"type": "pause", "id": 1})
+            ws.send_json({"type": "end", "id": 1})
+            assert stt.entered.wait(5)  # 마디 2가 쉴 때 마디 1은 아직 인식 중이다
+            ws.send_json({"type": "utterance", "id": 2})
+            ws.send_bytes(SECOND)
+            ws.send_json({"type": "pause", "id": 2})
+            ws.send_json({"type": "end", "id": 2})
+            stt.release.set()
+            messages = until(ws, "final")
+            messages += until(ws, "final")
+    finally:
+        stt.release.set()  # 중간에 실패해도 모델 스레드를 푼다(HeldFinal 위 주석)
     saved = [(message["id"], message["result"]["source_lang"]) for message in messages]
     assert saved == [(1, "ko"), (2, "en")]
     assert messages[1]["result"]["language_guessed"] is True
@@ -902,6 +919,8 @@ async def test_timings_break_down_a_final_prepared_at_the_pause(live, mode):
     timings = final["timings"]
     assert timings["from"] == "pause" and timings["redone"] is False
     assert isinstance(timings["update_busy"], bool)
+    if mode == "conversation":
+        assert timings["update_busy"] is False  # 대화 모드는 자막 갱신이 없다(docs/api.md)
     assert tuple(timings["stages"]) == STAGES
     previous_end = 0.0
     for name in STAGES:
@@ -949,20 +968,66 @@ async def test_dialog_timings_include_detection_and_mark_a_redone_turn(live):
     stt = Turns([("ko", 1.0), ("ko", 0.55)], hold=True)
     app.dependency_overrides[get_models] = lambda: replace(live.models, stt=stt)
     with_timings()
-    with live.client.websocket_connect("/api/translate/live") as ws:
-        start_dialog(ws, live.token)
-        ws.send_json({"type": "utterance", "id": 1})
-        ws.send_bytes(SECOND)
-        ws.send_json({"type": "pause", "id": 1})
-        assert stt.entered.wait(5)
-        ws.send_json({"type": "end", "id": 1})
-        ws.send_json({"type": "utterance", "id": 2})
-        ws.send_bytes(SECOND)
-        ws.send_json({"type": "pause", "id": 2})
-        ws.send_json({"type": "end", "id": 2})
-        stt.release.set()
-        messages = until(ws, "final")
-        messages += until(ws, "final")
+    try:
+        with live.client.websocket_connect("/api/translate/live") as ws:
+            start_dialog(ws, live.token)
+            ws.send_json({"type": "utterance", "id": 1})
+            ws.send_bytes(SECOND)
+            ws.send_json({"type": "pause", "id": 1})
+            assert stt.entered.wait(5)
+            ws.send_json({"type": "end", "id": 1})
+            ws.send_json({"type": "utterance", "id": 2})
+            ws.send_bytes(SECOND)
+            ws.send_json({"type": "pause", "id": 2})
+            ws.send_json({"type": "end", "id": 2})
+            stt.release.set()
+            messages = until(ws, "final")
+            messages += until(ws, "final")
+    finally:
+        stt.release.set()  # 중간에 실패해도 모델 스레드를 푼다(HeldFinal 위 주석)
     first, second = [message["timings"] for message in messages if message["type"] == "final"]
     assert tuple(first["stages"]) == ("dialog_validate", "detect", *STAGES)
     assert first["redone"] is False and second["redone"] is True
+
+
+# update_busy(진단용 timings): pause가 왔을 때 자막 갱신의 모델 호출(여기서는 인식)이 모델 스레드에서 돌고
+# 있으면 참이고, 최종 처리의 첫 단계(음성 검사)는 그 호출이 끝날 때까지 모델 스레드를 기다린다(wait_ms).
+# 자막 갱신의 인식을 붙잡은 채 pause를 보내 둘을 확인한다. 위 timings 테스트들은 이 값이 bool인지만 봐서, 늘
+# 거짓으로 만드는 변이가 살아남았다. docs/experiments.md 17절의 '갱신 중 pause' 비율과 그런 마디의 첫 대기가
+# 이 값으로 셈한 것이라, 깨지면 같은 도구로 다시 잴 때 틀린 수치가 아무 신호 없이 나온다.
+class HeldUpdate(FakeLiveSpeechToText):
+    """첫 자막 갱신 인식(transcribe_live)을 풀어 줄 때까지 모델 스레드 안에 붙잡는 가짜 인식기."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.entered, self.release = threading.Event(), threading.Event()
+        self.hold = True
+
+    def transcribe_live(self, pcm, language):
+        if self.hold:
+            self.hold = False
+            self.entered.set()
+            assert self.release.wait(5)
+        return super().transcribe_live(pcm, language)
+
+
+async def test_timings_mark_a_pause_that_arrives_during_a_subtitle_update(live):
+    stt = HeldUpdate()
+    app.dependency_overrides[get_models] = lambda: replace(live.models, stt=stt)
+    with_timings()
+    try:
+        with live.client.websocket_connect("/api/translate/live") as ws:
+            start(ws, live.token)
+            ws.send_json({"type": "utterance", "id": 1})
+            ws.send_bytes(SECOND)
+            assert stt.entered.wait(5)  # 자막 갱신의 인식이 모델 스레드 안에 있다
+            ws.send_json({"type": "pause", "id": 1})
+            time.sleep(0.3)  # 그동안 최종 처리의 음성 검사는 모델 스레드가 비길 기다린다
+            ws.send_json({"type": "end", "id": 1})
+            stt.release.set()
+            final = until(ws, "final")[-1]
+    finally:
+        stt.release.set()  # 중간에 실패해도 모델 스레드를 푼다(HeldFinal 위 주석)
+    timings = final["timings"]
+    assert timings["update_busy"] is True
+    assert timings["stages"]["validate"]["wait_ms"] > 100  # 붙잡힌 갱신이 끝나기를 기다렸다

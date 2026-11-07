@@ -269,8 +269,9 @@ class LiveConnection:
     # 받기 루프. 메시지마다 먼저 토큰 만료를 확인해, 연결 중 access 토큰이 만료되면 만료 뒤 첫 메시지에서
     # 4401로 닫는다(화면은 새 토큰으로 다시 연결). 바이너리는 소리, 글은 제어 메시지이고, 계약에 없는 메시지면
     # 4422로 닫는다.
-    # 끝날 때(정상·오류 모두) 진행 중인 마디를 버리고 남은 작업을 취소한 뒤 끝나기를 기다린다. 그래서 연결이
-    # 끊기면 아직 저장하지 않은 결과는 버려진다(docs/api.md).
+    # 끝날 때(정상·오류 모두) 진행 중인 마디를 버리고 남은 작업을 취소한 뒤 끝나기를 기다린다(run() 자신이
+    # 취소된 때는 기다리지 않는다 — 아래 finally의 주석). 그래서 연결이 끊기면 아직 저장하지 않은 결과는
+    # 버려진다(docs/api.md).
     async def run(self) -> None:
         try:
             while True:
@@ -291,12 +292,17 @@ class LiveConnection:
             for task in remaining:
                 task.cancel()
             # 남은 작업이 끝나길 asyncio.wait로 기다린다(작업의 실패·취소는 spawn의 콜백이 꺼내 둔다).
-            # gather와 달리, 기다리는 동안 run() 자신이 취소되면(서버 종료, 테스트 클라이언트가 연결을 닫으며
-            # 앱 작업을 취소함) 남은 작업을 한 번 더 취소하지 않아 이미 시작한 정리(pipeline.save가 쓴 음성
-            # 파일 지우기 등)가 끊기지 않고, 올라가는 취소도 run() 자신의 것이다. gather는 마지막 자식이
-            # 위에서 받은 메시지 없는 CancelledError를 올려, 앱 작업을 감싼 anyio CancelScope(Starlette 테스트
-            # 클라이언트 등)가 그것을 자기 취소로 알아보지 못하고 밖으로 내보냈다(tests/test_live_api.py의 두
-            # 회귀 테스트).
+            # 기다리는 동안 run() 자신이 취소되는 것은 앱 작업을 감싼 anyio CancelScope를 취소하는
+            # 호스트에서다: Starlette 테스트 클라이언트는 웹소켓 블록을 나올 때 close를 보낸 뒤 그 범위를
+            # 취소한다. uvicorn은 보통 종료 때 앱 작업을 취소하지 않고 웹소켓에 끊김(1012)을 넣어 위 받기
+            # 루프가 정상 경로로 끝나며(이 서버는 `--timeout-graceful-shutdown`을 주지 않아 연결이 닫힐 때까지
+            # 기다린다), 강제 종료(두 번째 SIGINT) 때는 asyncio가 남은 작업까지 모두 다시 취소하므로 여기서
+            # 정리를 지켜 줄 수 없다. run()이 취소되면 asyncio.wait는 남은 작업을 기다리지 않고 바로 취소를
+            # 올리고(run()이 바로 끝남), gather와 달리 남은 작업을 한 번 더 취소하지 않는다. 그래서 위에서
+            # 이미 취소를 받은 작업은 스스로 하던 정리(pipeline.save가 쓴 음성 파일 지우기 등)를 이어서
+            # 마치고(이벤트 루프가 닫히면 그때 다시 취소될 수 있다), 올라가는 취소도 run() 자신의 것이다.
+            # gather는 마지막 자식이 위에서 받은 메시지 없는 CancelledError를 올려, 그 anyio 범위가 그것을
+            # 자기 취소로 알아보지 못하고 밖으로 내보냈다(tests/test_live_api.py의 두 회귀 테스트).
             if remaining:
                 await asyncio.wait(remaining)
 
